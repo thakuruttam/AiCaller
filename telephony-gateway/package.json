@@ -1,0 +1,27 @@
+{
+  "name": "telephony-gateway",
+  "version": "1.0.0",
+  "description": "Real-time Twilio WebSocket bridge — handles live calls, VoiceAgent, and Deepgram STT/TTS",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@google-cloud/speech": "^7.3.1",
+    "@google-cloud/text-to-speech": "^6.4.1",
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.7.0",
+    "bullmq": "^5.74.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "ioredis": "^5.6.1",
+    "pg": "^8.20.0",
+    "twilio": "^5.13.1",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "prisma": "^7.7.0"
+  }
+}

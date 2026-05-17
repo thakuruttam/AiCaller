@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CallReport {
+  id             String   @id @default(uuid())
+  callLogId      String   @unique
+  campaignId     String?
+  tenantId       String?
+  contactName    String?
+
+  // Indexed structured columns — fast campaign-level queries
+  outcome        String?  // COMPLETED | WRONG_PERSON | NO_ANSWER | INCOMPLETE
+  failureReason  String?  // wrong_person | hung_up_mid_call | refused | disconnected | no_answer
+  sentiment      String?  // positive | neutral | negative
+  score          Int?     // 0–100 from rule engine
+  reportSummary  String?  // one-sentence LLM summary
+  completionRate Float?   // fraction of expected fields extracted (0.0–1.0)
+
+  // Deep structured data
+  extractedFields Json?   // { experience: { value: 5, confidence: "high", raw: "Five years" } }
+  missingFields   Json?   // ["salary", "noticePeriod"]
+  complianceData  Json?   // script adherence breakdown
+  scoreBreakdown  Json?   // [{ rule, field, awarded }]
+  reportData      Json?   // full assembled report
+
+  // Versioning
+  schemaVersion  String   @default("1.0")
+  modelVersion   String?  // e.g. "llama-3.1-8b-instant"
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  job            ReportJob?
+
+  @@index([campaignId, outcome])
+  @@index([campaignId, score])
+  @@index([campaignId, sentiment])
+  @@index([campaignId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model ReportJob {
+  id               String     @id @default(uuid())
+  callLogId        String     @unique
+  report           CallReport @relation(fields: [callLogId], references: [callLogId])
+
+  // pending | running | done | failed | skipped
+  ingestStatus     String     @default("pending")
+  normalizeStatus  String     @default("pending")
+  extractStatus    String     @default("pending")
+  evaluateStatus   String     @default("pending")
+  complianceStatus String     @default("pending")
+  assembleStatus   String     @default("pending")
+
+  totalAttempts    Int        @default(0)
+  lastError        String?
+  priority         Int        @default(1) // 1=fresh call, 10=reprocess
+
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([extractStatus])
+  @@index([assembleStatus])
+}
+
+model DLQEntry {
+  id         String   @id @default(uuid())
+  callLogId  String
+  stage      String
+  payload    Json
+  error      String
+  stackTrace String?
+  attempts   Int
+  canRetry   Boolean  @default(true)
+  retried    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([callLogId])
+  @@index([stage])
+  @@index([retried])
+}

@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  eval-api:
+    build: .
+    command: node src/server.js
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  eval-workers:
+    build: .
+    command: node src/consumer.js
+    env_file:
+      - .env
+    # Scale workers horizontally by increasing replicas
+    deploy:
+      replicas: 1
+    restart: unless-stopped

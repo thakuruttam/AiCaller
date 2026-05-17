@@ -1,0 +1,31 @@
+{
+  "name": "call-evaluation-service",
+  "version": "1.0.0",
+  "description": "Standalone BullMQ-based call evaluation pipeline service",
+  "type": "module",
+  "main": "src/consumer.js",
+  "scripts": {
+    "start:workers": "node src/consumer.js",
+    "start:api": "node src/server.js",
+    "dev:workers": "node --watch src/consumer.js",
+    "dev:api": "node --watch src/server.js",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@bull-board/api": "^5.21.0",
+    "@bull-board/express": "^5.21.0",
+    "@prisma/client": "^5.14.0",
+    "bullmq": "^5.12.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "ioredis": "^5.10.1",
+    "pino": "^9.2.0",
+    "pino-pretty": "^11.2.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.14.0"
+  }
+}

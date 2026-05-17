@@ -1,0 +1,33 @@
+# Microservices Local Startup Guide
+
+Welcome to the new containerized architecture! All internal Node.js processes, Postgres, Redis, and Asterisk have been unified into a single Docker Compose stack.
+
+We also added an NGINX API Gateway that automatically routes web traffic to the REST API (`api-service`) and WebSocket streams to the Telephony engine (`telephony-gateway`).
+
+## 1. Start the System
+Open your terminal and run:
+```bash
+docker-compose up --build
+```
+*(You can omit `--build` on future runs if you haven't changed any `package.json` dependencies).*
+
+## 2. Start Ngrok
+Since all APIs and WebSockets are now routed through the NGINX API Gateway on port 8080, you only need one Ngrok tunnel:
+```bash
+ngrok http 8080
+```
+
+## 3. Update Environment Variables
+Copy the `https://xyz.ngrok.app` URL provided by Ngrok, and ensure it is updated in your `.env` files (specifically the `DOMAIN` variable so Twilio knows where to send webhooks and streams).
+
+## 4. Run the Frontend (Optional)
+If you need the React frontend, run it locally as before:
+```bash
+npm run dev --prefix frontend
+```
+
+## Stopping the System
+To stop all services and tear down the containers gracefully:
+```bash
+docker-compose down
+```

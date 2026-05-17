@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  members     WorkspaceMember[]
+  campaigns   Campaign[]
+  contacts    Contact[]
+  callModules CallModule[]
+  callLogs    CallLog[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         Role       @default(VIEWER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+
+  workspaces     WorkspaceMember[]
+  refreshTokens  RefreshToken[]
+  campaigns      Campaign[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  userId      String
+  tenantId    String
+  role        Role     @default(VIEWER)
+  createdAt   DateTime @default(now())
+
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CallModule {
+  id              String     @id @default(uuid())
+  name            String
+  prompt          String?
+
+  goal            String?
+  callIntro       String?
+  callSignOff     String?
+  courtesyClose   Boolean   @default(false)
+
+  successCriteria String?
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id])
+  campaigns       Campaign[]
+}
+
+model Campaign {
+  id            String       @id @default(uuid())
+  name          String
+  type          CampaignType @default(HR)
+  dataToCollect Json?
+  endCallIf     String?
+  rules         Json?
+  callSettings  Json?
+
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  callModuleId String
+  callModule   CallModule @relation(fields: [callModuleId], references: [id])
+
+  createdById  String?
+  createdBy    User?      @relation(fields: [createdById], references: [id])
+
+  campaignContacts CampaignContact[]
+  callLogs         CallLog[]
+  createdAt        DateTime          @default(now())
+}
+
+model Contact {
+  id       String @id @default(uuid())
+  name     String
+  phone    String
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  campaignContacts CampaignContact[]
+  callLogs         CallLog[]
+}
+
+model CampaignContact {
+  id         String @id @default(uuid())
+  campaignId String
+  contactId  String
+  overrides  Json?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  contact  Contact  @relation(fields: [contactId], references: [id])
+}
+
+model CallLog {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id])
+  campaignId   String?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id])
+  status       String
+  transcript   String?
+  recordingUrl String?
+  providerRef  String?
+  durationMs   Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum CampaignType {
+  HR
+  RECRUITER
+  SALES
+  LOAN_RECOVERY
+  FEEDBACK
+}
