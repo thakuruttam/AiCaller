@@ -9,7 +9,7 @@ import workspaceRoutes from './routes/workspace.js';
 
 const app = express();
 
-app.use(cors({ origin: '*', credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 import path from 'path';
