@@ -11,7 +11,7 @@ import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenWrapper from '../components/FullscreenWrapper';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'; // Backend API
-const EVAL_BASE = 'http://localhost:4000'; // Evaluation API
+const EVAL_BASE = API_BASE; // Evaluation API (now routed via Nginx monolith)
 
 const SENTIMENT_COLORS = {
   positive: 'bg-green-100 text-green-800 border-green-200',
