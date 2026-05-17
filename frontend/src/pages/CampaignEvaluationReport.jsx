@@ -16,9 +16,10 @@ export default function CampaignEvaluationReport({ campaignId }) {
       try {
         setLoading(true);
         // Call the evaluation service directly
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
         const [resMetrics, resContacts] = await Promise.all([
-          axios.get(`http://localhost:4000/reports/campaign/${campaignId}`),
-          axios.get(`http://localhost:4000/reports/campaign/${campaignId}/contacts?limit=50`)
+          axios.get(`${baseURL}/reports/campaign/${campaignId}`),
+          axios.get(`${baseURL}/reports/campaign/${campaignId}/contacts?limit=50`)
         ]);
         setReport(resMetrics.data);
         setContacts(resContacts.data.contacts || []);
@@ -71,7 +72,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
            <Activity size={18} className="text-primary" /> Evaluation Analytics
          </h3>
          <a 
-           href={`http://localhost:4000/reports/campaign/${campaignId}/export.csv`} 
+           href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/reports/campaign/${campaignId}/export.csv`} 
            download 
            className="text-xs font-medium bg-secondary text-secondary-foreground px-3 py-1.5 rounded hover:bg-secondary/80 transition-colors"
          >

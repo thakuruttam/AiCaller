@@ -6,7 +6,7 @@ import {
   CheckCircle2, XCircle, ShieldCheck, FileText
 } from 'lucide-react';
 
-const EVAL_BASE = 'http://localhost:4000';
+const EVAL_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const SENTIMENT_COLORS = {
   positive: 'bg-green-100 text-green-800 border-green-200',

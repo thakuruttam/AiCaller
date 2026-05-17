@@ -6,7 +6,7 @@ import RoleGate from '../components/RoleGate';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenWrapper from '../components/FullscreenWrapper';
 
-const EVAL_BASE = 'http://localhost:4000';
+const EVAL_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Dashboard = () => {
   const [campaigns, setCampaigns] = useState([]);
