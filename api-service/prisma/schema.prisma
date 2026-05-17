@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -151,4 +152,85 @@ enum CampaignType {
   SALES
   LOAN_RECOVERY
   FEEDBACK
+}
+
+// ==========================================
+// EVALUATION SERVICE MODELS
+// ==========================================
+
+model CallReport {
+  id             String   @id @default(uuid())
+  callLogId      String   @unique
+  campaignId     String?
+  tenantId       String?
+  contactName    String?
+
+  outcome        String?  
+  failureReason  String?  
+  sentiment      String?  
+  score          Int?     
+  reportSummary  String?  
+  completionRate Float?   
+
+  extractedFields Json?   
+  missingFields   Json?   
+  complianceData  Json?   
+  scoreBreakdown  Json?   
+  reportData      Json?   
+
+  schemaVersion  String   @default("1.0")
+  modelVersion   String?  
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  job            ReportJob?
+
+  @@index([campaignId, outcome])
+  @@index([campaignId, score])
+  @@index([campaignId, sentiment])
+  @@index([campaignId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model ReportJob {
+  id               String     @id @default(uuid())
+  callLogId        String     @unique
+  report           CallReport @relation(fields: [callLogId], references: [callLogId])
+
+  ingestStatus     String     @default("pending")
+  normalizeStatus  String     @default("pending")
+  extractStatus    String     @default("pending")
+  evaluateStatus   String     @default("pending")
+  complianceStatus String     @default("pending")
+  assembleStatus   String     @default("pending")
+
+  totalAttempts    Int        @default(0)
+  lastError        String?
+  priority         Int        @default(1) 
+
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([extractStatus])
+  @@index([assembleStatus])
+}
+
+model DLQEntry {
+  id         String   @id @default(uuid())
+  callLogId  String
+  stage      String
+  payload    Json
+  error      String
+  stackTrace String?
+  attempts   Int
+  canRetry   Boolean  @default(true)
+  retried    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([callLogId])
+  @@index([stage])
+  @@index([retried])
 }

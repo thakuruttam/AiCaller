@@ -7,6 +7,157 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  members     WorkspaceMember[]
+  campaigns   Campaign[]
+  contacts    Contact[]
+  callModules CallModule[]
+  callLogs    CallLog[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         Role       @default(VIEWER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+
+  workspaces     WorkspaceMember[]
+  refreshTokens  RefreshToken[]
+  campaigns      Campaign[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  userId      String
+  tenantId    String
+  role        Role     @default(VIEWER)
+  createdAt   DateTime @default(now())
+
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CallModule {
+  id              String     @id @default(uuid())
+  name            String
+  prompt          String?
+
+  goal            String?
+  callIntro       String?
+  callSignOff     String?
+  courtesyClose   Boolean   @default(false)
+
+  successCriteria String?
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id])
+  campaigns       Campaign[]
+}
+
+model Campaign {
+  id            String       @id @default(uuid())
+  name          String
+  type          CampaignType @default(HR)
+  dataToCollect Json?
+  endCallIf     String?
+  rules         Json?
+  callSettings  Json?
+
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  callModuleId String
+  callModule   CallModule @relation(fields: [callModuleId], references: [id])
+
+  createdById  String?
+  createdBy    User?      @relation(fields: [createdById], references: [id])
+
+  campaignContacts CampaignContact[]
+  callLogs         CallLog[]
+  createdAt        DateTime          @default(now())
+}
+
+model Contact {
+  id       String @id @default(uuid())
+  name     String
+  phone    String
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  campaignContacts CampaignContact[]
+  callLogs         CallLog[]
+}
+
+model CampaignContact {
+  id         String @id @default(uuid())
+  campaignId String
+  contactId  String
+  overrides  Json?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  contact  Contact  @relation(fields: [contactId], references: [id])
+}
+
+model CallLog {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id])
+  campaignId   String?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id])
+  status       String
+  transcript   String?
+  recordingUrl String?
+  providerRef  String?
+  durationMs   Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum CampaignType {
+  HR
+  RECRUITER
+  SALES
+  LOAN_RECOVERY
+  FEEDBACK
+}
+
+// ==========================================
+// EVALUATION SERVICE MODELS
+// ==========================================
+
 model CallReport {
   id             String   @id @default(uuid())
   callLogId      String   @unique
@@ -14,24 +165,21 @@ model CallReport {
   tenantId       String?
   contactName    String?
 
-  // Indexed structured columns — fast campaign-level queries
-  outcome        String?  // COMPLETED | WRONG_PERSON | NO_ANSWER | INCOMPLETE
-  failureReason  String?  // wrong_person | hung_up_mid_call | refused | disconnected | no_answer
-  sentiment      String?  // positive | neutral | negative
-  score          Int?     // 0–100 from rule engine
-  reportSummary  String?  // one-sentence LLM summary
-  completionRate Float?   // fraction of expected fields extracted (0.0–1.0)
+  outcome        String?  
+  failureReason  String?  
+  sentiment      String?  
+  score          Int?     
+  reportSummary  String?  
+  completionRate Float?   
 
-  // Deep structured data
-  extractedFields Json?   // { experience: { value: 5, confidence: "high", raw: "Five years" } }
-  missingFields   Json?   // ["salary", "noticePeriod"]
-  complianceData  Json?   // script adherence breakdown
-  scoreBreakdown  Json?   // [{ rule, field, awarded }]
-  reportData      Json?   // full assembled report
+  extractedFields Json?   
+  missingFields   Json?   
+  complianceData  Json?   
+  scoreBreakdown  Json?   
+  reportData      Json?   
 
-  // Versioning
   schemaVersion  String   @default("1.0")
-  modelVersion   String?  // e.g. "llama-3.1-8b-instant"
+  modelVersion   String?  
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -50,7 +198,6 @@ model ReportJob {
   callLogId        String     @unique
   report           CallReport @relation(fields: [callLogId], references: [callLogId])
 
-  // pending | running | done | failed | skipped
   ingestStatus     String     @default("pending")
   normalizeStatus  String     @default("pending")
   extractStatus    String     @default("pending")
@@ -60,7 +207,7 @@ model ReportJob {
 
   totalAttempts    Int        @default(0)
   lastError        String?
-  priority         Int        @default(1) // 1=fresh call, 10=reprocess
+  priority         Int        @default(1) 
 
   startedAt        DateTime?
   completedAt      DateTime?
