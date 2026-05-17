@@ -20,7 +20,8 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const { data } = await axios.post('http://localhost:3000/api/auth/refresh', { refreshToken });
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const { data } = await axios.post(`${baseURL}/api/auth/refresh`, { refreshToken });
         localStorage.setItem('accessToken', data.accessToken);
         setUser(JSON.parse(storedUser));
       } catch {
@@ -37,7 +38,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await axios.post('http://localhost:3000/api/auth/login', { email, password });
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const { data } = await axios.post(`${baseURL}/api/auth/login`, { email, password });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data.user));
@@ -49,7 +51,8 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     try {
-      await axios.post('http://localhost:3000/api/auth/logout', { refreshToken });
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await axios.post(`${baseURL}/api/auth/logout`, { refreshToken });
     } catch {}
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');

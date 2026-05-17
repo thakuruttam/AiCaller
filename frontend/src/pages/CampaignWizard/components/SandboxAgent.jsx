@@ -75,7 +75,8 @@ export default function SandboxAgent({ campaign }) {
     setError(null);
     setMessages([]);
     try {
-      const res = await axios.post('http://localhost:3000/api/sandbox/start', {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const res = await axios.post(`${baseURL}/api/sandbox/start`, {
         campaignId: campaign.id,
         contactName: 'Sandbox Tester'
       });
@@ -93,7 +94,8 @@ export default function SandboxAgent({ campaign }) {
     if (!session) return;
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:3000/api/sandbox/chat', {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const res = await axios.post(`${baseURL}/api/sandbox/chat`, {
         sessionId: session,
         message: text
       });

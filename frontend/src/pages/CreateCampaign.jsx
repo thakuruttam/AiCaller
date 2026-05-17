@@ -30,14 +30,16 @@ const CreateCampaign = () => {
 
     try {
       // Create campaign
-      const campRes = await axios.post('http://localhost:3000/api/campaigns', {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const campRes = await axios.post(`${baseURL}/api/campaigns`, {
         name: campaignName
       });
       
       const campaignId = campRes.data.id;
 
       // Upload contacts
-      await axios.post(`http://localhost:3000/api/campaigns/${campaignId}/contacts`, {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await axios.post(`${baseURL}/api/campaigns/${campaignId}/contacts`, {
         contacts
       });
 
