@@ -1,7 +1,7 @@
-FROM node:20-alpine
+FROM node:20-slim
 
-# Install nginx and pm2
-RUN apk add --no-cache nginx
+# Install nginx and openssl (required for Prisma), then clean up
+RUN apt-get update && apt-get install -y nginx openssl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pm2
 
 WORKDIR /app
@@ -16,7 +16,7 @@ RUN cd api-service && npm install --production && npx prisma generate
 RUN cd telephony-gateway && npm install --production && npx prisma generate
 
 # Setup call-worker
-RUN cd call-worker && npm install --production
+RUN cd call-worker && npm install --production && npx prisma generate
 
 # Setup call-evaluation-service
 RUN cd call-evaluation-service && npm install --production && npx prisma generate
@@ -26,4 +26,4 @@ COPY nginx-monolith.conf /etc/nginx/nginx.conf
 
 # Start Nginx and PM2 (which runs all 5 Node processes)
 EXPOSE 8080
-CMD nginx && pm2-runtime start ecosystem.config.js
+CMD service nginx start && pm2-runtime start ecosystem.config.js
