@@ -221,10 +221,10 @@ export default function CampaignReport() {
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
             <TrendingUp size={12} className="text-green-400" /> Avg Score
           </div>
-          <div className="text-2xl font-bold tracking-tight text-green-600">{metrics.score?.avg ?? '—'}</div>
+          <div className="text-2xl font-bold tracking-tight text-green-600">{metrics.score?.avg ?? '-'}</div>
           <div className="text-[10px] text-muted-foreground mt-1 flex gap-2">
-            <span>High: <strong className="text-foreground">{metrics.score?.max ?? '—'}</strong></span>
-            <span>Low: <strong className="text-foreground">{metrics.score?.min ?? '—'}</strong></span>
+            <span>High: <strong className="text-foreground">{metrics.score?.max ?? '-'}</strong></span>
+            <span>Low: <strong className="text-foreground">{metrics.score?.min ?? '-'}</strong></span>
           </div>
         </div>
 
@@ -334,7 +334,7 @@ export default function CampaignReport() {
                               {typeof val === 'object' ? JSON.stringify(val) : String(val)}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground italic text-xs">—</span>
+                            <span className="text-muted-foreground italic text-xs">-</span>
                           )}
                         </td>
                       );
@@ -370,12 +370,12 @@ export default function CampaignReport() {
                   </td>
                   <td className="px-6 py-3">
                     <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase ${SENTIMENT_COLORS[c.sentiment] || SENTIMENT_COLORS.neutral}`}>
-                      {c.sentiment || '—'}
+                      {c.sentiment || '-'}
                     </span>
                   </td>
-                  <td className="px-6 py-3 font-bold">{c.score ?? '—'}</td>
+                  <td className="px-6 py-3 font-bold">{c.score ?? '-'}</td>
                   <td className="px-6 py-3 text-xs text-muted-foreground max-w-[300px] truncate" title={c.reportSummary}>
-                    {c.reportSummary || '—'}
+                    {c.reportSummary || '-'}
                   </td>
                   <td className="px-6 py-3 text-right">
                     <Link

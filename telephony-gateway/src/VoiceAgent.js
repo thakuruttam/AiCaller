@@ -60,6 +60,7 @@ export class VoiceAgent {
     const v = (conditionValue || '').toLowerCase().trim();
     switch (condition) {
       case 'contains':      return a.includes(v);
+      case 'does not contain': return !a.includes(v);
       case 'equals':        return a === v;
       case 'starts with':   return a.startsWith(v);
       case 'ends with':     return a.endsWith(v);

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 export const CONDITIONS = [
-  'contains', 'equals', 'starts with', 'ends with',
+  'contains', 'does not contain', 'equals', 'starts with', 'ends with',
   'is greater than', 'is less than', 'is any value'
 ];
 

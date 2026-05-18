@@ -337,6 +337,7 @@ export default function Step4Rules({ payload, updatePayload }) {
                     >
                       <option value="equals">Equals</option>
                       <option value="contains">Contains</option>
+                      <option value="does not contain">Does not contain</option>
                       <option value="greater than">Greater than</option>
                       <option value="less than">Less than</option>
                       <option value="is set">Is set</option>
@@ -540,6 +541,7 @@ export default function Step4Rules({ payload, updatePayload }) {
                         >
                           <option value="equals">Equals</option>
                           <option value="contains">Contains</option>
+                          <option value="does not contain">Does not contain</option>
                           <option value="greater than">Greater than</option>
                           <option value="less than">Less than</option>
                           <option value="is set">Is set</option>

@@ -13,8 +13,8 @@ const CAMPAIGN_TYPES = [
 export default function Step1Basics({ payload, updatePayload }) {
   const { user } = useAuth();
 
-  const workspaceName = user?.workspace?.name  || user?.workspaceName || '—';
-  const creatorName   = user?.name             || '—';
+  const workspaceName = user?.workspace?.name  || user?.workspaceName || '-';
+  const creatorName   = user?.name             || '-';
 
   const ReadOnlyField = ({ icon: Icon, label, value }) => (
     <div className="flex flex-col gap-1.5">

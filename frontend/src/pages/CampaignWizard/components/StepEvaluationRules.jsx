@@ -197,6 +197,7 @@ export default function StepEvaluationRules({ payload, updatePayload }) {
                     >
                       <option value="equals">Equals</option>
                       <option value="contains">Contains</option>
+                      <option value="does not contain">Does Not Contain</option>
                       <option value="gt">Greater Than</option>
                       <option value="gte">Greater or Equal</option>
                       <option value="lt">Less Than</option>

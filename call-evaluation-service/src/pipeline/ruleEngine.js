@@ -54,13 +54,24 @@ function checkCondition(fieldVal, condition, ruleVal) {
   const n = parseFloat(fieldVal);
   const r = parseFloat(ruleVal);
   switch (condition) {
-    case 'gte':        return !isNaN(n) && n >= r;
-    case 'lte':        return !isNaN(n) && n <= r;
-    case 'gt':         return !isNaN(n) && n > r;
-    case 'lt':         return !isNaN(n) && n < r;
-    case 'eq':         return String(fieldVal) === String(ruleVal);
-    case 'neq':        return String(fieldVal) !== String(ruleVal);
-    case 'is_any':     return fieldVal != null && String(fieldVal).trim().length > 0;
-    default:           return false;
+    case 'gte':
+    case 'greater or equal': return !isNaN(n) && n >= r;
+    case 'lte':
+    case 'less or equal':    return !isNaN(n) && n <= r;
+    case 'gt':
+    case 'greater than':    return !isNaN(n) && n > r;
+    case 'lt':
+    case 'less than':       return !isNaN(n) && n < r;
+    case 'eq':
+    case 'equals':          return String(fieldVal) === String(ruleVal);
+    case 'neq':
+    case 'not equals':      return String(fieldVal) !== String(ruleVal);
+    case 'is_any':          return fieldVal != null && String(fieldVal).trim().length > 0;
+    case 'contains':        return String(fieldVal).toLowerCase().includes(String(ruleVal).toLowerCase());
+    case 'does_not_contain':
+    case 'does not contain': return !String(fieldVal).toLowerCase().includes(String(ruleVal).toLowerCase());
+    case 'is_true':         return fieldVal === true || String(fieldVal).toLowerCase() === 'true';
+    case 'is_false':        return fieldVal === false || String(fieldVal).toLowerCase() === 'false';
+    default:                return false;
   }
 }

@@ -28,7 +28,7 @@ function ReviewField({ label, value, icon: Icon }) {
         {Icon && <Icon size={12} />}
         {label}
       </div>
-      <div className="text-sm font-medium">{value || '—'}</div>
+      <div className="text-sm font-medium">{value || '-'}</div>
     </div>
   );
 }

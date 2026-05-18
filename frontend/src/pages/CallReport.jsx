@@ -104,7 +104,7 @@ export default function CallReport() {
         <div className="rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Sentiment</div>
           <span className={`inline-flex px-3 py-1 rounded-lg border text-xs font-bold uppercase ${SENTIMENT_COLORS[report.sentiment] || SENTIMENT_COLORS.neutral}`}>
-            {report.sentiment || '—'}
+            {report.sentiment || '-'}
           </span>
         </div>
 
@@ -112,14 +112,14 @@ export default function CallReport() {
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
             <TrendingUp size={12} className="text-green-500" /> Score
           </div>
-          <div className="text-2xl font-bold tracking-tight">{report.score ?? '—'}<span className="text-sm font-normal text-muted-foreground">/100</span></div>
+          <div className="text-2xl font-bold tracking-tight">{report.score ?? '-'}<span className="text-sm font-normal text-muted-foreground">/100</span></div>
         </div>
 
         <div className="rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
             <Target size={12} className="text-blue-500" /> Completion
           </div>
-          <div className="text-2xl font-bold tracking-tight text-blue-600">{completionPercent != null ? `${completionPercent}%` : '—'}</div>
+          <div className="text-2xl font-bold tracking-tight text-blue-600">{completionPercent != null ? `${completionPercent}%` : '-'}</div>
         </div>
       </div>
 
@@ -170,11 +170,11 @@ export default function CallReport() {
                         val?.confidence === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                         'bg-zinc-50 text-zinc-600 border-zinc-200'
                       }`}>
-                        {val?.confidence || '—'}
+                        {val?.confidence || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-xs text-muted-foreground italic max-w-[200px] truncate" title={val?.raw}>
-                      {val?.raw || '—'}
+                      {val?.raw || '-'}
                     </td>
                   </tr>
                 ))}
@@ -258,11 +258,11 @@ export default function CallReport() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground uppercase font-semibold">Script Adherence</span>
-              <span className="text-sm font-bold">{compliance.scriptAdherenceScore ?? '—'}%</span>
+              <span className="text-sm font-bold">{compliance.scriptAdherenceScore ?? '-'}%</span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground uppercase font-semibold">Question Coverage</span>
-              <span className="text-sm font-bold">{compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '—'}</span>
+              <span className="text-sm font-bold">{compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '-'}</span>
             </div>
           </div>
           {compliance.questionsAsked?.length > 0 && (
@@ -279,7 +279,7 @@ export default function CallReport() {
       )}
 
       <div className="text-xs text-muted-foreground text-center pb-4">
-        Model: {report.modelVersion || '—'} · Schema: {report.schemaVersion || '—'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '—'}
+        Model: {report.modelVersion || '-'} · Schema: {report.schemaVersion || '-'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '-'}
       </div>
     </div>
   );
