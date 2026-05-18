@@ -5,6 +5,7 @@ import {
   User, Plus
 } from 'lucide-react';
 import QuestionCard, { emptyItem } from './QuestionCard';
+import { useToast } from '../../../context/ToastContext';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function wordCount(t) { return t?.trim().split(/\s+/).filter(Boolean).length || 0; }
@@ -77,6 +78,7 @@ function CallDesignModal({ contact, campaignGoals, onSave, onClose }) {
 
 // ── Setup Questions Modal ─────────────────────────────────────────────────────
 function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
+  const { addToast } = useToast();
   const base = contact.overrides?.dataToCollect ?? campaignQuestions.map(q => ({ ...q }));
   const [local, setLocal] = useState(base.map(q => ({ ...q })));
   
@@ -122,6 +124,7 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
     });
 
     setLocal(validated.map((i, idx) => ({ ...i, order: idx + 1 })));
+    addToast("Question sequence updated successfully!", "success");
     dragFrom.current = null;
     setDragOver(null);
   };

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Plus, MessageSquare, AlertCircle } from 'lucide-react';
 import QuestionCard, { emptyItem, uid } from './QuestionCard';
+import { useToast } from '../../../context/ToastContext';
 
 function WordLimitTextarea({ value, onChange, limit, placeholder, className = '', rows = 2 }) {
   const count = value?.trim().split(/\s+/).filter(Boolean).length || 0;
@@ -23,6 +24,7 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
 }
 
 export default function Step3DataToCollect({ payload, updatePayload }) {
+  const { addToast } = useToast();
   const items      = payload.dataToCollect || [];
   const endCallIf  = payload.endCallIf || '';
 
@@ -79,6 +81,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
     });
 
     setItems(validated.map((i, idx) => ({ ...i, order: idx + 1 })));
+    addToast("Question sequence updated successfully!", "success");
     dragFrom.current = null;
     setDragOver(null);
   };
