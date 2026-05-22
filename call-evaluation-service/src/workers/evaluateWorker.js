@@ -1,14 +1,28 @@
-// src/workers/evaluateWorker.js  (Stage 3 — rule engine)
+// src/workers/evaluateWorker.js  (Stage 3 — per-question scoring, no ruleEngine)
 import { Worker }      from 'bullmq';
 import { config }      from '../config.js';
 import { logger }      from '../logger.js';
 import { prisma }      from '../db.js';
 import { QUEUES, dlqQueue } from '../queues/index.js';
-import { evaluate }    from '../pipeline/ruleEngine.js';
+
+/**
+ * Final call score — produced by deterministic scorer in extract stage.
+ */
+function computeScore(extracted) {
+  const breakdown = extracted?.breakdown ?? [];
+  const total = (extracted?.questionResults ?? []).reduce(
+    (sum, qr) => sum + (qr.questionScore ?? 0),
+    0
+  );
+  return {
+    score: extracted?.score ?? Math.round(Math.min(100, Math.max(0, total))),
+    breakdown,
+  };
+}
 
 export function startEvaluateWorker() {
   const worker = new Worker(QUEUES.EVALUATE, async (job) => {
-    const { callLogId, scoringRules = [] } = job.data;
+    const { callLogId } = job.data;
     const childValues = await job.getChildrenValues();
     const flowState = Object.values(childValues)[0] || {};
     const extracted = flowState.extracted;
@@ -22,7 +36,7 @@ export function startEvaluateWorker() {
 
     await prisma.reportJob.update({ where: { callLogId }, data: { [STAGE]: 'running' } });
 
-    const result = evaluate(extracted?.extractedFields ?? {}, scoringRules);
+    const result = computeScore(extracted);
     flowState.evaluated = result;
 
     await prisma.reportJob.update({

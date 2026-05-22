@@ -17,7 +17,7 @@ const FAILURE_MAP = [
 export async function assemble(jobData, stageOutputs) {
   const {
     callLogId, campaignId, tenantId, contactName,
-    campaignName, fieldsToExtract = [], reportWebhook
+    campaignName, dataToCollect = [], reportWebhook
   } = jobData;
 
   const { normalised, extracted, evaluated, compliance } = stageOutputs;
@@ -44,14 +44,13 @@ export async function assemble(jobData, stageOutputs) {
     failureReason = 'no_answer';
   }
 
-  // ── Completion rate ────────────────────────────────────────────────
-  const expectedCount  = fieldsToExtract.length;
-  const extractedCount = expectedCount > 0
-    ? Object.values(extracted?.extractedFields ?? {}).filter(f => f?.value != null).length
-    : 0;
-  const completionRate = expectedCount > 0 ? extractedCount / expectedCount : null;
+  // ── Completion rate — based on questions answered ─────────────────
+  const questions = dataToCollect.filter(q => q.itemType === 'question');
+  const answeredCount = (extracted?.questionResults ?? [])
+    .filter(qr => qr.answerExtracted != null).length;
+  const completionRate = questions.length > 0 ? answeredCount / questions.length : null;
 
-  // ── Summary + sentiment (now from Stage 2) ────────────────────────
+  // ── Summary + sentiment ───────────────────────────────────────────
   const reportSummary = extracted?.summary   || null;
   const sentiment     = extracted?.sentiment || 'neutral';
 
@@ -66,10 +65,11 @@ export async function assemble(jobData, stageOutputs) {
     outcome,
     failureReason,
     sentiment,
-    score:          evaluated?.score    ?? null,
-    scoreBreakdown: evaluated?.breakdown ?? [],
+    score:           evaluated?.score    ?? null,
+    scoreBreakdown:  evaluated?.breakdown ?? [],
     completionRate,
     reportSummary,
+    questionResults: extracted?.questionResults ?? [],
     extractedFields: extracted?.extractedFields ?? {},
     missingFields:   extracted?.missingFields   ?? [],
     complianceData:  compliance ?? {}

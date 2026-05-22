@@ -64,7 +64,6 @@ export const createWizardCampaign = async (req, res) => {
         goal:          goals?.goal          || null,
         callIntro:     goals?.callIntro     || null,
         callSignOff:   goals?.callSignOff   || null,
-        courtesyClose: goals?.courtesyClose ?? false,
         tenantId
       }
     });
@@ -157,7 +156,6 @@ export const updateWizardCampaign = async (req, res) => {
         goal:          goals?.goal          || null,
         callIntro:     goals?.callIntro     || null,
         callSignOff:   goals?.callSignOff   || null,
-        courtesyClose: goals?.courtesyClose ?? false,
       }
     });
 
@@ -507,9 +505,6 @@ export const reevaluateCall = async (req, res) => {
       transcript:       callLog.transcript || null,
       campaignName:     campaign.name,
       dataToCollect:    campaign.dataToCollect ?? [],
-      fieldsToExtract:  campaign.rules?.fieldsToExtract  ?? [],
-      scoringRules:     campaign.rules?.scoringRules     ?? [],
-      successConditions:campaign.rules?.successConditions ?? [],
       reportWebhook:    campaign.callSettings?.reportWebhook ?? null
     }, 10); // priority 10 = manual re-evaluate
 

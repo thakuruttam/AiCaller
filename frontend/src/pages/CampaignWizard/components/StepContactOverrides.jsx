@@ -53,17 +53,7 @@ function CallDesignModal({ contact, campaignGoals, onSave, onClose }) {
             <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><PhoneOff size={12}/> Call Sign-off <span className="font-normal">(max 300 words)</span></label>
             <WordLimitTextarea value={local.callSignOff} onChange={v => set('callSignOff', v)} limit={300} placeholder="Custom closing script for this contact…" rows={3} />
           </div>
-          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
-            <div>
-              <p className="text-xs font-semibold">Courtesy Close</p>
-              <p className="text-xs text-muted-foreground">Ask "Anything else?" before sign-off</p>
-            </div>
-            <button type="button" role="switch" aria-checked={local.courtesyClose}
-              onClick={() => set('courtesyClose', !local.courtesyClose)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${local.courtesyClose ? 'bg-primary' : 'bg-input'}`}>
-              <span className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${local.courtesyClose ? 'translate-x-4' : 'translate-x-0'}`} />
-            </button>
-          </div>
+
         </div>
 
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border sticky bottom-0 bg-background">

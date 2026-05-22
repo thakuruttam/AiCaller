@@ -8,7 +8,7 @@ import { extract }     from '../pipeline/extractor.js';
 
 export function startExtractWorker() {
   const worker = new Worker(QUEUES.EXTRACT, async (job) => {
-    const { callLogId, fieldsToExtract = [] } = job.data;
+    const { callLogId, dataToCollect = [] } = job.data;
     const childValues = await job.getChildrenValues();
     const flowState = Object.values(childValues)[0] || {};
     const normalised = flowState.normalised;
@@ -22,7 +22,7 @@ export function startExtractWorker() {
 
     await prisma.reportJob.update({ where: { callLogId }, data: { [STAGE]: 'running' } });
 
-    const result = await extract(normalised?.turns ?? [], fieldsToExtract);
+    const result = await extract(normalised?.turns ?? [], dataToCollect);
     flowState.extracted = result;
 
     await prisma.reportJob.update({
@@ -32,6 +32,7 @@ export function startExtractWorker() {
 
     logger.info({
       callLogId,
+      questionResults: result.questionResults?.length ?? 0,
       fieldsExtracted: Object.keys(result.extractedFields).filter(k => result.extractedFields[k]?.value != null),
       missing: result.missingFields
     }, '[Extract] Done');

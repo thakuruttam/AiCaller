@@ -2,12 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import Step1Basics from './components/Step1Basics';
-import Step2Goal from './components/Step2Goal';
 import Step5Contacts from './components/Step5Contacts';
 import Step3DataToCollect from './components/Step3DataToCollect';
-import Step4Rules from './components/Step4Rules';
-import StepEvaluationRules from './components/StepEvaluationRules';
-import Step6CallSettings from './components/Step6CallSettings';
 import StepContactOverrides from './components/StepContactOverrides';
 import Step7Review from './components/Step7Review';
 import { useToast } from '../../context/ToastContext';
@@ -21,8 +17,7 @@ const initialPayload = {
   goals: {
     goal: '',
     callIntro: '',
-    callSignOff: '',
-    courtesyClose: false
+    callSignOff: ''
   },
   dataToCollect: [],
   endCallIf: '',
@@ -40,7 +35,7 @@ const initialPayload = {
   },
   contacts: []
 };
-const steps = ["Basics", "Call Design", "Contacts", "Setup Questions", "Flow Rules", "Evaluation Rules", "Settings", "Per-Contact", "Review"];
+const steps = ["Basics", "Contacts", "Setup Questions", "Per-Contact", "Review"];
 export default function CampaignWizard() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -65,14 +60,16 @@ export default function CampaignWizard() {
         name: c.name || '',
         type: c.type || '',
         endCallIf: c.endCallIf || '',
-        dataToCollect: c.dataToCollect || [],
+        dataToCollect: (c.dataToCollect || []).map(q => ({
+          ...q,
+          isWeightManuallySet: q.isWeightManuallySet ?? true
+        })),
         rules: c.rules || initialPayload.rules,
         callSettings: c.callSettings || initialPayload.callSettings,
         goals: {
           goal: c.callModule?.goal || '',
           callIntro: c.callModule?.callIntro || '',
-          callSignOff: c.callModule?.callSignOff || '',
-          courtesyClose: c.callModule?.courtesyClose || false
+          callSignOff: c.callModule?.callSignOff || ''
         },
         contacts: (c.campaignContacts || []).map(cc => ({
           name: cc.overrides?.name || cc.contact?.name || '',
@@ -91,7 +88,7 @@ export default function CampaignWizard() {
   };
 
   const updatePayload = (data) => setPayload(p => ({ ...p, ...data }));
-  const nextStep = () => setStep(s => Math.min(s + 1, 9));
+  const nextStep = () => setStep(s => Math.min(s + 1, 5));
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   const handleLaunch = async () => {
@@ -115,14 +112,10 @@ export default function CampaignWizard() {
   const renderStep = () => {
     switch (step) {
       case 1: return <Step1Basics payload={payload} updatePayload={updatePayload} />;
-      case 2: return <Step2Goal payload={payload} updatePayload={updatePayload} />;
-      case 3: return <Step5Contacts payload={payload} updatePayload={updatePayload} />;
-      case 4: return <Step3DataToCollect payload={payload} updatePayload={updatePayload} />;
-      case 5: return <Step4Rules payload={payload} updatePayload={updatePayload} />;
-      case 6: return <StepEvaluationRules payload={payload} updatePayload={updatePayload} />;
-      case 7: return <Step6CallSettings payload={payload} updatePayload={updatePayload} />;
-      case 8: return <StepContactOverrides payload={payload} updatePayload={updatePayload} />;
-      case 9: return <Step7Review payload={payload} updatePayload={updatePayload} onLaunch={handleLaunch} />;
+      case 2: return <Step5Contacts payload={payload} updatePayload={updatePayload} />;
+      case 3: return <Step3DataToCollect payload={payload} updatePayload={updatePayload} />;
+      case 4: return <StepContactOverrides payload={payload} updatePayload={updatePayload} />;
+      case 5: return <Step7Review payload={payload} updatePayload={updatePayload} onLaunch={handleLaunch} />;
       default: return null;
     }
   };
@@ -155,12 +148,12 @@ export default function CampaignWizard() {
              Back
           </button>
           
-          {step < 9 && (
+          {step < 5 && (
             <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" onClick={nextStep}>
               Next Step
             </button>
           )}
-          {step === 9 && (
+          {step === 5 && (
             <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" onClick={handleLaunch}>
               Launch Campaign 🚀
             </button>

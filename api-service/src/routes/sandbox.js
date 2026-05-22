@@ -25,7 +25,6 @@ router.post('/start', async (req, res) => {
             goal: true,
             callIntro: true,
             callSignOff: true,
-            courtesyClose: true,
             successCriteria: true
           }
         }
@@ -45,7 +44,6 @@ router.post('/start', async (req, res) => {
       goal: campaign.callModule?.goal,
       callIntro: campaign.callModule?.callIntro,
       callSignOff: campaign.callModule?.callSignOff,
-      courtesyClose: campaign.callModule?.courtesyClose,
       dataToCollect: campaign.dataToCollect,
       endCallIf: campaign.endCallIf,
       successCriteria: campaign.callModule?.successCriteria

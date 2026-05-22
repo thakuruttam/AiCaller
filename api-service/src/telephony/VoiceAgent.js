@@ -3,6 +3,7 @@ export class VoiceAgent {
     this.config = config;
     this.name = config.name || "AI Assistant";
     this.contactName = config.contactName || "the person";
+    this.language = config.language || 'English'; // 'English', 'Hindi', 'Hinglish'
 
     // ── State machine ──────────────────────────────────────────────
     this.items = config.dataToCollect || [];   // full ordered list
@@ -11,11 +12,13 @@ export class VoiceAgent {
     this.shouldHangUp = false;                 // set to true when HANGUP_NOW is emitted
     this.awaitingIdentityConfirm = true;       // true until user confirms they are the intended contact
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
+    this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
     console.log("--------------------------------------------------");
     console.log(`[VoiceAgent] Initializing: ${this.name}`);
     console.log(`[VoiceAgent] Target Contact: ${this.contactName}`);
     console.log(`[VoiceAgent] Goal: ${config.goal}`);
+    console.log(`[VoiceAgent] Language: ${this.language}`);
     console.log(`[VoiceAgent] Questions: ${this.items.length}`);
     console.log("--------------------------------------------------");
 
@@ -72,11 +75,40 @@ export class VoiceAgent {
   // ─────────────────────────────────────────────────────────────────
   // System prompt  (lean – no navigation instructions)
   // ─────────────────────────────────────────────────────────────────
+  /** Build a language instruction block to inject into the system prompt. */
+  _languageInstruction() {
+    switch (this.language) {
+      case 'Hindi':
+        return `
+### LANGUAGE
+आप **केवल हिंदी** में बात करें। सभी जवाब Devanagari script में दें। कोई भी English word use न करें।`;
+
+      case 'Hinglish':
+        return `
+### LANGUAGE
+Speak in **Hinglish** — the natural mix of Hindi and English that urban Indians use in everyday conversation.
+Rules:
+- Use English words for technical/professional terms (loan, EMI, account, payment, date).
+- Use Hindi words for conversational connectors and softeners (aap, kya, haan, theek hai, batayein, please).
+- Do NOT use Devanagari script — write Hindi words in Roman transliteration (e.g. "Kya aap bata sakte hain" not "क्या आप बता सकते हैं").
+- Keep a warm, friendly tone — like a helpful bank relationship manager.
+- Example: "Haan, bilkul. Aap ka loan account number kya hai?"`;
+
+      case 'Spanish':
+        return `
+### LANGUAGE
+Responde **únicamente en español**. No uses inglés.`;
+
+      default: // English
+        return ''; // no extra instruction needed
+    }
+  }
+
   generateSystemPrompt() {
-    const { goal, callSignOff, courtesyClose, endCallIf, successCriteria } = this.config;
+    const { goal, callSignOff, endCallIf, successCriteria } = this.config;
 
     return `You are a professional, human-like AI Voice Agent on a phone call with ${this.contactName}.
-
+${this._languageInstruction()}
 ### YOUR GOAL
 ${goal || 'Conduct a professional conversation and gather requested information.'}
 
@@ -102,15 +134,101 @@ If at any point during the call the user states they are busy, not interested, a
 If the user says they cannot hear you, asks you to repeat yourself, or clearly does not understand the question, repeat the EXACT same question or information verbatim. Do not rephrase it.
 
 ### CALL CLOSURE
-When the system tells you the call is complete:
-${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if there is anything else.'}
-2. Say this exact sign-off: "${callSignOff || 'Thank you for your time. Goodbye.'}"
-3. Immediately append HANGUP_NOW at the very end — no space, no extra words.
+When instructed to say the sign-off, you must say the exact sign-off and immediately append the exact phrase HANGUP_NOW at the very end.
 
 ### STYLE
 - Plain text only. No markdown, no bullet points, no emojis.
 - Keep responses extremely brief.
 - Success criteria: ${successCriteria || 'Gather all required data points professionally.'}`;
+  }
+
+  _buildNextDirective() {
+    const item = this.currentItem();
+
+    if (!item || this.currentIndex >= this.items.length) {
+      if (!this.done) {
+        this.done = true;
+        return {
+          directive: `(System: Proceed to CALL CLOSURE now. Say this exact sign-off "${this.config.callSignOff || 'Thank you for your time. Goodbye.'}" and immediately append HANGUP_NOW.)`,
+          expectsUserReply: false
+        };
+      }
+      return { directive: '', expectsUserReply: false };
+    }
+
+    const itemType = item.itemType || 'question';
+
+    if (itemType === 'information') {
+      const infoText = item.text;
+      this.advanceTo();
+
+      const nextItem = this.currentItem();
+      if (!nextItem || this.currentIndex >= this.items.length) {
+        this.done = true;
+        return {
+          directive: `(System: State this information to the user verbatim: "${infoText}". After stating it, immediately proceed to CALL CLOSURE — do not wait for a reply.)`,
+          expectsUserReply: false
+        };
+      }
+
+      const nextType = nextItem.itemType || 'question';
+      if (nextType === 'information') {
+        this.advanceTo();
+        const itemAfterChain = this.currentItem();
+        if (!itemAfterChain || this.currentIndex >= this.items.length) {
+          this.done = true;
+          return {
+            directive: `(System: State this information verbatim: "${infoText}". Do not wait for a reply. Immediately after, state this information verbatim: "${nextItem.text}". Do not wait for a reply. Then proceed to CALL CLOSURE: Say the sign-off "${this.config.callSignOff || 'Thank you for your time. Goodbye.'}" and append HANGUP_NOW.)`,
+            expectsUserReply: false
+          };
+        }
+        if ((itemAfterChain.itemType || 'question') === 'information') {
+          return {
+            directive: `(System: State this information verbatim: "${infoText}". Do not wait for a reply. Immediately after, state this information verbatim: "${nextItem.text}". Do not wait for a reply after that either.)`,
+            expectsUserReply: false
+          };
+        }
+        this.advanceTo();
+        return {
+          directive: `(System: State this information verbatim: "${infoText}". Do not wait for a reply. Immediately after, state this information verbatim: "${nextItem.text}". Do not wait for a reply. Then immediately ask this question verbatim: "${itemAfterChain.text}".)`,
+          expectsUserReply: true
+        };
+      }
+
+      this.advanceTo();
+      return {
+        directive: `(System: State this information to the user verbatim: "${infoText}". Do not wait for a reply. Immediately after, ask this question verbatim: "${nextItem.text}".)`,
+        expectsUserReply: true
+      };
+    }
+
+    const mandatory = item.is_mandatory
+      ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim without changing any words.'
+      : '';
+    this.advanceTo();
+    return {
+      directive: `(System: Ask the user this exact question, word for word, with no changes: "${item.text}".${mandatory} Do NOT rephrase it. Do NOT add any other question or sentence.)`,
+      expectsUserReply: true
+    };
+  }
+
+  async continueWithoutUser() {
+    if (this.done) return '';
+
+    const { directive, expectsUserReply } = this._buildNextDirective();
+    this.expectsUserReply = expectsUserReply;
+    if (!directive) return '';
+
+    this.chatHistory.push({ role: 'user', content: directive });
+    try {
+      if (!process.env.GROQ_API_KEY) {
+        return 'Please add GROQ_API_KEY to your backend .env file to use the cloud Llama 3 API.';
+      }
+      return await this._callLLM();
+    } catch (e) {
+      console.error('[VoiceAgent] Error on continueWithoutUser:', e);
+      return "I'm sorry, I'm having trouble processing that right now. HANGUP_NOW";
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -130,6 +248,7 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
         // Hang up immediately — no LLM call, guaranteed clean output
         this.shouldHangUp = true;
         this.done = true;
+        this.expectsUserReply = false;
         const apology = "I apologize for the confusion. Have a great day.";
         this.chatHistory.push({ role: 'user', content: userInput });
         this.chatHistory.push({ role: 'assistant', content: apology });
@@ -140,6 +259,7 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
       // If they ask a clarification question (e.g., "Who is this?", "What is this about?"), handle it without advancing the state
       if (userLower.includes('who') || userLower.includes('what') || userLower.includes('why')) {
         const clarifyDirective = `(System: The user asked a clarification question. Answer them briefly based on your system prompt, and then ask: "Am I speaking with ${this.contactName}?" again.)`;
+        this.expectsUserReply = true;
         const fullInput = `${userInput}\n${clarifyDirective}`;
         this.chatHistory.push({ role: 'user', content: fullInput });
         return await this._callLLM();
@@ -152,13 +272,15 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
         const mandatory = firstQuestion.is_mandatory ? ' This question is MANDATORY.' : '';
         const confirmDirective = `(System: The user confirmed they are ${this.contactName}. Acknowledge briefly and immediately ask this question verbatim: "${firstQuestion.text}".${mandatory})`;
         this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
+        this.expectsUserReply = true;
         const fullInput = `${userInput}\n${confirmDirective}`;
         this.chatHistory.push({ role: 'user', content: fullInput });
         return await this._callLLM();
       } else {
         // No questions configured — go straight to closure
         this.done = true;
-        const confirmDirective = `(System: The user confirmed they are ${this.contactName}. Proceed to CALL CLOSURE now.)`;
+        this.expectsUserReply = false;
+        const confirmDirective = `(System: The user confirmed they are ${this.contactName}. Proceed to CALL CLOSURE: Say the exact sign-off "${this.config.callSignOff || 'Thank you for your time. Goodbye.'}" and append HANGUP_NOW.)`;
         this.chatHistory.push({ role: 'user', content: confirmDirective });
         return await this._callLLM();
       }
@@ -183,6 +305,7 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
         if (isNegative) {
           this.shouldHangUp = true;
           this.done = true;
+          this.expectsUserReply = false;
           const refusalApology = "I apologize for the interruption. Have a great day.";
           this.chatHistory.push({ role: 'user', content: userInput });
           this.chatHistory.push({ role: 'assistant', content: refusalApology });
@@ -206,6 +329,7 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
           if (this.confusionRetries < maxRetries) {
             this.confusionRetries += 1;
             const repeatDirective = `(System: The user did not understand or could not hear you. Apologize briefly and repeat this exact previous text verbatim: "${prevItem.text}")`;
+            this.expectsUserReply = true;
             const fullInput = `${userInput}\n${repeatDirective}`;
             this.chatHistory.push({ role: 'user', content: fullInput });
             return await this._callLLM();
@@ -241,52 +365,14 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
     }
 
     // ── 2. Build the directive for the LLM ────────────────────────
-    // System messages (e.g. the initial greeting) pass straight through —
-    // they must NOT touch the state machine pointer.
     let directive = '';
 
-    if (!isSystemMsg) {
-      const item = this.currentItem();
-
-      if (!item || this.currentIndex >= this.items.length) {
-        // All items done → closure
-        this.done = true;
-        directive = '(System: You have completed all items. Proceed to CALL CLOSURE now.)';
-      } else if (item.itemType === 'information') {
-        // Information block — state it, then chain to next valid item immediately
-        const infoText = item.text;
-        this.advanceTo();  // advance NOW so we can peek at what's next
-
-        const nextItem = this.currentItem();
-        if (!nextItem || this.currentIndex >= this.items.length) {
-          this.done = true;
-          directive = `(System: State this information to the user verbatim: "${infoText}". After stating it, immediately proceed to CALL CLOSURE — do not wait for a reply.)`;
-        } else if (nextItem.itemType === 'information') {
-          this.advanceTo(); // consume the chained info too
-          // Peek at what comes after the two info blocks
-          const itemAfterChain = this.currentItem();
-          if (!itemAfterChain || this.currentIndex >= this.items.length) {
-            // Nothing left after both info blocks → go straight to closure
-            this.done = true;
-            directive = `(System: State this information verbatim: "${infoText}". Do not wait for a reply. Immediately after, state this information verbatim: "${nextItem.text}". Do not wait for a reply. Then immediately proceed to CALL CLOSURE — do not say anything else.)`;
-          } else if (itemAfterChain.itemType === 'information') {
-            // Another info block follows — just chain the first two and let next turn handle the rest
-            directive = `(System: State this information verbatim: "${infoText}". Do not wait for a reply. Immediately after, state this information verbatim: "${nextItem.text}". Do not wait for a reply after that either.)`;
-          } else {
-            // A question follows — chain both infos then ask the question
-            this.advanceTo(); // consume the question
-            directive = `(System: State this information verbatim: "${infoText}". Do not wait for a reply. Immediately after, state this information verbatim: "${nextItem.text}". Do not wait for a reply. Then immediately ask this question verbatim: "${itemAfterChain.text}".)`;
-          }
-        } else {
-          directive = `(System: State this information to the user verbatim: "${infoText}". Do not wait for a reply. Immediately after, ask this question verbatim: "${nextItem.text}".)`;
-          this.advanceTo(); // consume the question too so next turn advances correctly
-        }
-      } else {
-        // Regular question — ask it and advance pointer for next turn
-        const mandatory = item.is_mandatory ? ' This question is MANDATORY — if the user does not give a valid answer, politely repeat it.' : '';
-        directive = `(System: Ask the user this exact question verbatim: "${item.text}".${mandatory})`;
-        this.advanceTo();
-      }
+    if (isSystemMsg) {
+      this.expectsUserReply = this.awaitingIdentityConfirm;
+    } else {
+      const next = this._buildNextDirective();
+      directive = next.directive;
+      this.expectsUserReply = next.expectsUserReply;
     }
 
     // ── 3. Call LLM ───────────────────────────────────────────────
@@ -386,6 +472,7 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
       shouldHangUp:          this.shouldHangUp,
       awaitingIdentityConfirm: this.awaitingIdentityConfirm,
       confusionRetries:      this.confusionRetries,
+      expectsUserReply:      this.expectsUserReply,
       chatHistory:           this.chatHistory
     };
     try {
@@ -411,6 +498,7 @@ ${courtesyClose ? '1. Ask if they have any other questions.' : '1. Do NOT ask if
       agent.shouldHangUp            = state.shouldHangUp;
       agent.awaitingIdentityConfirm = state.awaitingIdentityConfirm;
       agent.confusionRetries        = state.confusionRetries;
+      agent.expectsUserReply        = state.expectsUserReply ?? false;
       agent.chatHistory             = state.chatHistory;
       console.log(`[VoiceAgent] Restored state from Redis for ${callSid} (turn ${state.currentIndex})`);
       return agent;

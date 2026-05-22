@@ -6,7 +6,7 @@ import {
   CheckCircle2, XCircle, ShieldCheck, FileText
 } from 'lucide-react';
 
-const EVAL_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { EVAL_BASE } from '../api/config';
 
 const SENTIMENT_COLORS = {
   positive: 'bg-green-100 text-green-800 border-green-200',
@@ -216,21 +216,33 @@ export default function CallReport() {
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 border-b text-muted-foreground">
                 <tr>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Rule</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Field</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Value</th>
+                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Criterion</th>
+                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Question / Field</th>
+                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Answer</th>
+                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider text-right">Weight</th>
                   <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider text-right">Points</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {scoreBreakdown.map((r, i) => (
+                {scoreBreakdown.map((r, i) => {
+                  const awarded = r.awarded ?? 0;
+                  const maxPts = r.maxPoints ?? r.weight ?? 0;
+                  const answer = r.fieldValue ?? r.answerExtracted;
+                  const answerStr = answer == null ? '—' : (typeof answer === 'object' ? JSON.stringify(answer) : String(answer));
+                  const isSkipped = r.reason === 'skipped';
+                  const isPartial = r.reason === 'partial';
+                  return (
                   <tr key={i} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-3 font-medium">{r.rule}</td>
-                    <td className="px-6 py-3 text-muted-foreground">{r.field}</td>
-                    <td className="px-6 py-3">{typeof r.fieldValue === 'object' ? JSON.stringify(r.fieldValue) : String(r.fieldValue)}</td>
-                    <td className="px-6 py-3 text-right font-bold text-green-600">+{r.awarded}</td>
+                    <td className="px-6 py-3 font-medium text-xs">{r.rule || '—'}</td>
+                    <td className="px-6 py-3 text-muted-foreground">{r.field || r.questionText || '—'}</td>
+                    <td className={`px-6 py-3 text-sm ${isSkipped ? 'text-amber-700 italic' : ''}`}>{answerStr}</td>
+                    <td className="px-6 py-3 text-right text-muted-foreground">{maxPts}%</td>
+                    <td className={`px-6 py-3 text-right font-bold ${awarded > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      +{awarded.toFixed(1)}{isPartial ? <span className="text-amber-600 text-xs font-normal ml-1">partial</span> : null}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

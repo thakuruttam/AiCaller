@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { Link } from 'react-router-dom';
-import { PhoneOutgoing, CheckCircle, Clock, Activity, RefreshCw } from 'lucide-react';
+import { PhoneOutgoing, CheckCircle, Clock, Activity, RefreshCw, Eye, Loader2 } from 'lucide-react';
 import RoleGate from '../components/RoleGate';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenWrapper from '../components/FullscreenWrapper';
+import Modal from '../components/Modal';
+import Step7Review from './CampaignWizard/components/Step7Review';
 
-const EVAL_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { EVAL_BASE } from '../api/config';
 
 const Dashboard = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [evalProgress, setEvalProgress] = useState({ total: 0, completed: 0, failed: 0, inProgress: 0 });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [loadingCampaignId, setLoadingCampaignId] = useState(null);
 
   useEffect(() => {
     fetchCampaigns();
@@ -59,6 +64,19 @@ const Dashboard = () => {
         ]);
         setLoading(false);
       }
+    }
+  };
+
+  const openViewModal = async (campaignId) => {
+    try {
+      setLoadingCampaignId(campaignId);
+      const res = await api.get(`/api/campaigns/${campaignId}`);
+      setSelectedCampaign(res.data);
+      setIsViewModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching campaign details:", err);
+    } finally {
+      setLoadingCampaignId(null);
     }
   };
 
@@ -193,6 +211,18 @@ const Dashboard = () => {
                   <td className="p-6">{c.campaignContacts?.length || 0}</td>
                   <td className="p-6 text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '-'}</td>
                   <td className="p-6 text-right flex justify-end gap-2">
+                    <button
+                      onClick={() => openViewModal(c.id)}
+                      disabled={loadingCampaignId === c.id}
+                      className="inline-flex items-center gap-1.5 justify-center rounded-md text-sm font-medium h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 transition-colors"
+                    >
+                      {loadingCampaignId === c.id ? (
+                        <Loader2 size={15} className="animate-spin text-muted-foreground" />
+                      ) : (
+                        <Eye size={15} className="text-muted-foreground" />
+                      )}
+                      View
+                    </button>
                     <Link to={`/edit-campaign/${c.id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground">Edit</Link>
                     <Link to={`/campaigns/${c.id}/report`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground">Report</Link>
                     <Link to={`/campaigns/${c.id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90">View Details</Link>
@@ -207,6 +237,35 @@ const Dashboard = () => {
             </tbody>
           </table>
       </FullscreenWrapper>
+
+      {/* View Campaign Modal */}
+      {selectedCampaign && (
+        <Modal
+          isOpen={isViewModalOpen}
+          onClose={() => setIsViewModalOpen(false)}
+          title="Campaign Details (Read-only)"
+          className="max-w-5xl max-h-[90vh] flex flex-col"
+        >
+          <div className="max-h-[70vh] overflow-y-auto pr-1 transform-gpu will-change-scroll">
+            <Step7Review
+              payload={{
+                name: selectedCampaign.name,
+                type: selectedCampaign.type,
+                goals: {
+                  goal: selectedCampaign.callModule?.goal || '',
+                  callIntro: selectedCampaign.callModule?.callIntro || '',
+                  callSignOff: selectedCampaign.callModule?.callSignOff || ''
+                },
+                dataToCollect: selectedCampaign.dataToCollect || [],
+                callSettings: selectedCampaign.callSettings || {},
+                contacts: selectedCampaign.campaignContacts || [],
+                endCallIf: selectedCampaign.endCallIf || '',
+                rules: selectedCampaign.rules || {}
+              }}
+            />
+          </div>
+        </Modal>
+      )}
 
     </div>
   );

@@ -40,17 +40,36 @@ export function setupTwilioStream(server) {
 
     function startNoAnswerTimer() {
       clearNoAnswerTimer();
+      // Only wait for a reply after questions — not after instructions/information
+      if (!agent?.expectsUserReply) return;
+
+      const waitSeconds = NO_ANSWER_SECONDS;
+
       noAnswerTimer = setTimeout(async () => {
-        if (isCallEnding || isSpeaking || !agent) return;
+        if (isCallEnding || isSpeaking || !agent || !agent.expectsUserReply) return;
+
         noAnswerRetries++;
         console.log(`[Stream] No answer for ${NO_ANSWER_SECONDS}s. Retry ${noAnswerRetries}/${NO_ANSWER_MAX_RETRIES}`);
 
         let directive;
         if (noAnswerRetries <= NO_ANSWER_MAX_RETRIES) {
-          directive = `(System: The user has not responded for ${NO_ANSWER_SECONDS} seconds. Politely ask them if they are still there and gently repeat the last question you asked.)`;
+          // Look up the exact text of the question that was most recently asked
+          // (currentIndex already advanced, so the last asked question is at currentIndex - 1)
+          const lastAskedIdx = agent.currentIndex - 1;
+          const lastAskedItem = agent.items[lastAskedIdx];
+          const exactText = lastAskedItem?.text;
+
+          if (exactText && (lastAskedItem?.itemType || 'question') === 'question') {
+            // Inject the exact question text so the LLM cannot rephrase it
+            directive = `(System: The user has not responded. Say "Are you still there?" and then immediately repeat this exact question word for word: "${exactText}". Do NOT change a single word.)`;
+          } else {
+            // No question text available (e.g. call is at closure) — just check in
+            directive = `(System: The user has not responded. Ask "Are you still there?" and wait.)`;
+          }
         } else {
           noAnswerRetries = 0;
-          directive = `(System: The user has still not responded after repeated attempts. Apologize briefly, skip this question, and move to the next one.)`;
+          // Move on — let the agent state machine handle the next question naturally
+          directive = `(System: The user has still not responded after repeated attempts. Say "I'll try reaching you another time. Have a great day. HANGUP_NOW" — nothing else.)`;
         }
 
         const reply = await agent.processInput(directive);
@@ -58,10 +77,32 @@ export function setupTwilioStream(server) {
           isSpeaking = true;
           const ok = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage);
           if (!ok) isSpeaking = false;
+          else if (agent.expectsUserReply) startNoAnswerTimer();
         }
-        // Restart the no-answer timer for the next cycle
-        startNoAnswerTimer();
-      }, NO_ANSWER_SECONDS * 1000);
+      }, waitSeconds * 1000);
+    }
+
+    /** After instruction-only TTS, advance to the next scripted segment without waiting. */
+    async function autoAdvanceScript() {
+      if (!agent || isCallEnding || isSpeaking || agent.expectsUserReply) return;
+
+      const reply = await agent.continueWithoutUser();
+      if (callSid) await agent.saveState(redis, callSid);
+      if (agent.shouldHangUp) isCallEnding = true;
+
+      if (reply && reply.length > 0) {
+        isSpeaking = true;
+        const ok = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage);
+        if (!ok) isSpeaking = false;
+        else if (agent.expectsUserReply) startNoAnswerTimer();
+      } else if (isCallEnding) {
+        try {
+          const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+          await client.calls(callSid).update({ status: 'completed' });
+        } catch (e) {
+          console.error('[Stream] Failed to hang up via API:', e.message);
+        }
+      }
     }
 
 
@@ -120,9 +161,6 @@ export function setupTwilioStream(server) {
               transcript:        formattedTranscript,
               campaignName:      currentCampaign.name,
               dataToCollect:     currentCampaign.dataToCollect ?? [],
-              fieldsToExtract:   currentCampaign.rules?.fieldsToExtract  ?? [],
-              scoringRules:      currentCampaign.rules?.scoringRules     ?? [],
-              successConditions: currentCampaign.rules?.successConditions ?? [],
               reportWebhook:     currentCampaign.callSettings?.reportWebhook ?? null
             });
             console.log(`[Stream] Queued CALL_COMPLETED for ${callLogId} in report.ingest`);
@@ -156,7 +194,7 @@ export function setupTwilioStream(server) {
           isSpeaking = true;
           const success = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage);
           if (!success) isSpeaking = false;
-          else startNoAnswerTimer(); // start waiting for user response after bot finishes
+          else if (agent.expectsUserReply) startNoAnswerTimer();
         } else if (isCallEnding) {
           console.log(`[Stream] No TTS needed. Executing final hangup for ${callSid}!`);
           try {
@@ -217,7 +255,6 @@ export function setupTwilioStream(server) {
                     goal: true,
                     callIntro: true,
                     callSignOff: true,
-                    courtesyClose: true,
                     successCriteria: true
                   }
                 }
@@ -259,10 +296,7 @@ export function setupTwilioStream(server) {
             const finalGoals = {
               goal: overrides.goals?.goal || campaign.callModule?.goal,
               callIntro: overrides.goals?.callIntro || campaign.callModule?.callIntro,
-              callSignOff: overrides.goals?.callSignOff || campaign.callModule?.callSignOff,
-              courtesyClose: overrides.goals?.hasOwnProperty('courtesyClose') 
-                ? overrides.goals.courtesyClose 
-                : campaign.callModule?.courtesyClose
+              callSignOff: overrides.goals?.callSignOff || campaign.callModule?.callSignOff
             };
 
             const finalQuestions = overrides.dataToCollect || campaign.dataToCollect || [];
@@ -273,7 +307,6 @@ export function setupTwilioStream(server) {
               goal: finalGoals.goal,
               callIntro: finalGoals.callIntro,
               callSignOff: finalGoals.callSignOff,
-              courtesyClose: finalGoals.courtesyClose,
               dataToCollect: finalQuestions,
               endCallIf: campaign.endCallIf,
               successCriteria: campaign.callModule?.successCriteria,
@@ -296,15 +329,15 @@ export function setupTwilioStream(server) {
 
             // Build the language-specific greeting directive
             const langDirective = campaignLanguage !== 'English'
-              ? ` Deliver this greeting in ${campaignLanguage}. If the intro text is in English, translate it naturally into ${campaignLanguage} before speaking.`
+              ? ` Speak in ${campaignLanguage}. Deliver this greeting translated naturally into ${campaignLanguage}, keeping the meaning identical and adding no extra content.`
               : '';
-            const greeting = await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user: "${processedIntro}".${langDirective})`);
+            const greeting = await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.)`);
             console.log(`[Agent] Greeting: ${greeting}`);
             if (greeting && greeting.length > 0) {
               isSpeaking = true;
               const ok = await speakBackToTwilio(ws, streamSid, greeting, campaignLanguage);
               if (!ok) isSpeaking = false;
-              else startNoAnswerTimer(); // start waiting for user to respond
+              else if (agent.expectsUserReply) startNoAnswerTimer();
             } else {
               console.warn('[Agent] Greeting was empty after sanitization — check callIntro config or LLM response.');
             }
@@ -330,9 +363,13 @@ export function setupTwilioStream(server) {
               } catch (e) {
                  console.error("[Stream] Failed to hang up via API:", e.message);
               }
-            } else {
-              // If the call isn't ending, start the silence timer while waiting for user to speak
+            } else if (agent && !agent.expectsUserReply && !agent.done) {
+              // Instruction-only segment finished — continue script without waiting
               resetSilenceTimeout();
+              await autoAdvanceScript();
+            } else {
+              resetSilenceTimeout();
+              if (agent?.expectsUserReply) startNoAnswerTimer();
             }
           }
           break;

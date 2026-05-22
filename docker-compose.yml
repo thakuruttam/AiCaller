@@ -62,6 +62,9 @@ services:
   telephony-gateway:
     build: ./telephony-gateway
     ports: ["3001-3002:3001"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/aicalling
       REDIS_URL: redis://redis:6379
@@ -74,6 +77,9 @@ services:
 
   call-worker:
     build: ./call-worker
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/aicalling
       REDIS_URL: redis://redis:6379
@@ -88,6 +94,9 @@ services:
     build: ./call-evaluation-service
     command: npm run start:api
     ports: ["4000:4000"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/aicalling
       REDIS_URL: redis://redis:6379
@@ -99,6 +108,9 @@ services:
   call-evaluation-worker:
     build: ./call-evaluation-service
     command: npm run start:workers
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/aicalling
       REDIS_URL: redis://redis:6379

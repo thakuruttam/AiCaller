@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Plus, MessageSquare, AlertCircle } from 'lucide-react';
+import { Plus, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
 import QuestionCard, { emptyItem, uid } from './QuestionCard';
 import { useToast } from '../../../context/ToastContext';
 
@@ -7,18 +7,18 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
   const count = value?.trim().split(/\s+/).filter(Boolean).length || 0;
   const over  = count > limit;
   return (
-    <div className="flex flex-col gap-0.5 w-full">
+    <div className="relative flex flex-col w-full">
       <textarea
         rows={rows}
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y transition-colors
+        className={`w-full rounded-md border bg-background px-3 pt-2 pb-6 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y transition-colors
           ${over ? 'border-destructive focus-visible:ring-destructive' : 'border-input'} ${className}`}
       />
-      <span className={`text-xs text-right tabular-nums ${over ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-        {count}/{limit} words
-      </span>
+      <div className={`absolute bottom-2 right-6 text-[10px] pointer-events-none tabular-nums bg-background/80 px-1 backdrop-blur-sm rounded ${over ? 'text-destructive font-semibold' : 'text-muted-foreground/70'}`}>
+        {count} / {limit} words{over ? ' — over limit' : ''}
+      </div>
     </div>
   );
 }
@@ -37,6 +37,66 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         dataToCollect: payload.dataToCollect.map(i => ({ ...i, id: i.id || uid() }))
       });
     }
+  }, [payload.dataToCollect]);
+
+  useEffect(() => {
+    if (!payload.dataToCollect) return;
+
+    const questions = payload.dataToCollect.filter(i => i.itemType === 'question');
+    if (questions.length === 0) return;
+
+    // Build a flat list of all "scorable items" across the campaign:
+    // - Questions with NO sub-fields → 1 implicit scorable item (the question itself)
+    // - Questions WITH sub-fields → N sub-field scorable items
+    const scorableItems = [];
+    questions.forEach(q => {
+      const sfs = q.fieldsToExtract || [];
+      if (sfs.length > 0) {
+        sfs.forEach(sf => scorableItems.push({ type: 'subfield', qId: q.id, sfId: sf.id, manuallySet: sf.isWeightManuallySet }));
+      } else {
+        scorableItems.push({ type: 'question', qId: q.id, manuallySet: q.isWeightManuallySet });
+      }
+    });
+
+    const N = scorableItems.length;
+    if (N === 0) return;
+
+    const anyManuallySet = scorableItems.some(s => s.manuallySet);
+    if (anyManuallySet) return;
+
+    const baseWeight = Math.floor(100 / N);
+    const remainder = 100 % N;
+
+    let needsUpdate = false;
+    const nextData = payload.dataToCollect.map(item => {
+      if (item.itemType !== 'question') {
+        if (item.weight !== 0) { needsUpdate = true; return { ...item, weight: 0 }; }
+        return item;
+      }
+
+      const sfs = item.fieldsToExtract || [];
+      if (sfs.length > 0) {
+        // Distribute weight among sub-fields of this question
+        const sfIndices = scorableItems.filter(s => s.type === 'subfield' && s.qId === item.id);
+        let sfChanged = false;
+        const newSfs = sfs.map((sf) => {
+          const idx = scorableItems.findIndex(s => s.type === 'subfield' && s.sfId === sf.id);
+          const expected = idx < remainder ? baseWeight + 1 : baseWeight;
+          if (sf.weight !== expected) { sfChanged = true; return { ...sf, weight: expected }; }
+          return sf;
+        });
+        if (sfChanged) { needsUpdate = true; return { ...item, fieldsToExtract: newSfs }; }
+        return item;
+      } else {
+        // Question itself is the scorable item
+        const idx = scorableItems.findIndex(s => s.type === 'question' && s.qId === item.id);
+        const expected = idx < remainder ? baseWeight + 1 : baseWeight;
+        if (item.weight !== expected) { needsUpdate = true; return { ...item, weight: expected }; }
+        return item;
+      }
+    });
+
+    if (needsUpdate) updatePayload({ dataToCollect: nextData });
   }, [payload.dataToCollect]);
 
   const setItems = (next) => updatePayload({ dataToCollect: next });
@@ -121,13 +181,20 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
 
       {/* ── Weight total indicator ── */}
       {items.length > 0 && (() => {
-        const total = items.reduce((sum, i) => sum + (i.weight || 0), 0);
+        const total = items.reduce((sum, i) => {
+          if (i.itemType !== 'question') return sum;
+          const sfs = i.fieldsToExtract || [];
+          if (sfs.length > 0) {
+            return sum + sfs.reduce((s, sf) => s + (sf.weight || 0), 0);
+          }
+          return sum + (i.weight || 0);
+        }, 0);
         const over  = total > 100;
         const exact = total === 100;
         return (
           <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm font-medium
             ${over  ? 'border-destructive bg-destructive/5 text-destructive'
-            : exact ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+            : exact ? 'border-green-500 bg-green-50 text-green-800'
             :         'border-border bg-muted/20 text-muted-foreground'}`}
           >
             <span>Total Call Score Weight</span>
@@ -166,6 +233,41 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
           placeholder="e.g. End the call if the contact is abusive, not the intended person, or says they are not interested."
           rows={3}
         />
+      </div>
+
+      {/* ── Passing Criteria (Success Score Threshold) ── */}
+      <div className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-muted/10">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-green-600" />
+          <h4 className="text-sm font-semibold text-foreground">Success Score Threshold</h4>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Calls whose final score falls below this threshold will be marked as <strong>Failed</strong> in reports.
+        </p>
+        <div className="flex flex-col gap-2 mt-2">
+          <div className="flex items-center gap-4">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              className="flex h-9 w-24 rounded-md border border-input bg-background px-3 py-2 text-sm tabular-nums ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={payload.rules?.successScore ?? 50}
+              onChange={(e) => updatePayload({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value))) } })}
+            />
+            <span className="text-sm text-muted-foreground">/ 100</span>
+          </div>
+
+          {/* Visual threshold bar */}
+          <div className="relative h-2 rounded-full bg-muted overflow-hidden w-full max-w-sm mt-1">
+            <div
+              className="absolute left-0 top-0 h-full rounded-full bg-green-500 transition-all"
+              style={{ width: `${payload.rules?.successScore ?? 50}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Current threshold: <strong>{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
+          </p>
+        </div>
       </div>
     </div>
   );

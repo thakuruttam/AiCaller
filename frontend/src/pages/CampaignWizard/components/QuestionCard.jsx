@@ -1,8 +1,8 @@
-// Shared QuestionCard component — used by Step4 and the Contact Overrides modal
+// Shared QuestionCard component — used by Step3 and the Contact Overrides modal
 import React, { useState } from 'react';
 import {
   GripVertical, ChevronDown, ChevronUp, MessageSquare, Info,
-  X, ArrowRight, SkipForward, PhoneOff
+  X, ArrowRight, SkipForward, PhoneOff, Database, Plus
 } from 'lucide-react';
 
 export const CONDITIONS = [
@@ -22,8 +22,10 @@ export function emptyItem(order) {
     text: '',
     is_mandatory: false,
     weight: 0,
+    isWeightManuallySet: false,
     expectedAnswer: { condition: 'contains', value: '' },
     onAnswer: { action: 'continue', skipToId: '', skipCondition: { condition: 'contains', value: '' } },
+    fieldsToExtract: [], // sub-fields; empty = implicit whole-question extraction
   };
 }
 
@@ -59,13 +61,35 @@ export default function QuestionCard({
     ...item.onAnswer,
     skipCondition: item.onAnswer?.skipCondition || { condition: 'contains', value: '' }
   };
+  const fieldsToExtract = item.fieldsToExtract || [];
 
   const update      = (patch) => onUpdate({ ...item, ...patch });
   const updateAns   = (patch) => update({ expectedAnswer: { ...expectedAnswer, ...patch } });
   const updateOnAns = (patch) => update({ onAnswer: { ...onAnswer, ...patch } });
   const updateSkip  = (patch) => update({ onAnswer: { ...onAnswer, skipCondition: { ...onAnswer.skipCondition, ...patch } } });
 
+  // ── Sub-field helpers ────────────────────────────────────────────────
+  const addSubField = () => {
+    update({
+      fieldsToExtract: [
+        ...fieldsToExtract,
+        { id: uid(), field: '', type: 'string', unit: '', weight: 0, isWeightManuallySet: false }
+      ]
+    });
+  };
+
+  const updateSubField = (sfId, patch) => {
+    update({
+      fieldsToExtract: fieldsToExtract.map(sf => sf.id === sfId ? { ...sf, ...patch } : sf)
+    });
+  };
+
+  const removeSubField = (sfId) => {
+    update({ fieldsToExtract: fieldsToExtract.filter(sf => sf.id !== sfId) });
+  };
+
   const others = allItems.filter(i => i.id !== item.id);
+  const hasSubFields = fieldsToExtract.length > 0;
 
   return (
     <div
@@ -97,8 +121,14 @@ export default function QuestionCard({
         </div>
 
         {item.is_mandatory && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 text-purple-700 px-2 py-0.5 text-xs font-medium dark:bg-purple-900/20 dark:text-purple-300">
+          <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 text-purple-700 px-2 py-0.5 text-xs font-medium">
             Mandatory
+          </span>
+        )}
+
+        {hasSubFields && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium">
+            <Database size={10} /> {fieldsToExtract.length} field{fieldsToExtract.length !== 1 ? 's' : ''}
           </span>
         )}
 
@@ -200,7 +230,82 @@ export default function QuestionCard({
                 )}
               </div>
 
-              {/* Mandatory + Weight */}
+              {/* ── Fields to Extract Section ──────────────────────────────── */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium flex items-center gap-1.5">
+                      <Database size={12} className="text-primary" /> Fields to Extract
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {hasSubFields
+                        ? 'Each sub-field weight counts toward the call score when that value is extracted'
+                        : 'Default: extracts the full answer. Add specific fields for per-field weight scoring.'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addSubField}
+                    className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-primary px-2.5 py-1 text-xs font-medium transition-colors"
+                  >
+                    <Plus size={11} /> Add Field
+                  </button>
+                </div>
+
+                {hasSubFields && (
+                  <div className="flex flex-col gap-2">
+                    {fieldsToExtract.map((sf) => (
+                      <div key={sf.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/10">
+                        <input
+                          type="text"
+                          value={sf.field}
+                          onChange={e => updateSubField(sf.id, { field: e.target.value })}
+                          placeholder="Field name (e.g. notice_period)"
+                          className="flex-1 h-7 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        <select
+                          value={sf.type}
+                          onChange={e => updateSubField(sf.id, { type: e.target.value })}
+                          className="h-7 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="string">Text</option>
+                          <option value="number">Number</option>
+                          <option value="boolean">Yes/No</option>
+                          <option value="array">List</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={sf.unit || ''}
+                          onChange={e => updateSubField(sf.id, { unit: e.target.value })}
+                          placeholder="Unit (e.g. years)"
+                          className="w-24 h-7 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number" min={0} max={100}
+                            value={sf.weight ?? 0}
+                            onChange={e => updateSubField(sf.id, {
+                              weight: Math.min(100, Math.max(0, Number(e.target.value))),
+                              isWeightManuallySet: true
+                            })}
+                            className="w-12 h-7 rounded-md border border-input bg-background px-1 text-xs text-center tabular-nums focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSubField(sf.id)}
+                          className="p-1 text-muted-foreground hover:text-destructive transition-colors rounded"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Mandatory + Weight (weight hidden when sub-fields are defined) */}
               <div className="flex items-center justify-between gap-6 pt-2 border-t border-border flex-wrap">
                 <div className="flex items-center justify-between flex-1 min-w-[200px]">
                   <div className="flex flex-col gap-0.5">
@@ -214,18 +319,24 @@ export default function QuestionCard({
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-right">Call Score Weight</span>
-                    <span className="text-xs text-muted-foreground">Contribution to success score</span>
+                {/* Only show root-level weight when NO sub-fields are defined */}
+                {!hasSubFields && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-medium text-right">Call Score Weight</span>
+                      <span className="text-xs text-muted-foreground">Contribution to success score</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input type="number" min={0} max={100} value={item.weight ?? 0}
+                        onChange={e => update({ 
+                          weight: Math.min(100, Math.max(0, Number(e.target.value))),
+                          isWeightManuallySet: true 
+                        })}
+                        className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                      <span className="text-xs text-muted-foreground font-medium">%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <input type="number" min={0} max={100} value={item.weight ?? 0}
-                      onChange={e => update({ weight: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                      className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                    <span className="text-xs text-muted-foreground font-medium">%</span>
-                  </div>
-                </div>
+                )}
               </div>
             </>
           )}
