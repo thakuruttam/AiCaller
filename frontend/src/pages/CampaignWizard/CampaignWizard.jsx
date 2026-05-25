@@ -35,7 +35,9 @@ const initialPayload = {
   },
   contacts: []
 };
+
 const steps = ["Basics", "Contacts", "Setup Questions", "Per-Contact", "Review"];
+
 export default function CampaignWizard() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -45,17 +47,13 @@ export default function CampaignWizard() {
   const [loading, setLoading] = useState(!!id);
 
   useEffect(() => {
-    if (id) {
-       fetchCampaign();
-    }
+    if (id) fetchCampaign();
   }, [id]);
 
   const fetchCampaign = async () => {
     try {
       const res = await api.get(`/api/campaigns/${id}`);
       const c = res.data;
-      
-      // Map backend model to wizard payload
       const mappedPayload = {
         name: c.name || '',
         type: c.type || '',
@@ -77,7 +75,6 @@ export default function CampaignWizard() {
           overrides: cc.overrides || {}
         }))
       };
-      
       setPayload(mappedPayload);
     } catch (err) {
       console.error(err);
@@ -91,7 +88,6 @@ export default function CampaignWizard() {
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   const nextStep = () => {
-    // Step 3 (Setup Questions): block if any question-type item has empty text
     if (step === 3) {
       const emptyQuestions = (payload.dataToCollect || []).filter(
         item => (item.itemType || 'question') === 'question' && !item.text?.trim()
@@ -113,15 +109,22 @@ export default function CampaignWizard() {
       }
       setStep(1);
       setPayload(initialPayload);
-      addToast(id ? "Campaign updated successfully!" : "Campaign launched successfully! 🚀", "success");
+      addToast(id ? "Campaign updated successfully!" : "Campaign launched successfully!", "success");
       navigate('/');
-    } catch(err) {
+    } catch (err) {
       console.error(err);
       addToast(err.response?.data?.error || "Error calling API", "error");
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64">Loading campaign data...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-slate-400">
+        Loading campaign data...
+      </div>
+    );
+  }
+
   const renderStep = () => {
     switch (step) {
       case 1: return <Step1Basics payload={payload} updatePayload={updatePayload} />;
@@ -134,41 +137,68 @@ export default function CampaignWizard() {
   };
 
   return (
-    <div className="flex min-h-[600px] h-[calc(100vh-8rem)] rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden">
-      <div className="w-64 border-r bg-muted/20 p-6 flex flex-col gap-6">
-        <h2 className="font-semibold text-lg tracking-tight">Campaign Setup</h2>
-        <div className="flex flex-col gap-1">
-          {steps.map((s, i) => (
-            <div key={i} className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors ${step === i + 1 ? 'bg-background shadow-sm border font-medium text-foreground' : step > i + 1 ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
-              <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold ${step === i + 1 ? 'bg-primary text-primary-foreground' : step > i + 1 ? 'bg-muted text-muted-foreground' : 'border border-muted-foreground/30'}`}>
-                {i + 1}
+    <div className="flex min-h-[600px] h-[calc(100vh-8rem)] rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05] overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-56 border-r border-zinc-100 dark:border-slate-700/50 bg-zinc-50/60 dark:bg-slate-800/60 p-5 flex flex-col gap-5 shrink-0">
+        <div>
+          <h2 className="font-semibold text-sm text-zinc-900 dark:text-slate-100 tracking-tight">Campaign Setup</h2>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 mt-0.5">Step {step} of {steps.length}</p>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {steps.map((s, i) => {
+            const isActive   = step === i + 1;
+            const isComplete = step > i + 1;
+            return (
+              <div
+                key={i}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                  isActive   ? 'bg-white dark:bg-slate-700 shadow-sm border border-zinc-200/80 dark:border-slate-600 ring-1 ring-black/[0.03] dark:ring-white/[0.05]'
+                  : isComplete ? 'text-zinc-500 dark:text-slate-400'
+                  : 'text-zinc-400 dark:text-slate-500'
+                }`}
+              >
+                <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0 transition-colors ${
+                  isActive   ? 'bg-indigo-600 text-white'
+                  : isComplete ? 'bg-emerald-100 text-emerald-700'
+                  : 'border border-zinc-300 dark:border-slate-600 text-zinc-400 dark:text-slate-500'
+                }`}>
+                  {isComplete ? '✓' : i + 1}
+                </div>
+                <span className={`text-sm ${isActive ? 'font-semibold text-zinc-900 dark:text-slate-100' : isComplete ? 'text-zinc-500 dark:text-slate-400' : 'text-zinc-400 dark:text-slate-500'}`}>{s}</span>
               </div>
-              <span className="text-sm">{s}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
-      
+
+      {/* Content */}
       <div className="flex-1 flex flex-col pt-8 pb-6 px-10 overflow-y-auto">
         <div className="flex-1">
-           {renderStep()}
+          {renderStep()}
         </div>
-        
-        <div className="flex justify-between mt-8 pt-6 border-t border-border">
-          <button 
-             className={`inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors ${step === 1 ? 'invisible' : ''}`}
-             onClick={prevStep}>
-             Back
+
+        <div className="flex justify-between mt-8 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+          <button
+            className={`inline-flex items-center justify-center rounded-lg text-sm font-medium h-9 px-4 border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-zinc-50 dark:hover:bg-slate-700/50 active:bg-zinc-100 dark:active:bg-slate-700 text-zinc-700 dark:text-slate-300 transition-colors ${step === 1 ? 'invisible' : ''}`}
+            onClick={prevStep}
+          >
+            Back
           </button>
-          
+
           {step < 5 && (
-            <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" onClick={nextStep}>
-              Next Step
+            <button
+              className="inline-flex items-center justify-center rounded-lg text-sm font-semibold h-9 px-5 bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+              onClick={nextStep}
+            >
+              Continue
             </button>
           )}
           {step === 5 && (
-            <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" onClick={handleLaunch}>
-              Launch Campaign 🚀
+            <button
+              className="inline-flex items-center justify-center rounded-lg text-sm font-semibold h-9 px-5 bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+              onClick={handleLaunch}
+            >
+              {id ? 'Save Changes' : 'Launch Campaign'}
             </button>
           )}
         </div>

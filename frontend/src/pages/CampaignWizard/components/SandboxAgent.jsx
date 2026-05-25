@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Mic, MicOff, Settings, Volume2, Loader2, Play } from 'lucide-react';
+import { Mic, MicOff, Volume2, Loader2, Play } from 'lucide-react';
 
 export default function SandboxAgent({ campaign }) {
   const [session, setSession] = useState(null);
@@ -12,7 +12,6 @@ export default function SandboxAgent({ campaign }) {
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    // Setup Browser Speech Recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
@@ -22,30 +21,22 @@ export default function SandboxAgent({ campaign }) {
 
       recognitionRef.current.onresult = async (event) => {
         const text = event.results[0][0].transcript;
-        console.log("Heard:", text);
         setIsListening(false);
         addMessage('user', text);
         await sendToNodeAgent(text);
       };
 
       recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        if(event.error !== 'aborted') {
-            setError(`Microphone error: ${event.error}`);
-        }
+        if (event.error !== 'aborted') setError(`Microphone error: ${event.error}`);
         setIsListening(false);
       };
-      
-      recognitionRef.current.onend = () => {
-         setIsListening(false);
-      }
+
+      recognitionRef.current.onend = () => { setIsListening(false); };
     } else {
       setError("Your browser does not support Web Speech API. Please use Chrome.");
     }
-    
-    return () => {
-       if (recognitionRef.current) recognitionRef.current.abort();
-    }
+
+    return () => { if (recognitionRef.current) recognitionRef.current.abort(); };
   }, [session]);
 
   const addMessage = (role, text) => {
@@ -54,19 +45,13 @@ export default function SandboxAgent({ campaign }) {
 
   const speakText = (text) => {
     if (!('speechSynthesis' in window)) return;
-    
-    // Stop any current bleeding audio
     window.speechSynthesis.cancel();
-    
     const msg = new SpeechSynthesisUtterance(text);
-    // Grab a pleasant voice if available
     const voices = window.speechSynthesis.getVoices();
-    // Prefer Google US English or any English Female voice to keep it natural
     const voice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Samantha") || v.lang === "en-US");
     if (voice) msg.voice = voice;
-    
-    msg.pitch = 1.0; 
-    msg.rate = 0.95; // Slightly slower for better clarity
+    msg.pitch = 1.0;
+    msg.rate = 0.95;
     window.speechSynthesis.speak(msg);
   };
 
@@ -113,83 +98,89 @@ export default function SandboxAgent({ campaign }) {
       recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      window.speechSynthesis.cancel(); // Interrupt AI if speaking
+      window.speechSynthesis.cancel();
       recognitionRef.current?.start();
       setIsListening(true);
     }
   };
 
   return (
-    <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden mt-6">
-      <div className="border-b px-6 py-4 flex justify-between items-center bg-muted/20">
-        <div className="flex flex-col">
-          <h3 className="font-semibold text-lg flex items-center gap-2">
-            <Volume2 size={18} className="text-primary"/> UI Sandbox: Live AI Test
-          </h3>
-          <p className="text-xs text-muted-foreground">Uses Mac Browser native STT/TTS connected to local Llama 3</p>
-        </div>
-        {!session ? (
-          <button 
-             onClick={startSession}
-             disabled={loading}
-             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90">
-             {loading ? <Loader2 className="animate-spin mr-2" size={16}/> : <Play className="mr-2" size={16}/>}
-             Start Sandbox
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono bg-secondary px-2 rounded">{session}</span>
-            <button 
-               onClick={() => { setSession(null); window.speechSynthesis.cancel(); recognitionRef.current?.stop(); }}
-               className="inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground text-destructive">
-               End Test
+    <div className="flex flex-col gap-0">
+      {session ? (
+        <div className="p-6 flex flex-col gap-5">
+          {error && (
+            <div className="text-sm font-medium text-red-600 p-3 bg-red-50 border border-red-200 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <div className="bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl p-4 min-h-[200px] max-h-[300px] overflow-y-auto flex flex-col gap-3">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <span className="text-[10px] uppercase font-bold text-zinc-400 dark:text-slate-500 mb-1">
+                  {m.role === 'user' ? 'You (Microphone)' : 'AI Voice Agent'}
+                </span>
+                <div className={`p-3 rounded-xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm'}`}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {loading && !isListening && (
+              <div className="flex items-center gap-2 text-zinc-400 dark:text-slate-500 text-sm">
+                <Loader2 size={14} className="animate-spin" /> Thinking...
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onMouseDown={toggleListen}
+              disabled={loading && !isListening}
+              className={`h-16 w-16 rounded-full flex items-center justify-center transition-all ${
+                isListening
+                  ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 shadow-md'
+              }`}
+            >
+              {isListening ? <Mic size={28} /> : <MicOff size={24} />}
+            </button>
+            <p className="text-xs text-zinc-400 dark:text-slate-500">Click to talk, click to stop.</p>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => { setSession(null); window.speechSynthesis.cancel(); recognitionRef.current?.stop(); }}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+            >
+              End Session
             </button>
           </div>
-        )}
-      </div>
-
-      <div className="p-6">
-        {error && <div className="text-sm font-medium text-destructive mb-4 p-3 bg-destructive/10 rounded-md">{error}</div>}
-        
-        {session ? (
-           <div className="flex flex-col gap-6">
-              <div className="flex-1 bg-muted/20 border rounded-lg p-4 min-h-[200px] max-h-[300px] overflow-y-auto flex flex-col gap-3">
-                 {messages.map((m, i) => (
-                    <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                       <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1">{m.role === 'user' ? 'You (Microphone)' : 'Llama 3 Voice Agent'}</span>
-                       <div className={`p-3 rounded-lg text-sm max-w-[80%] ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted border text-foreground'}`}>
-                          {m.text}
-                       </div>
-                    </div>
-                 ))}
-                 {loading && !isListening && (
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                       <Loader2 size={14} className="animate-spin" /> API thinking...
-                    </div>
-                 )}
-              </div>
-              
-              <div className="flex justify-center">
-                 <button 
-                   onMouseDown={toggleListen}
-                   disabled={loading && !isListening}
-                   className={`h-16 w-16 rounded-full flex items-center justify-center transition-all ${
-                      isListening ? 'bg-destructive text-destructive-foreground animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 shadow-md'
-                   }`}>
-                   {isListening ? <Mic size={28} /> : <MicOff size={24} />}
-                 </button>
-              </div>
-              <p className="text-center text-xs text-muted-foreground">Click to talk, click to stop.</p>
-           </div>
-        ) : (
-           <div className="py-12 flex flex-col items-center justify-center text-center">
-             <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                <Volume2 size={32} className="text-muted-foreground"/>
-             </div>
-             <p className="text-muted-foreground mb-4 max-w-md">Use this sandbox to talk directly to your LLM configuration for this campaign before deploying it to Asterisk / real phone numbers.</p>
-           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="p-8 flex flex-col items-center justify-center text-center gap-5">
+          {error && (
+            <div className="text-sm font-medium text-red-600 p-3 bg-red-50 border border-red-200 rounded-lg w-full">
+              {error}
+            </div>
+          )}
+          <div className="h-16 w-16 bg-indigo-50 rounded-2xl flex items-center justify-center">
+            <Volume2 size={28} className="text-indigo-600" />
+          </div>
+          <div className="max-w-sm">
+            <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed mb-4">
+              Use this sandbox to talk directly to your LLM configuration for this campaign before deploying to real phone numbers.
+            </p>
+            <button
+              onClick={startSession}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold h-10 px-5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+            >
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
+              {loading ? 'Starting...' : 'Start Sandbox'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

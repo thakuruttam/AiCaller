@@ -1,166 +1,189 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
-import { ArrowLeft, Volume2 } from 'lucide-react';
+import { ArrowLeft, Volume2, Users, Phone, Tag, Clock, BarChart3 } from 'lucide-react';
 import SandboxAgent from './CampaignWizard/components/SandboxAgent.jsx';
-import RoleGate from '../components/RoleGate';
-import CampaignEvaluationReport from './CampaignEvaluationReport.jsx';
-import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenWrapper from '../components/FullscreenWrapper';
+
+const STATUS_BADGE = {
+  completed:    'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-700',
+  queued:       'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:ring-slate-600',
+  'in-progress':'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:ring-blue-700',
+  failed:       'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-700',
+  cancelled:    'bg-orange-50 text-orange-700 ring-1 ring-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:ring-orange-700',
+};
 
 export default function CampaignDetails() {
   const { id } = useParams();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { addToast } = useToast();
 
-  useEffect(() => {
-    fetchCampaignDetails();
-  }, [id]);
+  useEffect(() => { fetchCampaignDetails(); }, [id]);
 
   const fetchCampaignDetails = async () => {
     try {
       const res = await api.get('/api/campaigns');
       const camp = res.data.find(c => c.id === id);
       setCampaign(camp);
-      setLoading(false);
     } catch (e) {
       console.error(e);
+    } finally {
       setLoading(false);
     }
   };
 
-  // Handlers moved to AdminDashboard
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-sm text-zinc-400 dark:text-slate-500">Loading campaign…</div>
+  );
+  if (!campaign) return (
+    <div className="flex items-center justify-center h-64 text-sm text-zinc-400 dark:text-slate-500">Campaign not found.</div>
+  );
 
-  if (loading) return <div style={{padding: '2rem'}}>Loading campaign...</div>;
-  if (!campaign) return <div style={{padding: '2rem'}}>Campaign not found</div>;
+  const filteredContacts = (campaign.campaignContacts || []).filter(cc => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (cc.overrides?.name || cc.contact.name || '').toLowerCase().includes(q) ||
+      (cc.contact.phone || '').toLowerCase().includes(q) ||
+      (cc.overrides?.tag || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <div className="animate-fade-in flex flex-col gap-4 h-full">
-      <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium max-w-fit shrink-0">
-         <ArrowLeft size={16} /> Back to Dashboard
+    <div className="animate-fade-in flex flex-col gap-6 flex-1">
+      {/* Back */}
+      <Link
+        to="/"
+        className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 transition-colors max-w-fit"
+      >
+        <ArrowLeft size={14} /> Back to Dashboard
       </Link>
-      
-      <div className="flex justify-between items-end border-b pb-4 shrink-0">
-         <div>
-            <h2 className="text-3xl font-bold tracking-tight m-0">{campaign.name}</h2>
-            <div className="flex gap-3 mt-3">
-               <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">{campaign.type}</span>
-               <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-primary text-primary-foreground">{campaign.campaignContacts?.length || 0} Contacts</span>
-            </div>
-         </div>
-         
 
+      {/* Page header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">{campaign.name}</h1>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-100">
+              {campaign.type}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 dark:bg-slate-700 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 dark:text-slate-400 ring-1 ring-inset ring-zinc-200 dark:ring-slate-600">
+              <Users size={10} /> {campaign.campaignContacts?.length || 0} contacts
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/campaigns/${id}/report`}
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 active:bg-zinc-100 transition-colors"
+          >
+            <BarChart3 size={14} /> Report
+          </Link>
+          <button
+            onClick={() => setIsSandboxOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 active:bg-zinc-100 transition-colors"
+          >
+            <Volume2 size={14} /> AI Sandbox
+          </button>
+        </div>
       </div>
 
-      <FullscreenWrapper 
-         title="Contacts & Calls" 
-         className="flex-1 min-h-0"
-         actionNode={
-            <DebouncedSearch 
-              onSearch={setSearchQuery} 
-              placeholder="Search by name, phone, or tags..." 
-              className="w-72"
-            />
-         }
+      {/* Contacts table */}
+      <FullscreenWrapper
+        title="Contacts & Calls"
+        className="flex-1 min-h-0"
+        actionNode={
+          <DebouncedSearch
+            onSearch={setSearchQuery}
+            placeholder="Search name, phone, tag…"
+            className="w-72"
+          />
+        }
       >
-         <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 border-b text-muted-foreground">
-               <tr>
-                 <th className="h-12 px-6 font-medium">Name</th>
-                 <th className="h-12 px-6 font-medium">Phone</th>
-                 <th className="h-12 px-6 font-medium">Tags / Tweaks</th>
-                 <th className="h-12 px-6 font-medium">Call Status</th>
-                 <th className="h-12 px-6 font-medium">Duration</th>
-                 <th className="h-12 px-6 font-medium text-right">Action</th>
-               </tr>
-            </thead>
-            <tbody>
-               {(campaign.campaignContacts || [])
-                 .filter(cc => {
-                   if (!searchQuery) return true;
-                   const q = searchQuery.toLowerCase();
-                   const name = (cc.overrides?.name || cc.contact.name || '').toLowerCase();
-                   const phone = (cc.contact.phone || '').toLowerCase();
-                   const tag = (cc.overrides?.tag || '').toLowerCase();
-                   return name.includes(q) || phone.includes(q) || tag.includes(q);
-                 })
-                 .map(cc => {
-                 const contact = cc.contact;
-                 const log = campaign.callLogs?.find(l => l.contactId === contact.id);
-                 return (
-                   <tr key={cc.id} className="border-b transition-colors hover:bg-muted/50">
-                      <td className="p-6 font-medium">{cc.overrides?.name || contact.name}</td>
-                      <td className="p-6 font-mono text-xs text-muted-foreground">{contact.phone}</td>
-                      <td className="p-6">
-                         {cc.overrides?.goals && (
-                            <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-700 mr-1">Design Auto-Override</span>
-                         )}
-                         {cc.overrides?.dataToCollect && (
-                            <span className="inline-flex items-center rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase text-purple-700 mr-1">Questions Overridden</span>
-                         )}
-                         {cc.overrides?.tag && (
-                            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase bg-secondary text-secondary-foreground">{cc.overrides.tag}</span>
-                         )}
-                      </td>
-                      <td className="p-6">
-                         {log ? (
-                           <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
-                             log.status === 'completed' ? 'border-transparent bg-primary text-primary-foreground' : 
-                             log.status === 'failed' || log.status === 'cancelled' ? 'border-transparent bg-destructive text-destructive-foreground' : 
-                             'border-transparent bg-secondary text-secondary-foreground'
-                           }`}>
-                             {log.status}
-                           </span>
-                         ) : <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize border-transparent bg-secondary text-secondary-foreground">No call</span>}
-                      </td>
-                      <td className="p-6 text-muted-foreground">{log?.durationMs ? `${Math.round(log.durationMs/1000)}s` : '-'}</td>
-                      <td className="p-6 text-right">
-                        {log && (
-                          <Link to={`/campaign/${id}/calls/${log.id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">View Transcript</Link>
-                        )}
-                      </td>
-                   </tr>
-                 )
-               })}
-               {campaign.campaignContacts?.length > 0 && 
-                 campaign.campaignContacts.filter(cc => {
-                   if (!searchQuery) return true;
-                   const q = searchQuery.toLowerCase();
-                   const name = (cc.overrides?.name || cc.contact.name || '').toLowerCase();
-                   const phone = (cc.contact.phone || '').toLowerCase();
-                   const tag = (cc.overrides?.tag || '').toLowerCase();
-                   return name.includes(q) || phone.includes(q) || tag.includes(q);
-                 }).length === 0 && (
-                 <tr>
-                   <td colSpan="6" className="p-8 text-center text-muted-foreground">No matching contacts found.</td>
-                 </tr>
-               )}
-            </tbody>
-         </table>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
+              {['Name', 'Phone', 'Tags / Overrides', 'Status', 'Duration', ''].map(h => (
+                <th key={h} className={`px-5 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider ${h === '' ? 'text-right' : 'text-left'}`}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
+            {filteredContacts.map(cc => {
+              const contact = cc.contact;
+              const log = campaign.callLogs?.find(l => l.contactId === contact.id);
+              return (
+                <tr key={cc.id} className="hover:bg-zinc-50/70 dark:hover:bg-slate-700/50 transition-colors">
+                  <td className="px-5 py-4 font-semibold text-zinc-900 dark:text-slate-100">
+                    {cc.overrides?.name || contact.name}
+                  </td>
+                  <td className="px-5 py-4 font-mono text-xs text-zinc-500 dark:text-slate-400">{contact.phone}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {cc.overrides?.goals && (
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-700 ring-1 ring-blue-100">Script Override</span>
+                      )}
+                      {cc.overrides?.dataToCollect && (
+                        <span className="inline-flex items-center rounded-md bg-violet-50 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-700 ring-1 ring-violet-100">Q Override</span>
+                      )}
+                      {cc.overrides?.tag && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-600 dark:text-slate-400 ring-1 ring-zinc-200 dark:ring-slate-600">
+                          <Tag size={8} /> {cc.overrides.tag}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    {log ? (
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`}>
+                        {log.status}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400 dark:text-slate-500">No call</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-xs text-zinc-500 dark:text-slate-400">
+                    {log?.durationMs ? `${Math.round(log.durationMs / 1000)}s` : '—'}
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    {log && (
+                      <Link
+                        to={`/campaign/${id}/calls/${log.id}`}
+                        className="inline-flex items-center rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 shadow-sm transition-colors"
+                      >
+                        Transcript
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {filteredContacts.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-12 text-center text-sm text-zinc-400 dark:text-slate-500">
+                  {searchQuery ? 'No contacts match your search.' : 'No contacts in this campaign.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </FullscreenWrapper>
-      
-      <button
-        onClick={() => setIsSandboxOpen(true)}
-        className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-5 border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors shrink-0 max-w-fit"
-      >
-        <Volume2 size={16} /> Open AI Sandbox
-      </button>
 
       <Modal
         isOpen={isSandboxOpen}
         onClose={() => setIsSandboxOpen(false)}
-        title="UI Sandbox: Live AI Test"
+        title="AI Sandbox — Live Test"
+        className="max-w-2xl w-full"
       >
         <SandboxAgent campaign={campaign} />
       </Modal>
-
-
     </div>
   );
 }

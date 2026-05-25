@@ -3,44 +3,41 @@ import { X } from 'lucide-react';
 
 const Modal = ({ isOpen, onClose, title, children, footer, className }) => {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 animate-in fade-in duration-200"
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      
-      {/* Content */}
-      <div className={`relative w-full bg-card border shadow-2xl rounded-xl transform-gpu animate-in zoom-in-95 duration-200 ${className || 'max-w-md'}`}>
+
+      {/* Panel */}
+      <div className={`relative flex flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/[0.08] dark:ring-white/[0.05] border border-white/50 dark:border-slate-700 max-h-[90vh] w-full animate-scale-in ${className || 'max-w-md'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-            <X size={20} />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-slate-700 shrink-0">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-slate-100 tracking-tight">{title}</h3>
+          <button
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 dark:text-slate-500 hover:bg-zinc-100 dark:hover:bg-slate-700 hover:text-zinc-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <X size={15} />
           </button>
         </div>
-        
+
         {/* Body */}
-        <div className="p-6">
+        <div className="px-6 py-5 overflow-y-auto flex-1">
           {children}
         </div>
-        
+
         {/* Footer */}
         {footer && (
-          <div className="flex justify-end gap-3 p-6 border-t bg-muted/30">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100 dark:border-slate-700 bg-zinc-50/80 dark:bg-slate-800/80 rounded-b-2xl shrink-0">
             {footer}
           </div>
         )}

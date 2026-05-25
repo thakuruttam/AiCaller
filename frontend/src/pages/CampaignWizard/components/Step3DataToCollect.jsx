@@ -13,10 +13,13 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full rounded-md border bg-background px-3 pt-2 pb-6 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y transition-colors
-          ${over ? 'border-destructive focus-visible:ring-destructive' : 'border-input'} ${className}`}
+        className={`w-full rounded-lg border bg-white dark:bg-slate-700 px-3 pt-2 pb-6 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
+          ${over
+            ? 'border-red-400 focus:ring-red-500/20'
+            : 'border-zinc-300 dark:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+          } ${className}`}
       />
-      <div className={`absolute bottom-2 right-6 text-[10px] pointer-events-none tabular-nums bg-background/80 px-1 backdrop-blur-sm rounded ${over ? 'text-destructive font-semibold' : 'text-muted-foreground/70'}`}>
+      <div className={`absolute bottom-2 right-6 text-[10px] pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
         {count} / {limit} words{over ? ' — over limit' : ''}
       </div>
     </div>
@@ -25,8 +28,8 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
 
 export default function Step3DataToCollect({ payload, updatePayload }) {
   const { addToast } = useToast();
-  const items      = payload.dataToCollect || [];
-  const endCallIf  = payload.endCallIf || '';
+  const items     = payload.dataToCollect || [];
+  const endCallIf = payload.endCallIf || '';
 
   const dragFrom = useRef(null);
   const [dragOver, setDragOver] = useState(null);
@@ -48,8 +51,6 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
     let needsUpdate = false;
     let nextData = [...payload.dataToCollect];
 
-    // 1. Auto-distribute question-level weights equally across all questions
-    //    (only when no question weight has been manually set)
     const anyQuestionManual = questions.some(q => q.isWeightManuallySet);
     if (!anyQuestionManual) {
       const N = questions.length;
@@ -67,8 +68,6 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       });
     }
 
-    // 2. For each question with sub-fields, auto-distribute its own weight equally
-    //    among sub-fields (only when no sub-field weight has been manually set)
     nextData = nextData.map(item => {
       if (item.itemType !== 'question') return item;
       const sfs = item.fieldsToExtract || [];
@@ -100,8 +99,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
   const setEndCallIf = (v) => updatePayload({ endCallIf: v });
 
   const addItem = () => {
-    const next = [...items, emptyItem(items.length + 1)];
-    setItems(next);
+    setItems([...items, emptyItem(items.length + 1)]);
   };
 
   const updateItem = (id, updated) => {
@@ -113,7 +111,6 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
     setItems(filtered);
   };
 
-  // Drag-and-drop handlers
   const handleDragStart = (idx) => { dragFrom.current = idx; };
   const handleDragOver  = (idx) => { setDragOver(idx); };
   const handleDrop      = (toIdx) => {
@@ -123,15 +120,11 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
     const [moved] = next.splice(from, 1);
     next.splice(toIdx, 0, moved);
 
-    // Validate skips: clear any skip that doesn't point to a future item
     const validated = next.map((item, idx) => {
       if (item.onAnswer?.action === 'skip_question' && item.onAnswer.skipToId) {
         const targetIdx = next.findIndex(q => q.id === item.onAnswer.skipToId);
         if (targetIdx <= idx) {
-          return {
-            ...item,
-            onAnswer: { ...item.onAnswer, action: 'continue', skipToId: '' }
-          };
+          return { ...item, onAnswer: { ...item.onAnswer, action: 'continue', skipToId: '' } };
         }
       }
       return item;
@@ -146,16 +139,16 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div>
-        <h3 className="text-2xl font-semibold tracking-tight">Setup Questions</h3>
-        <p className="text-muted-foreground text-sm mt-1">
+        <h3 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Setup Questions</h3>
+        <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1">
           Define what the AI bot will ask or convey, in order. Drag cards to reorder.
         </p>
       </div>
 
-      {/* ── Question list ── */}
+      {/* Question list */}
       <div className="flex flex-col gap-3">
         {items.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-border rounded-xl text-muted-foreground bg-muted/10">
+          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-zinc-200 dark:border-slate-700 rounded-xl text-zinc-400 dark:text-slate-500 bg-zinc-50 dark:bg-slate-900">
             <MessageSquare size={32} className="mb-2 opacity-40" />
             <p className="text-sm">No questions yet. Add one below.</p>
           </div>
@@ -176,23 +169,21 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         ))}
       </div>
 
-      {/* ── Weight total indicator ── */}
+      {/* Weight total indicator */}
       {items.length > 0 && (() => {
         const total = items.reduce((sum, i) => {
           if (i.itemType !== 'question') return sum;
           const sfs = i.fieldsToExtract || [];
-          if (sfs.length > 0) {
-            return sum + sfs.reduce((s, sf) => s + (sf.weight || 0), 0);
-          }
+          if (sfs.length > 0) return sum + sfs.reduce((s, sf) => s + (sf.weight || 0), 0);
           return sum + (i.weight || 0);
         }, 0);
         const over  = total > 100;
         const exact = total === 100;
         return (
           <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm font-medium
-            ${over  ? 'border-destructive bg-destructive/5 text-destructive'
-            : exact ? 'border-green-500 bg-green-50 text-green-800'
-            :         'border-border bg-muted/20 text-muted-foreground'}`}
+            ${over  ? 'border-red-300 bg-red-50 text-red-700'
+            : exact ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+            :         'border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 text-zinc-500 dark:text-slate-400'}`}
           >
             <span>Total Call Score Weight</span>
             <span className="tabular-nums">{total}%
@@ -204,24 +195,24 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         );
       })()}
 
-      {/* ── Add button ── */}
+      {/* Add button */}
       <button
         type="button"
         onClick={addItem}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border h-12 w-full text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
+        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-12 w-full text-sm font-medium text-zinc-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
       >
         <Plus size={16} /> Add Question / Information
       </button>
 
-      {/* ── End Call If ── */}
-      <div className="flex flex-col gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5">
+      {/* End Call If */}
+      <div className="flex flex-col gap-3 p-4 rounded-xl border border-red-200 bg-red-50">
         <div className="flex items-center gap-2">
-          <AlertCircle size={16} className="text-destructive" />
-          <h4 className="text-sm font-semibold text-destructive">End Call If</h4>
-          <span className="text-xs text-muted-foreground">(max 500 words)</span>
+          <AlertCircle size={15} className="text-red-600" />
+          <h4 className="text-sm font-semibold text-red-700">End Call If</h4>
+          <span className="text-xs text-red-500">(max 500 words)</span>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Describe any condition(s) under which the bot should immediately end the call, regardless of where it is in the flow. For example: <em>"If the contact says they are not interested at any point, immediately end the call."</em>
+        <p className="text-xs text-red-600/80 leading-relaxed">
+          Describe any condition(s) under which the bot should immediately end the call. For example: <em>"If the contact says they are not interested at any point, immediately end the call."</em>
         </p>
         <WordLimitTextarea
           value={endCallIf}
@@ -232,37 +223,35 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         />
       </div>
 
-      {/* ── Passing Criteria (Success Score Threshold) ── */}
-      <div className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-muted/10">
+      {/* Success Score Threshold */}
+      <div className="flex flex-col gap-3 p-4 rounded-xl border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
         <div className="flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-600" />
-          <h4 className="text-sm font-semibold text-foreground">Success Score Threshold</h4>
+          <CheckCircle2 size={15} className="text-emerald-600" />
+          <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Success Score Threshold</h4>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
+        <p className="text-xs text-zinc-500 dark:text-slate-400 leading-relaxed">
           Calls whose final score falls below this threshold will be marked as <strong>Failed</strong> in reports.
         </p>
-        <div className="flex flex-col gap-2 mt-2">
+        <div className="flex flex-col gap-2 mt-1">
           <div className="flex items-center gap-4">
             <input
               type="number"
               min={0}
               max={100}
-              className="flex h-9 w-24 rounded-md border border-input bg-background px-3 py-2 text-sm tabular-nums ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-9 w-24 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               value={payload.rules?.successScore ?? 50}
               onChange={(e) => updatePayload({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value))) } })}
             />
-            <span className="text-sm text-muted-foreground">/ 100</span>
+            <span className="text-sm text-zinc-500 dark:text-slate-400">/ 100</span>
           </div>
-
-          {/* Visual threshold bar */}
-          <div className="relative h-2 rounded-full bg-muted overflow-hidden w-full max-w-sm mt-1">
+          <div className="relative h-2 rounded-full bg-zinc-200 dark:bg-slate-700 overflow-hidden w-full max-w-sm mt-1">
             <div
-              className="absolute left-0 top-0 h-full rounded-full bg-green-500 transition-all"
+              className="absolute left-0 top-0 h-full rounded-full bg-emerald-500 transition-all"
               style={{ width: `${payload.rules?.successScore ?? 50}%` }}
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Current threshold: <strong>{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
+          <p className="text-[11px] text-zinc-500 dark:text-slate-400">
+            Current threshold: <strong className="text-zinc-700 dark:text-slate-300">{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
           </p>
         </div>
       </div>
