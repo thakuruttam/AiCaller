@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import { EVAL_BASE } from '../api/config';
+import FullscreenWrapper from '../components/FullscreenWrapper';
 
 const SENTIMENT_COLORS = {
   positive: 'bg-green-100 text-green-800 border-green-200',
@@ -71,6 +72,7 @@ export default function CallReport() {
   const extractedEntries = Object.entries(report.extractedFields || {});
   const hasExtracted = extractedEntries.some(([_, v]) => v?.value != null);
   const missingFields = report.missingFields || [];
+  const questionResults = report.reportData?.questionResults || [];
   const scoreBreakdown = report.scoreBreakdown || [];
   const compliance = report.complianceData || {};
   const completionPercent = report.completionRate != null ? Math.round(report.completionRate * 100) : null;
@@ -79,8 +81,8 @@ export default function CallReport() {
     <div className="animate-fade-in max-w-4xl mx-auto py-8 px-4 flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to={`/campaign/${campaignId}/calls/${id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 border border-input bg-background hover:bg-zinc-100 transition-colors">
-          <ArrowLeft size={16} className="mr-2" /> Back to Call
+        <Link to={`/campaigns/${campaignId}/report`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 border border-input bg-background hover:bg-zinc-100 transition-colors">
+          <ArrowLeft size={16} className="mr-2" /> Back to Campaign Report
         </Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Call Report</h2>
@@ -134,59 +136,59 @@ export default function CallReport() {
       )}
 
       {/* ── Extracted Fields ── */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="border-b px-6 py-4">
-          <h3 className="font-bold text-sm flex items-center gap-2 text-muted-foreground uppercase tracking-tight">
+      <FullscreenWrapper
+        className="shadow-sm"
+        title={
+          <span className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-tight">
             <BarChart3 size={14} className="text-primary" /> Extracted Fields
-          </h3>
-        </div>
+          </span>
+        }
+      >
         {hasExtracted ? (
-          <div className="overflow-auto max-h-[400px]">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 border-b text-muted-foreground">
-                <tr>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Field</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Value</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Confidence</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Raw Quote</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {extractedEntries.map(([key, val]) => (
-                  <tr key={key} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-3 font-medium capitalize">{key}</td>
-                    <td className="px-6 py-3">
-                      {val?.value != null ? (
-                        <span className="bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded text-xs font-medium">
-                          {typeof val.value === 'object' ? JSON.stringify(val.value) : String(val.value)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground italic">null</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded border ${
-                        val?.confidence === 'high' ? 'bg-green-50 text-green-700 border-green-200' :
-                        val?.confidence === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-zinc-50 text-zinc-600 border-zinc-200'
-                      }`}>
-                        {val?.confidence || '-'}
+          <table className="w-full text-sm text-left">
+            <thead className="bg-muted/50 border-b text-muted-foreground sticky top-0">
+              <tr>
+                <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Field</th>
+                <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Value</th>
+                <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Confidence</th>
+                <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Raw Quote</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {extractedEntries.map(([key, val]) => (
+                <tr key={key} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-6 py-3 font-medium capitalize max-w-[200px] truncate" title={key}>{key}</td>
+                  <td className="px-6 py-3 max-w-[240px]">
+                    {val?.value != null ? (
+                      <span className="bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded text-xs font-medium block truncate" title={String(val.value)}>
+                        {typeof val.value === 'object' ? JSON.stringify(val.value) : String(val.value)}
                       </span>
-                    </td>
-                    <td className="px-6 py-3 text-xs text-muted-foreground italic max-w-[200px] truncate" title={val?.raw}>
-                      {val?.raw || '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ) : (
+                      <span className="text-muted-foreground italic">null</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-3">
+                    <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded border ${
+                      val?.confidence === 'high'   ? 'bg-green-50 text-green-700 border-green-200' :
+                      val?.confidence === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      'bg-zinc-50 text-zinc-600 border-zinc-200'
+                    }`}>
+                      {val?.confidence || '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3 text-xs text-muted-foreground italic max-w-[220px] truncate" title={val?.raw}>
+                    {val?.raw || '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <div className="p-8 text-center text-muted-foreground text-sm">
             No fields were extracted from this call. Check your campaign's Evaluation Rules.
           </div>
         )}
-      </div>
+      </FullscreenWrapper>
 
       {/* ── Missing Fields ── */}
       {missingFields.length > 0 && (
@@ -205,48 +207,132 @@ export default function CallReport() {
       )}
 
       {/* ── Score Breakdown ── */}
-      {scoreBreakdown.length > 0 && (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <div className="border-b px-6 py-4">
-            <h3 className="font-bold text-sm flex items-center gap-2 text-muted-foreground uppercase tracking-tight">
+      {(questionResults.length > 0 || scoreBreakdown.length > 0) && (
+        <FullscreenWrapper
+          className="shadow-sm"
+          title={
+            <span className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-tight">
               <TrendingUp size={14} className="text-primary" /> Score Breakdown
-            </h3>
-          </div>
-          <div className="overflow-auto max-h-[400px]">
+            </span>
+          }
+        >
             <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 border-b text-muted-foreground">
+              <thead className="bg-muted/50 border-b text-muted-foreground sticky top-0 z-10">
                 <tr>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Criterion</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Question / Field</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider">Answer</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider text-right">Weight</th>
-                  <th className="h-10 px-6 font-medium text-xs uppercase tracking-wider text-right">Points</th>
+                  <th className="h-10 px-4 font-medium text-xs uppercase tracking-wider w-8 shrink-0">#</th>
+                  <th className="h-10 px-4 font-medium text-xs uppercase tracking-wider w-[28%]">Question</th>
+                  <th className="h-10 px-4 font-medium text-xs uppercase tracking-wider w-[26%]">Expected Answer</th>
+                  <th className="h-10 px-4 font-medium text-xs uppercase tracking-wider w-[24%] whitespace-nowrap">Actual Answer</th>
+                  <th className="h-10 px-4 font-medium text-xs uppercase tracking-wider text-right w-16">Weight</th>
+                  <th className="h-10 px-4 font-medium text-xs uppercase tracking-wider text-right w-16">Points</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {scoreBreakdown.map((r, i) => {
-                  const awarded = r.awarded ?? 0;
-                  const maxPts = r.maxPoints ?? r.weight ?? 0;
-                  const answer = r.fieldValue ?? r.answerExtracted;
-                  const answerStr = answer == null ? '—' : (typeof answer === 'object' ? JSON.stringify(answer) : String(answer));
-                  const isSkipped = r.reason === 'skipped';
-                  const isPartial = r.reason === 'partial';
+                {questionResults.map((qr, qIdx) => {
+                  const subFieldRows = (qr.breakdownRows || []).filter(r => r.rule === 'Field present');
+                  const questionRow  = (qr.breakdownRows || []).find(r => r.rule !== 'Field present');
+                  const awarded      = qr.questionScore ?? 0;
+                  const totalWeight  = qr.weight ?? 0;
+                  const isSkipped    = qr.skipped;
+                  const expectedRule = questionRow?.rule ?? (isSkipped ? 'Not asked' : 'Any answer');
+                  const isPartial    = questionRow?.reason === 'partial';
+                  const answerStr    = qr.answerExtracted || (isSkipped ? 'Not asked' : 'No answer');
+
                   return (
-                  <tr key={i} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-3 font-medium text-xs">{r.rule || '—'}</td>
-                    <td className="px-6 py-3 text-muted-foreground">{r.field || r.questionText || '—'}</td>
-                    <td className={`px-6 py-3 text-sm ${isSkipped ? 'text-amber-700 italic' : ''}`}>{answerStr}</td>
-                    <td className="px-6 py-3 text-right text-muted-foreground">{maxPts}%</td>
-                    <td className={`px-6 py-3 text-right font-bold ${awarded > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      +{awarded.toFixed(1)}{isPartial ? <span className="text-amber-600 text-xs font-normal ml-1">partial</span> : null}
-                    </td>
-                  </tr>
+                    <React.Fragment key={qr.questionId || qIdx}>
+                      {/* Question row — single line, truncate with tooltip */}
+                      <tr className={`hover:bg-muted/20 transition-colors ${isSkipped ? 'opacity-60' : ''}`}>
+                        <td className="px-4 py-2.5 text-center shrink-0">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                            {qIdx + 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 max-w-0 w-[28%]">
+                          <p className="truncate text-sm font-medium" title={qr.questionText || '—'}>
+                            {qr.questionText || '—'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-2.5 max-w-0 w-[26%]">
+                          <span
+                            className="block truncate text-xs bg-muted border border-border px-2 py-1 rounded font-mono"
+                            title={expectedRule}
+                          >
+                            {expectedRule}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 max-w-0 w-[24%]">
+                          <p
+                            className={`truncate text-sm ${qr.answerExtracted ? 'text-foreground' : 'italic text-muted-foreground text-xs'}`}
+                            title={answerStr}
+                          >
+                            {answerStr}
+                          </p>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground text-xs tabular-nums w-16">
+                          {totalWeight}%
+                        </td>
+                        <td className="px-4 py-2.5 text-right w-16">
+                          <span className={`font-bold text-sm ${awarded > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                            +{awarded.toFixed(1)}
+                          </span>
+                          {isPartial && <span className="text-amber-600 text-[10px] font-normal ml-1">partial</span>}
+                        </td>
+                      </tr>
+
+                      {/* Extracted sub-field rows */}
+                      {subFieldRows.map((sf, sfIdx) => {
+                        const sfAwarded  = sf.awarded ?? 0;
+                        const isPresent  = sf.reason === 'present';
+                        const sfValueStr = isPresent ? sf.fieldValue : 'Missing';
+                        return (
+                          <tr key={sfIdx} className="bg-muted/5 hover:bg-muted/15 transition-colors">
+                            <td className="px-4 py-2 shrink-0" />
+                            <td className="px-4 py-2 pl-8 max-w-0 w-[28%]">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-muted-foreground/40 shrink-0">└</span>
+                                <span
+                                  className="truncate text-xs font-medium text-foreground/80"
+                                  title={sf.field}
+                                >
+                                  {sf.field}
+                                </span>
+                                <span className="shrink-0 text-[10px] text-muted-foreground/40">field</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 w-[26%]">
+                              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded whitespace-nowrap">
+                                Field present
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 max-w-0 w-[24%]">
+                              <span
+                                className={`block truncate text-xs px-2 py-0.5 rounded border font-medium ${
+                                  isPresent
+                                    ? 'bg-green-50 text-green-800 border-green-200'
+                                    : 'bg-red-50 text-red-700 border-red-200 italic'
+                                }`}
+                                title={sfValueStr}
+                              >
+                                {sfValueStr}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-right text-xs text-muted-foreground tabular-nums w-16">
+                              {sf.weight}%
+                            </td>
+                            <td className="px-4 py-2 text-right w-16">
+                              <span className={`text-xs font-semibold ${sfAwarded > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                +{sfAwarded.toFixed(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
+        </FullscreenWrapper>
       )}
 
       {/* ── Compliance Data ── */}
@@ -269,20 +355,40 @@ export default function CallReport() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground uppercase font-semibold">Script Adherence</span>
+              <span
+                className="text-xs text-muted-foreground uppercase font-semibold cursor-help underline decoration-dotted"
+                title="Script Adherence = 20pts if identity verified + 20pts if closure delivered + up to 60pts based on % of questions asked. Max 100."
+              >
+                Script Adherence
+              </span>
               <span className="text-sm font-bold">{compliance.scriptAdherenceScore ?? '-'}%</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground uppercase font-semibold">Question Coverage</span>
+              <span
+                className="text-xs text-muted-foreground uppercase font-semibold cursor-help underline decoration-dotted"
+                title="% of configured questions that were actually asked by the agent on this call."
+              >
+                Question Coverage
+              </span>
               <span className="text-sm font-bold">{compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '-'}</span>
             </div>
           </div>
           {compliance.questionsAsked?.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col gap-1">
               <span className="text-xs text-muted-foreground uppercase font-semibold">Questions Asked</span>
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <div className="flex flex-wrap gap-1.5 mt-1">
                 {compliance.questionsAsked.map((q, i) => (
-                  <span key={i} className="bg-muted border px-2 py-0.5 rounded text-xs">{q}</span>
+                  <span key={i} className="bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded text-xs">{q}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {compliance.questionsSkipped?.length > 0 && (
+            <div className="mt-3 flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground uppercase font-semibold">Questions Not Asked</span>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {compliance.questionsSkipped.map((q, i) => (
+                  <span key={i} className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded text-xs">{q}</span>
                 ))}
               </div>
             </div>

@@ -2,6 +2,7 @@
 import { config } from '../config.js';
 import { logger } from '../logger.js';
 import { scoreAllQuestions } from './scorer.js';
+import { isTrivialTurn } from './affirmatives.js';
 
 /**
  * Extract answers and score them per question using Groq LLM.
@@ -11,6 +12,44 @@ import { scoreAllQuestions } from './scorer.js';
  * @param {Array}  dataToCollect  — campaign questions/info items with weights & optional fieldsToExtract
  * @returns {object} { questionResults, extractedFields, missingFields, summary, sentiment, modelVersion }
  */
+/**
+ * Validate that each extracted answer is actually grounded in the transcript.
+ * Nulls out any answer whose significant words don't appear in any user turn —
+ * this prevents the LLM from hallucinating answers for calls where no data was given.
+ */
+function groundAnswers(questionResults, turns) {
+  const userTexts = turns
+    .filter(t => t.role === 'user')
+    .map(t => t.text.toLowerCase());
+
+  return questionResults.map(qr => {
+    if (!qr.answerExtracted) return qr;
+
+    const answerWords = String(qr.answerExtracted)
+      .toLowerCase()
+      .split(/\s+/)
+      .map(w => w.replace(/[^\w]/g, ''))
+      .filter(w => w.length > 4);
+
+    if (answerWords.length === 0) {
+      // Can't verify a one-word answer — keep but zero score if question wasn't asked
+      return qr;
+    }
+
+    const matchCount = userTexts.reduce(
+      (n, ut) => n + answerWords.filter(w => ut.includes(w)).length,
+      0
+    );
+
+    if (matchCount === 0) {
+      // No words from the extracted answer appear in any user turn → hallucination
+      return { ...qr, answerExtracted: null, scoreRatio: 0, subFieldsExtracted: {} };
+    }
+
+    return qr;
+  });
+}
+
 export async function extract(turns, dataToCollect = []) {
   if (!turns || turns.length === 0) {
     return emptyResult(dataToCollect);
@@ -18,6 +57,17 @@ export async function extract(turns, dataToCollect = []) {
 
   const questions = dataToCollect.filter(q => q.itemType === 'question');
   if (!questions.length) {
+    return emptyResult(dataToCollect);
+  }
+
+  // If every user turn is a trivial identity reply (yes / speaking / this is me / etc.)
+  // the call had no real content — skip LLM extraction entirely.
+  const substantiveUserTurns = turns.filter(
+    t => t.role === 'user' && !isTrivialTurn(t.text)
+  );
+
+  if (substantiveUserTurns.length === 0) {
+    logger.info('[Extractor] No substantive user content — skipping LLM extraction');
     return emptyResult(dataToCollect);
   }
 
@@ -45,10 +95,13 @@ export async function extract(turns, dataToCollect = []) {
 
   const prompt = `You are an expert call transcript evaluator. Analyze this call transcript and for each question, extract and score the user's response.
 
-CRITICAL RULES:
-- All extracted values and quotes MUST come strictly from the USER's replies, not from the Agent's questions.
-- NEVER extract a value the Agent stated unless the User explicitly confirmed it.
-- The "raw" quote must be exact text from a User turn only.
+CRITICAL RULES — VIOLATION = CRITICAL FAILURE:
+1. GROUND EVERY ANSWER: answerExtracted MUST be derivable from an exact USER turn in the transcript. If you cannot point to specific words the User said, set answerExtracted to null.
+2. DO NOT INVENT: Never infer, complete, assume, or hallucinate answers. If the User only said "Yes" to confirm identity, ALL questions must have answerExtracted = null.
+3. IDENTITY "YES" IS NOT AN ANSWER: A user saying "Yes" or "Yeah" to "Am I speaking with X?" is identity confirmation ONLY — it answers no survey question.
+4. QUESTION NOT ASKED: If the Agent never asked the question in the transcript, set answerExtracted to null and scoreRatio to 0.
+5. RAW MUST EXIST: The "raw" field must be exact verbatim text copied from a User turn. If you cannot find it, set raw to null and answerExtracted to null.
+6. SPLIT ANSWERS (STT CUTOFF): Speech-to-text sometimes cuts a user's sentence mid-word. If a User turn ends abruptly without punctuation AND a later User turn semantically completes it (e.g. "To increase my" ... "knowledge base."), combine them as the answer to the ORIGINAL question — even if an Agent question appears between them. Assign null to the question that was asked after the cutoff if the user was still completing the previous answer.
 
 TRANSCRIPT:
 ${transcript}
@@ -58,7 +111,8 @@ ${questionSpecJson}
 
 For each question, return:
 1. "answerExtracted": The user's answer in a concise normalized form (null if not answered or question was never asked).
-2. "subFieldsExtracted": If the question has "hasSubFields: true", extract each sub-field from the user's reply. For each sub-field: { "value": <value or null>, "confidence": "high"|"medium"|"low", "raw": "<exact user quote or null>" }
+2. "scoreRatio": A number 0.0–1.0 for how well the answer meets the "expectedDescription". Use semantic understanding — e.g. "React Node" satisfies contains "Node js" because they refer to the same technology. 1.0 = fully meets, 0.5 = partially meets, 0.0 = does not meet or question was not asked.
+3. "subFieldsExtracted": If the question has "hasSubFields: true", extract each sub-field from the user's reply ONLY if the question was actually asked. For each sub-field: { "value": <value or null>, "confidence": "high"|"medium"|"low", "raw": "<exact user quote or null>" }
 
 Return a single valid JSON object:
 {
@@ -68,6 +122,7 @@ Return a single valid JSON object:
     {
       "questionId": "<id>",
       "answerExtracted": "<normalized answer or null>",
+      "scoreRatio": <0.0 to 1.0>,
       "subFieldsExtracted": {
         "<fieldName>": { "value": <value or null>, "confidence": "high"|"medium"|"low", "raw": "<user quote or null>" }
       }
@@ -113,6 +168,9 @@ Return ONLY the JSON object. No explanations, no markdown.`;
   } catch (e) {
     logger.warn({ rawJson, err: e.message }, '[Extractor] Failed to parse LLM JSON — returning empty');
   }
+
+  // Ground answers: null out anything the LLM fabricated that isn't in the transcript
+  questionResults = groundAnswers(questionResults, turns);
 
   // Deterministic weighted scoring from campaign config
   const scored = scoreAllQuestions(dataToCollect, questionResults, turns);

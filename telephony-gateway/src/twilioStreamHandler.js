@@ -5,7 +5,7 @@ import twilio from 'twilio';
 import { publishEvaluation } from './queues/ingestQueue.js';
 import { redis } from './redis.js';
 import { setupSTT } from './providers/stt.js';
-import { speakBackToTwilio } from './providers/tts.js';
+import { speakBackToTwilio, DeepgramTTSSocket } from './providers/tts.js';
 
 export function setupTwilioStream(server) {
   const wss = new WebSocketServer({ server, path: '/streams' });
@@ -16,6 +16,7 @@ export function setupTwilioStream(server) {
     let streamSid = null;
     let agent = null;
     let sttStream = null;
+    let ttsSocket = null;     // persistent Deepgram TTS WebSocket, opened on call start
     let isSpeaking = false;
     let callLogId = null;
     let callSid = null;
@@ -27,6 +28,14 @@ export function setupTwilioStream(server) {
     
     let silenceTimeout = null;
     const timeoutSeconds = parseInt(process.env.VOICE_TIMEOUT_SECONDS || '60', 10);
+
+    // Transcript accumulation buffer — merges multiple Deepgram finals that arrive
+    // within TRANSCRIPT_BUFFER_MS of each other into one coherent user turn before
+    // the agent processes it. Prevents mid-sentence STT cuts from being treated as
+    // complete answers and assigning speech to the wrong question.
+    let transcriptAccumulator = '';
+    let transcriptTimer = null;
+    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '200', 10);
 
     // Per-question no-answer retry: if user doesn't speak for 15s, re-ask; after 2 retries, move on
     let noAnswerTimer = null;
@@ -75,7 +84,7 @@ export function setupTwilioStream(server) {
         const reply = await agent.processInput(directive);
         if (reply && reply.length > 0) {
           isSpeaking = true;
-          const ok = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage);
+          const ok = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage, ttsSocket);
           if (!ok) isSpeaking = false;
           else if (agent.expectsUserReply) startNoAnswerTimer();
         }
@@ -92,7 +101,7 @@ export function setupTwilioStream(server) {
 
       if (reply && reply.length > 0) {
         isSpeaking = true;
-        const ok = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage);
+        const ok = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage, ttsSocket);
         if (!ok) isSpeaking = false;
         else if (agent.expectsUserReply) startNoAnswerTimer();
       } else if (isCallEnding) {
@@ -176,35 +185,52 @@ export function setupTwilioStream(server) {
     // 1. Setup STT Provider (Deferred until 'start' event when language is known)
     let campaignLanguage = 'English'; // will be updated when campaign loads
 
-    // Define the transcript handler that will be passed to the STT provider
-    const handleTranscript = async (transcript) => {
-      console.log(`[STT] Final Transcript: ${transcript}`);
-      // Reset no-answer retries on every real user utterance
+    // Flush accumulated transcript to the agent
+    const flushTranscript = async () => {
+      const fullTranscript = transcriptAccumulator.trim();
+      transcriptAccumulator = '';
+      transcriptTimer = null;
+      if (!fullTranscript || !agent || isCallEnding) return;
+
+      console.log(`[STT] Processing turn: "${fullTranscript}"`);
+      const reply = await agent.processInput(fullTranscript);
+      if (callSid) await agent.saveState(redis, callSid);
+      if (agent.shouldHangUp) isCallEnding = true;
+      console.log(`[Agent] Reply: ${reply}`);
+
+      if (reply.length > 0) {
+        isSpeaking = true;
+        const success = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage, ttsSocket);
+        if (!success) isSpeaking = false;
+        else if (agent.expectsUserReply) startNoAnswerTimer();
+      } else if (isCallEnding) {
+        console.log(`[Stream] No TTS needed. Executing final hangup for ${callSid}!`);
+        try {
+          const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+          await client.calls(callSid).update({ status: 'completed' });
+        } catch (e) {
+          console.error("[Stream] Failed to hang up via API:", e.message);
+        }
+      }
+    };
+
+    // STT callback — accumulates consecutive finals within TRANSCRIPT_BUFFER_MS
+    // before passing the full turn to the agent. This prevents a 700ms natural
+    // pause mid-sentence from being treated as end-of-turn.
+    const handleTranscript = (transcript) => {
+      console.log(`[STT] Final fragment: "${transcript}"`);
       noAnswerRetries = 0;
       clearNoAnswerTimer();
       resetSilenceTimeout();
-      
-      if (agent) {
-        const reply = await agent.processInput(transcript);
-        if (callSid) await agent.saveState(redis, callSid);
-        if (agent.shouldHangUp) isCallEnding = true;
-        console.log(`[Agent] Reply: ${reply}`);
 
-        if (reply.length > 0) {
-          isSpeaking = true;
-          const success = await speakBackToTwilio(ws, streamSid, reply, campaignLanguage);
-          if (!success) isSpeaking = false;
-          else if (agent.expectsUserReply) startNoAnswerTimer();
-        } else if (isCallEnding) {
-          console.log(`[Stream] No TTS needed. Executing final hangup for ${callSid}!`);
-          try {
-            const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-            await client.calls(callSid).update({ status: 'completed' });
-          } catch (e) {
-            console.error("[Stream] Failed to hang up via API:", e.message);
-          }
-        }
-      }
+      // Append this fragment to the accumulator
+      transcriptAccumulator = transcriptAccumulator
+        ? `${transcriptAccumulator} ${transcript}`
+        : transcript;
+
+      // (Re)start the flush timer — each new fragment pushes it back
+      if (transcriptTimer) clearTimeout(transcriptTimer);
+      transcriptTimer = setTimeout(flushTranscript, TRANSCRIPT_BUFFER_MS);
     };
 
 
@@ -230,10 +256,14 @@ export function setupTwilioStream(server) {
           
           // Also save SID here as a redundant measure
           if (callLogId && callSid) {
-            await prisma.callLog.update({
-              where: { id: callLogId },
-              data: { providerRef: callSid }
-            });
+            try {
+              await prisma.callLog.update({
+                where: { id: callLogId },
+                data: { providerRef: callSid }
+              });
+            } catch (e) {
+              console.warn('[Stream] Could not save providerRef (stale callLogId?):', e.message);
+            }
           }
           
           resetSilenceTimeout();
@@ -273,6 +303,12 @@ export function setupTwilioStream(server) {
             // Resolve campaign language (set in Step 6 Call Settings in UI)
             campaignLanguage = campaign.callSettings?.language || 'English';
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
+
+            // Open persistent Deepgram TTS WebSocket for English calls — eliminates
+            // the ~150ms HTTPS reconnection overhead on every agent turn.
+            if (campaignLanguage === 'English') {
+              ttsSocket = new DeepgramTTSSocket();
+            }
 
             // Initialize STT provider with the correct language
             if (sttStream) {
@@ -335,7 +371,7 @@ export function setupTwilioStream(server) {
             console.log(`[Agent] Greeting: ${greeting}`);
             if (greeting && greeting.length > 0) {
               isSpeaking = true;
-              const ok = await speakBackToTwilio(ws, streamSid, greeting, campaignLanguage);
+              const ok = await speakBackToTwilio(ws, streamSid, greeting, campaignLanguage, ttsSocket);
               if (!ok) isSpeaking = false;
               else if (agent.expectsUserReply) startNoAnswerTimer();
             } else {
@@ -355,6 +391,9 @@ export function setupTwilioStream(server) {
         case 'mark':
           if (msg.mark?.name === 'end_of_tts') {
             isSpeaking = false; // Release the lock so the bot can listen again
+            // Discard any fragments that arrived while the bot was speaking
+            if (transcriptTimer) { clearTimeout(transcriptTimer); transcriptTimer = null; }
+            transcriptAccumulator = '';
             if (isCallEnding) {
               console.log(`[Stream] TTS finished playing out loud. Executing final hangup for ${callSid}!`);
               try {
@@ -378,9 +417,8 @@ export function setupTwilioStream(server) {
           console.log('[Stream] Stopped');
           clearSilenceTimeout();
           clearNoAnswerTimer();
-          if (sttStream) {
-            sttStream.close();
-          }
+          if (sttStream) sttStream.close();
+          if (ttsSocket) { ttsSocket.close(); ttsSocket = null; }
           saveTranscript();
           break;
       }
@@ -390,9 +428,8 @@ export function setupTwilioStream(server) {
       console.log('[Stream] Client disconnected');
       clearSilenceTimeout();
       clearNoAnswerTimer();
-      if (sttStream) {
-        sttStream.close();
-      }
+      if (sttStream) sttStream.close();
+      if (ttsSocket) { ttsSocket.close(); ttsSocket = null; }
       saveTranscript();
     });
   });

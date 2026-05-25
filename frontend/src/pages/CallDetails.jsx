@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, User, Info, FileAudio, Calendar, Activity } from 'lucide-react';
+import { ArrowLeft, Phone, User, Info, FileAudio, Calendar, Activity, Copy, Download, Check } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import AudioPlayer from '../components/AudioPlayer';
 import axios from 'axios';
@@ -13,6 +13,7 @@ const CallDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
   const [lastRetryTime, setLastRetryTime] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchCallDetails();
@@ -49,6 +50,28 @@ const CallDetails = () => {
 
 
 
+  const cleanTranscript = (raw) => (raw || '').replace(/\[Twilio_SID:[^\]]+\]/g, '').trim();
+
+  const handleCopyTranscript = async () => {
+    if (!callLog.transcript) return;
+    await navigator.clipboard.writeText(cleanTranscript(callLog.transcript));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadTranscript = () => {
+    if (!callLog.transcript) return;
+    const name = callLog.contact?.name?.replace(/\s+/g, '_') || 'contact';
+    const filename = `transcript_${name}_${callLog.id.split('-')[0]}.txt`;
+    const blob = new Blob([cleanTranscript(callLog.transcript)], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) return <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">Loading call details...</div>;
   if (!callLog) return <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">Call log not found.</div>;
 
@@ -57,7 +80,7 @@ const CallDetails = () => {
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <Link to={`/campaigns/${campaignId || callLog.campaignId}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 border border-input bg-background hover:bg-zinc-100 transition-colors">
-            <ArrowLeft size={16} className="mr-2" /> Back
+            <ArrowLeft size={16} className="mr-2" /> Back to Campaign
           </Link>
           <h2 className="text-2xl font-bold tracking-tight">Call Details</h2>
         </div>
@@ -69,58 +92,50 @@ const CallDetails = () => {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
+      <div className="grid grid-cols-2 gap-3 shrink-0">
         {/* Contact info card */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-4">
-            <User size={14} /> Contact Details
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm text-zinc-500">Name</div>
-              <div className="text-lg font-semibold text-zinc-900">{callLog.contact?.name || 'Unknown'}</div>
+        <div className="rounded-lg border bg-white px-4 py-3 shadow-sm flex items-center gap-6">
+          <User size={14} className="text-zinc-400 shrink-0" />
+          <div className="flex gap-8 min-w-0">
+            <div className="min-w-0">
+              <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Name</div>
+              <div className="text-sm font-semibold text-zinc-900 truncate">{callLog.contact?.name || 'Unknown'}</div>
             </div>
-            <div>
-              <div className="text-sm text-zinc-500">Phone Number</div>
-              <div className="text-lg font-mono text-zinc-900">{callLog.contact?.phone || '-'}</div>
+            <div className="min-w-0">
+              <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Phone</div>
+              <div className="text-sm font-mono text-zinc-900 truncate">{callLog.contact?.phone || '-'}</div>
             </div>
           </div>
         </div>
 
         {/* Campaign info card */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-4">
-            <Activity size={14} /> Campaign & Status
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm text-zinc-500">Campaign</div>
-              <div className="text-lg font-semibold text-zinc-900">{callLog.campaign?.name || 'Unknown Campaign'}</div>
+        <div className="rounded-lg border bg-white px-4 py-3 shadow-sm flex items-center gap-6">
+          <Activity size={14} className="text-zinc-400 shrink-0" />
+          <div className="flex gap-8 min-w-0">
+            <div className="min-w-0">
+              <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Campaign</div>
+              <div className="text-sm font-semibold text-zinc-900 truncate">{callLog.campaign?.name || 'Unknown'}</div>
             </div>
             <div>
-              <div className="text-sm text-zinc-500">Current Status</div>
-              <div className="mt-1">
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${
-                  callLog.status === 'completed' ? 'border-transparent bg-zinc-900 text-white' : 
-                  callLog.status === 'failed' ? 'border-transparent bg-red-600 text-white' : 
-                  callLog.status === 'in-progress' ? 'border-transparent bg-blue-600 text-white' : 
-                  'border-transparent bg-zinc-100 text-zinc-900'
-                }`}>
-                  {callLog.status || 'pending'}
-                </span>
-              </div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Status</div>
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize mt-0.5 ${
+                callLog.status === 'completed' ? 'border-transparent bg-zinc-900 text-white' :
+                callLog.status === 'failed' ? 'border-transparent bg-red-600 text-white' :
+                callLog.status === 'in-progress' ? 'border-transparent bg-blue-600 text-white' :
+                'border-transparent bg-zinc-100 text-zinc-900'
+              }`}>
+                {callLog.status || 'pending'}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Audio recording card */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm shrink-0">
-        <div className="flex items-center justify-between mb-6">
+      <div className="rounded-xl border bg-white p-4 shadow-sm shrink-0">
+        <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
-            <FileAudio size={16} /> Audio Recording
+            <FileAudio size={14} /> Audio Recording
           </h3>
           <span className="flex items-center gap-1 text-xs text-zinc-400 font-mono">
             <Calendar size={12} /> {new Date(callLog.createdAt).toLocaleString()}
@@ -154,10 +169,32 @@ const CallDetails = () => {
       <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col flex-1 min-h-0">
          <div className="flex items-center justify-between mb-4 shrink-0">
            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-2">Transcript</h3>
+           {callLog.transcript && (
+             <div className="flex items-center gap-2">
+               <button
+                 onClick={handleCopyTranscript}
+                 className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 transition-colors"
+                 title="Copy transcript"
+               >
+                 {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                 {copied ? 'Copied' : 'Copy'}
+               </button>
+               <button
+                 onClick={handleDownloadTranscript}
+                 className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 transition-colors"
+                 title="Download transcript as .txt"
+               >
+                 <Download size={13} /> Download
+               </button>
+             </div>
+           )}
          </div>
 
          <div className="bg-zinc-50 p-6 rounded-lg border border-zinc-100 text-sm leading-relaxed whitespace-pre-line text-zinc-800 overflow-y-auto flex-1">
-            {callLog.transcript || <span className="text-zinc-400 italic">No transcript available for this call.</span>}
+            {callLog.transcript
+              ? cleanTranscript(callLog.transcript)
+              : <span className="text-zinc-400 italic">No transcript available for this call.</span>
+            }
          </div>
       </div>
     </div>

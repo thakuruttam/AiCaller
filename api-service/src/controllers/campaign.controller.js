@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall } from '../queue/publisher.js';
+import twilio from 'twilio';
 
 function dbErrorPayload(error) {
   if (error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND') {
@@ -337,8 +338,22 @@ export const updateCampaignStatus = async (req, res) => {
     const { action } = req.body; 
 
     if (action === 'kill') {
+       // Cancel any active Twilio calls before updating DB
+       const inProgressLogs = await prisma.callLog.findMany({
+         where: { campaignId: id, status: 'in-progress' }
+       });
+
+       if (inProgressLogs.length > 0 && process.env.TWILIO_ACCOUNT_SID) {
+         const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+         await Promise.allSettled(
+           inProgressLogs
+             .filter(log => log.providerRef)
+             .map(log => client.calls(log.providerRef).update({ status: 'completed' }))
+         );
+       }
+
        await prisma.callLog.updateMany({
-         where: { campaignId: id, status: { in: ['queued', 'paused', 'draft'] } },
+         where: { campaignId: id, status: { in: ['queued', 'paused', 'draft', 'in-progress'] } },
          data: { status: 'cancelled' }
        });
     } else if (action === 'pause') {
@@ -420,8 +435,6 @@ export const getCallDetails = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
-
-import twilio from 'twilio';
 
 export const fetchRecording = async (req, res) => {
   try {

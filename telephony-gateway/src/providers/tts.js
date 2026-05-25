@@ -1,4 +1,5 @@
 import textToSpeech from '@google-cloud/text-to-speech';
+import { WebSocket } from 'ws';
 
 let googleTtsClient = null;
 try {
@@ -10,113 +11,232 @@ try {
       }
     });
   } else {
-    console.warn('[TTS] Google TTS credentials (GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY) are missing. Google TTS will fail if requested.');
+    console.warn('[TTS] Google TTS credentials missing — Google TTS will fail if requested.');
   }
 } catch (e) {
-  console.warn('[TTS] Google TTS Client failed to initialize.', e.message);
+  console.warn('[TTS] Google Speech Client failed to initialize.', e.message);
 }
 
-/**
- * Converts text to audio using the correct provider and sends it to Twilio WebSocket.
- */
-export async function speakBackToTwilio(ws, streamSid, text, language = 'English') {
-  const provider = language === 'English' ? 'deepgram' : 'google';
-  console.log(`[TTS] Generating audio via ${provider} for: "${text.substring(0, 30)}..."`);
+// ─── Deepgram persistent WebSocket TTS ───────────────────────────────────────
+// One socket per call, opened when the call starts. Eliminates the ~150-200ms
+// HTTPS reconnection cost on every agent turn.
 
-  if (provider === 'deepgram') {
-    return speakDeepgram(ws, streamSid, text);
-  } else {
-    return speakGoogle(ws, streamSid, text, language);
+const SPEAK_TIMEOUT_MS = 8000;
+
+export class DeepgramTTSSocket {
+  constructor(model = 'aura-2-asteria-en') {
+    this._model = model;
+    this._ws = null;
+    this._audioHandler = null;
+    this._flushResolve = null;
+    this._flushTimeout = null;
+    this._ready = false;
+    this._closed = false;
+    this._readyPromise = new Promise(r => { this._readyResolve = r; });
+    this._connect();
+  }
+
+  _connect() {
+    const url = `wss://api.deepgram.com/v1/speak?model=${this._model}&encoding=mulaw&container=none&sample_rate=8000`;
+    this._ws = new WebSocket(url, {
+      headers: { Authorization: `Token ${process.env.DEEPGRAM_API_KEY}` }
+    });
+
+    this._ws.on('open', () => {
+      this._ready = true;
+      this._readyResolve?.();
+      console.log('[TTS/DG-WS] Connected');
+    });
+
+    this._ws.on('message', (data) => {
+      if (Buffer.isBuffer(data)) {
+        // Raw mulaw audio chunk — forward immediately
+        try { this._audioHandler?.(data); } catch (e) { /* Twilio WS may have closed */ }
+      } else {
+        try {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === 'Flushed') {
+            if (this._flushTimeout) { clearTimeout(this._flushTimeout); this._flushTimeout = null; }
+            this._flushResolve?.();
+            this._flushResolve = null;
+            this._audioHandler = null;
+          }
+        } catch {}
+      }
+    });
+
+    this._ws.on('error', (e) => console.error('[TTS/DG-WS] Error:', e.message));
+
+    this._ws.on('close', () => {
+      this._ready = false;
+      console.log('[TTS/DG-WS] Closed');
+      // Unblock any pending speak() so callers don't hang forever
+      if (this._flushTimeout) { clearTimeout(this._flushTimeout); this._flushTimeout = null; }
+      if (this._flushResolve) {
+        this._flushResolve();
+        this._flushResolve = null;
+        this._audioHandler = null;
+      }
+      // Reconnect on unexpected close so future turns still get WS speed
+      if (!this._closed) {
+        console.log('[TTS/DG-WS] Unexpected close — reconnecting in 500ms');
+        this._readyPromise = new Promise(r => { this._readyResolve = r; });
+        setTimeout(() => { if (!this._closed) this._connect(); }, 500);
+      }
+    });
+  }
+
+  /** Synthesise text, streaming mulaw audio chunks to onAudio(buffer). */
+  async speak(text, onAudio) {
+    await this._readyPromise;
+    if (!this._ready || this._ws.readyState !== 1 /* OPEN */) {
+      throw new Error('[TTS/DG-WS] Socket not ready');
+    }
+    this._audioHandler = onAudio;
+    this._ws.send(JSON.stringify({ type: 'Speak', text }));
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        if (this._flushResolve === resolve) {
+          console.warn('[TTS/DG-WS] Timed out waiting for Flushed — will fall back to REST');
+          this._flushTimeout = null;
+          this._flushResolve = null;
+          this._audioHandler = null;
+          reject(new Error('Flushed timeout'));
+          // Terminate the stale socket — close handler will reconnect
+          try { this._ws.terminate(); } catch {}
+        }
+      }, SPEAK_TIMEOUT_MS);
+      this._flushTimeout = timeout;
+      this._flushResolve = resolve;
+      this._ws.send(JSON.stringify({ type: 'Flush' }));
+    });
+  }
+
+  close() {
+    this._closed = true;
+    if (this._flushTimeout) { clearTimeout(this._flushTimeout); this._flushTimeout = null; }
+    try { if (this._ready) this._ws.send(JSON.stringify({ type: 'Close' })); } catch {}
+    try { this._ws.terminate(); } catch {}
   }
 }
 
-async function speakDeepgram(ws, streamSid, text) {
+// ─── Main entry point ─────────────────────────────────────────────────────────
+
+/**
+ * Converts text to audio and streams it to the Twilio WebSocket.
+ * @param {WebSocket}          ws          Twilio stream WebSocket
+ * @param {string}             streamSid
+ * @param {string}             text        Text to speak
+ * @param {string}             language    'English' | 'Hindi' | 'Hinglish'
+ * @param {DeepgramTTSSocket}  [ttsSocket] Per-call persistent socket (English only)
+ */
+export async function speakBackToTwilio(ws, streamSid, text, language = 'English', ttsSocket = null) {
+  const provider = language === 'English' ? 'deepgram' : 'google';
+  console.log(`[TTS] Generating audio via ${provider} (${ttsSocket ? 'ws' : 'rest'}) for: "${text.substring(0, 50)}..."`);
+
+  if (provider === 'deepgram') {
+    if (ttsSocket) {
+      return speakDeepgramWS(ws, streamSid, text, ttsSocket);
+    }
+    return speakDeepgramREST(ws, streamSid, text);
+  }
+  return speakGoogle(ws, streamSid, text, language);
+}
+
+async function speakDeepgramWS(ws, streamSid, text, ttsSocket) {
   try {
-    const response = await fetch(`https://api.deepgram.com/v1/speak?model=aura-asteria-en&encoding=mulaw&container=none&sample_rate=8000`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Token ${process.env.DEEPGRAM_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ text })
-    });
-
-    if (!response.ok) {
-       const errBody = await response.text();
-       throw new Error(`Deepgram TTS failed: ${response.status} ${errBody}`);
-    }
-
-    if (!response.body) {
-      console.error('[TTS/Deepgram] No stream returned by fetch');
-      return false;
-    }
-
-    const reader = response.body.getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      // Send audio chunk to Twilio
+    await ttsSocket.speak(text, (chunk) => {
       ws.send(JSON.stringify({
         event: 'media',
         streamSid,
-        media: {
-          payload: Buffer.from(value).toString('base64'),
-        }
+        media: { payload: chunk.toString('base64') }
       }));
-    }
-    
-    // Append a mark to know exactly when Twilio has finished playing all this audio
+    });
+
     ws.send(JSON.stringify({
       event: 'mark',
       streamSid,
       mark: { name: 'end_of_tts' }
     }));
-    
-    console.log('[TTS/Deepgram] Finished streaming audio back to Twilio');
-    return true;
 
+    console.log('[TTS/DG-WS] Finished streaming audio to Twilio');
+    return true;
   } catch (err) {
-    console.error('[TTS/Deepgram] Error generating audio:', err);
+    console.error('[TTS/DG-WS] Error:', err.message);
+    // Fall back to REST if socket fails
+    return speakDeepgramREST(ws, streamSid, text);
+  }
+}
+
+async function speakDeepgramREST(ws, streamSid, text) {
+  try {
+    const response = await fetch(
+      `https://api.deepgram.com/v1/speak?model=aura-2-asteria-en&encoding=mulaw&container=none&sample_rate=8000`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text })
+      }
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`Deepgram TTS REST failed: ${response.status} ${errBody}`);
+    }
+
+    if (!response.body) {
+      console.error('[TTS/DG-REST] No stream returned');
+      return false;
+    }
+
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      ws.send(JSON.stringify({
+        event: 'media',
+        streamSid,
+        media: { payload: Buffer.from(value).toString('base64') }
+      }));
+    }
+
+    ws.send(JSON.stringify({
+      event: 'mark',
+      streamSid,
+      mark: { name: 'end_of_tts' }
+    }));
+
+    console.log('[TTS/DG-REST] Finished streaming audio to Twilio');
+    return true;
+  } catch (err) {
+    console.error('[TTS/DG-REST] Error:', err);
     return false;
   }
 }
 
 async function speakGoogle(ws, streamSid, text, language) {
   if (!googleTtsClient) {
-    console.error('[TTS/Google] Client not initialized. Cannot speak.');
+    console.error('[TTS/Google] Client not initialized.');
     return false;
   }
 
   try {
-    const request = {
-      input: { text: text },
-      // Select the voice. hi-IN-Neural2-D is a high quality female Hindi voice
+    const [response] = await googleTtsClient.synthesizeSpeech({
+      input: { text },
       voice: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-D' },
-      audioConfig: { 
-        audioEncoding: 'MULAW',
-        sampleRateHertz: 8000
-      },
-    };
+      audioConfig: { audioEncoding: 'MULAW', sampleRateHertz: 8000 }
+    });
 
-    const [response] = await googleTtsClient.synthesizeSpeech(request);
-    
-    // Google returns the entire audio payload at once in response.audioContent (Uint8Array)
-    // Twilio needs base64
     const audioBase64 = Buffer.from(response.audioContent).toString('base64');
-    
-    // We can chunk it manually to not overwhelm the websocket, but Twilio can handle moderately sized chunks.
-    // For safety, let's chunk it into 4KB pieces
     const chunkSize = 4096;
     for (let i = 0; i < audioBase64.length; i += chunkSize) {
-      const chunk = audioBase64.slice(i, i + chunkSize);
       ws.send(JSON.stringify({
         event: 'media',
         streamSid,
-        media: {
-          payload: chunk
-        }
+        media: { payload: audioBase64.slice(i, i + chunkSize) }
       }));
     }
 
@@ -126,10 +246,10 @@ async function speakGoogle(ws, streamSid, text, language) {
       mark: { name: 'end_of_tts' }
     }));
 
-    console.log('[TTS/Google] Finished streaming audio back to Twilio');
+    console.log('[TTS/Google] Finished streaming audio to Twilio');
     return true;
   } catch (err) {
-    console.error('[TTS/Google] Error generating audio:', err);
+    console.error('[TTS/Google] Error:', err);
     return false;
   }
 }

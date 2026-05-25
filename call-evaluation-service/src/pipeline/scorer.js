@@ -1,4 +1,5 @@
 // src/pipeline/scorer.js — Deterministic weighted scoring from campaign dataToCollect
+import { isAffirmative, isNegative } from './affirmatives.js';
 
 /**
  * Parse the first number from a string (e.g. "20 years" → 20).
@@ -10,16 +11,29 @@ export function parseNumeric(value) {
 }
 
 /**
- * Detect whether the agent asked a question on the call (word overlap heuristic).
+ * Detect whether the agent asked a question on the call.
+ * Uses significant-word overlap: requires at least 2 distinct keywords (length > 5)
+ * to appear in the same agent turn, preventing false positives from short common
+ * words like "your", "have", "what" that appear across multiple questions.
  */
 export function wasQuestionAsked(turns, questionText) {
   const agentTurns = (turns || [])
     .filter(t => t.role === 'agent')
     .map(t => t.text.toLowerCase());
-  const qText = (questionText || '').toLowerCase();
-  const qWords = qText.split(/\s+/).filter(w => w.length > 3);
+  // Strip template placeholders like [role/domain] before keyword extraction —
+  // the agent replaces them with real values, so the literal placeholder text
+  // would never match the agent's speech.
+  const qText = (questionText || '').toLowerCase().replace(/\[[^\]]*\]/g, '');
+  const qWords = qText
+    .split(/\s+/)
+    .map(w => w.replace(/[^\w]/g, ''))
+    .filter(w => w.length > 5);
   if (!qWords.length) return false;
-  return agentTurns.some(t => qWords.some(w => t.includes(w)));
+
+  const needed = Math.min(2, qWords.length);
+  return agentTurns.some(agentText =>
+    qWords.filter(w => agentText.includes(w)).length >= needed
+  );
 }
 
 function formatExpectedRule(expectedAnswer) {
@@ -61,15 +75,13 @@ export function scoreExpectedAnswer(expectedAnswer, answerExtracted) {
     return { ratio: 1, met: true };
   }
 
-  // Boolean — full weight or zero
+  // Boolean — use shared affirmatives list so "speaking", "hmm", "this is me" etc. all work
   if (condition === 'is_true') {
-    const yesWords = ['yes', 'yeah', 'yep', 'correct', 'right', 'haan', 'ha', 'true', 'affirmative', 'sure', 'okay'];
-    const met = yesWords.some(w => answerLower.includes(w));
+    const met = isAffirmative(answer);
     return { ratio: met ? 1 : 0, met };
   }
   if (condition === 'is_false') {
-    const noWords = ['no', 'nope', 'nah', 'false', 'negative', 'not really', 'incorrect'];
-    const met = noWords.some(w => answerLower.includes(w));
+    const met = isNegative(answer);
     return { ratio: met ? 1 : 0, met };
   }
 
@@ -151,6 +163,23 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
   const subFields = question.fieldsToExtract || [];
   const hasSubFields = subFields.length > 0;
 
+  // Use LLM-provided scoreRatio for semantic evaluation; fall back to literal match.
+  const llmRatio = (llmResult?.scoreRatio != null)
+    ? Math.max(0, Math.min(1, Number(llmResult.scoreRatio)))
+    : null;
+
+  const getExpectedRatio = (answer) => {
+    const condition = question.expectedAnswer?.condition;
+    // Use LLM semantic ratio only for 'contains' / open-ended 'is any value' —
+    // semantic understanding helps (e.g. "Node" ≡ "Node.js").
+    // For logical/negation/numeric conditions, LLM can override correct deterministic
+    // results (e.g. marking "does not contain: salary" as 0 for an incomplete answer),
+    // so always use deterministic scoring for those.
+    const semanticConditions = new Set([undefined, null, 'is any value', 'contains']);
+    if (llmRatio !== null && semanticConditions.has(condition)) return llmRatio;
+    return scoreExpectedAnswer(question.expectedAnswer, answer).ratio;
+  };
+
   if (hasSubFields) {
     for (const sf of subFields) {
       const weight = sf.weight || 0;
@@ -171,7 +200,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
     }
 
     if ((question.weight || 0) > 0) {
-      const { ratio } = scoreExpectedAnswer(question.expectedAnswer, llmResult?.answerExtracted);
+      const ratio = getExpectedRatio(llmResult?.answerExtracted);
       const weight = question.weight;
       const awarded = parseFloat((weight * ratio).toFixed(2));
       totalPoints += awarded;
@@ -201,7 +230,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
         reason: 'no_answer',
       });
     } else {
-      const { ratio } = scoreExpectedAnswer(question.expectedAnswer, answer);
+      const ratio = getExpectedRatio(answer);
       const awarded = parseFloat((weight * ratio).toFixed(2));
       totalPoints += awarded;
       breakdownRows.push({

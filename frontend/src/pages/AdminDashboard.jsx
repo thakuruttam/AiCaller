@@ -22,6 +22,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchCampaigns();
+    // Poll every 6 seconds for real-time status updates
+    const interval = setInterval(fetchCampaigns, 6000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchCampaigns = async () => {
@@ -163,6 +166,8 @@ export default function AdminDashboard() {
           const hasQueued = statuses.includes('queued');
           const hasInProgress = statuses.includes('in-progress');
           const hasPaused = statuses.includes('paused');
+          const hasActive = hasQueued || hasInProgress || hasPaused;
+          const hasEverRun = statuses.some(s => ['completed', 'failed', 'cancelled'].includes(s));
           
           const isExpanded = expandedCampaignId === campaign.id;
 
@@ -214,20 +219,24 @@ export default function AdminDashboard() {
                       <Play size={14} /> Resume
                     </button>
                   )}
-                  <button 
-                    onClick={() => handleCampaignAction(campaign.id, 'kill')}
-                    disabled={actionLoading}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 disabled:opacity-50"
-                  >
-                    <XOctagon size={14} /> Kill All
-                  </button>
-                  <button 
-                    onClick={() => confirmRerun(campaign.id)}
-                    disabled={actionLoading}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent disabled:opacity-50 ml-2"
-                  >
-                    <RefreshCw size={14} /> Re-run
-                  </button>
+                  {hasActive && (
+                    <button
+                      onClick={() => handleCampaignAction(campaign.id, 'kill')}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 disabled:opacity-50"
+                    >
+                      <XOctagon size={14} /> Kill All
+                    </button>
+                  )}
+                  {hasEverRun && (
+                    <button
+                      onClick={() => confirmRerun(campaign.id)}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent disabled:opacity-50 ml-2"
+                    >
+                      <RefreshCw size={14} /> Re-run
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -79,7 +79,14 @@ async function processJob(job, tenantId) {
 
   await job.updateProgress(10);
   const result = await processOutboundCall(job.data);
-  
+
+  // Don't overwrite if the call was killed while in-progress
+  const currentLog = await prisma.callLog.findUnique({ where: { id: callLogId }, select: { status: true } });
+  if (currentLog?.status === 'cancelled') {
+    console.log(`[Worker] Job ${job.id} was killed mid-call — keeping cancelled status`);
+    return { skipped: true, reason: 'cancelled' };
+  }
+
   await prisma.callLog.update({
     where: { id: callLogId },
     data: {

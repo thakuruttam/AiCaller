@@ -27,12 +27,17 @@ export function checkCompliance(turns, dataToCollect = []) {
   const questionsSkipped = [];
 
   for (const q of questions) {
-    const qText = q.text?.toLowerCase() ?? '';
-    const wasAsked = agentTurns.some(t => {
-      // Check for significant word overlap (agent paraphrases are ok)
-      const qWords = qText.split(' ').filter(w => w.length > 3);
-      return qWords.length > 0 && qWords.some(w => t.includes(w));
-    });
+    // Strip template placeholders like [role/domain] — agent replaces them at runtime
+    // so the literal placeholder text never appears in agent speech.
+    const qText = (q.text?.toLowerCase() ?? '').replace(/\[[^\]]*\]/g, '');
+    const qWords = qText
+      .split(/\s+/)
+      .map(w => w.replace(/[^\w]/g, ''))
+      .filter(w => w.length > 5);
+    const needed = Math.min(2, qWords.length);
+    const wasAsked = qWords.length > 0 && agentTurns.some(agentText =>
+      qWords.filter(w => agentText.includes(w)).length >= needed
+    );
 
     if (wasAsked) {
       questionsAsked.push(q.text);

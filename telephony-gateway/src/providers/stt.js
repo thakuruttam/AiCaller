@@ -36,12 +36,17 @@ export function setupSTT(language, handlers) {
 
 function setupDeepgram(language, handlers) {
   const buildDeepgramUrl = (lang) => {
+    // endpointing: ms of silence before Deepgram declares end-of-utterance.
+    // Kept at 500ms — short enough to feel responsive, long enough to survive
+    // a natural breath mid-sentence without cutting the user off.
+    // The 200ms accumulation buffer in twilioStreamHandler catches any remaining
+    // split finals, so we don't need a higher value here.
     if (lang === 'Hinglish') {
-      return 'wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=100&language=multi';
+      return 'wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=500&language=multi';
     } else if (lang === 'Hindi') {
-      return 'wss://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=300&language=hi';
+      return 'wss://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=500&language=hi';
     }
-    return 'wss://api.deepgram.com/v1/listen?model=nova-2-phonecall&smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=300&language=en-US';
+    return 'wss://api.deepgram.com/v1/listen?model=nova-2-phonecall&smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=500&language=en-US';
   };
 
   const dgConnection = new WebSocket(buildDeepgramUrl(language), {

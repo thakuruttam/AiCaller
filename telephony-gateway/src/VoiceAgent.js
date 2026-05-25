@@ -6,7 +6,10 @@ export class VoiceAgent {
     this.language = config.language || 'English'; // 'English', 'Hindi', 'Hinglish'
 
     // ── State machine ──────────────────────────────────────────────
-    this.items = config.dataToCollect || [];   // full ordered list
+    // Filter out question items with no text — they have nothing to ask
+    this.items = (config.dataToCollect || []).filter(item =>
+      (item.itemType || 'question') === 'information' || (item.text && item.text.trim().length > 0)
+    );
     this.currentIndex = 0;                     // pointer to active item
     this.done = false;                         // true once we've finished all items
     this.shouldHangUp = false;                 // set to true when HANGUP_NOW is emitted
@@ -52,23 +55,75 @@ export class VoiceAgent {
   }
 
   /**
-   * Evaluate a skip condition against the user's last answer.
-   * Returns true if the condition fires.
+   * Literal string-match fallback for skip conditions.
    */
   evalCondition(condition, conditionValue, userAnswer) {
     if (!condition || !userAnswer) return false;
     const a = userAnswer.toLowerCase().trim();
     const v = (conditionValue || '').toLowerCase().trim();
     switch (condition) {
-      case 'contains':      return a.includes(v);
+      case 'contains':         return a.includes(v);
       case 'does not contain': return !a.includes(v);
-      case 'equals':        return a === v;
-      case 'starts with':   return a.startsWith(v);
-      case 'ends with':     return a.endsWith(v);
-      case 'is greater than': return parseFloat(a) > parseFloat(v);
-      case 'is less than':    return parseFloat(a) < parseFloat(v);
-      case 'is any value':  return a.length > 0;
-      default:              return false;
+      case 'equals':           return a === v;
+      case 'starts with':      return a.startsWith(v);
+      case 'ends with':        return a.endsWith(v);
+      case 'is greater than':  return parseFloat(a) > parseFloat(v);
+      case 'is less than':     return parseFloat(a) < parseFloat(v);
+      case 'is any value':     return a.length > 0;
+      default:                 return false;
+    }
+  }
+
+  /**
+   * Semantically evaluate a skip condition using the LLM so that
+   * natural language answers (e.g. "React Node") match the intent of
+   * a condition (e.g. contains "Node js") even when the exact string
+   * is not present. Falls back to literal match on error.
+   */
+  async _evalConditionWithLLM(condition, conditionValue, userAnswer) {
+    if (!condition || !userAnswer) return false;
+
+    // Numeric conditions are always literal
+    if (['is greater than', 'is less than'].includes(condition)) {
+      return this.evalCondition(condition, conditionValue, userAnswer);
+    }
+    // Trivial non-text condition
+    if (condition === 'is any value') {
+      return userAnswer.trim().length > 0;
+    }
+
+    try {
+      const prompt =
+        `You are evaluating whether a phone call answer satisfies a condition.\n` +
+        `User's answer: "${userAnswer}"\n` +
+        `Condition: the answer ${condition} "${conditionValue}"\n` +
+        `Use common sense and semantic understanding. ` +
+        `For example, "React Node" satisfies contains "Node js" because they refer to the same technology.\n` +
+        `Respond with exactly one word: YES or NO.`;
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0,
+          stream: false,
+          max_tokens: 5
+        })
+      });
+
+      if (!response.ok) throw new Error(`Groq ${response.status}`);
+      const data = await response.json();
+      const verdict = data.choices[0].message.content.trim().toUpperCase();
+      console.log(`[VoiceAgent] Condition eval — "${condition} '${conditionValue}'" on "${userAnswer}" → ${verdict}`);
+      return verdict.startsWith('YES');
+    } catch (e) {
+      console.warn('[VoiceAgent] LLM condition eval failed, falling back to string match:', e.message);
+      return this.evalCondition(condition, conditionValue, userAnswer);
     }
   }
 
@@ -275,21 +330,30 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         return await this._callLLM();
       }
 
-      // Otherwise assume confirmed → ask Q1 via LLM and advance pointer so next turn goes to Q2
+      // Otherwise assume confirmed → deliver first item, respecting its type
       this.awaitingIdentityConfirm = false;
-      const firstQuestion = this.items[0];
-      if (firstQuestion) {
-        const mandatory = firstQuestion.is_mandatory ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim.' : '';
-        // Do NOT say "acknowledge briefly" — that gives the LLM room to improvise.
-        // Instead instruct it to say "Thanks." (one fixed filler) then the exact question.
-        const confirmDirective = `(System: The user confirmed their identity. Say "Thanks." and then immediately ask this exact question, word for word: "${firstQuestion.text}".${mandatory} Do NOT add any other words or sentences.)`;
-        this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
-        this.expectsUserReply = true;
-        const fullInput = `${userInput}\n${confirmDirective}`;
-        this.chatHistory.push({ role: 'user', content: fullInput });
-        return await this._callLLM();
+      const firstItem = this.items[0];
+      if (firstItem) {
+        if ((firstItem.itemType || 'question') === 'information') {
+          // First item is information — delegate to _buildNextDirective so info→question
+          // chaining is handled correctly and expectsUserReply is set accurately
+          const { directive, expectsUserReply } = this._buildNextDirective();
+          this.expectsUserReply = expectsUserReply;
+          const fullInput = `${userInput}\n(System: The user confirmed their identity. Say "Thanks." Then follow this instruction exactly: ${directive})`;
+          this.chatHistory.push({ role: 'user', content: fullInput });
+          return await this._callLLM();
+        } else {
+          // Regular question — original behaviour
+          const mandatory = firstItem.is_mandatory ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim.' : '';
+          const confirmDirective = `(System: The user confirmed their identity. Say "Thanks." and then immediately ask this exact question, word for word: "${firstItem.text}".${mandatory} Do NOT add any other words or sentences.)`;
+          this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
+          this.expectsUserReply = true;
+          const fullInput = `${userInput}\n${confirmDirective}`;
+          this.chatHistory.push({ role: 'user', content: fullInput });
+          return await this._callLLM();
+        }
       } else {
-        // No questions configured — go straight to closure
+        // No items configured — go straight to closure
         this.done = true;
         this.expectsUserReply = false;
         const confirmDirective = `(System: The user confirmed their identity. Proceed to CALL CLOSURE: Say this exact sign-off word for word "${this.config.callSignOff || 'Thank you for your time. Goodbye.'}" and immediately append HANGUP_NOW. No other words.)`;
@@ -359,7 +423,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
       if (prevItem?.itemType === 'question' && prevItem.onAnswer?.action) {
         const { action, skipCondition, skipToId } = prevItem.onAnswer;
-        const conditionFired = this.evalCondition(
+        const conditionFired = await this._evalConditionWithLLM(
           skipCondition?.condition,
           skipCondition?.value,
           userInput
