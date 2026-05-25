@@ -45,55 +45,52 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
     const questions = payload.dataToCollect.filter(i => i.itemType === 'question');
     if (questions.length === 0) return;
 
-    // Build a flat list of all "scorable items" across the campaign:
-    // - Questions with NO sub-fields → 1 implicit scorable item (the question itself)
-    // - Questions WITH sub-fields → N sub-field scorable items
-    const scorableItems = [];
-    questions.forEach(q => {
-      const sfs = q.fieldsToExtract || [];
-      if (sfs.length > 0) {
-        sfs.forEach(sf => scorableItems.push({ type: 'subfield', qId: q.id, sfId: sf.id, manuallySet: sf.isWeightManuallySet }));
-      } else {
-        scorableItems.push({ type: 'question', qId: q.id, manuallySet: q.isWeightManuallySet });
-      }
-    });
-
-    const N = scorableItems.length;
-    if (N === 0) return;
-
-    const anyManuallySet = scorableItems.some(s => s.manuallySet);
-    if (anyManuallySet) return;
-
-    const baseWeight = Math.floor(100 / N);
-    const remainder = 100 % N;
-
     let needsUpdate = false;
-    const nextData = payload.dataToCollect.map(item => {
-      if (item.itemType !== 'question') {
-        if (item.weight !== 0) { needsUpdate = true; return { ...item, weight: 0 }; }
-        return item;
-      }
+    let nextData = [...payload.dataToCollect];
 
-      const sfs = item.fieldsToExtract || [];
-      if (sfs.length > 0) {
-        // Distribute weight among sub-fields of this question
-        const sfIndices = scorableItems.filter(s => s.type === 'subfield' && s.qId === item.id);
-        let sfChanged = false;
-        const newSfs = sfs.map((sf) => {
-          const idx = scorableItems.findIndex(s => s.type === 'subfield' && s.sfId === sf.id);
-          const expected = idx < remainder ? baseWeight + 1 : baseWeight;
-          if (sf.weight !== expected) { sfChanged = true; return { ...sf, weight: expected }; }
-          return sf;
-        });
-        if (sfChanged) { needsUpdate = true; return { ...item, fieldsToExtract: newSfs }; }
-        return item;
-      } else {
-        // Question itself is the scorable item
-        const idx = scorableItems.findIndex(s => s.type === 'question' && s.qId === item.id);
-        const expected = idx < remainder ? baseWeight + 1 : baseWeight;
+    // 1. Auto-distribute question-level weights equally across all questions
+    //    (only when no question weight has been manually set)
+    const anyQuestionManual = questions.some(q => q.isWeightManuallySet);
+    if (!anyQuestionManual) {
+      const N = questions.length;
+      const base = Math.floor(100 / N);
+      const rem  = 100 % N;
+      nextData = nextData.map(item => {
+        if (item.itemType !== 'question') {
+          if (item.weight !== 0) { needsUpdate = true; return { ...item, weight: 0 }; }
+          return item;
+        }
+        const idx = questions.findIndex(q => q.id === item.id);
+        const expected = idx < rem ? base + 1 : base;
         if (item.weight !== expected) { needsUpdate = true; return { ...item, weight: expected }; }
         return item;
-      }
+      });
+    }
+
+    // 2. For each question with sub-fields, auto-distribute its own weight equally
+    //    among sub-fields (only when no sub-field weight has been manually set)
+    nextData = nextData.map(item => {
+      if (item.itemType !== 'question') return item;
+      const sfs = item.fieldsToExtract || [];
+      if (sfs.length === 0) return item;
+
+      const anySubManual = sfs.some(sf => sf.isWeightManuallySet);
+      if (anySubManual) return item;
+
+      const qWeight = item.weight || 0;
+      const M    = sfs.length;
+      const base = Math.floor(qWeight / M);
+      const rem  = qWeight % M;
+
+      let sfChanged = false;
+      const newSfs = sfs.map((sf, idx) => {
+        const expected = idx < rem ? base + 1 : base;
+        if (sf.weight !== expected) { sfChanged = true; return { ...sf, weight: expected }; }
+        return sf;
+      });
+
+      if (sfChanged) { needsUpdate = true; return { ...item, fieldsToExtract: newSfs }; }
+      return item;
     });
 
     if (needsUpdate) updatePayload({ dataToCollect: nextData });

@@ -155,7 +155,14 @@ export default function QuestionCard({
               placeholder={item.itemType === 'question'
                 ? 'e.g. What is your current CTC?'
                 : 'e.g. This call is regarding your pending EMI of ₹5,000.'}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y" />
+              className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 resize-y ${
+                item.itemType === 'question' && !item.text?.trim()
+                  ? 'border-destructive focus-visible:ring-destructive'
+                  : 'border-input focus-visible:ring-ring'
+              }`} />
+            {item.itemType === 'question' && !item.text?.trim() && (
+              <p className="text-xs text-destructive mt-0.5">Question text is required — the bot will skip this item.</p>
+            )}
           </div>
 
           {/* Question-only fields */}
@@ -305,7 +312,7 @@ export default function QuestionCard({
                 )}
               </div>
 
-              {/* Mandatory + Weight (weight hidden when sub-fields are defined) */}
+              {/* Mandatory + Weight */}
               <div className="flex items-center justify-between gap-6 pt-2 border-t border-border flex-wrap">
                 <div className="flex items-center justify-between flex-1 min-w-[200px]">
                   <div className="flex flex-col gap-0.5">
@@ -319,24 +326,26 @@ export default function QuestionCard({
                   </button>
                 </div>
 
-                {/* Only show root-level weight when NO sub-fields are defined */}
-                {!hasSubFields && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-medium text-right">Call Score Weight</span>
-                      <span className="text-xs text-muted-foreground">Contribution to success score</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input type="number" min={0} max={100} value={item.weight ?? 0}
-                        onChange={e => update({ 
-                          weight: Math.min(100, Math.max(0, Number(e.target.value))),
-                          isWeightManuallySet: true 
-                        })}
-                        className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                      <span className="text-xs text-muted-foreground font-medium">%</span>
-                    </div>
+                {/* Always show question weight */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-right">Call Score Weight</span>
+                    <span className="text-xs text-muted-foreground">
+                      {hasSubFields ? 'Sub-fields split this equally' : 'Contribution to success score'}
+                    </span>
                   </div>
-                )}
+                  <div className="flex items-center gap-1">
+                    <input type="number" min={0} max={100} value={item.weight ?? 0}
+                      onChange={e => update({
+                        weight: Math.min(100, Math.max(0, Number(e.target.value))),
+                        isWeightManuallySet: true,
+                        // Reset sub-field manual flags so they redistribute from new weight
+                        fieldsToExtract: (item.fieldsToExtract || []).map(sf => ({ ...sf, isWeightManuallySet: false }))
+                      })}
+                      className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    <span className="text-xs text-muted-foreground font-medium">%</span>
+                  </div>
+                </div>
               </div>
             </>
           )}

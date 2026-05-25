@@ -248,7 +248,7 @@ export default function StepContactOverrides({ payload, updatePayload }) {
       </div>
 
       {overrideCount > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300 text-sm font-medium">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-violet-400 bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200 text-sm font-medium">
           <CheckCircle size={15} />
           {overrideCount} contact{overrideCount > 1 ? 's have' : ' has'} custom overrides
         </div>

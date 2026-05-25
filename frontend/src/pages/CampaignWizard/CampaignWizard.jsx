@@ -88,8 +88,21 @@ export default function CampaignWizard() {
   };
 
   const updatePayload = (data) => setPayload(p => ({ ...p, ...data }));
-  const nextStep = () => setStep(s => Math.min(s + 1, 5));
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
+  const nextStep = () => {
+    // Step 3 (Setup Questions): block if any question-type item has empty text
+    if (step === 3) {
+      const emptyQuestions = (payload.dataToCollect || []).filter(
+        item => (item.itemType || 'question') === 'question' && !item.text?.trim()
+      );
+      if (emptyQuestions.length > 0) {
+        addToast(`${emptyQuestions.length} question(s) have no text. Fill them in or remove them.`, 'error');
+        return;
+      }
+    }
+    setStep(s => Math.min(s + 1, 5));
+  };
 
   const handleLaunch = async () => {
     try {
