@@ -489,6 +489,36 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       if ((prevItem?.itemType || 'question') === 'question' && prevItem.onAnswer?.action) {
         const { action, skipCondition, skipToId, skipSemanticCondition, skipConditionActiveTab } = prevItem.onAnswer;
         const useSemanticSkip = skipConditionActiveTab === 'semantic';
+
+        // ── Fast path: semantic end_call folded into main LLM call ──────────
+        // Instead of a separate yes/no API call (~300-500ms), we inject the
+        // condition check directly into the main LLM directive. The LLM
+        // evaluates and responds in one shot — no extra latency at all.
+        // Only applies to end_call; skip_question keeps the separate call
+        // because we need to know the target question index before building
+        // the directive.
+        if (useSemanticSkip && action === 'end_call' && skipSemanticCondition?.trim()) {
+          const { directive: nextDirective, expectsUserReply: nextExpects } = this._buildNextDirective();
+          this.expectsUserReply = nextExpects;
+
+          const signOff = this.config.callSignOff || 'Thank you for your time. Goodbye.';
+          const combinedDirective = `(System: Silently evaluate whether the user's answer satisfies this condition: "${skipSemanticCondition}". Do NOT speak the condition aloud. — If the condition IS satisfied: say "${signOff}" and immediately append HANGUP_NOW. Nothing else. — If the condition is NOT satisfied: ${nextDirective || `say "${signOff}" and append HANGUP_NOW`})`;
+
+          console.log(`[VoiceAgent] Semantic end_call folded into main LLM call — condition: "${skipSemanticCondition}"`);
+          const fullInput = `${userInput}\n${combinedDirective}`;
+          this.chatHistory.push({ role: 'user', content: fullInput });
+          try {
+            if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
+            return await this._callLLM();
+          } catch (e) {
+            console.error('[VoiceAgent] Error on semantic end_call:', e.message);
+            this.shouldHangUp = true;
+            return "I'm sorry, I'm having trouble. Goodbye.";
+          }
+        }
+
+        // ── Standard path: separate condition evaluation ─────────────────────
+        // Used for condition-based routing and semantic skip_question.
         const conditionFired = await this._evalConditionWithLLM(
           useSemanticSkip ? null : skipCondition?.condition,
           useSemanticSkip ? null : skipCondition?.value,
@@ -498,10 +528,6 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
         if (conditionFired) {
           if (action === 'end_call') {
-            // Guard against partial mid-sentence transcripts: Deepgram smart_format adds a
-            // trailing period/punctuation to complete sentences. "Yes. I" (user mid-sentence)
-            // ends with "I" — no punct — so we defer rather than hanging up prematurely.
-            // "No." or "I work in finance." end with punct, meaning the utterance is complete.
             const answerIsComplete = /[.?!]$/.test(userInput.trimEnd());
             if (answerIsComplete) {
               this.currentIndex = this.items.length;
