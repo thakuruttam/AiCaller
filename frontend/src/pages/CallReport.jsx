@@ -1,25 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import {
-  ArrowLeft, BarChart3, TrendingUp, Target, AlertCircle,
-  CheckCircle2, XCircle, ShieldCheck, FileText
-} from 'lucide-react';
-
 import { EVAL_BASE } from '../api/config';
-import FullscreenWrapper from '../components/FullscreenWrapper';
 
-const SENTIMENT_COLORS = {
-  positive: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700',
-  neutral:  'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600',
-  negative: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700',
+const OUTCOME_BADGE = {
+  COMPLETED:    'bg-emerald-50 text-emerald-700',
+  NO_ANSWER:    'bg-amber-50 text-amber-700',
+  INCOMPLETE:   'bg-orange-50 text-orange-700',
+  WRONG_PERSON: 'bg-[#ffdad6] text-[#ba1a1a]',
 };
 
-const OUTCOME_COLORS = {
-  COMPLETED:    'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  NO_ANSWER:    'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  INCOMPLETE:   'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  WRONG_PERSON: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+const SENTIMENT_BADGE = {
+  positive: 'bg-indigo-50 text-indigo-700',
+  neutral:  'bg-zinc-100 text-zinc-700',
+  negative: 'bg-[#ffdad6] text-[#ba1a1a]',
+};
+
+const SENTIMENT_ICON = {
+  positive: 'sentiment_very_satisfied',
+  neutral:  'sentiment_neutral',
+  negative: 'sentiment_dissatisfied',
+};
+
+const CONFIDENCE_BAR = {
+  high:   { color: 'bg-emerald-500', pct: '95%' },
+  medium: { color: 'bg-amber-500', pct: '70%' },
+  low:    { color: 'bg-zinc-400', pct: '40%' },
 };
 
 export default function CallReport() {
@@ -27,6 +33,8 @@ export default function CallReport() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedQuestions, setExpandedQuestions] = useState({});
+  const [filterScore, setFilterScore] = useState('all');
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -48,334 +56,364 @@ export default function CallReport() {
     fetchReport();
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="animate-fade-in flex items-center justify-center min-h-[400px] text-zinc-500 dark:text-slate-400">
-        Loading call report...
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-[#777587]">Loading call report...</div>
+  );
 
-  if (error) {
-    return (
-      <div className="animate-fade-in flex flex-col gap-4 max-w-4xl mx-auto py-8 px-4">
-        <Link to={`/campaign/${campaignId}/calls/${id}`} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 transition-colors max-w-fit">
-          <ArrowLeft size={14} /> Back to Call
-        </Link>
-        <div className="p-5 rounded-xl border border-red-200 bg-red-50 flex items-center gap-3 text-red-600 text-sm">
-          <AlertCircle size={16} /> {error}
-        </div>
+  if (error) return (
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back to Call
+      </Link>
+      <div className="p-5 rounded-xl border border-[#ffdad6] bg-[#ffdad6]/30 flex items-center gap-3 text-[#ba1a1a] text-sm">
+        <span className="material-symbols-outlined">error</span>
+        {error}
       </div>
-    );
-  }
+    </div>
+  );
 
   const extractedEntries = Object.entries(report.extractedFields || {});
   const hasExtracted = extractedEntries.some(([_, v]) => v?.value != null);
-  const missingFields = report.missingFields || [];
   const questionResults = report.reportData?.questionResults || [];
   const scoreBreakdown = report.scoreBreakdown || [];
   const compliance = report.complianceData || {};
   const completionPercent = report.completionRate != null ? Math.round(report.completionRate * 100) : null;
+  const missingFields = report.missingFields || [];
+
+  const scoreW = report.score != null ? `${Math.min(100, report.score)}%` : '0%';
+  const completionW = completionPercent != null ? `${completionPercent}%` : '0%';
+  const identityConfirmed = report.reportData?.identityConfirmed;
+
+  const outcomeBadge = OUTCOME_BADGE[report.outcome] || 'bg-zinc-100 text-zinc-700';
+  const sentimentBadge = SENTIMENT_BADGE[report.sentiment] || 'bg-zinc-100 text-zinc-700';
+  const sentimentIcon = SENTIMENT_ICON[report.sentiment] || 'sentiment_neutral';
 
   return (
-    <div className="animate-fade-in max-w-4xl mx-auto py-8 px-4 flex flex-col gap-6">
-      {/* Header */}
-      <div>
-        <Link
-          to={`/campaigns/${campaignId}/report`}
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 transition-colors mb-3"
-        >
-          <ArrowLeft size={14} /> Back to Campaign Report
-        </Link>
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Call Report</h2>
-        <p className="text-zinc-500 dark:text-slate-400 text-sm mt-0.5">{report.contactName || 'Unknown Contact'}</p>
-      </div>
+    <div className="p-8 max-w-[1200px] mx-auto">
+      {/* Back link */}
+      <Link
+        to={`/campaigns/${campaignId}/report`}
+        className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
+        style={{fontFamily:'JetBrains Mono, monospace'}}
+      >
+        <span className="material-symbols-outlined">arrow_back</span>
+        Back to Campaign Report
+      </Link>
+
+      {/* Wrong person banner */}
+      {identityConfirmed === false && (
+        <div className="mb-6 p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#ffdad6]/40 flex items-center gap-3">
+          <span className="material-symbols-outlined text-[#ba1a1a] text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>gpp_bad</span>
+          <div>
+            <p className="text-sm font-semibold text-[#ba1a1a]" style={{fontFamily:'JetBrains Mono, monospace'}}>Identity Not Confirmed — Wrong Person</p>
+            <p className="text-xs text-[#ba1a1a]/80 mt-0.5">The person who answered denied being {report.contactName || 'the intended contact'}. The call was ended with an apology. No questions were collected.</p>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 mb-2.5">Outcome</div>
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${OUTCOME_COLORS[report.outcome] || 'bg-zinc-100 text-zinc-700 dark:bg-slate-700 dark:text-slate-300'}`}>
-            {report.outcome === 'COMPLETED' ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-            {report.outcome}
+      <section className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
+          <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Outcome</p>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${outcomeBadge}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="material-symbols-outlined text-[18px]">
+              {report.outcome === 'COMPLETED' ? 'check_circle' : 'cancel'}
+            </span>
+            {(report.outcome || 'Unknown').replace('_', ' ')}
           </span>
           {report.failureReason && (
-            <div className="text-[11px] text-zinc-500 dark:text-slate-400 mt-2 truncate" title={report.failureReason}>
-              {report.failureReason}
-            </div>
+            <p className="text-xs text-zinc-500 mt-2 truncate" title={report.failureReason}>{report.failureReason}</p>
           )}
         </div>
 
-        <div className="rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 mb-2.5">Sentiment</div>
-          <span className={`inline-flex px-3 py-1.5 rounded-lg border text-xs font-semibold capitalize ${SENTIMENT_COLORS[report.sentiment] || SENTIMENT_COLORS.neutral}`}>
-            {report.sentiment || '—'}
+        <div className={`p-6 rounded-lg shadow-sm border ${identityConfirmed === false ? 'bg-[#ffdad6]/40 border-[#ba1a1a]/30' : identityConfirmed === true ? 'bg-emerald-50/60 border-emerald-200' : 'bg-white border-zinc-200'}`}>
+          <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Identity Verified</p>
+          {identityConfirmed === true && (
+            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-emerald-100 text-emerald-700" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>verified_user</span>
+              Confirmed
+            </span>
+          )}
+          {identityConfirmed === false && (
+            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-[#ffdad6] text-[#ba1a1a]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>gpp_bad</span>
+              Wrong Person
+            </span>
+          )}
+          {identityConfirmed === null || identityConfirmed === undefined ? (
+            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-zinc-100 text-zinc-500" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="material-symbols-outlined text-[18px]">help</span>
+              Unknown
+            </span>
+          ) : null}
+        </div>
+
+        <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
+          <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment</p>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${sentimentBadge}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="material-symbols-outlined text-[18px]">{sentimentIcon}</span>
+            {report.sentiment ? report.sentiment.charAt(0).toUpperCase() + report.sentiment.slice(1) : '—'}
           </span>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 flex items-center gap-1.5 mb-2.5">
-            <TrendingUp size={11} className="text-emerald-500" /> Score
-          </div>
-          <div className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tabular-nums tracking-tight">
-            {report.score ?? '—'}<span className="text-sm font-normal text-zinc-400 dark:text-slate-500">/100</span>
+        <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
+          <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>QA Score</p>
+          <div className="flex items-end gap-1">
+            <span className="text-5xl font-bold text-[#3525cd] leading-none">{report.score ?? '—'}</span>
+            <span className="text-zinc-400 text-2xl font-semibold pb-1">/100</span>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 flex items-center gap-1.5 mb-2.5">
-            <Target size={11} className="text-blue-500" /> Completion
-          </div>
-          <div className="text-2xl font-bold text-blue-600 tabular-nums tracking-tight">
-            {completionPercent != null ? `${completionPercent}%` : '—'}
+        <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
+          <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Completion</p>
+          <div className="flex items-center gap-4">
+            <span className="text-5xl font-bold text-[#1b1b24] leading-none">
+              {completionPercent != null ? `${completionPercent}%` : '—'}
+            </span>
+            {completionPercent != null && (
+              <div className="flex-1 bg-zinc-100 h-2 rounded-full overflow-hidden">
+                <div className="bg-[#3525cd] h-full" style={{width: completionW}} />
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* AI Summary */}
-      {report.reportSummary && (
-        <div className="rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-          <h3 className="font-semibold text-sm text-zinc-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-            <FileText size={14} className="text-indigo-600" /> AI Summary
-          </h3>
-          <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed">{report.reportSummary}</p>
-        </div>
-      )}
-
-      {/* Extracted Fields */}
-      <FullscreenWrapper
-        className="shadow-sm"
-        title={
-          <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">
-            <BarChart3 size={13} className="text-indigo-600" /> Extracted Fields
-          </span>
-        }
-      >
-        {hasExtracted ? (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700 sticky top-0">
-              <tr>
-                {['Field', 'Value', 'Confidence', 'Raw Quote'].map(h => (
-                  <th key={h} className="px-5 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
-              {extractedEntries.map(([key, val]) => (
-                <tr key={key} className="hover:bg-zinc-50/70 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="px-5 py-3 font-medium text-zinc-900 dark:text-slate-100 capitalize max-w-[200px] truncate" title={key}>{key}</td>
-                  <td className="px-5 py-3 max-w-[240px]">
-                    {val?.value != null ? (
-                      <span className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 px-2 py-0.5 rounded text-xs font-medium block truncate" title={String(val.value)}>
-                        {typeof val.value === 'object' ? JSON.stringify(val.value) : String(val.value)}
-                      </span>
-                    ) : (
-                      <span className="text-zinc-400 dark:text-slate-500 italic text-xs">null</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded border ${
-                      val?.confidence === 'high'   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700' :
-                      val?.confidence === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700' :
-                      'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600'
-                    }`}>
-                      {val?.confidence || '-'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-xs text-zinc-500 dark:text-slate-400 italic max-w-[220px] truncate" title={val?.raw}>
-                    {val?.raw || '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-8 text-center text-zinc-500 dark:text-slate-400 text-sm">
-            No fields were extracted from this call. Check your campaign's Evaluation Rules.
+      <div className="grid grid-cols-12 gap-6">
+        {/* AI Summary */}
+        {report.reportSummary && (
+          <div className="col-span-12">
+            <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-8">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="material-symbols-outlined text-[#3525cd]" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
+                <h3 className="text-2xl font-semibold text-[#1b1b24]">AI Call Summary</h3>
+              </div>
+              <p className="text-lg text-[#464555] leading-relaxed">{report.reportSummary}</p>
+            </div>
           </div>
         )}
-      </FullscreenWrapper>
 
-      {/* Missing Fields */}
-      {missingFields.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-amber-800">
-            <AlertCircle size={14} /> Missing Fields
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {missingFields.map((f, i) => (
-              <span key={i} className="bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 rounded-lg text-xs font-medium">
-                {f}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Score Breakdown */}
-      {(questionResults.length > 0 || scoreBreakdown.length > 0) && (
-        <FullscreenWrapper
-          className="shadow-sm"
-          title={
-            <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">
-              <TrendingUp size={13} className="text-indigo-600" /> Score Breakdown
-            </span>
-          }
-        >
-          <table className="w-full text-sm text-left">
-            <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700 sticky top-0 z-10">
-              <tr>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider w-8">#</th>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider w-[28%]">Question</th>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider w-[26%]">Expected Answer</th>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider w-[24%]">Actual Answer</th>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider text-right w-16">Weight</th>
-                <th className="px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider text-right w-16">Points</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
-              {questionResults.map((qr, qIdx) => {
-                const subFieldRows = (qr.breakdownRows || []).filter(r => r.rule === 'Field present');
-                const questionRow  = (qr.breakdownRows || []).find(r => r.rule !== 'Field present');
-                const awarded      = qr.questionScore ?? 0;
-                const totalWeight  = qr.weight ?? 0;
-                const isSkipped    = qr.skipped;
-                const expectedRule = questionRow?.rule ?? (isSkipped ? 'Not asked' : 'Any answer');
-                const isPartial    = questionRow?.reason === 'partial';
-                const answerStr    = qr.answerExtracted || (isSkipped ? 'Not asked' : 'No answer');
-
-                return (
-                  <React.Fragment key={qr.questionId || qIdx}>
-                    <tr className={`hover:bg-zinc-50/70 dark:hover:bg-slate-700/50 transition-colors ${isSkipped ? 'opacity-60' : ''}`}>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-zinc-100 dark:bg-slate-700 text-xs font-bold text-zinc-500 dark:text-slate-400">
-                          {qIdx + 1}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 max-w-0 w-[28%]">
-                        <p className="truncate text-sm font-medium text-zinc-900 dark:text-slate-100" title={qr.questionText || '—'}>
-                          {qr.questionText || '—'}
-                        </p>
-                      </td>
-                      <td className="px-4 py-2.5 max-w-0 w-[26%]">
-                        <span className="block truncate text-xs bg-zinc-100 dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 px-2 py-1 rounded font-mono text-zinc-700 dark:text-slate-300" title={expectedRule}>
-                          {expectedRule}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 max-w-0 w-[24%]">
-                        <p className={`truncate text-sm ${qr.answerExtracted ? 'text-zinc-900 dark:text-slate-100' : 'italic text-zinc-400 dark:text-slate-500 text-xs'}`} title={answerStr}>
-                          {answerStr}
-                        </p>
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-400 dark:text-slate-500 text-xs tabular-nums w-16">
-                        {totalWeight}%
-                      </td>
-                      <td className="px-4 py-2.5 text-right w-16">
-                        <span className={`font-bold text-sm ${awarded > 0 ? 'text-emerald-600' : 'text-zinc-400 dark:text-slate-500'}`}>
-                          +{awarded.toFixed(1)}
-                        </span>
-                        {isPartial && <span className="text-amber-600 text-[10px] font-normal ml-1">partial</span>}
-                      </td>
+        {/* Evaluation Breakdown Table */}
+        {(scoreBreakdown.length > 0 || hasExtracted) && (
+          <div className="col-span-12">
+            <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden h-full">
+              <div className="p-6 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h3 className="text-2xl font-semibold text-[#1b1b24]">Evaluation Breakdown</h3>
+                
+                <div className="flex bg-zinc-100 p-1 rounded-lg">
+                  <button 
+                    onClick={() => setFilterScore('all')}
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'all' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600 hover:text-zinc-900'}`}
+                    style={{fontFamily:'JetBrains Mono, monospace'}}
+                  >
+                    All
+                  </button>
+                  <button 
+                    onClick={() => setFilterScore('full')}
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'full' ? 'bg-emerald-100 text-emerald-800 shadow-sm' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                    style={{fontFamily:'JetBrains Mono, monospace'}}
+                  >
+                    Full Score
+                  </button>
+                  <button 
+                    onClick={() => setFilterScore('partial')}
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'partial' ? 'bg-amber-100 text-amber-800 shadow-sm' : 'text-amber-600 hover:bg-amber-50'}`}
+                    style={{fontFamily:'JetBrains Mono, monospace'}}
+                  >
+                    Partial
+                  </button>
+                  <button 
+                    onClick={() => setFilterScore('failed')}
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'failed' ? 'bg-[#ffdad6] text-[#ba1a1a] shadow-sm' : 'text-[#ba1a1a] hover:bg-[#ffdad6]/50'}`}
+                    style={{fontFamily:'JetBrains Mono, monospace'}}
+                  >
+                    Failed
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-zinc-50 border-b border-zinc-100">
+                    <tr>
+                      {['Question', 'Answer', 'Confidence', 'Scoring Rule', 'Points'].map(h => (
+                        <th key={h} className="px-6 py-4 text-xs text-zinc-500 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                      ))}
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {questionResults.filter(qr => {
+                      if (filterScore === 'all') return true;
+                      const maxPoints = qr.weight || 0;
+                      const awarded = qr.questionScore || 0;
+                      if (maxPoints === 0) return true; // always show zero-weight questions unless filtering strictly? Better to keep them in 'all' or evaluate them strictly based on score. Let's just evaluate numeric match.
+                      
+                      const isFull = awarded >= maxPoints;
+                      const isFailed = awarded === 0;
+                      const isPartial = awarded > 0 && awarded < maxPoints;
+                      
+                      if (filterScore === 'full') return isFull;
+                      if (filterScore === 'partial') return isPartial;
+                      if (filterScore === 'failed') return isFailed;
+                      return true;
+                    }).map((qr) => {
+                      // Sub-field rows are always those with rule "Field present"
+                      // The main row evaluates the expectedAnswer condition (or skipped state)
+                      const subRows = qr.breakdownRows?.filter(r => r.rule === 'Field present') || [];
+                      const mainRow = qr.breakdownRows?.find(r => r.rule !== 'Field present') || {};
+                      const hasSubfields = subRows.length > 0;
+                      const isExpanded = !!expandedQuestions[qr.questionId];
 
-                    {subFieldRows.map((sf, sfIdx) => {
-                      const sfAwarded = sf.awarded ?? 0;
-                      const isPresent = sf.reason === 'present';
-                      const sfValueStr = isPresent ? sf.fieldValue : 'Missing';
+                      const confStr = report.extractedFields?.[mainRow.field]?.confidence
+                        || (hasSubfields ? (subRows.find(r => r.reason === 'present') ? 'high' : '—') : '—')
+                        || '—';
+                      const conf = CONFIDENCE_BAR[confStr] || CONFIDENCE_BAR.low;
+
+                      const getRowColorClass = (awarded = 0, maxPoints = 0) => {
+                        if (maxPoints === 0) return 'text-zinc-600';
+                        if (awarded >= maxPoints) return 'text-emerald-600';
+                        if (awarded === 0) return 'text-[#ba1a1a]';
+                        return 'text-amber-600';
+                      };
+                      
+                      // For the main row, we should display the total question score, not just the single breakdown row's score
+                      const qAwarded = qr.questionScore || 0;
+                      const qMax = qr.weight || 0;
+                      const mainColorClass = getRowColorClass(qAwarded, qMax);
+
                       return (
-                        <tr key={sfIdx} className="bg-zinc-50/30 dark:bg-slate-800/50 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors">
-                          <td className="px-4 py-2" />
-                          <td className="px-4 py-2 pl-8 max-w-0 w-[28%]">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-zinc-300 dark:text-slate-600 shrink-0">└</span>
-                              <span className="truncate text-xs font-medium text-zinc-600 dark:text-slate-400" title={sf.field}>{sf.field}</span>
-                              <span className="shrink-0 text-[10px] text-zinc-400 dark:text-slate-500">field</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-2 w-[26%]">
-                            <span className="text-xs text-zinc-500 dark:text-slate-400 bg-zinc-100 dark:bg-slate-700 px-2 py-0.5 rounded whitespace-nowrap">Field present</span>
-                          </td>
-                          <td className="px-4 py-2 max-w-0 w-[24%]">
-                            <span className={`block truncate text-xs px-2 py-0.5 rounded border font-medium ${
-                              isPresent ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700' : 'bg-red-50 text-red-700 border-red-200 italic dark:bg-red-900/30 dark:text-red-300 dark:border-red-700'
-                            }`} title={sfValueStr}>
-                              {sfValueStr}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-right text-xs text-zinc-400 dark:text-slate-500 tabular-nums w-16">{sf.weight}%</td>
-                          <td className="px-4 py-2 text-right w-16">
-                            <span className={`text-xs font-semibold ${sfAwarded > 0 ? 'text-emerald-600' : 'text-zinc-400 dark:text-slate-500'}`}>
-                              +{sfAwarded.toFixed(1)}
-                            </span>
-                          </td>
-                        </tr>
+                        <React.Fragment key={qr.questionId}>
+                          <tr 
+                            className={`hover:bg-zinc-50/50 transition-colors ${hasSubfields ? 'cursor-pointer' : ''}`}
+                            onClick={() => hasSubfields && setExpandedQuestions(p => ({ ...p, [qr.questionId]: !p[qr.questionId] }))}
+                          >
+                            <td className="px-6 py-4 max-w-[250px] truncate font-medium text-[#1b1b24]" title={qr.questionText} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                              <div className="flex items-center gap-2">
+                                {hasSubfields && (
+                                  <span className="material-symbols-outlined text-[18px] text-zinc-400">
+                                    {isExpanded ? 'expand_more' : 'chevron_right'}
+                                  </span>
+                                )}
+                                <span className="truncate">{qr.questionText}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              {/* For sub-field questions show the extracted answer; for simple questions show the scored value */}
+                              {(() => {
+                                const displayVal = hasSubfields
+                                  ? (qr.answerExtracted || `${subRows.filter(r => r.reason === 'present').length}/${subRows.length} fields`)
+                                  : (mainRow.fieldValue);
+                                return (
+                                  <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium max-w-[200px] truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={String(displayVal || '—')}>
+                                    {typeof displayVal === 'object' ? JSON.stringify(displayVal) : String(displayVal || '—')}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-6 py-4">
+                              {confStr !== '—' ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-12 bg-zinc-100 h-1.5 rounded-full">
+                                    <div className={`${conf.color} h-full rounded-full`} style={{width: conf.pct}} />
+                                  </div>
+                                  <span className="text-zinc-500 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{confStr}</span>
+                                </div>
+                              ) : (
+                                <span className="text-zinc-500 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-zinc-600 max-w-[200px] truncate" title={mainRow.rule}>
+                              {mainRow.rule || '—'}
+                            </td>
+                            <td className={`px-6 py-4 font-medium whitespace-nowrap ${mainColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                              +{qAwarded.toFixed(1)} / {qMax}
+                            </td>
+                          </tr>
+                          
+                          {/* Sub-fields Expansion */}
+                          {hasSubfields && isExpanded && subRows.map((sub, idx) => {
+                            const subConfStr = report.extractedFields?.[sub.field]?.confidence || '—';
+                            const subConf = CONFIDENCE_BAR[subConfStr] || CONFIDENCE_BAR.low;
+                            const subColorClass = getRowColorClass(sub.awarded, sub.maxPoints);
+                            
+                            return (
+                              <tr key={`${qr.questionId}-sub-${idx}`} className="bg-zinc-50/30">
+                                <td className={`px-6 py-3 pl-14 max-w-[250px] truncate text-sm ${subColorClass}`} title={sub.field} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                  ↳ {sub.field}
+                                </td>
+                                <td className="px-6 py-3">
+                                  <span className="bg-emerald-50/50 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium max-w-[200px] truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={sub.fieldValue}>
+                                    {typeof sub.fieldValue === 'object' ? JSON.stringify(sub.fieldValue) : String(sub.fieldValue || '—')}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-3">
+                                  {subConfStr !== '—' ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-12 bg-zinc-100 h-1.5 rounded-full">
+                                        <div className={`${subConf.color} h-full rounded-full`} style={{width: subConf.pct}} />
+                                      </div>
+                                      <span className="text-zinc-500 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{subConfStr}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-zinc-500 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>—</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-3 text-sm text-zinc-500 max-w-[200px] truncate" title={sub.rule}>
+                                  {sub.rule || '—'}
+                                </td>
+                                <td className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${subColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                  +{(sub.awarded ?? 0).toFixed(1)} / {sub.maxPoints ?? 0}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
                       );
                     })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </FullscreenWrapper>
-      )}
-
-      {/* Compliance */}
-      {Object.keys(compliance).length > 0 && (
-        <div className="rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-6">
-          <h3 className="font-semibold text-sm text-zinc-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-            <ShieldCheck size={14} className="text-indigo-600" /> Compliance
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 dark:text-slate-400 uppercase font-semibold">Identity Verified</span>
-              <span className={`text-sm font-bold ${compliance.identityVerified ? 'text-emerald-600' : 'text-red-600'}`}>
-                {compliance.identityVerified ? 'Yes' : 'No'}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 dark:text-slate-400 uppercase font-semibold">Closure Delivered</span>
-              <span className={`text-sm font-bold ${compliance.closureDelivered ? 'text-emerald-600' : 'text-red-600'}`}>
-                {compliance.closureDelivered ? 'Yes' : 'No'}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 dark:text-slate-400 uppercase font-semibold cursor-help underline decoration-dotted" title="Script Adherence = 20pts if identity verified + 20pts if closure delivered + up to 60pts based on % of questions asked.">
-                Script Adherence
-              </span>
-              <span className="text-sm font-bold text-zinc-900 dark:text-slate-100">{compliance.scriptAdherenceScore ?? '-'}%</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 dark:text-slate-400 uppercase font-semibold cursor-help underline decoration-dotted" title="% of configured questions that were actually asked by the agent.">
-                Question Coverage
-              </span>
-              <span className="text-sm font-bold text-zinc-900 dark:text-slate-100">{compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '-'}</span>
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Compliance info inside the same card if it exists */}
+              {Object.keys(compliance).length > 0 && (
+                <div className="p-6 border-t border-zinc-100 bg-zinc-50/50">
+                  <div className="bg-indigo-50 p-4 rounded-lg flex items-start gap-3 w-fit">
+                    <span className="material-symbols-outlined text-indigo-600 mt-0.5">info</span>
+                    <div>
+                      <p className="text-xs font-medium text-indigo-900 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Compliance Notes</p>
+                      <p className="text-xs text-indigo-800">
+                        Script adherence: {compliance.scriptAdherenceScore ?? '—'}% &middot;
+                        Coverage: {compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          {compliance.questionsAsked?.length > 0 && (
-            <div className="mt-4 flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 dark:text-slate-400 uppercase font-semibold">Questions Asked</span>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {compliance.questionsAsked.map((q, i) => (
-                  <span key={i} className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 px-2 py-0.5 rounded text-xs">{q}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {compliance.questionsSkipped?.length > 0 && (
-            <div className="mt-3 flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 dark:text-slate-400 uppercase font-semibold">Questions Not Asked</span>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {compliance.questionsSkipped.map((q, i) => (
-                  <span key={i} className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded text-xs">{q}</span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      <div className="text-xs text-zinc-400 dark:text-slate-500 text-center pb-4">
-        Model: {report.modelVersion || '-'} · Schema: {report.schemaVersion || '-'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '-'}
+        {/* Missing Fields */}
+        {missingFields.length > 0 && (
+          <div className="col-span-12">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-amber-800">
+                <span className="material-symbols-outlined text-[18px]">warning</span>
+                Missing Fields
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {missingFields.map((f, i) => (
+                  <span key={i} className="bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 rounded-lg text-xs font-medium" style={{fontFamily:'JetBrains Mono, monospace'}}>{f}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer meta */}
+      <div className="mt-8 text-xs text-zinc-400 text-center" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        Model: {report.modelVersion || '—'} · Schema: {report.schemaVersion || '—'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '—'}
       </div>
     </div>
   );

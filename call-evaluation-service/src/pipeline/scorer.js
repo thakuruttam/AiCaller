@@ -1,13 +1,33 @@
 // src/pipeline/scorer.js — Deterministic weighted scoring from campaign dataToCollect
 import { isAffirmative, isNegative } from './affirmatives.js';
 
+import { wordsToNumbers } from 'words-to-numbers';
+
 /**
- * Parse the first number from a string (e.g. "20 years" → 20).
+ * Parse the first number from a string (e.g. "20 years" or "Five years" → 20/5).
  */
 export function parseNumeric(value) {
   if (value == null || value === '') return null;
-  const match = String(value).match(/-?\d+(\.\d+)?/);
+  const asNumber = wordsToNumbers(String(value).toLowerCase());
+  const match = String(asNumber).match(/-?\d+(\.\d+)?/);
   return match ? parseFloat(match[0]) : null;
+}
+
+// Multipliers to convert common time units → days
+const DAY_MULT = { day: 1, days: 1, week: 7, weeks: 7, month: 30, months: 30, year: 365, years: 365 };
+
+/**
+ * Convert a temporal string to days (e.g. "3 months" → 90, "2 weeks" → 14).
+ * Returns null if no recognisable time unit is found.
+ */
+function toDays(str) {
+  if (!str) return null;
+  const s = String(wordsToNumbers(String(str).toLowerCase()));
+  for (const [unit, mult] of Object.entries(DAY_MULT)) {
+    const m = s.match(new RegExp(`(-?\\d+(?:\\.\\d+)?)\\s*${unit}\\b`));
+    if (m) return parseFloat(m[1]) * mult;
+  }
+  return null;
 }
 
 /**
@@ -90,45 +110,82 @@ export function scoreExpectedAnswer(expectedAnswer, answerExtracted) {
 
   if (condition === 'is greater than' && numExpected != null) {
     if (numAnswer == null) return { ratio: 0, met: false };
-    if (numAnswer >= numExpected) return { ratio: 1, met: true };
-    return { ratio: Math.max(0, Math.min(1, numAnswer / numExpected)), met: false };
+    // Use days-normalised comparison when both sides carry a time unit
+    const dA = toDays(answer), dE = toDays(value);
+    const a = (dA != null && dE != null) ? dA : numAnswer;
+    const e = (dA != null && dE != null) ? dE : numExpected;
+    if (a >= e) return { ratio: 1, met: true };
+    return { ratio: Math.max(0, Math.min(1, a / e)), met: false };
   }
 
   if (condition === 'is less than' && numExpected != null) {
     if (numAnswer == null) return { ratio: 0, met: false };
-    if (numAnswer <= numExpected) return { ratio: 1, met: true };
-    if (numAnswer <= 0) return { ratio: 0, met: false };
-    return { ratio: Math.max(0, Math.min(1, numExpected / numAnswer)), met: false };
+    // Use days-normalised comparison when both sides carry a time unit
+    const dA = toDays(answer), dE = toDays(value);
+    const a = (dA != null && dE != null) ? dA : numAnswer;
+    const e = (dA != null && dE != null) ? dE : numExpected;
+    if (a <= e) return { ratio: 1, met: true };
+    if (a <= 0) return { ratio: 0, met: false };
+    return { ratio: Math.max(0, Math.min(1, e / a)), met: false };
   }
 
   if (condition === 'contains') {
-    const met = expectedLower ? answerLower.includes(expectedLower) : true;
+    // No value → no meaningful rule → 0, not auto-pass
+    if (!expectedLower) return { ratio: 0, met: false };
+    const met = answerLower.includes(expectedLower);
     return { ratio: met ? 1 : 0, met };
   }
   if (condition === 'does not contain') {
-    const met = expectedLower ? !answerLower.includes(expectedLower) : true;
+    if (!expectedLower) return { ratio: 0, met: false };
+    const met = !answerLower.includes(expectedLower);
     return { ratio: met ? 1 : 0, met };
   }
   if (condition === 'equals') {
+    if (!expectedLower) return { ratio: 0, met: false };
     const met = answerLower === expectedLower;
     return { ratio: met ? 1 : 0, met };
   }
   if (condition === 'starts with') {
-    const met = expectedLower ? answerLower.startsWith(expectedLower) : true;
+    if (!expectedLower) return { ratio: 0, met: false };
+    const met = answerLower.startsWith(expectedLower);
     return { ratio: met ? 1 : 0, met };
   }
   if (condition === 'ends with') {
-    const met = expectedLower ? answerLower.endsWith(expectedLower) : true;
+    if (!expectedLower) return { ratio: 0, met: false };
+    const met = answerLower.endsWith(expectedLower);
     return { ratio: met ? 1 : 0, met };
   }
 
   return { ratio: 0, met: false };
 }
 
+/**
+ * Returns true only when the expectedAnswer represents a REAL, evaluable rule.
+ * A condition with no value (e.g. "contains" with empty value) is NOT a real rule.
+ * 'is any value' is also not a real rule when sub-fields exist — caller decides.
+ */
+function hasMainQuestionLogic(expectedAnswer, { requireValue = false } = {}) {
+  if (!expectedAnswer) return false;
+  const { condition, value } = expectedAnswer;
+  if (!condition) return false;
+  // is_true / is_false are self-contained boolean rules — always meaningful
+  if (condition === 'is_true' || condition === 'is_false') return true;
+  // 'is any value' is only meaningful when there are no sub-fields
+  if (condition === 'is any value') return !requireValue;
+  // All other conditions (contains, equals, starts with, etc.) require a non-empty value
+  if (value && String(value).trim() !== '') return true;
+  return false;
+}
+
 function getQuestionTotalWeight(question) {
   const subFields = question.fieldsToExtract || [];
   if (subFields.length > 0) {
-    return subFields.reduce((s, sf) => s + (sf.weight || 0), 0) + (question.weight || 0);
+    const subWeight = subFields.reduce((s, sf) => s + (sf.weight || 0), 0);
+    // When sub-fields exist, expected answer weight only counts if it has REAL logic
+    // (a non-empty value, or is a boolean rule). 'contains' with no value = no weight.
+    const hasRealLogic = hasMainQuestionLogic(question.expectedAnswer, { requireValue: true });
+    const mainWeight = hasRealLogic ? (question.weight || 0) : 0;
+    return subWeight + mainWeight;
   }
   return question.weight || 0;
 }
@@ -199,7 +256,8 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
       });
     }
 
-    if ((question.weight || 0) > 0) {
+    // Only score expected answer when it has REAL logic (non-empty value or boolean)
+    if ((question.weight || 0) > 0 && hasMainQuestionLogic(question.expectedAnswer, { requireValue: true })) {
       const ratio = getExpectedRatio(llmResult?.answerExtracted);
       const weight = question.weight;
       const awarded = parseFloat((weight * ratio).toFixed(2));

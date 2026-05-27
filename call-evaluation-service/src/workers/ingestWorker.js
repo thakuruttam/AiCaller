@@ -32,7 +32,7 @@ export function startIngestWorker() {
 
   async function tick() {
     try {
-      const tenantIds = await config.redis.smembers('active:eval:tenants');
+      const tenantIds = await config.redis.smembers('active:evaluation:tenants');
 
       for (const tenantId of tenantIds) {
         getTenantWorker(tenantId);

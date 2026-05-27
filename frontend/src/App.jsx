@@ -1,11 +1,7 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
-import {
-  PhoneCall, Activity, PlusCircle, LogOut, Shield,
-  BarChart3, Settings, Sun, Moon
-} from 'lucide-react';
+import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGate from './components/RoleGate';
 import Dashboard from './pages/Dashboard';
@@ -19,150 +15,136 @@ import Login from './pages/Login';
 import { ToastProvider } from './context/ToastContext';
 import './index.css';
 
-const navLinkClass = ({ isActive }) =>
-  `group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-    isActive
-      ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-inset ring-white/10'
-      : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
-  }`;
-
-const ROLE_LABELS = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Admin',
-  EDITOR: 'Editor',
-  VIEWER: 'Viewer',
-};
-
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  return (
-    <button
-      onClick={toggleTheme}
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
-    >
-      {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-      <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-    </button>
-  );
-}
-
 function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const effectiveRole = user?.workspaceRole || user?.role;
+  const navItemBase = 'flex items-center gap-3 px-4 py-3 transition-all text-sm font-mono';
+  const activeClass = `${navItemBase} text-white bg-zinc-800 border-l-4 border-[#3525cd]`;
+  const inactiveClass = `${navItemBase} text-zinc-400 hover:text-white hover:bg-zinc-800/50 border-l-4 border-transparent`;
+
+  const isAt = (path) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <aside className="fixed left-0 top-0 h-full w-[280px] bg-[#0f172a] flex flex-col justify-between py-6 border-r border-white/5 shadow-sm z-50">
+      <div className="flex flex-col gap-8">
+        <div className="px-6 flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#4f46e5] rounded flex items-center justify-center">
+            <span className="material-symbols-outlined text-white" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
+          </div>
+          <div>
+            <h1 className="font-bold text-white text-base leading-tight">AI Caller Pro</h1>
+            <p className="text-zinc-400 text-[11px] uppercase tracking-widest" style={{fontFamily:'JetBrains Mono, monospace'}}>Enterprise Operations</p>
+          </div>
+        </div>
+
+        <nav className="flex flex-col">
+          <NavLink to="/" end className={isAt('/') ? activeClass : inactiveClass}>
+            <span className="material-symbols-outlined text-[20px]">dashboard</span>
+            <span>Dashboard</span>
+          </NavLink>
+          <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']}>
+            <NavLink to="/create-campaign" className={isAt('/create-campaign') || isAt('/edit-campaign') ? activeClass : inactiveClass}>
+              <span className="material-symbols-outlined text-[20px]">campaign</span>
+              <span>New Campaign</span>
+            </NavLink>
+          </RoleGate>
+          <RoleGate allow={['SUPER_ADMIN', 'ADMIN']}>
+            <NavLink to="/admin" className={isAt('/admin') ? activeClass : inactiveClass}>
+              <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+              <span>Admin Panel</span>
+            </NavLink>
+          </RoleGate>
+        </nav>
+
+        <div className="px-4">
+          <button className="w-full bg-[#3525cd] hover:bg-[#4f46e5] text-white py-3 rounded-lg text-sm flex items-center justify-center gap-2 transition-all active:scale-95" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="material-symbols-outlined text-[18px]">add_call</span>
+            New Call
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col border-t border-zinc-800 pt-6">
+        <button className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-all text-left w-full text-sm" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <span className="material-symbols-outlined text-[20px]">settings</span>
+          Settings
+        </button>
+        <button className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-all text-left w-full text-sm" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <span className="material-symbols-outlined text-[20px]">contact_support</span>
+          Support
+        </button>
+        {user && (
+          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors text-left w-full text-sm" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+            Sign out
+          </button>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function TopBar() {
+  const { user } = useAuth();
   const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
 
   return (
-    <aside className="w-64 shrink-0 flex flex-col bg-slate-900 h-full">
-      {/* Brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800/60">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-900/40">
-          <PhoneCall size={15} className="text-white" />
+    <header className="fixed top-0 right-0 w-[calc(100%-280px)] bg-[#fcf8ff] flex justify-between items-center px-8 h-16 z-40 border-b border-[#e4e1ee] shadow-sm">
+      <div className="flex items-center gap-4 flex-1">
+        <div className="relative w-full max-w-md">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#777587] text-[18px]">search</span>
+          <input className="w-full bg-[#f5f2ff] border-none rounded-full py-2 pl-10 pr-4 text-sm text-[#1b1b24] focus:outline-none focus:ring-2 focus:ring-[#3525cd] placeholder:text-[#777587]" placeholder="Search logs, campaigns..." type="text" />
         </div>
-        <span className="text-white font-semibold text-[15px] tracking-tight">AI Caller</span>
       </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <NavLink to="/" end className={navLinkClass}>
-          <Activity size={16} />
-          <span>Dashboard</span>
-        </NavLink>
-
-        <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']}>
-          <NavLink to="/create-campaign" className={navLinkClass}>
-            <PlusCircle size={16} />
-            <span>New Campaign</span>
-          </NavLink>
-        </RoleGate>
-
-        <RoleGate allow={['SUPER_ADMIN', 'ADMIN']}>
-          <div className="mx-3 my-3 border-t border-slate-800/70" />
-          <NavLink to="/admin" className={navLinkClass}>
-            <Shield size={16} />
-            <span>Admin Panel</span>
-          </NavLink>
-        </RoleGate>
-      </nav>
-
-      {/* User footer */}
-      {user && (
-        <div className="border-t border-slate-800/60 p-3">
-          {user.workspaceName && (
-            <p className="px-3 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest truncate">
-              {user.workspaceName}
-            </p>
-          )}
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-            <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold shadow-sm">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-200 truncate leading-tight">{user.name}</p>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">{user.email}</p>
-            </div>
-          </div>
-          {effectiveRole && (
-            <div className="px-3 pb-1">
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
-                <Shield size={9} />
-                {ROLE_LABELS[effectiveRole] || effectiveRole}
-              </span>
-            </div>
-          )}
-          <ThemeToggle />
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-3 py-2 mt-0.5 rounded-lg text-sm text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          >
-            <LogOut size={14} />
-            <span>Sign out</span>
-          </button>
+      <div className="flex items-center gap-4">
+        <button className="p-2 hover:bg-[#f0ecf9] rounded-full text-[#464555] transition-colors relative">
+          <span className="material-symbols-outlined text-[20px]">notifications</span>
+          <span className="absolute top-2 right-2 w-2 h-2 bg-[#ba1a1a] rounded-full border-2 border-[#fcf8ff]"></span>
+        </button>
+        <button className="p-2 hover:bg-[#f0ecf9] rounded-full text-[#464555] transition-colors">
+          <span className="material-symbols-outlined text-[20px]">help_outline</span>
+        </button>
+        <div className="h-8 w-px bg-[#c7c4d8] mx-2"></div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-[#1b1b24] hidden lg:block" style={{fontFamily:'JetBrains Mono, monospace'}}>{user?.name || 'User'}</span>
+          <div className="w-9 h-9 rounded-full bg-[#4f46e5] flex items-center justify-center text-white text-sm font-bold border border-[#c7c4d8]">{initials}</div>
         </div>
-      )}
-    </aside>
+      </div>
+    </header>
   );
 }
 
 function AppLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-slate-900">
+    <div className="flex h-screen overflow-hidden bg-[#fcf8ff]">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-slate-900">
-        <div className="mx-auto max-w-7xl px-6 py-8 h-full flex flex-col">
+      <div className="ml-[280px] flex-1 flex flex-col overflow-hidden">
+        <TopBar />
+        <main className="flex-1 overflow-y-auto pt-16">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/create-campaign" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={
-                <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-slate-400 text-sm">
-                  You don't have permission to create campaigns.
-                </div>
-              }>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#464555] text-sm">You don't have permission to create campaigns.</div>}>
                 <CampaignWizard />
               </RoleGate>
             } />
             <Route path="/edit-campaign/:id" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={
-                <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-slate-400 text-sm">
-                  You don't have permission to edit campaigns.
-                </div>
-              }>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#464555] text-sm">You don't have permission to edit campaigns.</div>}>
                 <CampaignWizard />
               </RoleGate>
             } />
             <Route path="/admin" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN']} fallback={
-                <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-slate-400 text-sm">
-                  You don't have permission to access the admin panel.
-                </div>
-              }>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#464555] text-sm">You don't have permission to access the admin panel.</div>}>
                 <AdminDashboard />
               </RoleGate>
             } />
@@ -171,8 +153,8 @@ function AppLayout() {
             <Route path="/campaign/:campaignId/calls/:id" element={<CallDetails />} />
             <Route path="/campaign/:campaignId/calls/:id/report" element={<CallReport />} />
           </Routes>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

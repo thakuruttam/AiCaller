@@ -2,29 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
-import {
-  ArrowLeft, BarChart3, TrendingUp, Target, Activity,
-  AlertCircle, Users, CheckCircle2, XCircle, Download, Phone
-} from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import DebouncedSearch from '../components/DebouncedSearch';
-import FullscreenWrapper from '../components/FullscreenWrapper';
-
 import { EVAL_BASE } from '../api/config';
 
-const SENTIMENT_COLORS = {
-  positive: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700',
-  neutral:  'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600',
-  negative: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700',
+const SENTIMENT_ICON = {
+  positive: { icon: 'sentiment_satisfied', color: 'text-emerald-500' },
+  neutral:  { icon: 'sentiment_neutral', color: 'text-zinc-400' },
+  negative: { icon: 'sentiment_dissatisfied', color: 'text-[#ba1a1a]' },
 };
 
-const OUTCOME_COLORS = {
-  COMPLETED:    'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  NO_ANSWER:    'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  INCOMPLETE:   'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  WRONG_PERSON: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  RESCHEDULE:   'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+const OUTCOME_BADGE = {
+  COMPLETED:    'bg-emerald-50 text-emerald-700',
+  NO_ANSWER:    'bg-zinc-100 text-zinc-600',
+  INCOMPLETE:   'bg-amber-50 text-amber-700',
+  WRONG_PERSON: 'bg-[#ffdad6] text-[#ba1a1a]',
+  RESCHEDULE:   'bg-blue-50 text-blue-700',
+  BUSY:         'bg-zinc-100 text-zinc-600',
+  FAILED:       'bg-[#ffdad6] text-[#ba1a1a]',
 };
+
+const OUTCOME_FILTER_KEYS = ['All', 'COMPLETED', 'NO_ANSWER', 'BUSY', 'INCOMPLETE', 'FAILED', 'WRONG_PERSON', 'RESCHEDULE'];
 
 export default function CampaignReport() {
   const { id } = useParams();
@@ -35,6 +33,9 @@ export default function CampaignReport() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [progress, setProgress] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 10;
 
   const fetchData = async () => {
     try {
@@ -85,291 +86,308 @@ export default function CampaignReport() {
     return () => clearInterval(intervalId);
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="animate-fade-in flex items-center justify-center min-h-[400px] text-zinc-500 dark:text-slate-400">
-        Loading campaign report...
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-[#777587]">Loading campaign report...</div>
+  );
 
-  if (error) {
-    return (
-      <div className="animate-fade-in flex flex-col gap-4">
-        <Link to={`/campaigns/${id}`} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 transition-colors max-w-fit">
-          <ArrowLeft size={14} /> Back to Campaign
-        </Link>
-        <div className="p-5 rounded-xl border border-red-200 bg-red-50 flex items-center gap-3 text-red-600 text-sm">
-          <AlertCircle size={16} /> {error}
-        </div>
+  if (error) return (
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back to Campaign Details
+      </Link>
+      <div className="p-5 rounded-xl border border-[#ffdad6] bg-[#ffdad6]/30 flex items-center gap-3 text-[#ba1a1a] text-sm">
+        <span className="material-symbols-outlined">error</span>
+        {error}
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!metrics || metrics.totalCalls === 0) {
-    return (
-      <div className="animate-fade-in flex flex-col gap-4">
-        <Link to={`/campaigns/${id}`} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 transition-colors max-w-fit">
-          <ArrowLeft size={14} /> Back to Campaign
-        </Link>
-        <div className="p-12 rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col items-center justify-center text-zinc-400 dark:text-slate-500">
-          <BarChart3 size={40} className="mb-3 opacity-20" />
-          <p className="font-semibold text-zinc-700 dark:text-slate-300">No Evaluation Data Yet</p>
-          <p className="text-sm mt-1">Run AI Evaluation on calls to generate reports.</p>
-        </div>
+  if (!metrics || metrics.totalCalls === 0) return (
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back to Campaign Details
+      </Link>
+      <div className="p-12 rounded-xl border border-zinc-200 bg-white flex flex-col items-center justify-center text-zinc-400">
+        <span className="material-symbols-outlined text-[48px] mb-3 opacity-20">bar_chart</span>
+        <p className="font-semibold text-zinc-700">No Evaluation Data Yet</p>
+        <p className="text-sm mt-1">Run AI Evaluation on calls to generate reports.</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  const allFieldKeys = new Set();
-  contacts.forEach(c => {
-    Object.keys(c.extractedFields || {}).forEach(k => {
-      if ((c.extractedFields[k])?.value != null) allFieldKeys.add(k);
-    });
-  });
-  const fieldKeys = Array.from(allFieldKeys);
   const completionPercent = Math.round((parseFloat(metrics.completionRate) || 0) * 100);
+  const avgScore = metrics.score?.avg ?? '—';
+  const sentiment = metrics.sentimentBreakdown || {};
+  const total = metrics.totalCalls || 0;
+  const posCount = sentiment.positive || 0;
+  const neuCount = sentiment.neutral || 0;
+  const negCount = sentiment.negative || 0;
 
   const filteredContacts = contacts.filter(c => {
-    if (!searchQuery) return true;
-    return (c.contactName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = !searchQuery || (c.contactName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchFilter = activeFilter === 'All' || c.outcome === activeFilter;
+    return matchSearch && matchFilter;
   });
 
-  const followUpContacts = filteredContacts.filter(c => ['NO_ANSWER', 'WRONG_PERSON', 'INCOMPLETE', 'RESCHEDULE'].includes(c.outcome));
-  const successfulContacts = filteredContacts.filter(c => c.outcome === 'COMPLETED');
+  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PER_PAGE));
+  const paginated = filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const outcomeCounts = contacts.reduce((acc, c) => {
+    acc[c.outcome] = (acc[c.outcome] || 0) + 1;
+    return acc;
+  }, {});
+
+  const progressPct = progress && progress.total > 0
+    ? Math.round(((progress.completed + progress.failed) / progress.total) * 100)
+    : 0;
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 transition-colors">
-            <ArrowLeft size={14} /> Back
-          </Link>
+    <div className="p-8 max-w-[1200px] mx-auto space-y-8">
+      {/* Page Header */}
+      <section className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Campaign Report</h2>
-            <p className="text-zinc-500 dark:text-slate-400 text-sm mt-0.5">AI evaluation analytics & extracted data</p>
+            <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-colors text-sm mb-3" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+              Back to Campaign Details
+            </Link>
+            <h2 className="text-3xl font-semibold text-[#1b1b24] tracking-tight mb-1">Campaign Performance Report</h2>
+            <p className="text-[#464555]">AI evaluation analytics &amp; extracted data</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <a
+              href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`}
+              download
+              className="flex items-center gap-2 px-4 py-2 border border-zinc-300 text-[#1b1b24] text-sm rounded hover:bg-zinc-50 transition-all"
+              style={{fontFamily:'JetBrains Mono, monospace'}}
+            >
+              <span className="material-symbols-outlined text-[18px]">download</span>
+              Export CSV
+            </a>
+            {progress && progress.total > 0 && (
+              <div className="bg-[#e4e1ee] p-4 rounded-xl min-w-[280px]">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-[#1b1b24]" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Evaluation Progress</span>
+                  <span className="text-xs text-[#3525cd]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                    {progress.completed + progress.failed} / {progress.total} Evaluated
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-200 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-[#3525cd] h-full transition-all duration-1000"
+                    style={{width: `${progressPct}%`}}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <DebouncedSearch
-            onSearch={setSearchQuery}
-            placeholder="Search by contact name..."
-            className="w-72"
-          />
-          <a
-            href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`}
-            download
-            className="inline-flex items-center gap-2 text-sm font-medium h-9 px-4 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-700/50 active:bg-zinc-100 text-zinc-700 dark:text-slate-300 transition-colors"
-          >
-            <Download size={14} /> Export CSV
-          </a>
-        </div>
-      </div>
+      </section>
 
-      {/* Progress Bar */}
-      {progress && progress.total > 0 && (
-        <div className={`rounded-2xl border p-5 shadow-sm animate-fade-in ring-1 ring-black/[0.02] ${progress.isFinished ? 'border-emerald-200 bg-emerald-50' : 'border-indigo-200 bg-indigo-50'}`}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className={`text-sm font-semibold flex items-center gap-2 ${progress.isFinished ? 'text-emerald-700' : 'text-indigo-700'}`}>
-              <Activity size={15} className={!progress.isFinished ? "animate-pulse" : ""} />
-              {progress.isFinished ? 'AI Evaluation Complete' : 'AI Evaluation in Progress...'}
-            </h3>
-            <span className={`text-xs font-bold px-2 py-1 rounded-md ${progress.isFinished ? 'text-emerald-800 bg-emerald-200/60' : 'text-indigo-800 bg-indigo-200/60'}`}>
-              {progress.completed + progress.failed} / {progress.total} Evaluated
+      {/* KPI Cards */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white border border-zinc-200/80 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start mb-4">
+            <span className="p-2 bg-[#3525cd]/10 text-[#3525cd] rounded-lg">
+              <span className="material-symbols-outlined">task_alt</span>
             </span>
           </div>
-          <div className={`h-2.5 w-full rounded-full overflow-hidden ${progress.isFinished ? 'bg-emerald-200' : 'bg-indigo-200'}`}>
-            <div
-              className={`h-full transition-all duration-500 ease-out rounded-full ${progress.isFinished ? 'bg-emerald-600' : 'bg-indigo-600'}`}
-              style={{ width: `${((progress.completed + progress.failed) / progress.total) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[11px] mt-3 font-semibold uppercase tracking-wider">
-            <span className="text-emerald-600">{progress.completed} Completed</span>
-            {progress.failed > 0 && <span className="text-red-600">{progress.failed} Failed</span>}
-            {!progress.isFinished && <span className="text-blue-600">{progress.inProgress} Processing</span>}
-          </div>
+          <p className="text-[#464555] text-sm mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Total Evaluated</p>
+          <h3 className="text-2xl font-semibold text-[#1b1b24]">{total.toLocaleString()}</h3>
         </div>
-      )}
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: Users, iconBg: 'bg-zinc-100 dark:bg-slate-700', iconColor: 'text-zinc-500 dark:text-slate-400', label: 'Total Evaluated', value: metrics.totalCalls },
-          { icon: Target, iconBg: 'bg-blue-50', iconColor: 'text-blue-600', label: 'Completion Rate', value: `${completionPercent}%`, valueClass: 'text-blue-600' },
-          { icon: TrendingUp, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', label: 'Avg Score', value: metrics.score?.avg ?? '-', valueClass: 'text-emerald-600' },
-        ].map(({ icon: Icon, iconBg, iconColor, label, value, valueClass }) => (
-          <div key={label} className="bg-white dark:bg-slate-800 rounded-2xl border border-zinc-200/80 dark:border-slate-700 p-5 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-zinc-500 dark:text-slate-400">{label}</p>
-                <p className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${valueClass || 'text-zinc-900 dark:text-slate-100'}`}>{value}</p>
-              </div>
-              <div className={`ml-3 rounded-xl p-2.5 ${iconBg}`}>
-                <Icon size={18} className={iconColor} />
-              </div>
-            </div>
+        <div className="bg-white border border-zinc-200/80 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start mb-4">
+            <span className="p-2 bg-[#dae2fd]/30 text-[#565e74] rounded-lg">
+              <span className="material-symbols-outlined">percent</span>
+            </span>
           </div>
-        ))}
-        {/* Sentiment card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-zinc-200/80 dark:border-slate-700 p-5 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05]">
-          <p className="text-sm font-medium text-zinc-500 dark:text-slate-400 mb-3">Sentiment</p>
-          <div className="flex flex-col gap-1.5">
-            {Object.entries(metrics.sentimentBreakdown || {}).slice(0, 3).map(([s, count]) => (
-              <div key={s} className="flex items-center justify-between leading-tight">
-                <span className={`px-2 py-0.5 rounded border text-[10px] font-semibold capitalize ${SENTIMENT_COLORS[s] || SENTIMENT_COLORS.neutral}`}>{s}</span>
-                <span className="font-bold text-zinc-900 dark:text-slate-100 text-sm tabular-nums">{count}</span>
-              </div>
-            ))}
-          </div>
+          <p className="text-[#464555] text-sm mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Completion Rate</p>
+          <h3 className="text-2xl font-semibold text-[#3525cd]">{completionPercent}%</h3>
         </div>
-      </div>
 
-      {/* Outcome Breakdown */}
-      {Object.keys(metrics.outcomes || {}).length > 0 && (
-        <div className="rounded-2xl border border-zinc-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/[0.02] dark:ring-white/[0.05] p-5">
-          <h3 className="font-semibold text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Activity size={13} className="text-indigo-600" /> Outcome Breakdown
-          </h3>
+        <div className="bg-white border border-zinc-200/80 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start mb-4">
+            <span className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+              <span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>star</span>
+            </span>
+          </div>
+          <p className="text-[#464555] text-sm mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Avg Score</p>
+          <h3 className="text-2xl font-semibold text-emerald-700">{avgScore} / 100</h3>
+        </div>
+
+        <div className="bg-white border border-zinc-200/80 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <p className="text-[#464555] text-sm mb-4" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment Breakdown</p>
           <div className="flex flex-wrap gap-2">
-            {Object.entries(metrics.outcomes).map(([outcome, count]) => (
-              <div key={outcome} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${OUTCOME_COLORS[outcome] || 'bg-zinc-100 text-zinc-700 dark:bg-slate-700 dark:text-slate-300'}`}>
-                {outcome === 'COMPLETED' ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-                {outcome}: <span className="opacity-80">{count}</span>
-              </div>
-            ))}
+            {posCount > 0 && (
+              <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                <span className="w-1.5 h-1.5 bg-emerald-700 rounded-full" />
+                {Math.round((posCount / total) * 100)}% Pos
+              </span>
+            )}
+            {neuCount > 0 && (
+              <span className="px-3 py-1 bg-zinc-100 text-zinc-700 rounded-full text-xs flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full" />
+                {Math.round((neuCount / total) * 100)}% Neu
+              </span>
+            )}
+            {negCount > 0 && (
+              <span className="px-3 py-1 bg-[#ffdad6] text-[#ba1a1a] rounded-full text-xs flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                <span className="w-1.5 h-1.5 bg-[#ba1a1a] rounded-full" />
+                {Math.round((negCount / total) * 100)}% Neg
+              </span>
+            )}
           </div>
         </div>
-      )}
+      </section>
 
-      {followUpContacts.length > 0 && (
-        <FullscreenWrapper
-          className="border-amber-200 max-h-[400px]"
-          title={
-            <div>
-              <span className="font-bold text-amber-800 flex items-center gap-2 text-sm">
-                <AlertCircle size={15} /> Needs Follow-up / Telephony Issues
-              </span>
-              <p className="text-xs text-amber-700 mt-0.5 font-normal">Calls that were not completed or requested a reschedule</p>
-            </div>
-          }
-          actionNode={
-            <span className="text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 px-2 py-1 rounded-md">
-              {followUpContacts.length} Contacts
-            </span>
-          }
-        >
-          <table className="w-full text-sm text-left">
-            <thead className="bg-amber-50 border-b border-amber-200">
-              <tr>
-                <th className="px-5 py-3 text-xs font-semibold text-amber-800 uppercase tracking-wider">Contact</th>
-                <th className="px-5 py-3 text-xs font-semibold text-amber-800 uppercase tracking-wider">Issue / Outcome</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-amber-100">
-              {followUpContacts.map(c => (
-                <tr key={c.callLogId} className="hover:bg-amber-50/50 transition-colors">
-                  <td className="px-5 py-4 font-semibold text-amber-900">{c.contactName || 'Unknown'}</td>
-                  <td className="px-5 py-4">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${OUTCOME_COLORS[c.outcome] || 'bg-zinc-100 text-zinc-700 dark:bg-slate-700 dark:text-slate-300'}`}>
-                      {c.outcome}
-                    </span>
-                  </td>
-                </tr>
+      {/* Outcome Filters */}
+      <section className="bg-[#f5f2ff] p-6 rounded-2xl border border-zinc-200/50">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h4 className="text-xl font-semibold text-[#1b1b24] mb-4">Call Outcome Breakdown</h4>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => { setActiveFilter('All'); setPage(1); }}
+                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all active:scale-95 ${activeFilter === 'All' ? 'bg-[#3525cd] text-white' : 'bg-[#e4e1ee] text-[#1b1b24] hover:bg-[#c7c4d8]/50'}`}
+                style={{fontFamily:'JetBrains Mono, monospace'}}
+              >
+                All Results <span className={`px-1.5 rounded text-[10px] ${activeFilter === 'All' ? 'bg-white/20' : 'bg-[#3525cd]/10 text-[#3525cd]'}`}>{contacts.length}</span>
+              </button>
+              {Object.entries(outcomeCounts).map(([outcome, count]) => (
+                <button
+                  key={outcome}
+                  onClick={() => { setActiveFilter(outcome); setPage(1); }}
+                  className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${activeFilter === outcome ? 'bg-[#3525cd] text-white' : 'bg-[#e4e1ee] text-[#1b1b24] hover:bg-[#c7c4d8]/50'}`}
+                  style={{fontFamily:'JetBrains Mono, monospace'}}
+                >
+                  {outcome.replace('_', ' ')}
+                  <span className={`px-1.5 rounded text-[10px] ${activeFilter === outcome ? 'bg-white/20' : 'bg-zinc-200 text-zinc-600'}`}>{count}</span>
+                </button>
               ))}
-            </tbody>
-          </table>
-        </FullscreenWrapper>
-      )}
-
-      {fieldKeys.length > 0 && (
-        <FullscreenWrapper
-          className="max-h-[500px]"
-          title={
-            <div>
-              <span className="font-semibold text-sm text-zinc-900 dark:text-slate-100 flex items-center gap-2">
-                <BarChart3 size={14} className="text-indigo-600" /> Extracted Data Comparison
-              </span>
-              <p className="text-xs text-zinc-500 dark:text-slate-400 mt-0.5 font-normal">Data successfully extracted from completed calls</p>
             </div>
-          }
-        >
-          <table className="w-full text-sm text-left">
-            <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700">
-              <tr>
-                <th className="px-5 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Contact</th>
-                {fieldKeys.map(k => (
-                  <th key={k} className="px-5 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{k}</th>
+          </div>
+          <div className="flex gap-2">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#464555]">search</span>
+              <input
+                className="pl-10 pr-4 py-2.5 bg-white border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-[#3525cd] focus:border-[#3525cd] outline-none transition-all w-64 placeholder:text-[#777587]"
+                placeholder="Search contacts..."
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Results Table */}
+      <section className="bg-white border border-zinc-200/80 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-zinc-50 border-b border-zinc-100">
+                {['Contact / Phone', 'Outcome', 'Sentiment', 'AI Score', 'Action'].map((h, i) => (
+                  <th key={h} className={`px-6 py-4 text-sm text-zinc-600 ${i === 4 ? 'text-right' : ''}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
-              {successfulContacts.map(c => (
-                <tr key={c.callLogId} className="hover:bg-zinc-50/70 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="px-5 py-3 font-semibold text-zinc-900 dark:text-slate-100 whitespace-nowrap">{c.contactName || 'Unknown'}</td>
-                  {fieldKeys.map(k => {
-                    const field = (c.extractedFields || {})[k];
-                    const val = field?.value;
-                    return (
-                      <td key={k} className="px-5 py-3">
-                        {val != null ? (
-                          <span className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 px-2 py-0.5 rounded text-xs font-medium">
-                            {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-400 dark:text-slate-500 italic text-xs">-</span>
-                        )}
-                      </td>
-                    );
-                  })}
+            <tbody className="divide-y divide-zinc-50">
+              {paginated.map(c => {
+                const sentimentInfo = SENTIMENT_ICON[c.sentiment] || null;
+                const score = c.score != null ? Number(c.score).toFixed(1) : null;
+                const scoreW = score ? `${Math.min(100, parseFloat(score) * 10)}%` : '0%';
+                const outcomeBadge = OUTCOME_BADGE[c.outcome] || 'bg-zinc-100 text-zinc-600';
+                const hasTranscript = c.outcome === 'COMPLETED';
+                return (
+                  <tr key={c.callLogId} className="hover:bg-zinc-50/80 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-[#1b1b24]">{c.contactName || 'Unknown'}</span>
+                        <span className="text-xs text-zinc-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{c.contactPhone || '—'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${outcomeBadge}`}>
+                        {(c.outcome || 'unknown').replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {sentimentInfo ? (
+                        <div className="flex items-center gap-2">
+                          <span className={`material-symbols-outlined text-[20px] ${sentimentInfo.color}`} style={{fontVariationSettings:"'FILL' 1"}}>{sentimentInfo.icon}</span>
+                          <span className="text-sm text-[#464555] capitalize">{c.sentiment}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {score != null ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 bg-zinc-100 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full" style={{width: scoreW}} />
+                          </div>
+                          <span className="text-sm font-medium text-[#1b1b24]" style={{fontFamily:'JetBrains Mono, monospace'}}>{score}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {hasTranscript ? (
+                        <Link
+                          to={`/campaign/${id}/calls/${c.callLogId}/report`}
+                          className="text-[#3525cd] text-sm hover:underline inline-flex items-center gap-1"
+                          style={{fontFamily:'JetBrains Mono, monospace'}}
+                        >
+                          View Report <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                        </Link>
+                      ) : (
+                        <span className="text-[#3525cd]/40 text-sm inline-flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                          View Report <span className="material-symbols-outlined text-[16px]">lock</span>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredContacts.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#777587]">
+                    {searchQuery || activeFilter !== 'All' ? 'No contacts match your filters.' : 'No data available.'}
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
-        </FullscreenWrapper>
-      )}
-
-      {/* Full Call Results */}
-      <FullscreenWrapper title="Full Call Results" className="max-h-[600px]">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700">
-            <tr>
-              {['Contact', 'Outcome', 'Sentiment', 'Score', 'Summary', ''].map(h => (
-                <th key={h} className={`px-5 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider ${h === '' ? 'text-right' : ''}`}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
-            {filteredContacts.map(c => (
-              <tr key={c.callLogId} className="hover:bg-zinc-50/70 dark:hover:bg-slate-700/50 transition-colors">
-                <td className="px-5 py-3 font-semibold text-zinc-900 dark:text-slate-100 whitespace-nowrap">{c.contactName || 'Unknown'}</td>
-                <td className="px-5 py-3">
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${OUTCOME_COLORS[c.outcome] || 'bg-zinc-100 text-zinc-700 dark:bg-slate-700 dark:text-slate-300'}`}>
-                    {c.outcome}
-                  </span>
-                </td>
-                <td className="px-5 py-3">
-                  <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase ${SENTIMENT_COLORS[c.sentiment] || SENTIMENT_COLORS.neutral}`}>
-                    {c.sentiment || '-'}
-                  </span>
-                </td>
-                <td className="px-5 py-3 font-bold text-zinc-900 dark:text-slate-100">{c.score ?? '-'}</td>
-                <td className="px-5 py-3 text-xs text-zinc-500 dark:text-slate-400 max-w-[300px] truncate" title={c.reportSummary}>
-                  {c.reportSummary || '-'}
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <Link
-                    to={`/campaign/${id}/calls/${c.callLogId}/report`}
-                    className="inline-flex items-center rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 shadow-sm transition-colors"
-                  >
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </FullscreenWrapper>
+        </div>
+        <div className="px-6 py-4 bg-zinc-50/50 flex justify-between items-center border-t border-zinc-100">
+          <p className="text-xs text-[#464555]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            Showing {paginated.length} of {filteredContacts.length} evaluated calls
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1 bg-white border border-zinc-200 rounded text-xs hover:bg-zinc-50 disabled:opacity-30"
+              style={{fontFamily:'JetBrains Mono, monospace'}}
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-1 bg-white border border-zinc-200 rounded text-xs hover:bg-zinc-50 disabled:opacity-30"
+              style={{fontFamily:'JetBrains Mono, monospace'}}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

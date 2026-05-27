@@ -19,6 +19,7 @@
     "ioredis": "^5.6.1",
     "pg": "^8.20.0",
     "twilio": "^5.13.1",
+    "words-to-numbers": "^1.5.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {

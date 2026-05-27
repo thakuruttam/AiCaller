@@ -80,11 +80,14 @@ async function processJob(job, tenantId) {
   await job.updateProgress(10);
   const result = await processOutboundCall(job.data);
 
-  // Don't overwrite if the call was killed while in-progress
+  // Don't overwrite terminal statuses set by the telephony-gateway webhooks.
+  // With the REST (Gather) flow, makeTwilioCall returns immediately with
+  // status='in-progress'; the real completed/recording data arrives via
+  // Twilio status callbacks and must not be clobbered here.
   const currentLog = await prisma.callLog.findUnique({ where: { id: callLogId }, select: { status: true } });
-  if (currentLog?.status === 'cancelled') {
-    console.log(`[Worker] Job ${job.id} was killed mid-call — keeping cancelled status`);
-    return { skipped: true, reason: 'cancelled' };
+  if (['cancelled', 'completed', 'failed'].includes(currentLog?.status)) {
+    console.log(`[Worker] Job ${job.id} — status already '${currentLog.status}', skipping update`);
+    return { skipped: true, reason: currentLog.status };
   }
 
   await prisma.callLog.update({
