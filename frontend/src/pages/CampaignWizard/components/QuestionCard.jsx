@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   GripVertical, ChevronDown, ChevronUp, MessageSquare, Info,
-  X, ArrowRight, SkipForward, PhoneOff, Database, Plus
+  X, ArrowRight, SkipForward, PhoneOff, Database, Plus, Brain
 } from 'lucide-react';
 
 export const CONDITIONS = [
@@ -23,7 +23,9 @@ export function emptyItem(order) {
     weight: 0,
     isWeightManuallySet: false,
     expectedAnswer: { condition: 'contains', value: '' },
-    onAnswer: { action: 'continue', skipToId: '', skipCondition: { condition: 'contains', value: '' } },
+    scoringCriteria: '',
+    scoringActiveTab: 'condition',
+    onAnswer: { action: 'continue', skipToId: '', skipConditionActiveTab: 'condition', skipCondition: { condition: 'contains', value: '' } },
     fieldsToExtract: [],
   };
 }
@@ -54,12 +56,26 @@ export default function QuestionCard({
   isDraggedOver
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [answerTab, setAnswerTab] = useState(item.scoringActiveTab || 'condition');
+  const [skipConditionTab, setSkipConditionTab] = useState(item.onAnswer?.skipConditionActiveTab || 'condition');
 
   const expectedAnswer = item.expectedAnswer || { condition: 'contains', value: '' };
+  const scoringCriteria = item.scoringCriteria || '';
   const onAnswer = {
     action: 'continue', skipToId: '',
     ...item.onAnswer,
     skipCondition: item.onAnswer?.skipCondition || { condition: 'contains', value: '' }
+  };
+  const skipSemanticCondition = onAnswer.skipSemanticCondition || '';
+
+  const handleAnswerTabChange = (tab) => {
+    setAnswerTab(tab);
+    update({ scoringActiveTab: tab });
+  };
+
+  const handleSkipConditionTabChange = (tab) => {
+    setSkipConditionTab(tab);
+    updateOnAns({ skipConditionActiveTab: tab });
   };
   const fieldsToExtract = item.fieldsToExtract || [];
 
@@ -128,6 +144,12 @@ export default function QuestionCard({
           </span>
         )}
 
+        {scoringCriteria.trim() && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 text-xs font-medium">
+            <Brain size={10} /> Semantic
+          </span>
+        )}
+
         <div className="flex items-center gap-1 ml-auto">
           <button type="button" onClick={() => setExpanded(v => !v)} className="p-1 text-zinc-400 dark:text-slate-500 hover:text-zinc-700 dark:hover:text-slate-300 transition-colors rounded-md">
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -164,18 +186,48 @@ export default function QuestionCard({
           {/* Question-only fields */}
           {item.itemType === 'question' && (
             <>
-              {/* Expected answer */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-500 dark:text-slate-400">Expected answer</label>
-                <div className="flex gap-2 flex-wrap">
-                  <ConditionSelect value={expectedAnswer.condition} onChange={v => updateAns({ condition: v })} className="w-40" />
-                  {expectedAnswer.condition !== 'is any value' && (
-                    <input type="text" value={expectedAnswer.value}
-                      onChange={e => updateAns({ value: e.target.value })}
-                      placeholder="Expected value…"
-                      className={`flex-1 min-w-[160px] ${inputCls}`} />
-                  )}
+              {/* Expected answer — Condition | Semantic tabs */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400">Expected answer</label>
+                  <div className="flex bg-zinc-100 dark:bg-slate-700 p-0.5 rounded-lg border border-zinc-200 dark:border-slate-600 text-xs">
+                    <button type="button" onClick={() => handleAnswerTabChange('condition')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-all ${answerTab === 'condition' ? 'bg-white dark:bg-slate-600 shadow-sm text-zinc-900 dark:text-slate-100' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-300'}`}>
+                      Condition
+                    </button>
+                    <button type="button" onClick={() => handleAnswerTabChange('semantic')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${answerTab === 'semantic' ? 'bg-white dark:bg-slate-600 shadow-sm text-zinc-900 dark:text-slate-100' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-300'}`}>
+                      <Brain size={11} /> Semantic
+                    </button>
+                  </div>
                 </div>
+
+                {answerTab === 'condition' && (
+                  <div className="flex gap-2 flex-wrap">
+                    <ConditionSelect value={expectedAnswer.condition} onChange={v => updateAns({ condition: v })} className="w-40" />
+                    {expectedAnswer.condition !== 'is any value' && (
+                      <input type="text" value={expectedAnswer.value}
+                        onChange={e => updateAns({ value: e.target.value })}
+                        placeholder="Expected value…"
+                        className={`flex-1 min-w-[160px] ${inputCls}`} />
+                    )}
+                  </div>
+                )}
+
+                {answerTab === 'semantic' && (
+                  <div className="flex flex-col gap-1.5">
+                    <textarea
+                      rows={3}
+                      value={scoringCriteria}
+                      onChange={e => update({ scoringCriteria: e.target.value })}
+                      placeholder={"Describe what a good answer looks like in plain English.\n\ne.g. Should have an engineering degree and Node.js experience. Give 0 if no experience, proportional marks for 1–4 years, full marks for 5+ years."}
+                      className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y"
+                    />
+                    <p className="text-xs text-zinc-400 dark:text-slate-500">
+                      AI uses this to score the answer in reports. Describe criteria and scoring thresholds in plain English. Overrides the Condition tab for report scoring.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* On Answer action */}
@@ -202,18 +254,51 @@ export default function QuestionCard({
                 {/* Skip / end-call details */}
                 {(onAnswer.action === 'skip_question' || onAnswer.action === 'end_call') && (
                   <div className="flex flex-col gap-2 mt-1 p-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
-                    <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium">
-                      {onAnswer.action === 'end_call' ? 'End call condition' : 'Skip condition'} — if current answer…
-                    </p>
-                    <div className="flex gap-2 flex-wrap">
-                      <ConditionSelect value={onAnswer.skipCondition.condition} onChange={v => updateSkip({ condition: v })} className="w-40" />
-                      {onAnswer.skipCondition.condition !== 'is any value' && (
-                        <input type="text" value={onAnswer.skipCondition.value}
-                          onChange={e => updateSkip({ value: e.target.value })}
-                          placeholder="condition value…"
-                          className={`flex-1 min-w-[140px] ${inputCls}`} />
-                      )}
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium">
+                        {onAnswer.action === 'end_call' ? 'End call condition' : 'Skip condition'} — if current answer…
+                      </p>
+                      <div className="flex bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-zinc-200 dark:border-slate-600 text-xs">
+                        <button type="button" onClick={() => handleSkipConditionTabChange('condition')}
+                          className={`px-2 py-0.5 rounded-md font-medium transition-all ${skipConditionTab === 'condition' ? 'bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100' : 'text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-300'}`}>
+                          Condition
+                        </button>
+                        <button type="button" onClick={() => handleSkipConditionTabChange('semantic')}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-medium transition-all ${skipConditionTab === 'semantic' ? 'bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100' : 'text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-300'}`}>
+                          <Brain size={10} /> Semantic
+                        </button>
+                      </div>
                     </div>
+
+                    {skipConditionTab === 'condition' && (
+                      <div className="flex gap-2 flex-wrap">
+                        <ConditionSelect value={onAnswer.skipCondition.condition} onChange={v => updateSkip({ condition: v })} className="w-40" />
+                        {onAnswer.skipCondition.condition !== 'is any value' && (
+                          <input type="text" value={onAnswer.skipCondition.value}
+                            onChange={e => updateSkip({ value: e.target.value })}
+                            placeholder="condition value…"
+                            className={`flex-1 min-w-[140px] ${inputCls}`} />
+                        )}
+                      </div>
+                    )}
+
+                    {skipConditionTab === 'semantic' && (
+                      <div className="flex flex-col gap-1.5">
+                        <textarea
+                          rows={2}
+                          value={skipSemanticCondition}
+                          onChange={e => updateOnAns({ skipSemanticCondition: e.target.value })}
+                          placeholder={onAnswer.action === 'end_call'
+                            ? 'e.g. If user says they are not interested or busy'
+                            : 'e.g. If user has less than 2 years of experience'}
+                          className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y"
+                        />
+                        <p className="text-xs text-zinc-400 dark:text-slate-500">
+                          AI evaluates this live during the call against the user's answer.
+                        </p>
+                      </div>
+                    )}
+
                     {onAnswer.action === 'skip_question' && (
                       <>
                         <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium mt-1">Then JUMP directly to:</p>

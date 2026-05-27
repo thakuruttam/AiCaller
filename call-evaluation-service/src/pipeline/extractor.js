@@ -77,7 +77,11 @@ export async function extract(turns, dataToCollect = []) {
   // Build per-question extraction spec
   const questionSpecs = questions.map(q => {
     const hasSubFields = q.fieldsToExtract && q.fieldsToExtract.length > 0;
-    const expectedDesc = buildExpectedDesc(q.expectedAnswer);
+    const useSemanticScoring = q.scoringActiveTab === 'semantic';
+    const expectedDesc = buildExpectedDesc(
+      useSemanticScoring ? null : q.expectedAnswer,
+      useSemanticScoring ? q.scoringCriteria : null
+    );
     const isBooleanExpected = q.expectedAnswer?.condition === 'is_true' || q.expectedAnswer?.condition === 'is_false';
 
     return {
@@ -133,14 +137,14 @@ Return a single valid JSON object:
 Return ONLY the JSON object. No explanations, no markdown.`;
 
   const start = Date.now();
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.groq.apiKey}`
+      'Authorization': `Bearer ${config.openai.apiKey}`
     },
     body: JSON.stringify({
-      model: config.groq.model,
+      model: config.openai.model,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1,
       stream: false
@@ -228,7 +232,8 @@ Return ONLY the JSON object. No explanations, no markdown.`;
   };
 }
 
-function buildExpectedDesc(expectedAnswer) {
+function buildExpectedDesc(expectedAnswer, scoringCriteria) {
+  if (scoringCriteria?.trim()) return scoringCriteria.trim();
   if (!expectedAnswer) return 'Any answer is acceptable';
   const { condition, value } = expectedAnswer;
   if (condition === 'is any value') return 'Any answer is acceptable';

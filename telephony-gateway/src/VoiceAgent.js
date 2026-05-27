@@ -92,7 +92,43 @@ export class VoiceAgent {
    * a condition (e.g. contains "Node js") even when the exact string
    * is not present. Falls back to literal match on error.
    */
-  async _evalConditionWithLLM(condition, conditionValue, userAnswer) {
+  async _evalSemanticCondition(semanticCondition, userAnswer) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          messages: [{
+            role: "user",
+            content: `Does the following user answer satisfy this condition?\n\nCondition: "${semanticCondition}"\nUser answer: "${userAnswer}"\n\nReply with ONLY "yes" or "no".`
+          }],
+          temperature: 0,
+          max_tokens: 5,
+          stream: false
+        })
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      const reply = data.choices[0].message.content.trim().toLowerCase();
+      const result = reply.startsWith('yes');
+      console.log(`[VoiceAgent] Semantic skip condition "${semanticCondition}" on "${userAnswer}" → ${result}`);
+      return result;
+    } catch (e) {
+      console.error('[VoiceAgent] Semantic condition eval failed:', e.message);
+      return false;
+    }
+  }
+
+  async _evalConditionWithLLM(condition, conditionValue, userAnswer, semanticCondition) {
+    // Semantic condition takes priority when set
+    if (semanticCondition?.trim()) {
+      return this._evalSemanticCondition(semanticCondition.trim(), userAnswer);
+    }
+
     if (!condition || !userAnswer) return false;
 
     // Numeric conditions: convert words to numbers first ("Two" → 2) then compare
@@ -292,8 +328,8 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
     this.chatHistory.push({ role: 'user', content: directive });
     try {
-      if (!process.env.GROQ_API_KEY) {
-        return 'Please add GROQ_API_KEY to your backend .env file.';
+      if (!process.env.OPENAI_API_KEY) {
+        return 'Please add OPENAI_API_KEY to your backend .env file.';
       }
       return await this._callLLM();
     } catch (e) {
@@ -451,11 +487,13 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       }
 
       if ((prevItem?.itemType || 'question') === 'question' && prevItem.onAnswer?.action) {
-        const { action, skipCondition, skipToId } = prevItem.onAnswer;
+        const { action, skipCondition, skipToId, skipSemanticCondition, skipConditionActiveTab } = prevItem.onAnswer;
+        const useSemanticSkip = skipConditionActiveTab === 'semantic';
         const conditionFired = await this._evalConditionWithLLM(
-          skipCondition?.condition,
-          skipCondition?.value,
-          userInput
+          useSemanticSkip ? null : skipCondition?.condition,
+          useSemanticSkip ? null : skipCondition?.value,
+          userInput,
+          useSemanticSkip ? skipSemanticCondition : null
         );
 
         if (conditionFired) {
@@ -504,8 +542,8 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
     this.chatHistory.push({ role: "user", content: fullInput });
 
     try {
-      if (!process.env.GROQ_API_KEY) {
-        return 'Please add GROQ_API_KEY to your backend .env file.';
+      if (!process.env.OPENAI_API_KEY) {
+        return 'Please add OPENAI_API_KEY to your backend .env file.';
       }
       return await this._callLLM();
     } catch (e) {
@@ -517,14 +555,14 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
   /** Calls Groq (Llama 3.1 8B) with the current chat history and returns the sanitized reply. */
   async _callLLM() {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "gpt-4.1-mini",
         messages: this.chatHistory,
         temperature: 0,
         stream: false
@@ -533,7 +571,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
     if (!response.ok) {
       const errData = await response.text();
-      throw new Error(`Failed to contact Groq API: ${response.status} - ${errData}`);
+      throw new Error(`Failed to contact OpenAI API: ${response.status} - ${errData}`);
     }
 
     const data = await response.json();

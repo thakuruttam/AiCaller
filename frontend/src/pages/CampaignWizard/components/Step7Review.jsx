@@ -124,7 +124,11 @@ export default function Step7Review({ payload, onLaunch }) {
                         {q.itemType === 'question' && (
                           <div className="mt-2 flex flex-col gap-2">
                             <div className="flex flex-wrap gap-2 text-xs">
-                              {q.expectedAnswer && q.expectedAnswer.condition !== 'is any value' ? (
+                              {q.scoringActiveTab === 'semantic' && q.scoringCriteria?.trim() ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-semibold shadow-sm">
+                                  <strong>Semantic:</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
+                                </span>
+                              ) : q.expectedAnswer && q.expectedAnswer.condition !== 'is any value' ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-slate-700 border border-zinc-300 dark:border-slate-600 text-zinc-900 dark:text-slate-100 font-semibold shadow-sm">
                                   <strong>Expected:</strong> {q.expectedAnswer.condition} "{q.expectedAnswer.value}"
                                 </span>
@@ -137,6 +141,8 @@ export default function Step7Review({ payload, onLaunch }) {
                               {q.onAnswer && q.onAnswer.action !== 'continue' && (() => {
                                 const isSkip = q.onAnswer.action === 'skip_question';
                                 const isEnd  = q.onAnswer.action === 'end_call';
+                                const useSemanticSkip = q.onAnswer.skipConditionActiveTab === 'semantic';
+                                const semanticText = q.onAnswer.skipSemanticCondition;
                                 const cond   = q.onAnswer.skipCondition || { condition: 'contains', value: '' };
                                 const hasCond = cond.condition !== 'is any value';
                                 let actionText = '';
@@ -149,9 +155,11 @@ export default function Step7Review({ payload, onLaunch }) {
                                 return (
                                   <span key="action" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold border shadow-sm ${isEnd ? 'bg-red-50 border-red-200 text-red-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
                                     ↳{' '}
-                                    {hasCond
-                                      ? <>If answer <strong>{cond.condition}</strong> "{cond.value}" → <strong className="underline">{actionText}</strong></>
-                                      : <>Always → <strong className="underline">{actionText}</strong></>
+                                    {useSemanticSkip && semanticText?.trim()
+                                      ? <>If <strong>semantic</strong> "{semanticText.length > 60 ? semanticText.slice(0, 60) + '…' : semanticText}" → <strong className="underline">{actionText}</strong></>
+                                      : hasCond
+                                        ? <>If answer <strong>{cond.condition}</strong> "{cond.value}" → <strong className="underline">{actionText}</strong></>
+                                        : <>Always → <strong className="underline">{actionText}</strong></>
                                     }
                                   </span>
                                 );

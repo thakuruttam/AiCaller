@@ -19,6 +19,10 @@ export const config = {
     apiKey: process.env.GROQ_API_KEY,
     model:  process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    model:  process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+  },
   concurrency: {
     normalize:  parseInt(process.env.CONCURRENCY_NORMALIZE  || '50'),
     extract:    parseInt(process.env.CONCURRENCY_EXTRACT    || '10'),
@@ -26,7 +30,7 @@ export const config = {
     compliance: parseInt(process.env.CONCURRENCY_COMPLIANCE || '100'),
     assemble:   parseInt(process.env.CONCURRENCY_ASSEMBLE   || '50')
   },
-  port:        parseInt(process.env.PORT || '4000'),
+  port:        parseInt(process.env.EVAL_PORT || '4000'),
   logLevel:    process.env.LOG_LEVEL || 'info',
   adminApiKey: process.env.ADMIN_API_KEY || 'change-me-in-production'
 };

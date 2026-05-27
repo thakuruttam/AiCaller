@@ -37,7 +37,7 @@ if (USE_STREAMING) {
   console.log('[telephony-gateway] Gather mode active — Twilio built-in STT');
 }
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.TELEPHONY_PORT || 3001;
 const server = http.createServer(app);
 
 if (USE_STREAMING) {
