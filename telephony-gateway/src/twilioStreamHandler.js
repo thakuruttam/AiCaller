@@ -6,6 +6,7 @@ import { publishEvaluation } from './queues/ingestQueue.js';
 import { redis } from './redis.js';
 import { setupSTT } from './providers/stt.js';
 import { speakBackToTwilio, DeepgramTTSSocket } from './providers/tts.js';
+import { createNotification, notifyWorkspace } from './utils/notifications.js';
 
 export function setupTwilioStream(server) {
   const wss = new WebSocketServer({ server, path: '/streams' });
@@ -26,6 +27,7 @@ export function setupTwilioStream(server) {
     let currentCallLog = null;
     let campaignContact = null;
     
+    let callStartTime = null;
     let silenceTimeout = null;
     const timeoutSeconds = parseInt(process.env.VOICE_TIMEOUT_SECONDS || '60', 10);
 
@@ -240,13 +242,58 @@ export function setupTwilioStream(server) {
       // authoritative signal that the call is over, so close it out here.
       if (callLogId) {
         try {
-          const current = await prisma.callLog.findUnique({ where: { id: callLogId }, select: { status: true } });
+          const durationMs = callStartTime ? Date.now() - callStartTime : 0;
+          const billableMinutes = Math.max(1, Math.ceil(durationMs / 60000));
+          const current = await prisma.callLog.findUnique({ where: { id: callLogId }, select: { status: true, tenantId: true } });
           if (current?.status === 'in-progress') {
-            await prisma.callLog.update({ where: { id: callLogId }, data: { status: 'completed' } });
-            console.log(`[Stream] Finalized callLog ${callLogId} status → completed`);
+            await prisma.callLog.update({ where: { id: callLogId }, data: { status: 'completed', durationMs, billableMinutes } });
+            console.log(`[Stream] Finalized callLog ${callLogId} status → completed (${billableMinutes} billable min)`);
+          }
+          // Deduct balance from tenant
+          if (current?.tenantId) {
+            await prisma.$executeRaw`
+              UPDATE "Tenant"
+              SET "minuteBalance" = GREATEST(0, "minuteBalance" - ${billableMinutes})
+              WHERE id = ${current.tenantId}
+            `;
           }
         } catch (e) {
           console.warn('[Stream] Could not finalize callLog status:', e.message);
+        }
+
+        // Notify campaign creator of individual call completion
+        if (currentCampaign?.createdById && currentCampaign?.tenantId) {
+          createNotification({
+            userId: currentCampaign.createdById,
+            tenantId: currentCampaign.tenantId,
+            type: 'CALL_COMPLETED',
+            title: 'Call completed',
+            body: `A call from campaign "${currentCampaign.name}" has finished.`,
+            link: `/calls/${callLogId}`
+          });
+        }
+
+        // Check if all calls in this campaign are now terminal → fire CAMPAIGN_COMPLETED
+        if (currentCampaign?.id && currentCampaign?.tenantId) {
+          try {
+            const pendingCount = await prisma.callLog.count({
+              where: {
+                campaignId: currentCampaign.id,
+                status: { in: ['queued', 'in-progress'] }
+              }
+            });
+            if (pendingCount === 0) {
+              notifyWorkspace({
+                tenantId: currentCampaign.tenantId,
+                type: 'CAMPAIGN_COMPLETED',
+                title: `Campaign "${currentCampaign.name}" completed`,
+                body: `All calls in "${currentCampaign.name}" have finished.`,
+                link: `/campaigns/${currentCampaign.id}`
+              });
+            }
+          } catch (e) {
+            console.warn('[Stream] Could not check campaign completion:', e.message);
+          }
         }
       }
 
@@ -276,6 +323,7 @@ export function setupTwilioStream(server) {
               campaignId:        currentCampaign.id,
               tenantId:          currentCampaign.tenantId,
               contactName:       campaignContact?.overrides?.name || currentCallLog?.contact?.name,
+              contactPhone:      currentCallLog?.contact?.phone,
               transcript:        formattedTranscript,
               campaignName:      currentCampaign.name,
               dataToCollect:     currentCampaign.dataToCollect ?? [],
@@ -476,6 +524,7 @@ export function setupTwilioStream(server) {
           break;
         case 'start':
           streamSid = msg.start.streamSid;
+          callStartTime = Date.now();
           const { campaignId, callLogId: parsedCallLogId } = msg.start.customParameters || {};
           callLogId = parsedCallLogId;
           callSid = msg.start.callSid; // Twilio native property
@@ -508,6 +557,7 @@ export function setupTwilioStream(server) {
                 callSettings: true,
                 dataToCollect: true,
                 endCallIf: true,
+                maxCallDurationSec: true,
                 callModule: {
                   select: {
                     goal: true,
@@ -579,6 +629,31 @@ export function setupTwilioStream(server) {
               language: campaignLanguage  // ← from campaign callSettings UI
             });
             
+            // Max duration enforcement — hang up 4 seconds before the limit
+            const effectiveDurationSec = (campaignContact?.overrides?.maxCallDurationSec) || campaign.maxCallDurationSec;
+            if (effectiveDurationSec && effectiveDurationSec > 4) {
+              const hangupAfterMs = (effectiveDurationSec - 4) * 1000;
+              setTimeout(async () => {
+                if (transcriptSaved || isCallEnding) return;
+                console.log(`[Stream] Max duration (${effectiveDurationSec}s) reached — ending call`);
+                isCallEnding = true;
+                try {
+                  const signOff = finalGoals.callSignOff || "I'm sorry, I need to end this call now. Thank you for your time. Goodbye!";
+                  const closingText = `(System: You've reached the maximum call time. Say this exact closing to the user: "${signOff}" — then the call will end.)`;
+                  const closing = await agent.processInput(closingText);
+                  if (closing) {
+                    isSpeaking = true;
+                    await speakBackToTwilio(ws, streamSid, closing, campaignLanguage, ttsSocket);
+                  }
+                } catch (_) {}
+                if (callSid) {
+                  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+                  await client.calls(callSid).update({ status: 'completed' }).catch(() => {});
+                }
+              }, hangupAfterMs);
+              console.log(`[Stream] Max call duration set to ${effectiveDurationSec}s — will hang up in ${hangupAfterMs / 1000}s`);
+            }
+
             // Initial greeting using the specific intro
             let processedIntro = finalGoals.callIntro || 'Hello, this is an AI assistant calling.';
             if (agent.contactName) {

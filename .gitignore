@@ -1,5 +1,6 @@
 # ── Secrets (NEVER commit these) ──────────────────────────────────────────────
 .env
+.env.bak
 .env.local
 .env.production
 .env.staging
@@ -48,3 +49,4 @@ Thumbs.db
 
 # ── Prisma (keep schema, ignore generated client) ─────────────────────────────
 **/prisma/generated/
+stitch-exports/

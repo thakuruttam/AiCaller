@@ -13,6 +13,15 @@ enum Role {
   VIEWER
 }
 
+enum BillingTier {
+  TRIAL
+  BASIC
+  STANDARD
+  PROFESSIONAL
+  ENTERPRISE
+  ENTERPRISE_PLUS
+}
+
 enum UserStatus {
   ACTIVE
   PENDING
@@ -25,25 +34,37 @@ model Tenant {
   slug      String   @unique
   createdAt DateTime @default(now())
 
-  members     WorkspaceMember[]
-  campaigns   Campaign[]
-  contacts    Contact[]
-  callModules CallModule[]
-  callLogs    CallLog[]
+  minuteBalance Int         @default(0)
+  billingTier   BillingTier @default(TRIAL)
+
+  members        WorkspaceMember[]
+  invites        Invite[]
+  campaigns      Campaign[]
+  contacts       Contact[]
+  callModules    CallModule[]
+  callLogs       CallLog[]
+  notifications  Notification[]
+  supportTickets SupportTicket[]
+  topUps         TopUp[]
 }
 
 model User {
   id           String     @id @default(uuid())
   email        String     @unique
   name         String
-  passwordHash String
+  avatarUrl    String?
+  passwordHash String?
+  googleId     String?    @unique
   role         Role       @default(VIEWER)
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
 
-  workspaces     WorkspaceMember[]
-  refreshTokens  RefreshToken[]
-  campaigns      Campaign[]
+  workspaces      WorkspaceMember[]
+  refreshTokens   RefreshToken[]
+  campaigns       Campaign[]
+  notifications   Notification[]
+  supportTickets  SupportTicket[]
+  supportReplies  SupportTicketReply[]
 }
 
 model WorkspaceMember {
@@ -94,6 +115,9 @@ model Campaign {
   rules         Json?
   callSettings  Json?
 
+  maxCallDurationSec    Int?
+  estimatedTotalMinutes Int?
+
   tenantId     String
   tenant       Tenant     @relation(fields: [tenantId], references: [id])
   callModuleId String
@@ -104,7 +128,33 @@ model Campaign {
 
   campaignContacts CampaignContact[]
   callLogs         CallLog[]
+  shareLinks       ShareLink[]
   createdAt        DateTime          @default(now())
+}
+
+model Invite {
+  id        String   @id @default(uuid())
+  token     String   @unique @default(uuid())
+  email     String
+  name      String?
+  role      Role     @default(VIEWER)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model ShareLink {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  tenantId   String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 }
 
 model Contact {
@@ -129,20 +179,35 @@ model CampaignContact {
 }
 
 model CallLog {
-  id           String    @id @default(uuid())
-  tenantId     String
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  contactId    String
-  contact      Contact   @relation(fields: [contactId], references: [id])
-  campaignId   String?
-  campaign     Campaign? @relation(fields: [campaignId], references: [id])
-  status       String
-  transcript   String?
-  recordingUrl String?
-  providerRef  String?
-  durationMs   Int?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  contactId       String
+  contact         Contact   @relation(fields: [contactId], references: [id])
+  campaignId      String?
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  status          String
+  transcript      String?
+  recordingUrl    String?
+  providerRef     String?
+  durationMs      Int?
+  billableMinutes Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model TopUp {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  packId              String
+  razorpayOrderId     String?  @unique
+  razorpayPaymentId   String?  @unique
+  status              String   @default("PENDING")
+  createdAt           DateTime @default(now())
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([razorpayOrderId])
 }
 
 enum CampaignType {
@@ -151,6 +216,94 @@ enum CampaignType {
   SALES
   LOAN_RECOVERY
   FEEDBACK
+}
+
+// ==========================================
+// NOTIFICATION MODELS
+// ==========================================
+
+enum NotificationType {
+  CAMPAIGN_CREATED
+  CAMPAIGN_STARTED
+  CAMPAIGN_PAUSED
+  CAMPAIGN_KILLED
+  CAMPAIGN_RERUN
+  CAMPAIGN_COMPLETED
+  CALL_COMPLETED
+  CALL_FAILED
+  MEMBER_INVITED
+  MEMBER_JOINED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+  SUPPORT_TICKET_SUBMITTED
+  SUPPORT_TICKET_REPLIED
+  SUPPORT_TICKET_RESOLVED
+  TOPUP_SUCCESS
+  BALANCE_LOW
+  BALANCE_DEPLETED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  tenantId  String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId, tenantId, createdAt(sort: Desc)])
+  @@index([userId, tenantId, isRead])
+}
+
+// ==========================================
+// SUPPORT TICKET MODELS
+// ==========================================
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model SupportTicket {
+  id        String              @id @default(uuid())
+  userId    String
+  tenantId  String?
+  subject   String
+  message   String              @db.Text
+  category  String              @default("general")
+  status    SupportTicketStatus @default(OPEN)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  replies SupportTicketReply[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model SupportTicketReply {
+  id        String        @id @default(uuid())
+  ticketId  String
+  userId    String
+  message   String        @db.Text
+  isAdmin   Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }
 
 // ==========================================

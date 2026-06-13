@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Spinner from './Spinner';
 
 export default function ProtectedRoute({ children }) {
   const { user, isLoading } = useAuth();
@@ -8,11 +9,12 @@ export default function ProtectedRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc] flex-col gap-4">
+        <div className="w-12 h-12 bg-[#0f766e] rounded-xl flex items-center justify-center shadow-lg">
+          <span className="material-symbols-outlined text-white text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
         </div>
+        <Spinner size={28} className="text-[#0d9488]" />
+        <p className="text-sm text-[#64748b]" style={{fontFamily:'JetBrains Mono, monospace'}}>Loading…</p>
       </div>
     );
   }

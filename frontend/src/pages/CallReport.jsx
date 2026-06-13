@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { EVAL_BASE } from '../api/config';
+import PageLoader from '../components/PageLoader';
+import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 const OUTCOME_BADGE = {
   COMPLETED:    'bg-emerald-50 text-emerald-700',
@@ -11,7 +13,7 @@ const OUTCOME_BADGE = {
 };
 
 const SENTIMENT_BADGE = {
-  positive: 'bg-indigo-50 text-indigo-700',
+  positive: 'bg-teal-50 text-teal-700',
   neutral:  'bg-zinc-100 text-zinc-700',
   negative: 'bg-[#ffdad6] text-[#ba1a1a]',
 };
@@ -56,13 +58,11 @@ export default function CallReport() {
     fetchReport();
   }, [id]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64 text-[#777587]">Loading call report...</div>
-  );
+  if (loading) return <PageLoader text="Loading call report…" />;
 
   if (error) return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+      <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-[#334155] hover:text-[#0d9488] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Call
       </Link>
@@ -94,7 +94,7 @@ export default function CallReport() {
       {/* Back link */}
       <Link
         to={`/campaigns/${campaignId}/report`}
-        className="flex items-center gap-2 text-[#464555] hover:text-[#3525cd] transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
+        className="flex items-center gap-2 text-[#334155] hover:text-[#0d9488] transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
         style={{fontFamily:'JetBrains Mono, monospace'}}
       >
         <span className="material-symbols-outlined">arrow_back</span>
@@ -160,7 +160,7 @@ export default function CallReport() {
         <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
           <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>QA Score</p>
           <div className="flex items-end gap-1">
-            <span className="text-5xl font-bold text-[#3525cd] leading-none">{report.score ?? '—'}</span>
+            <span className="text-5xl font-bold text-[#0d9488] leading-none">{report.score ?? '—'}</span>
             <span className="text-zinc-400 text-2xl font-semibold pb-1">/100</span>
           </div>
         </div>
@@ -168,12 +168,12 @@ export default function CallReport() {
         <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
           <p className="text-zinc-500 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Completion</p>
           <div className="flex items-center gap-4">
-            <span className="text-5xl font-bold text-[#1b1b24] leading-none">
+            <span className="text-5xl font-bold text-[#0f172a] leading-none">
               {completionPercent != null ? `${completionPercent}%` : '—'}
             </span>
             {completionPercent != null && (
               <div className="flex-1 bg-zinc-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-[#3525cd] h-full" style={{width: completionW}} />
+                <div className="bg-[#0d9488] h-full" style={{width: completionW}} />
               </div>
             )}
           </div>
@@ -186,10 +186,10 @@ export default function CallReport() {
           <div className="col-span-12">
             <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-8">
               <div className="flex items-center gap-2 mb-6">
-                <span className="material-symbols-outlined text-[#3525cd]" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
-                <h3 className="text-2xl font-semibold text-[#1b1b24]">AI Call Summary</h3>
+                <span className="material-symbols-outlined text-[#0d9488]" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
+                <h3 className="text-2xl font-semibold text-[#0f172a]">AI Call Summary</h3>
               </div>
-              <p className="text-lg text-[#464555] leading-relaxed">{report.reportSummary}</p>
+              <p className="text-lg text-[#334155] leading-relaxed">{report.reportSummary}</p>
             </div>
           </div>
         )}
@@ -197,10 +197,12 @@ export default function CallReport() {
         {/* Evaluation Breakdown Table */}
         {(scoreBreakdown.length > 0 || hasExtracted) && (
           <div className="col-span-12">
-            <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden h-full">
+            <FullscreenTable className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden h-full">
+              {({ toggle, isFs }) => (<>
               <div className="p-6 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-2xl font-semibold text-[#1b1b24]">Evaluation Breakdown</h3>
-                
+                <h3 className="text-2xl font-semibold text-[#0f172a]">Evaluation Breakdown</h3>
+
+                <div className="flex items-center gap-2">
                 <div className="flex bg-zinc-100 p-1 rounded-lg">
                   <button 
                     onClick={() => setFilterScore('all')}
@@ -230,6 +232,8 @@ export default function CallReport() {
                   >
                     Failed
                   </button>
+                </div>
+                <FullscreenButton toggle={toggle} isFs={isFs} />
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -287,7 +291,7 @@ export default function CallReport() {
                             className={`hover:bg-zinc-50/50 transition-colors ${hasSubfields ? 'cursor-pointer' : ''}`}
                             onClick={() => hasSubfields && setExpandedQuestions(p => ({ ...p, [qr.questionId]: !p[qr.questionId] }))}
                           >
-                            <td className="px-6 py-4 max-w-[250px] truncate font-medium text-[#1b1b24]" title={qr.questionText} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                            <td className="px-6 py-4 max-w-[250px] truncate font-medium text-[#0f172a]" title={qr.questionText} style={{fontFamily:'JetBrains Mono, monospace'}}>
                               <div className="flex items-center gap-2">
                                 {hasSubfields && (
                                   <span className="material-symbols-outlined text-[18px] text-zinc-400">
@@ -377,11 +381,11 @@ export default function CallReport() {
               {/* Compliance info inside the same card if it exists */}
               {Object.keys(compliance).length > 0 && (
                 <div className="p-6 border-t border-zinc-100 bg-zinc-50/50">
-                  <div className="bg-indigo-50 p-4 rounded-lg flex items-start gap-3 w-fit">
-                    <span className="material-symbols-outlined text-indigo-600 mt-0.5">info</span>
+                  <div className="bg-teal-50 p-4 rounded-lg flex items-start gap-3 w-fit">
+                    <span className="material-symbols-outlined text-teal-600 mt-0.5">info</span>
                     <div>
-                      <p className="text-xs font-medium text-indigo-900 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Compliance Notes</p>
-                      <p className="text-xs text-indigo-800">
+                      <p className="text-xs font-medium text-teal-900 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Compliance Notes</p>
+                      <p className="text-xs text-teal-800">
                         Script adherence: {compliance.scriptAdherenceScore ?? '—'}% &middot;
                         Coverage: {compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '—'}
                       </p>
@@ -389,7 +393,8 @@ export default function CallReport() {
                   </div>
                 </div>
               )}
-            </div>
+              </>)}
+            </FullscreenTable>
           </div>
         )}
 

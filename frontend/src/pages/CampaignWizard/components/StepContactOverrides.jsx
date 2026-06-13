@@ -18,7 +18,7 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, rows = 2 }) {
         className={`w-full rounded-lg border bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
           ${over
             ? 'border-red-400 focus:ring-red-500/20'
-            : 'border-zinc-300 dark:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+            : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
           }`} />
       <span className={`text-xs text-right tabular-nums ${over ? 'text-red-500 font-semibold' : 'text-zinc-400'}`}>{count}/{limit} words</span>
     </div>
@@ -26,9 +26,12 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, rows = 2 }) {
 }
 
 // ── Call Design Modal ─────────────────────────────────────────────────────────
-function CallDesignModal({ contact, campaignGoals, onSave, onClose }) {
+function CallDesignModal({ contact, campaignGoals, campaignMaxDuration, onSave, onClose }) {
   const current = contact.overrides?.goals ?? { ...campaignGoals };
   const [local, setLocal] = useState({ ...current });
+  const [maxDurationMin, setMaxDurationMin] = useState(
+    contact.overrides?.maxCallDurationSec ? Math.round(contact.overrides.maxCallDurationSec / 60) : ''
+  );
   const set = (k, v) => setLocal(p => ({ ...p, [k]: v }));
 
   return (
@@ -55,12 +58,35 @@ function CallDesignModal({ contact, campaignGoals, onSave, onClose }) {
             <label className="text-xs font-semibold text-zinc-600 dark:text-slate-400 flex items-center gap-1"><PhoneOff size={11} /> Call Sign-off <span className="font-normal text-zinc-400 dark:text-slate-500">(max 300 words)</span></label>
             <WordLimitTextarea value={local.callSignOff} onChange={v => set('callSignOff', v)} limit={300} placeholder="Custom closing script for this contact…" rows={3} />
           </div>
+
+          {/* Per-contact max duration override */}
+          <div className="flex flex-col gap-1.5 pt-4 border-t border-zinc-100 dark:border-slate-700">
+            <label className="text-xs font-semibold text-zinc-600 dark:text-slate-400">Max Call Duration (override)</label>
+            <p className="text-xs text-zinc-400">Leave blank to use campaign default ({campaignMaxDuration} min)</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="1" max="60"
+                value={maxDurationMin}
+                onChange={e => setMaxDurationMin(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                placeholder={String(campaignMaxDuration)}
+                className="h-9 w-24 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+              />
+              <span className="text-sm text-zinc-500">minutes</span>
+              {maxDurationMin !== '' && (
+                <span className="text-xs text-zinc-400">≈ ₹{parseInt(maxDurationMin) * 5} est. cost</span>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-slate-700 sticky bottom-0 bg-white dark:bg-slate-800">
           <button onClick={onClose} className="inline-flex items-center h-9 px-4 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">Cancel</button>
-          <button onClick={() => { onSave({ goals: local }); onClose(); }}
-            className="inline-flex items-center h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">Save Overrides</button>
+          <button onClick={() => {
+            const durSec = maxDurationMin !== '' ? parseInt(maxDurationMin) * 60 : undefined;
+            onSave({ goals: local, ...(durSec ? { maxCallDurationSec: durSec } : { maxCallDurationSec: undefined }) });
+            onClose();
+          }}
+            className="inline-flex items-center h-9 px-4 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">Save Overrides</button>
         </div>
       </div>
     </div>
@@ -151,7 +177,7 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
           <button
             type="button"
             onClick={addItem}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-10 w-full text-xs font-medium text-zinc-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all mt-2"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-10 w-full text-xs font-medium text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-all mt-2"
           >
             <Plus size={14} /> Add Question / Information
           </button>
@@ -160,7 +186,7 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-slate-700 sticky bottom-0 bg-white dark:bg-slate-800">
           <button onClick={onClose} className="inline-flex items-center h-9 px-4 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">Cancel</button>
           <button onClick={() => { onSave({ dataToCollect: local }); onClose(); }}
-            className="inline-flex items-center h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">Save Overrides</button>
+            className="inline-flex items-center h-9 px-4 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">Save Overrides</button>
         </div>
       </div>
     </div>
@@ -168,7 +194,7 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
 }
 
 // ── Contact Row ───────────────────────────────────────────────────────────────
-function ContactRow({ contact, index, campaignGoals, campaignQuestions, onSave }) {
+function ContactRow({ contact, index, campaignGoals, campaignQuestions, campaignMaxDuration, onSave }) {
   const [modal, setModal] = useState(null);
 
   const hasDesignOverride    = !!contact.overrides?.goals;
@@ -176,9 +202,9 @@ function ContactRow({ contact, index, campaignGoals, campaignQuestions, onSave }
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-teal-300 dark:hover:border-teal-600 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">
+          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-xs font-bold text-teal-700">
             {contact.name?.charAt(0)?.toUpperCase() || '?'}
           </div>
           <div>
@@ -187,7 +213,7 @@ function ContactRow({ contact, index, campaignGoals, campaignQuestions, onSave }
           </div>
           <div className="flex gap-1 ml-2">
             {hasDesignOverride    && <span className="text-xs px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700">Design ✓</span>}
-            {hasQuestionsOverride && <span className="text-xs px-2 py-0.5 rounded-full border border-violet-200 bg-violet-50 text-violet-700">Questions ✓</span>}
+            {hasQuestionsOverride && <span className="text-xs px-2 py-0.5 rounded-full border border-teal-200 bg-teal-50 text-teal-700">Questions ✓</span>}
           </div>
         </div>
 
@@ -204,7 +230,7 @@ function ContactRow({ contact, index, campaignGoals, campaignQuestions, onSave }
       </div>
 
       {modal === 'design' && (
-        <CallDesignModal contact={contact} campaignGoals={campaignGoals}
+        <CallDesignModal contact={contact} campaignGoals={campaignGoals} campaignMaxDuration={campaignMaxDuration}
           onSave={(patch) => onSave(index, patch)} onClose={() => setModal(null)} />
       )}
       {modal === 'questions' && (
@@ -220,6 +246,7 @@ export default function StepContactOverrides({ payload, updatePayload }) {
   const contacts          = payload.contacts         || [];
   const campaignGoals     = payload.goals            || {};
   const campaignQuestions = payload.dataToCollect    || [];
+  const campaignMaxDuration = payload.callSettings?.maxDuration || 5;
 
   const saveOverride = (index, patch) => {
     const updated = contacts.map((c, i) =>
@@ -232,15 +259,8 @@ export default function StepContactOverrides({ payload, updatePayload }) {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div>
-        <h3 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Contact Customization</h3>
-        <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1">
-          Override the campaign defaults for any individual contact. Other contacts are unaffected.
-        </p>
-      </div>
-
       {overrideCount > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-violet-300 bg-violet-50 text-violet-800 text-sm font-medium">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-teal-300 bg-teal-50 text-teal-800 text-sm font-medium">
           <CheckCircle size={14} />
           {overrideCount} contact{overrideCount > 1 ? 's have' : ' has'} custom overrides
         </div>
@@ -260,6 +280,7 @@ export default function StepContactOverrides({ payload, updatePayload }) {
               index={i}
               campaignGoals={campaignGoals}
               campaignQuestions={campaignQuestions}
+              campaignMaxDuration={campaignMaxDuration}
               onSave={saveOverride}
             />
           ))}

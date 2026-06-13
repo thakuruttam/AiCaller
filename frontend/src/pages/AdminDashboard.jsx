@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
-import { Loader2 } from 'lucide-react';
+import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
-import FullscreenWrapper from '../components/FullscreenWrapper';
+import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 const STATUS_BADGE = {
   completed:    'bg-emerald-50 text-emerald-700',
@@ -12,6 +12,13 @@ const STATUS_BADGE = {
   cancelled:    'bg-orange-50 text-orange-700',
   'in-progress':'bg-blue-50 text-blue-700',
   queued:       'bg-zinc-100 text-zinc-600',
+};
+
+const TICKET_STATUS_BADGE = {
+  OPEN:        'bg-blue-50 text-blue-700 border border-blue-200',
+  IN_PROGRESS: 'bg-amber-50 text-amber-700 border border-amber-200',
+  RESOLVED:    'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  CLOSED:      'bg-zinc-100 text-zinc-500 border border-zinc-200',
 };
 
 export default function AdminDashboard() {
@@ -25,10 +32,62 @@ export default function AdminDashboard() {
   const [callSearchQueries, setCallSearchQueries] = useState({});
   const [lastUpdated, setLastUpdated] = useState(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [activeTab, setActiveTab] = useState('campaigns');
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketFilter, setTicketFilter] = useState('all');
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketReply, setTicketReply] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
   const { addToast } = useToast();
+
+  const fetchTickets = async () => {
+    setTicketsLoading(true);
+    try {
+      const res = await api.get('/api/support');
+      setTickets(res.data.tickets || []);
+    } catch { addToast('Failed to load support tickets', 'error'); }
+    finally { setTicketsLoading(false); }
+  };
+
+  const openTicket = async (t) => {
+    try {
+      const res = await api.get(`/api/support/${t.id}`);
+      setSelectedTicket(res.data);
+      setTicketReply('');
+    } catch { addToast('Failed to load ticket', 'error'); }
+  };
+
+  const sendReply = async () => {
+    if (!ticketReply.trim() || !selectedTicket) return;
+    setReplyLoading(true);
+    try {
+      await api.post(`/api/support/${selectedTicket.id}/reply`, { message: ticketReply });
+      const res = await api.get(`/api/support/${selectedTicket.id}`);
+      setSelectedTicket(res.data);
+      setTicketReply('');
+      fetchTickets();
+      addToast('Reply sent', 'success');
+    } catch { addToast('Failed to send reply', 'error'); }
+    finally { setReplyLoading(false); }
+  };
+
+  const updateTicketStatus = async (ticketId, status) => {
+    setStatusLoading(true);
+    try {
+      await api.patch(`/api/support/${ticketId}/status`, { status });
+      const res = await api.get(`/api/support/${ticketId}`);
+      setSelectedTicket(res.data);
+      fetchTickets();
+      addToast(`Ticket marked as ${status.replace('_', ' ').toLowerCase()}`, 'success');
+    } catch { addToast('Failed to update status', 'error'); }
+    finally { setStatusLoading(false); }
+  };
 
   useEffect(() => {
     fetchCampaigns();
+    fetchTickets();
     const pollInterval = setInterval(fetchCampaigns, 3000);
     const clockInterval = setInterval(() => {
       setSecondsAgo(prev => prev + 1);
@@ -38,7 +97,7 @@ export default function AdminDashboard() {
 
   const fetchCampaigns = async () => {
     try {
-      const res = await api.get('/api/campaigns');
+      const res = await api.get('/api/campaigns?all=true');
       setCampaigns(res.data);
       setLastUpdated(Date.now());
       setSecondsAgo(0);
@@ -129,10 +188,10 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-end mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-[#3525cd] text-3xl">shield</span>
-            <h2 className="text-3xl font-semibold text-[#1b1b24] tracking-tight">Admin Dashboard</h2>
+            <span className="material-symbols-outlined text-[#0d9488] text-3xl">shield</span>
+            <h2 className="text-3xl font-semibold text-[#0f172a] tracking-tight">Admin Dashboard</h2>
           </div>
-          <p className="text-[#464555] text-base">Real-time system oversight and campaign orchestration.</p>
+          <p className="text-[#334155] text-base">Real-time system oversight and campaign orchestration.</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -158,32 +217,70 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Tab Bar */}
+      <div className="flex gap-1 mb-6 bg-zinc-100 p-1 rounded-xl w-fit">
+        {[
+          { key: 'campaigns', icon: 'campaign', label: 'Campaigns' },
+          { key: 'support', icon: 'contact_support', label: `Support Tickets${tickets.filter(t => t.status === 'OPEN').length > 0 ? ` (${tickets.filter(t => t.status === 'OPEN').length})` : ''}` },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+            style={{fontFamily:'JetBrains Mono, monospace'}}
+          >
+            <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'support' && (
+        <SupportTicketsPanel
+          tickets={tickets}
+          loading={ticketsLoading}
+          filter={ticketFilter}
+          setFilter={setTicketFilter}
+          onRefresh={fetchTickets}
+          onOpen={openTicket}
+          selectedTicket={selectedTicket}
+          onCloseTicket={() => { setSelectedTicket(null); fetchTickets(); }}
+          ticketReply={ticketReply}
+          setTicketReply={setTicketReply}
+          onSendReply={sendReply}
+          replyLoading={replyLoading}
+          onUpdateStatus={updateTicketStatus}
+          statusLoading={statusLoading}
+        />
+      )}
+
+      {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
       <div className="grid grid-cols-12 gap-6 mb-6">
         <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#464555] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Active Channels</p>
-          <h3 className="text-2xl font-semibold text-[#1b1b24]">{totalChannels} / 2,000</h3>
+          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Active Channels</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a]">{totalChannels} / 2,000</h3>
           <div className="w-full bg-zinc-100 h-1.5 rounded-full mt-3">
-            <div className="bg-[#3525cd] h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
+            <div className="bg-[#0d9488] h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
           </div>
         </div>
         <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#464555] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls per Second</p>
-          <h3 className="text-2xl font-semibold text-[#1b1b24]">{totalCPS} CPS</h3>
+          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls per Second</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a]">{totalCPS} CPS</h3>
           <p className="text-emerald-600 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
           </p>
         </div>
         <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#464555] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>System Latency</p>
-          <h3 className="text-2xl font-semibold text-[#1b1b24]">142ms</h3>
+          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>System Latency</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a]">142ms</h3>
           <p className="text-zinc-500 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
           </p>
         </div>
         <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#464555] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Error Rate</p>
-          <h3 className="text-2xl font-semibold text-[#1b1b24]">0.04%</h3>
+          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Error Rate</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a]">0.04%</h3>
           <p className="text-zinc-500 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-sm">info</span> Low impact
           </p>
@@ -191,10 +288,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Campaign Table */}
-      <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden mb-6">
+      <FullscreenTable className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden mb-6">
+        {({ toggle, isFs }) => (<>
         <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h4 className="text-base font-semibold text-[#1b1b24]">Running Campaigns</h4>
+            <h4 className="text-base font-semibold text-[#0f172a]">All Campaigns</h4>
             <span className="flex items-center gap-1.5 text-xs text-zinc-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
@@ -209,6 +307,7 @@ export default function AdminDashboard() {
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
               {totalPaused} Paused
             </span>
+            <FullscreenButton toggle={toggle} isFs={isFs} />
           </div>
         </div>
 
@@ -218,8 +317,9 @@ export default function AdminDashboard() {
 
         <div className="divide-y divide-zinc-100">
           {loading && (
-            <div className="px-6 py-8 text-center">
-              <Loader2 className="animate-spin mx-auto text-[#3525cd]" size={24} />
+            <div className="px-6 py-10 flex flex-col items-center gap-3">
+              <Spinner size={28} className="text-[#0d9488]" />
+              <p className="text-sm text-[#64748b]" style={{fontFamily:'JetBrains Mono, monospace'}}>Loading campaigns…</p>
             </div>
           )}
           {!loading && filtered.map(campaign => {
@@ -249,22 +349,27 @@ export default function AdminDashboard() {
                   <div className="w-8 flex-shrink-0">
                     <span className={`material-symbols-outlined text-zinc-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
-                  <div className="flex-1 grid grid-cols-6 gap-4 items-center">
-                    <div className="col-span-2">
+                  <div className="flex-1 grid grid-cols-12 gap-4 items-center">
+                    <div className="col-span-3">
                       <p className="text-sm font-medium text-zinc-900" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.name}</p>
                       <p className="text-xs text-zinc-500" style={{fontFamily:'JetBrains Mono, monospace'}}>ID: {campaign.id?.substring(0,12)}</p>
                     </div>
-                    <div className="col-span-1">
-                      <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Call Count</p>
+                    <div className="col-span-3">
+                      <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Workspace</p>
+                      <p className="text-sm font-medium text-zinc-900 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.tenant?.name || '—'}</p>
+                      <p className="text-[10px] text-zinc-400 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.createdBy?.email || '—'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls</p>
                       <p className="text-sm font-medium text-zinc-900" style={{fontFamily:'JetBrains Mono, monospace'}}>{logs.length.toLocaleString()}</p>
                     </div>
                     <div className="col-span-1">
                       <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Type</p>
-                      <p className="text-sm font-medium text-zinc-900 capitalize" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'Outbound'}</p>
+                      <p className="text-sm font-medium text-zinc-900 capitalize" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'HR'}</p>
                     </div>
-                    <div className="col-span-2 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <div className="col-span-3 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
                       {(hasDraft || !logs.length) && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'start')} disabled={actionLoading} className="bg-[#3525cd] text-white p-2 rounded-lg hover:bg-[#4f46e5] transition-colors shadow-sm disabled:opacity-50" title="Start">
+                        <button onClick={() => handleCampaignAction(campaign.id, 'start')} disabled={actionLoading} className="bg-[#0d9488] text-white p-2 rounded-lg hover:bg-[#0f766e] transition-colors shadow-sm disabled:opacity-50" title="Start">
                           <span className="material-symbols-outlined text-sm">play_arrow</span>
                         </button>
                       )}
@@ -363,54 +468,12 @@ export default function AdminDashboard() {
           })}
 
           {!loading && filtered.length === 0 && (
-            <div className="px-6 py-12 text-center text-sm text-[#777587]" style={{fontFamily:'JetBrains Mono, monospace'}}>No campaigns found.</div>
+            <div className="px-6 py-12 text-center text-sm text-[#64748b]" style={{fontFamily:'JetBrains Mono, monospace'}}>No campaigns found.</div>
           )}
         </div>
-      </div>
+        </>)}
+      </FullscreenTable>
 
-      {/* Security Console */}
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-8 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-center mb-6">
-            <h4 className="text-sm font-medium text-[#1b1b24]" style={{fontFamily:'JetBrains Mono, monospace'}}>Regional Traffic Density</h4>
-            <span className="text-xs bg-zinc-100 px-2 py-1 rounded" style={{fontFamily:'JetBrains Mono, monospace'}}>Live Global Feed</span>
-          </div>
-          <div className="h-[240px] w-full bg-zinc-50 rounded-lg flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(#3525cd 1px, transparent 1px)', backgroundSize:'20px 20px'}}></div>
-            <div className="relative z-10 text-center">
-              <span className="material-symbols-outlined text-zinc-200 text-8xl mb-4">public</span>
-              <p className="text-xs text-zinc-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Map visualization active – Global Data Centers</p>
-            </div>
-            <div className="absolute top-1/4 left-1/3 w-3 h-3 bg-[#3525cd] rounded-full animate-ping"></div>
-            <div className="absolute bottom-1/3 right-1/4 w-3 h-3 bg-[#3525cd] rounded-full animate-ping" style={{animationDelay:'1s'}}></div>
-            <div className="absolute top-1/2 right-1/2 w-3 h-3 bg-[#3525cd] rounded-full animate-ping" style={{animationDelay:'0.5s'}}></div>
-          </div>
-        </div>
-
-        <div className="col-span-12 lg:col-span-4 bg-[#0f172a] p-6 rounded-lg shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <span className="material-symbols-outlined text-white text-9xl">terminal</span>
-          </div>
-          <h4 className="text-sm font-medium text-white mb-4 flex items-center gap-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Security Console
-          </h4>
-          <div className="text-xs text-zinc-400 space-y-3 overflow-hidden" style={{fontFamily:'JetBrains Mono, monospace'}}>
-            <p className="text-emerald-400"># auth_service.v2: Connection secure</p>
-            <p>&gt; Monitoring inbound API traffic...</p>
-            <p className="text-zinc-500">14:23:12 [INFO] Handshake verified</p>
-            <p className="text-zinc-500">14:23:14 [INFO] Node 4-Alpha scaling</p>
-            <p className="text-amber-400">14:23:18 [WARN] Rate limit approaching (92%)</p>
-            <p className="text-zinc-500">14:23:22 [INFO] Load balancer adjusted</p>
-            <p className="border-t border-zinc-800 pt-2 text-white">READY FOR NEW TASK_</p>
-          </div>
-          <div className="mt-6">
-            <button className="w-full py-2 bg-zinc-800 text-white rounded text-xs border border-zinc-700 hover:bg-zinc-700 transition-colors" style={{fontFamily:'JetBrains Mono, monospace'}}>
-              Re-authenticate All Nodes
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Re-run confirm modal */}
       <Modal
@@ -430,6 +493,316 @@ export default function AdminDashboard() {
           Are you sure? This will <strong className="text-zinc-900">permanently delete</strong> all previous transcripts and recordings for this campaign and start fresh.
         </p>
       </Modal>
+      </>)}
+    </div>
+  );
+}
+
+const ROLE_BADGE = {
+  SUPER_ADMIN: 'bg-[#ffdad6] text-[#ba1a1a]',
+  ADMIN:       'bg-[#0d9488]/10 text-[#0d9488]',
+  EDITOR:      'bg-amber-50 text-amber-700',
+  VIEWER:      'bg-zinc-100 text-zinc-600',
+};
+
+const STATUS_USER_BADGE = {
+  ACTIVE:    'bg-emerald-50 text-emerald-700',
+  PENDING:   'bg-amber-50 text-amber-700',
+  SUSPENDED: 'bg-[#ffdad6] text-[#ba1a1a]',
+};
+
+function Avatar({ user, size = 'md' }) {
+  const dim = size === 'lg' ? 'w-14 h-14 text-base' : size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-xs';
+  return (
+    <div className={`${dim} rounded-full bg-[#0f766e] flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
+      {user?.avatarUrl
+        ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+        : user?.name?.charAt(0)?.toUpperCase() || '?'}
+    </div>
+  );
+}
+
+function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, onOpen, selectedTicket, onCloseTicket, ticketReply, setTicketReply, onSendReply, replyLoading, onUpdateStatus, statusLoading }) {
+  const FILTERS = ['all', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+
+  const filtered = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+
+  const openCount    = tickets.filter(t => t.status === 'OPEN').length;
+  const ipCount      = tickets.filter(t => t.status === 'IN_PROGRESS').length;
+  const resolveCount = tickets.filter(t => t.status === 'RESOLVED').length;
+
+  return (
+    <div className="space-y-6">
+      {/* KPI strip */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
+          <p className="text-xs text-zinc-500 uppercase tracking-wider font-mono mb-1">Open</p>
+          <p className="text-2xl font-bold text-blue-600">{openCount}</p>
+        </div>
+        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
+          <p className="text-xs text-zinc-500 uppercase tracking-wider font-mono mb-1">In Progress</p>
+          <p className="text-2xl font-bold text-amber-600">{ipCount}</p>
+        </div>
+        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
+          <p className="text-xs text-zinc-500 uppercase tracking-wider font-mono mb-1">Resolved</p>
+          <p className="text-2xl font-bold text-emerald-600">{resolveCount}</p>
+        </div>
+      </div>
+
+      <div className="flex gap-5 items-start">
+        {/* ── Ticket list ── */}
+        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden`}>
+          <div className="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
+            <div className="flex gap-0.5 bg-zinc-100 p-0.5 rounded-lg">
+              {FILTERS.map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${filter === f ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+                  style={{fontFamily:'JetBrains Mono, monospace'}}
+                >
+                  {f === 'all' ? 'All' : f.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            <button onClick={onRefresh} className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors">
+              <span className="material-symbols-outlined text-zinc-400 text-[16px]">refresh</span>
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="px-5 py-10 text-center text-zinc-400 text-sm">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <span className="material-symbols-outlined text-zinc-200 text-[40px] block mb-2">inbox</span>
+              <p className="text-zinc-400 text-sm">No tickets</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-50 max-h-[65vh] overflow-y-auto">
+              {filtered.map(t => (
+                <div
+                  key={t.id}
+                  onClick={() => onOpen(t)}
+                  className={`px-4 py-3.5 cursor-pointer hover:bg-zinc-50 transition-colors ${selectedTicket?.id === t.id ? 'bg-zinc-50 border-l-[3px] border-[#0d9488]' : 'border-l-[3px] border-transparent'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar user={t.user} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-zinc-900 truncate leading-tight">{t.subject}</p>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}>
+                          {t.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-zinc-400 capitalize font-mono">{t.category}</span>
+                        <span className="text-[10px] text-zinc-300">·</span>
+                        <span className="text-[10px] text-zinc-400 font-mono">{new Date(t.createdAt).toLocaleDateString()}</span>
+                        {t._count?.replies > 0 && <>
+                          <span className="text-[10px] text-zinc-300">·</span>
+                          <span className="text-[10px] text-zinc-400">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
+                        </>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Ticket detail ── */}
+        {selectedTicket && (
+          <div className="flex-1 flex gap-4 items-start min-w-0">
+
+            {/* Sender card */}
+            <div className="w-[220px] shrink-0 bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-100">
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Submitted by</p>
+              </div>
+              <div className="p-4 space-y-4">
+                {/* Avatar + name */}
+                <div className="flex flex-col items-center text-center gap-2">
+                  <Avatar user={selectedTicket.user} size="lg" />
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900 leading-tight">{selectedTicket.user?.name}</p>
+                    <p className="text-[11px] text-zinc-400 mt-0.5 break-all">{selectedTicket.user?.email}</p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-1">
+                    {selectedTicket.user?.role && (
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || 'bg-zinc-100 text-zinc-600'}`}>
+                        {selectedTicket.user.role.replace('_', ' ')}
+                      </span>
+                    )}
+                    {selectedTicket.user?.status && (
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || 'bg-zinc-100 text-zinc-500'}`}>
+                        {selectedTicket.user.status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Detail rows */}
+                <div className="space-y-2.5 border-t border-zinc-100 pt-3">
+                  {selectedTicket.tenant?.name && (
+                    <div>
+                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Workspace</p>
+                      <p className="text-xs text-zinc-700 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
+                    </div>
+                  )}
+                  {selectedTicket.submitterContext?.workspaceRole && (
+                    <div>
+                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Workspace Role</p>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || 'bg-zinc-100 text-zinc-600'}`}>
+                        {selectedTicket.submitterContext.workspaceRole}
+                      </span>
+                    </div>
+                  )}
+                  {selectedTicket.submitterContext?.workspaceMemberSince && (
+                    <div>
+                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Member Since</p>
+                      <p className="text-xs text-zinc-600 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  {selectedTicket.user?.createdAt && (
+                    <div>
+                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Account Created</p>
+                      <p className="text-xs text-zinc-600 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  {selectedTicket.submitterContext?.totalTickets != null && (
+                    <div>
+                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Total Tickets</p>
+                      <p className="text-xs font-semibold text-zinc-700 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ticket meta */}
+                <div className="space-y-2.5 border-t border-zinc-100 pt-3">
+                  <div>
+                    <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Category</p>
+                    <p className="text-xs text-zinc-700 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Opened</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Status</p>
+                    <select
+                      value={selectedTicket.status}
+                      onChange={e => onUpdateStatus(selectedTicket.id, e.target.value)}
+                      disabled={statusLoading}
+                      className="mt-0.5 w-full text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white font-mono outline-none focus:ring-2 focus:ring-[#0d9488]"
+                    >
+                      {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
+                        <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Conversation panel */}
+            <div className="flex-1 bg-white border border-zinc-200 rounded-xl shadow-sm flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-zinc-100 flex items-start justify-between shrink-0">
+                <div className="min-w-0 pr-3">
+                  <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider capitalize">{selectedTicket.category.replace('_', ' ')}</p>
+                  <h3 className="text-sm font-semibold text-zinc-900 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {selectedTicket.status === 'CLOSED' ? (
+                    <button
+                      onClick={() => onUpdateStatus(selectedTicket.id, 'OPEN')}
+                      disabled={statusLoading}
+                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#ede9fe] disabled:opacity-50 transition-colors"
+                    >
+                      Reopen
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onUpdateStatus(selectedTicket.id, 'CLOSED')}
+                      disabled={statusLoading}
+                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                  )}
+                  <button onClick={onCloseTicket} className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors">
+                    <span className="material-symbols-outlined text-zinc-400 text-[18px]">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Thread */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Original message */}
+                <div className="flex gap-3">
+                  <Avatar user={selectedTicket.user} size="sm" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <p className="text-xs font-semibold text-zinc-800">{selectedTicket.user?.name}</p>
+                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || 'bg-zinc-100 text-zinc-600'}`}>
+                        {selectedTicket.user?.role?.replace('_', ' ')}
+                      </span>
+                      <p className="text-[10px] text-zinc-400 font-mono ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-zinc-50 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
+                      {selectedTicket.message}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Replies */}
+                {(selectedTicket.replies || []).map(r => (
+                  <div key={r.id} className={`flex gap-3 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
+                    <Avatar user={r.user} size="sm" />
+                    <div className={`flex-1 ${r.isAdmin ? 'items-end' : ''}`}>
+                      <div className={`flex items-center gap-2 mb-1.5 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
+                        <p className="text-xs font-semibold text-zinc-800">{r.user?.name}</p>
+                        {r.isAdmin && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0d9488]/10 text-[#0d9488]">Support</span>
+                        )}
+                        <p className="text-[10px] text-zinc-400 font-mono">{new Date(r.createdAt).toLocaleString()}</p>
+                      </div>
+                      <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#ede9fe] text-[#0d9488] rounded-tr-sm' : 'bg-zinc-50 text-zinc-700 rounded-tl-sm'}`}>
+                        {r.message}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Reply box */}
+              {selectedTicket.status !== 'CLOSED' && (
+                <div className="p-4 border-t border-zinc-100 shrink-0">
+                  <div className="flex gap-3">
+                    <textarea
+                      value={ticketReply}
+                      onChange={e => setTicketReply(e.target.value)}
+                      placeholder="Reply to this ticket…"
+                      rows={3}
+                      className="flex-1 text-sm bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-[#0d9488] text-zinc-800 placeholder:text-zinc-400"
+                    />
+                    <button
+                      onClick={onSendReply}
+                      disabled={replyLoading || !ticketReply.trim()}
+                      className="self-end bg-[#0d9488] hover:bg-[#0f766e] disabled:opacity-40 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                    >
+                      {replyLoading ? 'Sending…' : 'Reply'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+      </div>
     </div>
   );
 }

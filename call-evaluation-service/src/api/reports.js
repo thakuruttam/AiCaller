@@ -177,9 +177,10 @@ reportsRouter.get('/campaign/:campaignId/contacts', async (req, res) => {
       prisma.callReport.findMany({
         where,
         select: {
-          callLogId: true, contactName: true, outcome: true,
+          callLogId: true, contactName: true, contactPhone: true, outcome: true,
           failureReason: true, sentiment: true, score: true,
-          reportSummary: true, completionRate: true, createdAt: true, extractedFields: true
+          reportSummary: true, completionRate: true, createdAt: true,
+          extractedFields: true, scoreBreakdown: true
         },
         orderBy: { createdAt: 'desc' },
         skip:  (parseInt(page) - 1) * parseInt(limit),

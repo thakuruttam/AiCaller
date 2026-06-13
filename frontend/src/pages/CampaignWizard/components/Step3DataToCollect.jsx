@@ -16,7 +16,7 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
         className={`w-full rounded-lg border bg-white dark:bg-slate-700 px-3 pt-2 pb-6 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
           ${over
             ? 'border-red-400 focus:ring-red-500/20'
-            : 'border-zinc-300 dark:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+            : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
           } ${className}`}
       />
       <div className={`absolute bottom-2 right-6 text-[10px] pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
@@ -138,13 +138,6 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div>
-        <h3 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Setup Questions</h3>
-        <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1">
-          Define what the AI bot will ask or convey, in order. Drag cards to reorder.
-        </p>
-      </div>
-
       {/* Question list */}
       <div className="flex flex-col gap-3">
         {items.length === 0 && (
@@ -199,7 +192,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       <button
         type="button"
         onClick={addItem}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-12 w-full text-sm font-medium text-zinc-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-12 w-full text-sm font-medium text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-all"
       >
         <Plus size={16} /> Add Question / Information
       </button>
@@ -238,7 +231,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
               type="number"
               min={0}
               max={100}
-              className="flex h-9 w-24 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="flex h-9 w-24 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               value={payload.rules?.successScore ?? 50}
               onChange={(e) => updatePayload({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value))) } })}
             />

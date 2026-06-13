@@ -7,6 +7,7 @@ import Step3DataToCollect from './components/Step3DataToCollect';
 import StepContactOverrides from './components/StepContactOverrides';
 import Step7Review from './components/Step7Review';
 import { useToast } from '../../context/ToastContext';
+import PageLoader from '../../components/PageLoader';
 
 import './CampaignWizard.css';
 
@@ -30,7 +31,7 @@ const initialPayload = {
   callSettings: {
     tone: 'Professional',
     language: 'English',
-    maxDuration: 10,
+    maxDuration: 5,
     retryAttempts: 2
   },
   contacts: []
@@ -144,13 +145,7 @@ export default function CampaignWizard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-[#777587]">
-        Loading campaign data...
-      </div>
-    );
-  }
+  if (loading) return <PageLoader text="Loading campaign data…" />;
 
   const renderStep = () => {
     switch (step) {
@@ -168,16 +163,16 @@ export default function CampaignWizard() {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Left Step Panel */}
-      <nav className="w-72 bg-[#f5f2ff] border-r border-zinc-200/50 flex flex-col shrink-0">
+      <nav className="w-72 bg-[#f0fdfa] border-r border-zinc-200/50 flex flex-col shrink-0">
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs uppercase tracking-widest text-zinc-500" style={{fontFamily:'JetBrains Mono, monospace'}}>Progress</span>
-            <span className="text-sm font-medium text-[#3525cd]" style={{fontFamily:'JetBrains Mono, monospace'}}>{progress}%</span>
+            <span className="text-sm font-medium text-[#0d9488]" style={{fontFamily:'JetBrains Mono, monospace'}}>{progress}%</span>
           </div>
           <div className="w-full bg-zinc-200 h-1.5 rounded-full">
             <div
-              className="bg-[#3525cd] h-1.5 rounded-full transition-all duration-700"
+              className="bg-[#0d9488] h-1.5 rounded-full transition-all duration-700"
               style={{width: `${progress}%`}}
             />
           </div>
@@ -198,12 +193,12 @@ export default function CampaignWizard() {
                       ? 'opacity-60 cursor-pointer hover:bg-white/70'
                       : 'opacity-60 cursor-pointer hover:bg-white/50'
                 }`}
-                style={isActive ? {borderLeft: '3px solid #3525cd'} : {borderLeft: '3px solid transparent'}}
+                style={isActive ? {borderLeft: '3px solid #0d9488'} : {borderLeft: '3px solid transparent'}}
                 onClick={() => isComplete && setStep(i + 1)}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-medium ${
                   isActive
-                    ? 'bg-[#3525cd] text-white'
+                    ? 'bg-[#0d9488] text-white'
                     : isComplete
                       ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                       : 'border border-zinc-300 text-zinc-500'
@@ -213,7 +208,7 @@ export default function CampaignWizard() {
                   ) : stepNums[i]}
                 </div>
                 <span className={`text-sm ${
-                  isActive ? 'font-bold text-[#3525cd]' : 'text-[#464555]'
+                  isActive ? 'font-bold text-[#0d9488]' : 'text-[#334155]'
                 }`} style={{fontFamily:'JetBrains Mono, monospace'}}>
                   {s}
                 </span>
@@ -224,40 +219,43 @@ export default function CampaignWizard() {
 
         {/* AI Logic Confidence Card */}
         <div className="p-6 border-t border-zinc-200">
-          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-            <h4 className="text-sm font-medium text-indigo-900 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Logic Confidence</h4>
-            <p className="text-xs text-indigo-700 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
+          <div className="bg-teal-50 p-4 rounded-lg border border-teal-100">
+            <h4 className="text-sm font-medium text-teal-900 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Logic Confidence</h4>
+            <p className="text-xs text-teal-700 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
           </div>
         </div>
       </nav>
 
       {/* Right Canvas */}
-      <div className="flex-1 overflow-y-auto bg-zinc-50">
-        <div className="max-w-4xl mx-auto p-8">
-          {/* Step header */}
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <h3 className="text-3xl font-semibold text-[#1b1b24] mb-2 tracking-tight">{steps[step - 1]}</h3>
-              <p className="text-[#464555]">
-                {step === 1 && 'Configure the basics of your outbound campaign — name, type, and core script objectives.'}
-                {step === 2 && 'Upload or manage the contacts list that will be included in this campaign.'}
-                {step === 3 && 'Define the structured sequence of inquiry the AI agent should follow. Add logic conditions to handle complex lead responses.'}
-                {step === 4 && 'Configure per-contact variable overrides to personalize each outbound call.'}
-                {step === 5 && 'Review all campaign settings before launching. Ensure accuracy of questions, contacts, and scoring rules.'}
-              </p>
-            </div>
-          </div>
+      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-50 dark:bg-[#13131f]">
 
-          {/* Step Content */}
-          <div className="mb-12">
+        {/* Sticky step header */}
+        <div className="shrink-0 border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-[#13131f] px-8 py-6">
+          <div className="max-w-4xl mx-auto">
+            <h3 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 mb-1 tracking-tight">{steps[step - 1]}</h3>
+            <p className="text-[#334155] dark:text-slate-400 text-sm">
+              {step === 1 && 'Configure the basics of your outbound campaign — name, type, and core script objectives.'}
+              {step === 2 && 'Upload or manage the contacts list that will be included in this campaign.'}
+              {step === 3 && 'Define the structured sequence of inquiry the AI agent should follow. Add logic conditions to handle complex lead responses.'}
+              {step === 4 && 'Configure per-contact variable overrides to personalize each outbound call.'}
+              {step === 5 && 'Review all campaign settings before launching. Ensure accuracy of questions, contacts, and scoring rules.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-8 py-6">
             {renderStep()}
           </div>
+        </div>
 
-          {/* Footer Navigation */}
-          <div className="pt-8 border-t border-zinc-200 flex justify-between items-center">
+        {/* Sticky footer — always visible */}
+        <div className="shrink-0 border-t border-zinc-200 bg-white dark:bg-[#1e1e2e] dark:border-slate-700">
+          <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
             <button
               onClick={() => addToast('Draft saved', 'success')}
-              className="px-6 py-3 border border-zinc-300 rounded text-sm text-zinc-700 hover:bg-zinc-100 transition-colors"
+              className="px-6 py-2.5 border border-zinc-300 dark:border-slate-600 rounded text-sm text-zinc-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors"
               style={{fontFamily:'JetBrains Mono, monospace'}}
             >
               Save as Draft
@@ -266,7 +264,7 @@ export default function CampaignWizard() {
               <button
                 onClick={prevStep}
                 disabled={step === 1}
-                className="px-8 py-3 bg-zinc-100 text-zinc-900 rounded text-sm hover:bg-zinc-200 transition-colors disabled:opacity-30"
+                className="px-8 py-2.5 bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded text-sm hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-30"
                 style={{fontFamily:'JetBrains Mono, monospace'}}
               >
                 Previous Step
@@ -274,7 +272,7 @@ export default function CampaignWizard() {
               {step < 5 ? (
                 <button
                   onClick={nextStep}
-                  className="px-8 py-3 bg-[#3525cd] text-white rounded text-sm hover:bg-[#4f46e5] transition-all shadow-md active:scale-95"
+                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
                   style={{fontFamily:'JetBrains Mono, monospace'}}
                 >
                   {nextLabels[step - 1]}
@@ -282,7 +280,7 @@ export default function CampaignWizard() {
               ) : (
                 <button
                   onClick={handleLaunch}
-                  className="px-8 py-3 bg-[#3525cd] text-white rounded text-sm hover:bg-[#4f46e5] transition-all shadow-md active:scale-95"
+                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
                   style={{fontFamily:'JetBrains Mono, monospace'}}
                 >
                   {id ? 'Save Changes' : 'Launch Campaign'}
@@ -291,6 +289,7 @@ export default function CampaignWizard() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
