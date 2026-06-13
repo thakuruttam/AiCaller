@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { Lightbulb, PhoneIncoming, PhoneOff } from 'lucide-react';
+import { Lightbulb, PhoneIncoming, PhoneOff, Timer } from 'lucide-react';
 
 const CAMPAIGN_TYPES = [
   { value: 'HR',            label: 'HR',           desc: 'Recruitment & talent outreach' },
@@ -47,7 +47,7 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, minHeight = '6
         className={`flex w-full rounded-lg border bg-white dark:bg-slate-700 px-3 pt-2 pb-6 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
           ${over
             ? 'border-red-400 focus:ring-red-500/20'
-            : 'border-zinc-300 dark:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+            : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
           }`}
         style={{ minHeight }}
         value={value || ''}
@@ -67,7 +67,7 @@ function SuggestionPills({ items, onSelect }) {
       {items.map((s, i) => (
         <button
           key={i} type="button" onClick={() => onSelect(s)}
-          className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 dark:border-slate-600 bg-zinc-50 dark:bg-slate-800/50 px-2.5 py-0.5 text-[11px] text-zinc-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 dark:border-slate-600 bg-zinc-50 dark:bg-slate-800/50 px-2.5 py-0.5 text-[11px] text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
         >
           <Lightbulb size={10} />
           {s.length > 50 ? s.slice(0, 47) + '…' : s}
@@ -90,12 +90,12 @@ export default function Step1Basics({ payload, updatePayload }) {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div>
+      {/* <div>
         <h3 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Campaign Basics</h3>
         <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1">
           Give your campaign a name, choose its type, and craft the words your AI agent will use.
         </p>
-      </div>
+      </div> */}
 
       {/* Campaign name */}
       <div className="flex flex-col gap-1.5">
@@ -104,7 +104,7 @@ export default function Step1Basics({ payload, updatePayload }) {
         </label>
         <input
           type="text"
-          className="h-9 w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-colors"
+          className="h-9 w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-colors"
           value={payload.name}
           onChange={e => updatePayload({ name: e.target.value })}
           placeholder="e.g. Q3 Software Engineer Hiring"
@@ -124,7 +124,7 @@ export default function Step1Basics({ payload, updatePayload }) {
               onClick={() => updatePayload({ type: value })}
               className={`flex flex-col items-start gap-0.5 p-2.5 rounded-lg border text-left transition-all
                 ${payload.type === value
-                  ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50 text-indigo-700'
+                  ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50 text-teal-700'
                   : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
                 }`}
             >
@@ -135,11 +135,45 @@ export default function Step1Basics({ payload, updatePayload }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-5 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+      {/* Max Call Duration */}
+      <div className="flex flex-col gap-1.5 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+        <div className="flex items-center gap-1.5">
+          <Timer size={13} className="text-teal-600" />
+          <label className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">
+            Max Call Duration <span className="text-red-500">*</span>
+          </label>
+        </div>
+        <p className="text-xs text-zinc-500 dark:text-slate-400 -mt-0.5">
+          The call will automatically end 4 seconds before this limit. Can be overridden per contact.
+        </p>
+        <div className="flex items-center gap-3 mt-1">
+          <div className="relative w-32">
+            <input
+              type="number"
+              min="1"
+              max="60"
+              value={payload.callSettings?.maxDuration ?? 5}
+              onChange={e => {
+                const v = Math.max(1, Math.min(60, parseInt(e.target.value) || 1));
+                updatePayload({ callSettings: { ...(payload.callSettings || {}), maxDuration: v } });
+              }}
+              className="h-9 w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+          <span className="text-sm text-zinc-500">minutes per call</span>
+          {payload.callSettings?.maxDuration && (
+            <span className="text-xs text-zinc-400">
+              ≈ ₹{payload.callSettings.maxDuration * 5} estimated per call
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-5 pt-4 border-t border-zinc-100 dark:border-slate-700/50">
         {/* Campaign Goal */}
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <Lightbulb size={13} className="text-indigo-600" />
+            <Lightbulb size={13} className="text-teal-600" />
             <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">Primary Goal</h4>
           </div>
           <WordLimitTextarea
@@ -153,7 +187,7 @@ export default function Step1Basics({ payload, updatePayload }) {
         {/* Call Introduction */}
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <PhoneIncoming size={13} className="text-indigo-600" />
+            <PhoneIncoming size={13} className="text-teal-600" />
             <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">Introduction</h4>
           </div>
           <WordLimitTextarea
@@ -167,7 +201,7 @@ export default function Step1Basics({ payload, updatePayload }) {
         {/* Call Sign-off */}
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <PhoneOff size={13} className="text-indigo-600" />
+            <PhoneOff size={13} className="text-teal-600" />
             <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">Sign-off</h4>
           </div>
           <WordLimitTextarea

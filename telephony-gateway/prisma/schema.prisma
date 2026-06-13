@@ -94,6 +94,8 @@ model Campaign {
   rules         Json?
   callSettings  Json?
 
+  maxCallDurationSec Int?
+
   tenantId     String
   tenant       Tenant     @relation(fields: [tenantId], references: [id])
   callModuleId String
@@ -140,8 +142,9 @@ model CallLog {
   transcript   String?
   recordingUrl String?
   providerRef  String?
-  durationMs   Int?
-  createdAt    DateTime  @default(now())
+  durationMs      Int?
+  billableMinutes Int?
+  createdAt       DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
 

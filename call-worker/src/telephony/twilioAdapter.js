@@ -2,84 +2,67 @@ import twilio from 'twilio';
 import { prisma } from '../db.js';
 
 export async function makeTwilioCall(callData) {
-  const { phone, callLogId } = callData;
+  const { phone, callLogId, campaignId } = callData;
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+  const fromPhone  = process.env.TWILIO_PHONE_NUMBER;
+  const baseUrl    = (process.env.BASE_URL || '').replace(/\/$/, '');
 
   if (!accountSid || !authToken || !fromPhone) {
     throw new Error('Twilio credentials (SID, AUTH_TOKEN, PHONE_NUMBER) missing in .env');
   }
+  if (!baseUrl) {
+    throw new Error('BASE_URL is required in .env (e.g. https://yourserver.com)');
+  }
 
   const client = twilio(accountSid, authToken);
 
-  try {
-    console.log(`[Twilio] Dialing ${phone} from ${fromPhone}...`);
-    
-    // 1. Dial the phone number
-    const baseUrl = process.env.BASE_URL || 'YOUR_NGROK_URL.ngrok-free.app';
-    const streamUrl = `wss://${baseUrl.replace('https://', '').replace('http://', '')}/streams`;
+  // Embed campaignId + callLogId as query params on the answer URL so the
+  // telephony-gateway can load the right campaign on first webhook hit.
+  const answerUrl    = `${baseUrl}/call/answer?campaignId=${encodeURIComponent(campaignId)}&callLogId=${encodeURIComponent(callLogId)}`;
+  const statusUrl    = `${baseUrl}/call/status`;
+  const recordingUrl = `${baseUrl}/call/recording`;
+  console.log(`[Twilio] Webhook URLs — answer: ${answerUrl.substring(0, 60)}... status: ${statusUrl} recording: ${recordingUrl}`);
 
-    const twiml = `
-        <Response>
-          <Say>Connecting you to the AI assistant. One moment.</Say>
-          <Connect>
-            <Stream url="${streamUrl}">
-              <Parameter name="campaignId" value="${callData.campaignId || ''}" />
-              <Parameter name="callLogId" value="${callLogId || ''}" />
-            </Stream>
-          </Connect>
-        </Response>`;
-    
-    console.log(`[Twilio] TwiML: ${twiml}`);
+  console.log(`[Twilio] Dialing ${phone} from ${fromPhone}...`);
 
-    const call = await client.calls.create({
-      record: true,
-      twiml,
-      to: phone,
-      from: fromPhone,
-    });
+  const call = await client.calls.create({
+    to:   phone,
+    from: fromPhone,
+    url:  answerUrl,
+    method: 'POST',
 
-    console.log(`[Twilio] Call successfully initiated! Call SID: ${call.sid}`);
-    
-    // Save SID immediately for future recording syncs
-    await prisma.callLog.update({
-      where: { id: callLogId },
-      data: { providerRef: call.sid }
-    });
+    // Status callback fires on terminal events so the gateway saves transcript + queues eval
+    statusCallback:       statusUrl,
+    statusCallbackMethod: 'POST',
+    statusCallbackEvent:  ['completed', 'failed', 'busy', 'no-answer'],
 
-    // Because Twilio relies on public webhooks for async call completion (and localhost isn't public),
-    // we simulate the delayed return response to Prisma DB for this MVP after 15 seconds.
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-           try {
-             // Query Twilio for the raw recording ID
-             const recordings = await client.calls(call.sid).recordings.list({limit: 1});
-             let recordingUrl = null;
-             let dur = 15000;
-             if (recordings && recordings.length > 0) {
-               const recordingSid = recordings[0].sid;
-               // Point the browser exactly to the .mp3 file!
-               recordingUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.mp3`;
-               dur = parseInt(recordings[0].duration || 15) * 1000;
-               console.log(`[Twilio] Recording finalized at ${recordingUrl}`);
-             }
-             
-             resolve({
-               status: 'completed',
-               recordingUrl, 
-               durationMs: dur
-             });
-           } catch (e) {
-             console.error("[Twilio] Error fetching the exact recording:", e.message);
-             resolve({ status: 'completed', recordingUrl: null, durationMs: 15000 });
-           }
-        }, 15000);
-    });
+    // Recording: URL fires when the MP3 is ready (not immediately on call end)
+    record:                        true,
+    recordingStatusCallback:       recordingUrl,
+    recordingStatusCallbackMethod: 'POST',
 
-  } catch (error) {
-    console.error(`[Twilio] Error dialing ${phone}`, error.message);
-    throw error;
-  }
+    // Answering Machine Detection — disabled for now to prevent false positives
+    // (Twilio AMD can misdetect human speech as voicemail, especially on international lines)
+    machineDetection: 'Disable',
+  });
+
+  console.log(`[Twilio] Call initiated — SID: ${call.sid}`);
+
+  await prisma.callLog.update({
+    where: { id: callLogId },
+    data:  { providerRef: call.sid }
+  });
+
+  // Return immediately — the telephony-gateway's /call/status webhook handles
+  // transcript saving and evaluation queuing when the call ends.
+  // fairDispatcher uses this status to mark the job done; actual completion
+  // (status=completed, recordingUrl, durationMs) is written by the webhooks.
+  return {
+    status:       'in-progress',
+    callSid:      call.sid,
+    recordingUrl: null,
+    durationMs:   0
+  };
 }

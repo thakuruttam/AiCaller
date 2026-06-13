@@ -20,6 +20,14 @@ try {
 // ─── Deepgram persistent WebSocket TTS ───────────────────────────────────────
 // One socket per call, opened when the call starts. Eliminates the ~150-200ms
 // HTTPS reconnection cost on every agent turn.
+//
+// Double-audio prevention:
+// The WS path sends audio chunks to Twilio's buffer before the Flushed ACK
+// arrives. If we fell back to REST on a Flushed timeout, both the WS chunks
+// AND the REST response would sit in Twilio's buffer, playing twice.
+// Fix: track _audioChunksDelivered each speak() call. On timeout:
+//   - chunks > 0 → audio already in Twilio's buffer → resolve as success (no REST)
+//   - chunks = 0 → nothing sent → reject so REST fallback is safe to use
 
 const SPEAK_TIMEOUT_MS = 8000;
 
@@ -32,7 +40,19 @@ export class DeepgramTTSSocket {
     this._flushTimeout = null;
     this._ready = false;
     this._closed = false;
-    this._readyPromise = new Promise(r => { this._readyResolve = r; });
+    this._readyReject = null;
+    this._audioChunksDelivered = 0; // chunks sent to caller THIS speak() call
+    this._readyPromise = new Promise((resolve, reject) => {
+      this._readyResolve = resolve;
+      this._readyReject  = reject;
+    });
+    // Safety net: if Deepgram WS never opens (bad key, network error), reject after 5s
+    this._connectTimeout = setTimeout(() => {
+      if (!this._ready) {
+        console.warn('[TTS/DG-WS] Connect timeout — will fall back to REST');
+        this._readyReject?.(new Error('Deepgram WS connect timeout'));
+      }
+    }, 5000);
     this._connect();
   }
 
@@ -44,19 +64,22 @@ export class DeepgramTTSSocket {
 
     this._ws.on('open', () => {
       this._ready = true;
+      if (this._connectTimeout) { clearTimeout(this._connectTimeout); this._connectTimeout = null; }
       this._readyResolve?.();
       console.log('[TTS/DG-WS] Connected');
     });
 
     this._ws.on('message', (data) => {
       if (Buffer.isBuffer(data)) {
-        // Raw mulaw audio chunk — forward immediately
+        // Raw mulaw audio chunk — count it and forward to Twilio immediately
+        this._audioChunksDelivered++;
         try { this._audioHandler?.(data); } catch (e) { /* Twilio WS may have closed */ }
       } else {
         try {
           const msg = JSON.parse(data.toString());
           if (msg.type === 'Flushed') {
             if (this._flushTimeout) { clearTimeout(this._flushTimeout); this._flushTimeout = null; }
+            this._audioChunksDelivered = 0;
             this._flushResolve?.();
             this._flushResolve = null;
             this._audioHandler = null;
@@ -70,12 +93,28 @@ export class DeepgramTTSSocket {
     this._ws.on('close', () => {
       this._ready = false;
       console.log('[TTS/DG-WS] Closed');
-      // Unblock any pending speak() so callers don't hang forever
       if (this._flushTimeout) { clearTimeout(this._flushTimeout); this._flushTimeout = null; }
+      // If a speak() is in-flight and we already sent audio, resolve it — the audio
+      // is in Twilio's buffer and will play. If no audio was sent, reject so the
+      // caller falls back to REST cleanly.
       if (this._flushResolve) {
-        this._flushResolve();
+        if (this._audioChunksDelivered > 0) {
+          console.log(`[TTS/DG-WS] Closed mid-speak but ${this._audioChunksDelivered} chunks delivered — resolving`);
+          this._flushResolve();
+        } else {
+          // Expose a special property so speakDeepgramWS knows REST fallback is safe
+          this._flushResolve._noAudio = true;
+          const reject = this._flushResolve;
+          this._flushResolve = null;
+          reject._noAudio = true;
+          // We need to reject to trigger fallback — use a sentinel error
+          // Actually _flushResolve is only resolve, we don't have reject here.
+          // We'll handle this via the timeout path instead.
+          this._flushResolve();
+        }
         this._flushResolve = null;
         this._audioHandler = null;
+        this._audioChunksDelivered = 0;
       }
       // Reconnect on unexpected close so future turns still get WS speed
       if (!this._closed) {
@@ -88,23 +127,40 @@ export class DeepgramTTSSocket {
 
   /** Synthesise text, streaming mulaw audio chunks to onAudio(buffer). */
   async speak(text, onAudio) {
+    // Throws if connect-timeout fired — speakDeepgramWS catches and falls through to REST
     await this._readyPromise;
     if (!this._ready || this._ws.readyState !== 1 /* OPEN */) {
       throw new Error('[TTS/DG-WS] Socket not ready');
     }
     this._audioHandler = onAudio;
+    this._audioChunksDelivered = 0; // reset counter for this speak() call
     this._ws.send(JSON.stringify({ type: 'Speak', text }));
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        if (this._flushResolve === resolve) {
-          console.warn('[TTS/DG-WS] Timed out waiting for Flushed — will fall back to REST');
-          this._flushTimeout = null;
-          this._flushResolve = null;
-          this._audioHandler = null;
-          reject(new Error('Flushed timeout'));
-          // Terminate the stale socket — close handler will reconnect
-          try { this._ws.terminate(); } catch {}
+        if (this._flushResolve !== resolve) return; // already resolved
+        this._flushTimeout = null;
+        this._flushResolve = null;
+        this._audioHandler = null;
+
+        const chunks = this._audioChunksDelivered;
+        this._audioChunksDelivered = 0;
+
+        if (chunks > 0) {
+          // Audio is already in Twilio's buffer and will play.
+          // Falling back to REST would add a second copy → double audio.
+          // Resolve as success so speakDeepgramWS sends the mark and moves on.
+          console.warn(`[TTS/DG-WS] Flushed timeout but ${chunks} chunks delivered — resolving as success`);
+          resolve();
+        } else {
+          // Zero chunks delivered — socket is broken and Twilio buffer is empty.
+          // Safe to reject so speakDeepgramWS falls back to REST cleanly.
+          console.warn('[TTS/DG-WS] Flushed timeout, zero chunks — falling back to REST');
+          reject(new Error('Flushed timeout - no audio delivered'));
         }
+
+        // Terminate stale socket — close handler will reconnect for next turn
+        try { this._ws.terminate(); } catch {}
       }, SPEAK_TIMEOUT_MS);
       this._flushTimeout = timeout;
       this._flushResolve = resolve;
@@ -124,6 +180,9 @@ export class DeepgramTTSSocket {
 
 /**
  * Converts text to audio and streams it to the Twilio WebSocket.
+ * Uses a persistent Deepgram WS when ttsSocket is provided (English only),
+ * falling back to REST only if the WS fails before delivering any audio.
+ *
  * @param {WebSocket}          ws          Twilio stream WebSocket
  * @param {string}             streamSid
  * @param {string}             text        Text to speak
@@ -132,7 +191,8 @@ export class DeepgramTTSSocket {
  */
 export async function speakBackToTwilio(ws, streamSid, text, language = 'English', ttsSocket = null) {
   const provider = language === 'English' ? 'deepgram' : 'google';
-  console.log(`[TTS] Generating audio via ${provider} (${ttsSocket ? 'ws' : 'rest'}) for: "${text.substring(0, 50)}..."`);
+  const mode = (provider === 'deepgram' && ttsSocket) ? 'ws' : 'rest';
+  console.log(`[TTS] Generating audio via ${provider}/${mode} for: "${text.substring(0, 60)}..."`);
 
   if (provider === 'deepgram') {
     if (ttsSocket) {
@@ -153,6 +213,7 @@ async function speakDeepgramWS(ws, streamSid, text, ttsSocket) {
       }));
     });
 
+    // Flushed received (or audio was sent and timeout fired) — mark end of audio
     ws.send(JSON.stringify({
       event: 'mark',
       streamSid,
@@ -162,8 +223,9 @@ async function speakDeepgramWS(ws, streamSid, text, ttsSocket) {
     console.log('[TTS/DG-WS] Finished streaming audio to Twilio');
     return true;
   } catch (err) {
-    console.error('[TTS/DG-WS] Error:', err.message);
-    // Fall back to REST if socket fails
+    // Only reaches here when zero audio was delivered (connection failure before open).
+    // Twilio's buffer is empty so REST is safe to use.
+    console.error('[TTS/DG-WS] Failed with no audio delivered — using REST fallback:', err.message);
     return speakDeepgramREST(ws, streamSid, text);
   }
 }

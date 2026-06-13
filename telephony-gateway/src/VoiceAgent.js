@@ -14,6 +14,7 @@ export class VoiceAgent {
     this.done = false;                         // true once we've finished all items
     this.shouldHangUp = false;                 // set to true when HANGUP_NOW is emitted
     this.awaitingIdentityConfirm = true;       // true until user confirms they are the intended contact
+    this.identityConfirmed = null;             // null=unknown, true=confirmed, false=denied (wrong person)
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
     this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
@@ -61,12 +62,23 @@ export class VoiceAgent {
     if (!condition || !userAnswer) return false;
     const a = userAnswer.toLowerCase().trim();
     const v = (conditionValue || '').toLowerCase().trim();
+
+    // Deepgram smart_format injects punctuation into tech terms:
+    // "Node JS" → "Node. Js", "React JS" → "React. Js", "Python." etc.
+    // Strip these artifacts before text comparison so "Node js" matches "Node. Js".
+    const norm = str => str
+      .replace(/\.(?=\s|$)/g, '')  // remove dots before space or end ("Node. Js" → "Node Js")
+      .replace(/,/g, '')            // remove commas ("js, python" → "js python")
+      .replace(/\s+/g, ' ')         // collapse multiple spaces
+      .trim();
+
+    const compact = str => norm(str).replace(/[\s.]/g, '');
     switch (condition) {
-      case 'contains':         return a.includes(v);
-      case 'does not contain': return !a.includes(v);
-      case 'equals':           return a === v;
-      case 'starts with':      return a.startsWith(v);
-      case 'ends with':        return a.endsWith(v);
+      case 'contains':         return norm(a).includes(norm(v)) || compact(a).includes(compact(v));
+      case 'does not contain': return !norm(a).includes(norm(v)) && !compact(a).includes(compact(v));
+      case 'equals':           return norm(a) === norm(v);
+      case 'starts with':      return norm(a).startsWith(norm(v));
+      case 'ends with':        return norm(a).endsWith(norm(v));
       case 'is greater than':  return parseFloat(a) > parseFloat(v);
       case 'is less than':     return parseFloat(a) < parseFloat(v);
       case 'is any value':     return a.length > 0;
@@ -80,51 +92,71 @@ export class VoiceAgent {
    * a condition (e.g. contains "Node js") even when the exact string
    * is not present. Falls back to literal match on error.
    */
-  async _evalConditionWithLLM(condition, conditionValue, userAnswer) {
+  async _evalSemanticCondition(semanticCondition, userAnswer) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          messages: [{
+            role: "user",
+            content: `Does the following user answer satisfy this condition?\n\nCondition: "${semanticCondition}"\nUser answer: "${userAnswer}"\n\nReply with ONLY "yes" or "no".`
+          }],
+          temperature: 0,
+          max_tokens: 5,
+          stream: false
+        })
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      const reply = data.choices[0].message.content.trim().toLowerCase();
+      const result = reply.startsWith('yes');
+      console.log(`[VoiceAgent] Semantic skip condition "${semanticCondition}" on "${userAnswer}" → ${result}`);
+      return result;
+    } catch (e) {
+      console.error('[VoiceAgent] Semantic condition eval failed:', e.message);
+      return false;
+    }
+  }
+
+  async _evalConditionWithLLM(condition, conditionValue, userAnswer, semanticCondition) {
+    // Semantic condition takes priority when set
+    if (semanticCondition?.trim()) {
+      return this._evalSemanticCondition(semanticCondition.trim(), userAnswer);
+    }
+
     if (!condition || !userAnswer) return false;
 
-    // Numeric conditions are always literal
+    // Numeric conditions: convert words to numbers first ("Two" → 2) then compare
     if (['is greater than', 'is less than'].includes(condition)) {
-      return this.evalCondition(condition, conditionValue, userAnswer);
+      const { wordsToNumbers } = await import('words-to-numbers');
+      const parsedAnswer = String(wordsToNumbers(userAnswer.toLowerCase()) ?? userAnswer);
+      const parsedValue  = String(wordsToNumbers((conditionValue || '').toLowerCase()) ?? conditionValue);
+      const numA = parseFloat(parsedAnswer.match(/-?\d+(\.\d+)?/)?.[0]);
+      const numV = parseFloat(parsedValue.match(/-?\d+(\.\d+)?/)?.[0]);
+      if (!isNaN(numA) && !isNaN(numV)) {
+        const result = condition === 'is greater than' ? numA > numV : numA < numV;
+        console.log(`[VoiceAgent] Numeric condition — "${userAnswer}" (${numA}) ${condition} "${conditionValue}" (${numV}) → ${result}`);
+        return result;
+      }
+      return false;
     }
-    // Trivial non-text condition
+
     if (condition === 'is any value') {
       return userAnswer.trim().length > 0;
     }
 
-    try {
-      const prompt =
-        `You are evaluating whether a phone call answer satisfies a condition.\n` +
-        `User's answer: "${userAnswer}"\n` +
-        `Condition: the answer ${condition} "${conditionValue}"\n` +
-        `Use common sense and semantic understanding. ` +
-        `For example, "React Node" satisfies contains "Node js" because they refer to the same technology.\n` +
-        `Respond with exactly one word: YES or NO.`;
-
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0,
-          stream: false,
-          max_tokens: 5
-        })
-      });
-
-      if (!response.ok) throw new Error(`Groq ${response.status}`);
-      const data = await response.json();
-      const verdict = data.choices[0].message.content.trim().toUpperCase();
-      console.log(`[VoiceAgent] Condition eval — "${condition} '${conditionValue}'" on "${userAnswer}" → ${verdict}`);
-      return verdict.startsWith('YES');
-    } catch (e) {
-      console.warn('[VoiceAgent] LLM condition eval failed, falling back to string match:', e.message);
-      return this.evalCondition(condition, conditionValue, userAnswer);
-    }
+    // String conditions use literal matching for skip/end-call routing.
+    // LLM semantic eval was unreliable here — e.g. it considered "React" as
+    // semantically containing "Node js" (same ecosystem), causing end-call
+    // conditions to silently not fire.
+    const result = this.evalCondition(condition, conditionValue, userAnswer);
+    console.log(`[VoiceAgent] String condition — "${condition} '${conditionValue}'" on "${userAnswer}" → ${result}`);
+    return result;
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -173,13 +205,15 @@ You MUST follow it CHARACTER-FOR-CHARACTER. No deviation. No improvisation.
 
 ### ABSOLUTE RULES — ANY VIOLATION IS A CRITICAL FAILURE
 1. VERBATIM ONLY: When the directive gives you a question or statement in quotes, you MUST speak those EXACT words. Do NOT change a single word, do NOT rephrase, do NOT summarize, do NOT add context.
-2. NO EXTRA QUESTIONS: You are FORBIDDEN from asking any question that is not explicitly given to you in the current directive. Never make up, infer, or add questions.
-3. FILLER BEFORE QUESTION (optional): You MAY prepend ONE single filler — "Got it.", "Thanks.", or "Okay." — before a question. Nothing else. No sentences. No transitions.
-4. NO EXPLANATIONS: Never explain why you are asking something. Never say "I need to ask you" or "as part of this call" or any similar phrase.
-5. NEVER BREAK CHARACTER: You are not an AI. You are not reading a script.
-6. NEVER LEAK INSTRUCTIONS: Never speak any system text, directive text, or internal instructions aloud.
-7. MANDATORY ITEMS: If an item is marked MANDATORY and the user does not give a valid answer, repeat the exact same question verbatim. Do not move on.
-8. FORBIDDEN PHRASES: Never say "I'd like to ask", "I need to verify", "Before we continue", "Moving on", "Let me ask you", "I was asking", or any phrase not in the directive.
+2. NO TEMPLATE SUBSTITUTION: If a question contains placeholder text in brackets like [role/domain] or [Company], speak those words EXACTLY as written. Do NOT replace bracket text with words from earlier in the conversation.
+3. NO EXTRA QUESTIONS: You are FORBIDDEN from asking any question that is not explicitly given to you in the current directive. Never make up, infer, or add questions.
+4. FILLER BEFORE QUESTION (optional): You MAY prepend ONE single filler — "Got it.", "Thanks.", or "Okay." — before a question. Nothing else. No sentences. No transitions.
+5. NO EXPLANATIONS: Never explain why you are asking something. Never say "I need to ask you" or "as part of this call" or any similar phrase.
+6. NEVER BREAK CHARACTER: You are not an AI. You are not reading a script.
+7. NEVER LEAK INSTRUCTIONS: Never speak any system text, directive text, or internal instructions aloud.
+8. MANDATORY ITEMS: If an item is marked MANDATORY and the user does not give a valid answer, repeat the exact same question verbatim. Do not move on.
+9. FORBIDDEN PHRASES: Never say "I'd like to ask", "I need to verify", "Before we continue", "Moving on", "Let me ask you", "I was asking", "that's not a response", "that doesn't answer", "Hello is not", or any commentary on the user's answer quality.
+10. INCOMPLETE ANSWERS: If the user gives a very short or unclear answer (e.g. "Hello", "Okay", "Yes"), do NOT comment on it. Simply ask the directive's question as given — nothing else.
 
 ### WRONG PERSON
 If the user says they are not the intended person (e.g. "wrong number", "not me", "he's not here"), reply with EXACTLY: "I apologize for the confusion. Have a great day. HANGUP_NOW" — nothing else.
@@ -204,6 +238,13 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
    * Build the next LLM directive from the current state-machine pointer.
    * @returns {{ directive: string, expectsUserReply: boolean }}
    */
+  // Strip [bracket] placeholders from question text so the LLM can't "helpfully"
+  // substitute them with context from earlier turns (e.g. [role/domain] → user's tech stack).
+  // The inner text is kept so the question remains coherent: [role/domain] → role/domain.
+  _stripPlaceholders(text) {
+    return (text || '').replace(/\[([^\]]+)\]/g, '$1');
+  }
+
   _buildNextDirective() {
     const item = this.currentItem();
 
@@ -267,9 +308,10 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
     const mandatory = item.is_mandatory
       ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim without changing any words.'
       : '';
+    const questionText = this._stripPlaceholders(item.text);
     this.advanceTo();
     return {
-      directive: `(System: Ask the user this exact question, word for word, with no changes: "${item.text}".${mandatory} Do NOT rephrase it. Do NOT add any other question or sentence.)`,
+      directive: `(System: Ask the user this exact question, word for word, with no changes: "${questionText}".${mandatory} Do NOT rephrase it. Do NOT substitute any words. Do NOT add any other question or sentence.)`,
       expectsUserReply: true
     };
   }
@@ -286,13 +328,14 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
     this.chatHistory.push({ role: 'user', content: directive });
     try {
-      if (!process.env.GROQ_API_KEY) {
-        return 'Please add GROQ_API_KEY to your backend .env file to use the cloud Llama 3 API.';
+      if (!process.env.OPENAI_API_KEY) {
+        return 'Please add OPENAI_API_KEY to your backend .env file.';
       }
       return await this._callLLM();
     } catch (e) {
-      console.error('[VoiceAgent] Error on continueWithoutUser:', e);
-      return "I'm sorry, I'm having trouble processing that right now. HANGUP_NOW";
+      console.error('[VoiceAgent] Error on continueWithoutUser:', e.message);
+      this.shouldHangUp = true;
+      return "I'm sorry, I'm having trouble. Goodbye.";
     }
   }
 
@@ -305,12 +348,19 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
     // ── 1a. Identity confirmation phase (first real user utterance after greeting) ──
     // This is handled deterministically — we never trust the LLM for a binary yes/no decision.
     if (this.awaitingIdentityConfirm && !isSystemMsg) {
-      const DENIAL_WORDS = ['no', 'wrong', 'not me', 'not him', 'not her', 'incorrect', 'mistake', 'different person'];
       const userLower = userInput.toLowerCase();
-      const isDenial = DENIAL_WORDS.some(w => userLower.includes(w));
+
+      // Word-boundary check for short words so "know" / "not" / "nothing" don't false-trigger.
+      // Multi-word phrases still use substring matching.
+      const DENIAL_EXACT  = ['no', 'nope', 'nah', 'wrong'];          // whole-word match
+      const DENIAL_PHRASE = ['not me', 'not him', 'not her', 'incorrect', 'mistake', 'different person', "that's not", 'wrong number'];
+      const isDenial =
+        DENIAL_EXACT.some(w => new RegExp(`\\b${w}\\b`).test(userLower)) ||
+        DENIAL_PHRASE.some(w => userLower.includes(w));
 
       if (isDenial) {
         // Hang up immediately — no LLM call, guaranteed clean output
+        this.identityConfirmed = false;
         this.shouldHangUp = true;
         this.done = true;
         this.expectsUserReply = false;
@@ -327,38 +377,53 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         const fullInput = `${userInput}\n${clarifyDirective}`;
         this.expectsUserReply = true;
         this.chatHistory.push({ role: 'user', content: fullInput });
-        return await this._callLLM();
+        try {
+          return await this._callLLM();
+        } catch (e) {
+          console.error('[VoiceAgent] LLM error on clarification reply:', e);
+          return `Am I speaking with ${this.contactName}?`;
+        }
       }
 
       // Otherwise assume confirmed → deliver first item, respecting its type
       this.awaitingIdentityConfirm = false;
+      this.identityConfirmed = true;
       const firstItem = this.items[0];
-      if (firstItem) {
-        if ((firstItem.itemType || 'question') === 'information') {
-          // First item is information — delegate to _buildNextDirective so info→question
-          // chaining is handled correctly and expectsUserReply is set accurately
-          const { directive, expectsUserReply } = this._buildNextDirective();
-          this.expectsUserReply = expectsUserReply;
-          const fullInput = `${userInput}\n(System: The user confirmed their identity. Say "Thanks." Then follow this instruction exactly: ${directive})`;
-          this.chatHistory.push({ role: 'user', content: fullInput });
-          return await this._callLLM();
+      try {
+        if (firstItem) {
+          if ((firstItem.itemType || 'question') === 'information') {
+            // First item is information — delegate to _buildNextDirective so info→question
+            // chaining is handled correctly and expectsUserReply is set accurately
+            const { directive, expectsUserReply } = this._buildNextDirective();
+            this.expectsUserReply = expectsUserReply;
+            const fullInput = `${userInput}\n(System: The user confirmed their identity. Say "Thanks." Then follow this instruction exactly: ${directive})`;
+            this.chatHistory.push({ role: 'user', content: fullInput });
+            return await this._callLLM();
+          } else {
+            // Regular question — original behaviour
+            const mandatory = firstItem.is_mandatory ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim.' : '';
+            const confirmDirective = `(System: The user confirmed their identity. Say "Thanks." and then immediately ask this exact question, word for word: "${firstItem.text}".${mandatory} Do NOT add any other words or sentences.)`;
+            this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
+            this.expectsUserReply = true;
+            const fullInput = `${userInput}\n${confirmDirective}`;
+            this.chatHistory.push({ role: 'user', content: fullInput });
+            return await this._callLLM();
+          }
         } else {
-          // Regular question — original behaviour
-          const mandatory = firstItem.is_mandatory ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim.' : '';
-          const confirmDirective = `(System: The user confirmed their identity. Say "Thanks." and then immediately ask this exact question, word for word: "${firstItem.text}".${mandatory} Do NOT add any other words or sentences.)`;
-          this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
-          this.expectsUserReply = true;
-          const fullInput = `${userInput}\n${confirmDirective}`;
-          this.chatHistory.push({ role: 'user', content: fullInput });
+          // No items configured — go straight to closure
+          this.done = true;
+          this.expectsUserReply = false;
+          const confirmDirective = `(System: The user confirmed their identity. Proceed to CALL CLOSURE: Say this exact sign-off word for word "${this.config.callSignOff || 'Thank you for your time. Goodbye.'}" and immediately append HANGUP_NOW. No other words.)`;
+          this.chatHistory.push({ role: 'user', content: confirmDirective });
           return await this._callLLM();
         }
-      } else {
-        // No items configured — go straight to closure
-        this.done = true;
-        this.expectsUserReply = false;
-        const confirmDirective = `(System: The user confirmed their identity. Proceed to CALL CLOSURE: Say this exact sign-off word for word "${this.config.callSignOff || 'Thank you for your time. Goodbye.'}" and immediately append HANGUP_NOW. No other words.)`;
-        this.chatHistory.push({ role: 'user', content: confirmDirective });
-        return await this._callLLM();
+      } catch (e) {
+        console.error('[VoiceAgent] LLM error after identity confirm:', e);
+        // Ask the first question directly as a safe fallback so the call doesn't freeze
+        this.expectsUserReply = !!firstItem;
+        return firstItem
+          ? firstItem.text
+          : `${this.config.callSignOff || 'Thank you for your time. Goodbye.'} HANGUP_NOW`;
       }
     }
 
@@ -421,17 +486,54 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         }
       }
 
-      if (prevItem?.itemType === 'question' && prevItem.onAnswer?.action) {
-        const { action, skipCondition, skipToId } = prevItem.onAnswer;
+      if ((prevItem?.itemType || 'question') === 'question' && prevItem.onAnswer?.action) {
+        const { action, skipCondition, skipToId, skipSemanticCondition, skipConditionActiveTab } = prevItem.onAnswer;
+        const useSemanticSkip = skipConditionActiveTab === 'semantic';
+
+        // ── Fast path: semantic end_call folded into main LLM call ──────────
+        // Instead of a separate yes/no API call (~300-500ms), we inject the
+        // condition check directly into the main LLM directive. The LLM
+        // evaluates and responds in one shot — no extra latency at all.
+        // Only applies to end_call; skip_question keeps the separate call
+        // because we need to know the target question index before building
+        // the directive.
+        if (useSemanticSkip && action === 'end_call' && skipSemanticCondition?.trim()) {
+          const { directive: nextDirective, expectsUserReply: nextExpects } = this._buildNextDirective();
+          this.expectsUserReply = nextExpects;
+
+          const signOff = this.config.callSignOff || 'Thank you for your time. Goodbye.';
+          const combinedDirective = `(System: Silently evaluate whether the user's answer satisfies this condition: "${skipSemanticCondition}". Do NOT speak the condition aloud. — If the condition IS satisfied: say "${signOff}" and immediately append HANGUP_NOW. Nothing else. — If the condition is NOT satisfied: ${nextDirective || `say "${signOff}" and append HANGUP_NOW`})`;
+
+          console.log(`[VoiceAgent] Semantic end_call folded into main LLM call — condition: "${skipSemanticCondition}"`);
+          const fullInput = `${userInput}\n${combinedDirective}`;
+          this.chatHistory.push({ role: 'user', content: fullInput });
+          try {
+            if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
+            return await this._callLLM();
+          } catch (e) {
+            console.error('[VoiceAgent] Error on semantic end_call:', e.message);
+            this.shouldHangUp = true;
+            return "I'm sorry, I'm having trouble. Goodbye.";
+          }
+        }
+
+        // ── Standard path: separate condition evaluation ─────────────────────
+        // Used for condition-based routing and semantic skip_question.
         const conditionFired = await this._evalConditionWithLLM(
-          skipCondition?.condition,
-          skipCondition?.value,
-          userInput
+          useSemanticSkip ? null : skipCondition?.condition,
+          useSemanticSkip ? null : skipCondition?.value,
+          userInput,
+          useSemanticSkip ? skipSemanticCondition : null
         );
 
         if (conditionFired) {
           if (action === 'end_call') {
-            this.currentIndex = this.items.length;
+            const answerIsComplete = /[.?!]$/.test(userInput.trimEnd());
+            if (answerIsComplete) {
+              this.currentIndex = this.items.length;
+            } else {
+              console.log(`[VoiceAgent] Deferring end_call — answer lacks trailing punctuation, likely partial: "${userInput.trim()}"`);
+            }
           } else if (action === 'skip_question' && skipToId) {
             const targetIdx = this.items.findIndex(i => i.id === skipToId);
             if (targetIdx !== -1) this.currentIndex = targetIdx;
@@ -446,7 +548,13 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
     let directive = '';
 
     if (isSystemMsg) {
-      this.expectsUserReply = this.awaitingIdentityConfirm;
+      // For the initial greeting, set expectsUserReply based on identity phase.
+      // For mid-call system directives (no-answer retries etc.), preserve the
+      // existing value — overwriting with false would cause autoAdvanceScript to
+      // fire immediately after the re-ask TTS, skipping to the next question.
+      if (this.awaitingIdentityConfirm) {
+        this.expectsUserReply = true;
+      }
     } else {
       const next = this._buildNextDirective();
       directive = next.directive;
@@ -460,35 +568,36 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
     this.chatHistory.push({ role: "user", content: fullInput });
 
     try {
-      if (!process.env.GROQ_API_KEY) {
-        return "Please add GROQ_API_KEY to your backend .env file to use the cloud Llama 3 API.";
+      if (!process.env.OPENAI_API_KEY) {
+        return 'Please add OPENAI_API_KEY to your backend .env file.';
       }
       return await this._callLLM();
     } catch (e) {
-      console.error("[VoiceAgent] Error querying Cloud AI:", e);
-      return "I'm sorry, I'm having trouble processing that right now. HANGUP_NOW";
+      console.error("[VoiceAgent] Error querying Cloud AI:", e.message);
+      this.shouldHangUp = true;
+      return "I'm sorry, I'm having trouble. Goodbye.";
     }
   }
 
-  /** Calls the Groq API with the current chat history and returns the sanitized reply. */
+  /** Calls Groq (Llama 3.1 8B) with the current chat history and returns the sanitized reply. */
   async _callLLM() {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "gpt-4.1-mini",
         messages: this.chatHistory,
-        temperature: 0,      // 0 = fully deterministic, eliminates rephrasing
+        temperature: 0,
         stream: false
       })
     });
 
     if (!response.ok) {
       const errData = await response.text();
-      throw new Error(`Failed to contact Groq API: ${response.status} - ${errData}`);
+      throw new Error(`Failed to contact OpenAI API: ${response.status} - ${errData}`);
     }
 
     const data = await response.json();
@@ -545,13 +654,14 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
    */
   async saveState(redisClient, callSid) {
     const state = {
-      currentIndex:          this.currentIndex,
-      done:                  this.done,
-      shouldHangUp:          this.shouldHangUp,
+      currentIndex:            this.currentIndex,
+      done:                    this.done,
+      shouldHangUp:            this.shouldHangUp,
       awaitingIdentityConfirm: this.awaitingIdentityConfirm,
-      confusionRetries:      this.confusionRetries,
-      expectsUserReply:      this.expectsUserReply,
-      chatHistory:           this.chatHistory
+      identityConfirmed:       this.identityConfirmed,
+      confusionRetries:        this.confusionRetries,
+      expectsUserReply:        this.expectsUserReply,
+      chatHistory:             this.chatHistory
     };
     try {
       await redisClient.setex(`vas:${callSid}`, 3600, JSON.stringify(state));
@@ -575,6 +685,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       agent.done                    = state.done;
       agent.shouldHangUp            = state.shouldHangUp;
       agent.awaitingIdentityConfirm = state.awaitingIdentityConfirm;
+      agent.identityConfirmed       = state.identityConfirmed ?? null;
       agent.confusionRetries        = state.confusionRetries;
       agent.expectsUserReply        = state.expectsUserReply ?? false;
       agent.chatHistory             = state.chatHistory;

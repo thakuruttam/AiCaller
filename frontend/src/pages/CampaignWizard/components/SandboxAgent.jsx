@@ -120,7 +120,7 @@ export default function SandboxAgent({ campaign }) {
                 <span className="text-[10px] uppercase font-bold text-zinc-400 dark:text-slate-500 mb-1">
                   {m.role === 'user' ? 'You (Microphone)' : 'AI Voice Agent'}
                 </span>
-                <div className={`p-3 rounded-xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm'}`}>
+                <div className={`p-3 rounded-xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm'}`}>
                   {m.text}
                 </div>
               </div>
@@ -139,7 +139,7 @@ export default function SandboxAgent({ campaign }) {
               className={`h-16 w-16 rounded-full flex items-center justify-center transition-all ${
                 isListening
                   ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 shadow-md'
+                  : 'bg-teal-600 text-white hover:bg-teal-700 hover:scale-105 shadow-md'
               }`}
             >
               {isListening ? <Mic size={28} /> : <MicOff size={24} />}
@@ -163,8 +163,8 @@ export default function SandboxAgent({ campaign }) {
               {error}
             </div>
           )}
-          <div className="h-16 w-16 bg-indigo-50 rounded-2xl flex items-center justify-center">
-            <Volume2 size={28} className="text-indigo-600" />
+          <div className="h-16 w-16 bg-teal-50 rounded-2xl flex items-center justify-center">
+            <Volume2 size={28} className="text-teal-600" />
           </div>
           <div className="max-w-sm">
             <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed mb-4">
@@ -173,7 +173,7 @@ export default function SandboxAgent({ campaign }) {
             <button
               onClick={startSession}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold h-10 px-5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+              className="inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold h-10 px-5 bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 transition-colors"
             >
               {loading ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
               {loading ? 'Starting...' : 'Start Sandbox'}

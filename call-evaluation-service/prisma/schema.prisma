@@ -164,8 +164,9 @@ model CallReport {
   campaignId     String?
   tenantId       String?
   contactName    String?
+  contactPhone   String?
 
-  outcome        String?  
+  outcome        String?
   failureReason  String?  
   sentiment      String?  
   score          Int?     

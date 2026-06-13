@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall } from '../queue/publisher.js';
 import twilio from 'twilio';
+import { notifyWorkspace } from '../utils/notifications.js';
 
 function dbErrorPayload(error) {
   if (error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND') {
@@ -31,6 +32,11 @@ export const getCampaignById = async (req, res) => {
 
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Tenant isolation — SUPER_ADMIN can access any campaign
+    if (req.user.role !== 'SUPER_ADMIN' && campaign.tenantId !== req.user.workspaceId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     res.json(campaign);
@@ -69,6 +75,8 @@ export const createWizardCampaign = async (req, res) => {
       }
     });
 
+    const maxCallDurationSec = Math.max(30, (callSettings?.maxDuration || 5) * 60);
+
     const campaign = await prisma.campaign.create({
       data: {
         name: name || 'Untitled Campaign',
@@ -77,6 +85,7 @@ export const createWizardCampaign = async (req, res) => {
         endCallIf:     endCallIf     || null,
         rules:         rules         || {},
         callSettings:  callSettings  || {},
+        maxCallDurationSec,
         tenantId,
         callModuleId: callModule.id,
         createdById
@@ -94,7 +103,7 @@ export const createWizardCampaign = async (req, res) => {
              data: { name: c.name, phone: c.phone, tenantId }
           });
         }
-        
+
         await prisma.campaignContact.create({
           data: {
             campaignId: campaign.id,
@@ -102,7 +111,7 @@ export const createWizardCampaign = async (req, res) => {
             overrides: { ...(c.overrides || {}), name: c.name }
           }
         });
-        
+
         await prisma.callLog.create({
           data: {
              tenantId,
@@ -115,6 +124,25 @@ export const createWizardCampaign = async (req, res) => {
         createdContacts.push(contact);
       }
     }
+
+    // Calculate and store estimated total minutes
+    const estimatedTotalMinutes = createdContacts.reduce((sum, _, i) => {
+      const c = contacts[i];
+      const effectiveSec = c?.overrides?.maxCallDurationSec || maxCallDurationSec;
+      return sum + Math.ceil(effectiveSec / 60);
+    }, 0);
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { estimatedTotalMinutes }
+    });
+
+    notifyWorkspace({
+      tenantId,
+      type: 'CAMPAIGN_CREATED',
+      title: `Campaign created: ${campaign.name}`,
+      body: `A new campaign with ${createdContacts.length} contact${createdContacts.length !== 1 ? 's' : ''} was created.`,
+      link: `/campaigns/${campaign.id}`
+    });
 
     res.status(201).json({ campaign, contactsCreated: createdContacts.length });
   } catch (error) {
@@ -135,6 +163,8 @@ export const updateWizardCampaign = async (req, res) => {
 
     const tenantId = req.user.workspaceId;
 
+    const maxCallDurationSec = Math.max(30, (callSettings?.maxDuration || 5) * 60);
+
     // 1. Update Campaign
     const campaign = await prisma.campaign.update({
       where: { id },
@@ -145,6 +175,7 @@ export const updateWizardCampaign = async (req, res) => {
         endCallIf:     endCallIf     || null,
         rules:         rules         || {},
         callSettings:  callSettings  || {},
+        maxCallDurationSec,
       }
     });
 
@@ -237,6 +268,22 @@ export const updateWizardCampaign = async (req, res) => {
       });
     }
 
+    // Recalculate estimated total minutes based on current contacts and their overrides
+    if (contacts && contacts.length > 0) {
+      const updatedCCs = await prisma.campaignContact.findMany({
+        where: { campaignId: id },
+        select: { overrides: true }
+      });
+      const estimatedTotalMinutes = updatedCCs.reduce((sum, cc) => {
+        const effectiveSec = cc.overrides?.maxCallDurationSec || maxCallDurationSec;
+        return sum + Math.ceil(effectiveSec / 60);
+      }, 0);
+      await prisma.campaign.update({
+        where: { id },
+        data: { estimatedTotalMinutes }
+      });
+    }
+
     res.json({ message: 'Campaign updated successfully', campaign });
   } catch (error) {
     console.error('[updateWizardCampaign]', error);
@@ -305,20 +352,22 @@ export const uploadContacts = async (req, res) => {
 export const getCampaigns = async (req, res) => {
   try {
     const user = req.user;
-    const filter = { tenantId: user.workspaceId };
-    
-    // Non-admins can only see their own campaigns
-    if (user.role !== 'SUPER_ADMIN' && user.workspaceRole !== 'ADMIN') {
+    const allTenants = user.role === 'SUPER_ADMIN' && req.query.all === 'true';
+
+    const filter = allTenants ? {} : { tenantId: user.workspaceId };
+
+    // Non-admins can only see campaigns they created within their tenant
+    if (!allTenants && user.role !== 'SUPER_ADMIN' && user.workspaceRole !== 'ADMIN') {
       filter.createdById = user.id;
     }
 
     const campaigns = await prisma.campaign.findMany({
       where: filter,
       include: {
+        tenant: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
         campaignContacts: {
-          include: {
-            contact: true
-          }
+          include: { contact: true }
         },
         callLogs: {
           orderBy: { createdAt: 'desc' }
@@ -335,7 +384,12 @@ export const getCampaigns = async (req, res) => {
 export const updateCampaignStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action } = req.body; 
+    const { action } = req.body;
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { name: true, tenantId: true }
+    });
 
     if (action === 'kill') {
        // Cancel any active Twilio calls before updating DB
@@ -382,9 +436,12 @@ export const updateCampaignStatus = async (req, res) => {
           });
        }
     } else if (action === 'rerun') {
-       // 1. Delete all existing logs for this campaign (replaces older data)
+       // 1. Delete only non-terminal logs — keep completed/failed for billing history
        await prisma.callLog.deleteMany({
-         where: { campaignId: id }
+         where: {
+           campaignId: id,
+           status: { notIn: ['completed', 'failed', 'no-answer', 'busy'] }
+         }
        });
 
        // 2. Fetch all contacts assigned to this campaign
@@ -413,6 +470,26 @@ export const updateCampaignStatus = async (req, res) => {
        }
     }
     
+    if (campaign) {
+      const notifMap = {
+        start:  { type: 'CAMPAIGN_STARTED',  title: `Campaign started: ${campaign.name}`,  body: 'The campaign is now running.' },
+        resume: { type: 'CAMPAIGN_STARTED',  title: `Campaign resumed: ${campaign.name}`,  body: 'The campaign has resumed.' },
+        pause:  { type: 'CAMPAIGN_PAUSED',   title: `Campaign paused: ${campaign.name}`,   body: 'The campaign has been paused.' },
+        kill:   { type: 'CAMPAIGN_KILLED',   title: `Campaign stopped: ${campaign.name}`,  body: 'The campaign was stopped and all queued calls cancelled.' },
+        rerun:  { type: 'CAMPAIGN_RERUN',    title: `Campaign re-run: ${campaign.name}`,   body: 'All previous logs cleared and calls re-queued.' },
+      };
+      const notif = notifMap[action];
+      if (notif) {
+        notifyWorkspace({
+          tenantId: campaign.tenantId,
+          type: notif.type,
+          title: notif.title,
+          body: notif.body,
+          link: `/campaigns/${id}`
+        });
+      }
+    }
+
     res.json({ message: `Campaign ${action} executed successfully.` });
   } catch (error) {
     res.status(500).json({ error: error.message });

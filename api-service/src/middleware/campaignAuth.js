@@ -4,10 +4,8 @@ export const verifyCampaignAccess = (idParam = 'id') => async (req, res, next) =
   const user = req.user;
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
-  // SUPER_ADMIN and workspace ADMIN have full access
-  if (user.role === 'SUPER_ADMIN' || user.workspaceRole === 'ADMIN') {
-    return next();
-  }
+  // Only SUPER_ADMIN bypasses tenant isolation
+  if (user.role === 'SUPER_ADMIN') return next();
 
   const campaignId = req.params[idParam];
   if (!campaignId) return next();
@@ -22,7 +20,13 @@ export const verifyCampaignAccess = (idParam = 'id') => async (req, res, next) =
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
-    if (campaign.tenantId !== user.workspaceId || campaign.createdById !== user.id) {
+    // Always enforce tenant boundary
+    if (campaign.tenantId !== user.workspaceId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Non-admins can only access their own campaigns within the tenant
+    if (user.workspaceRole !== 'ADMIN' && campaign.createdById !== user.id) {
       return res.status(403).json({ error: 'Access denied: You do not own this campaign' });
     }
 
@@ -37,10 +41,8 @@ export const verifyCallLogAccess = (idParam = 'id') => async (req, res, next) =>
   const user = req.user;
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
-  // SUPER_ADMIN and workspace ADMIN have full access
-  if (user.role === 'SUPER_ADMIN' || user.workspaceRole === 'ADMIN') {
-    return next();
-  }
+  // Only SUPER_ADMIN bypasses tenant isolation
+  if (user.role === 'SUPER_ADMIN') return next();
 
   const callLogId = req.params[idParam];
   if (!callLogId) return next();
@@ -55,7 +57,13 @@ export const verifyCallLogAccess = (idParam = 'id') => async (req, res, next) =>
       return res.status(404).json({ error: 'Call log not found' });
     }
 
-    if (!callLog.campaign || callLog.campaign.tenantId !== user.workspaceId || callLog.campaign.createdById !== user.id) {
+    // Always enforce tenant boundary
+    if (!callLog.campaign || callLog.campaign.tenantId !== user.workspaceId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Non-admins can only access calls from their own campaigns within the tenant
+    if (user.workspaceRole !== 'ADMIN' && callLog.campaign.createdById !== user.id) {
       return res.status(403).json({ error: 'Access denied: You do not own the campaign associated with this call' });
     }
 

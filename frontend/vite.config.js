@@ -6,13 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Unified local gateway (nginx :8080) — api-service + evaluation service
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
       '/reports': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:4000',
         changeOrigin: true,
       },
     },

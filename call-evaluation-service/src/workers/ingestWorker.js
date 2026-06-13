@@ -32,7 +32,7 @@ export function startIngestWorker() {
 
   async function tick() {
     try {
-      const tenantIds = await config.redis.smembers('active:eval:tenants');
+      const tenantIds = await config.redis.smembers('active:evaluation:tenants');
 
       for (const tenantId of tenantIds) {
         getTenantWorker(tenantId);
@@ -56,7 +56,7 @@ export function startIngestWorker() {
 }
 
 async function processIngestJob(job, tenantId) {
-  const { callLogId, campaignId, contactName, priority = 1 } = job.data;
+  const { callLogId, campaignId, contactName, contactPhone, priority = 1 } = job.data;
 
   try {
     logger.info({ callLogId, campaignId, tenantId }, '[Ingest] CALL_COMPLETED received');
@@ -64,7 +64,7 @@ async function processIngestJob(job, tenantId) {
     // Create a placeholder CallReport first so the ReportJob FK resolves
     await prisma.callReport.upsert({
       where:  { callLogId },
-      create: { callLogId, campaignId, tenantId, contactName },
+      create: { callLogId, campaignId, tenantId, contactName, contactPhone },
       update: {}
     });
 

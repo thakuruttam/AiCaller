@@ -1,23 +1,25 @@
 import express from 'express';
 import { prisma } from '../db.js';
 import { VoiceAgent } from '../telephony/VoiceAgent.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// In-memory store for active sandbox sessions. 
+// In-memory store for active sandbox sessions.
 // For production, this would be Redis.
 const activeSessions = new Map();
 
-router.post('/start', async (req, res) => {
+router.post('/start', authenticate, async (req, res) => {
   try {
     const { campaignId, contactName } = req.body;
-    
+
     // Fetch campaign rules
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
       select: {
         id: true,
         name: true,
+        tenantId: true,
         dataToCollect: true,
         endCallIf: true,
         callModule: {
@@ -33,6 +35,10 @@ router.post('/start', async (req, res) => {
 
     if (!campaign) {
       return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    if (req.user.role !== 'SUPER_ADMIN' && campaign.tenantId !== req.user.workspaceId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const sessionId = `sandbox_${Date.now()}`;
@@ -61,7 +67,7 @@ router.post('/start', async (req, res) => {
   }
 });
 
-router.post('/chat', async (req, res) => {
+router.post('/chat', authenticate, async (req, res) => {
   try {
     const { sessionId, message } = req.body;
     const agent = activeSessions.get(sessionId);

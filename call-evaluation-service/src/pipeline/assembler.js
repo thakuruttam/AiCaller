@@ -17,7 +17,8 @@ const FAILURE_MAP = [
 export async function assemble(jobData, stageOutputs) {
   const {
     callLogId, campaignId, tenantId, contactName,
-    campaignName, dataToCollect = [], reportWebhook
+    campaignName, dataToCollect = [], reportWebhook,
+    identityConfirmed: identityConfirmedFromAgent = null
   } = jobData;
 
   const { normalised, extracted, evaluated, compliance } = stageOutputs;
@@ -44,6 +45,20 @@ export async function assemble(jobData, stageOutputs) {
     failureReason = 'no_answer';
   }
 
+  // ── Identity confirmation ─────────────────────────────────────────
+  // Prefer the flag tracked live by VoiceAgent (most accurate).
+  // Fall back to outcome-based derivation for older calls or missing data.
+  let identityConfirmed = identityConfirmedFromAgent;
+  if (identityConfirmed === null || identityConfirmed === undefined) {
+    if (outcome === 'WRONG_PERSON') {
+      identityConfirmed = false;
+    } else if (outcome === 'NO_ANSWER') {
+      identityConfirmed = null; // never got a chance to confirm
+    } else {
+      identityConfirmed = true; // call progressed past identity check
+    }
+  }
+
   // ── Completion rate — based on questions answered ─────────────────
   const questions = dataToCollect.filter(q => q.itemType === 'question');
   const answeredCount = (extracted?.questionResults ?? [])
@@ -64,6 +79,7 @@ export async function assemble(jobData, stageOutputs) {
     contactName,
     outcome,
     failureReason,
+    identityConfirmed,
     sentiment,
     score:           evaluated?.score    ?? null,
     scoreBreakdown:  evaluated?.breakdown ?? [],

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BarChart3, TrendingUp, Target, Activity, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { EVAL_BASE } from '../api/config';
+import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 export default function CampaignEvaluationReport({ campaignId }) {
   const [report, setReport] = useState(null);
@@ -66,18 +67,22 @@ export default function CampaignEvaluationReport({ campaignId }) {
   const completionPercent = Math.round((parseFloat(report.completionRate) || 0) * 100);
 
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+    <FullscreenTable className="rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+      {({ toggle, isFs }) => (<>
       <div className="border-b border-zinc-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
         <h3 className="font-semibold text-base text-zinc-900 dark:text-slate-100 flex items-center gap-2">
-          <Activity size={16} className="text-indigo-600" /> Evaluation Analytics
+          <Activity size={16} className="text-teal-600" /> Evaluation Analytics
         </h3>
-        <a
-          href={`${EVAL_BASE}/reports/campaign/${campaignId}/export.csv`}
-          download
-          className="text-xs font-medium bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 text-zinc-700 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
-        >
-          Download Full CSV Report
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={`${EVAL_BASE}/reports/campaign/${campaignId}/export.csv`}
+            download
+            className="text-xs font-medium bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 text-zinc-700 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
+          >
+            Download Full CSV Report
+          </a>
+          <FullscreenButton toggle={toggle} isFs={isFs} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-zinc-100 dark:divide-slate-700">
@@ -190,6 +195,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
           </div>
         </div>
       )}
-    </div>
+      </>)}
+    </FullscreenTable>
   );
 }

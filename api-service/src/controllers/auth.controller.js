@@ -3,6 +3,49 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { prisma } from '../db.js';
 
+// Shared helper used by password login and Google OAuth
+export async function issueSessionForUser(user) {
+  const workspace = await prisma.workspaceMember.findFirst({
+    where: { userId: user.id },
+    include: { tenant: true }
+  });
+
+  const tokenPayload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    workspaceId: workspace?.tenant?.id || null,
+    workspaceRole: workspace?.role || user.role
+  };
+
+  const accessToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+  });
+  const refreshTokenValue = crypto.randomBytes(64).toString('hex');
+
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + 7);
+  await prisma.refreshToken.create({
+    data: { token: refreshTokenValue, userId: user.id, expiresAt: expiryDate }
+  });
+
+  return {
+    accessToken,
+    refreshToken: refreshTokenValue,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl || null,
+      role: user.role,
+      workspaceId: workspace?.tenant?.id || null,
+      workspaceName: workspace?.tenant?.name || null,
+      workspaceRole: workspace?.role || user.role
+    }
+  };
+}
+
 function signAccessToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '15m'
@@ -87,6 +130,7 @@ export async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
+        avatarUrl: user.avatarUrl || null,
         role: user.role,
         workspaceId: activeWorkspace?.id || null,
         workspaceName: activeWorkspace?.name || null,
@@ -110,7 +154,7 @@ export async function login(req, res) {
  */
 export async function refresh(req, res) {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, workspaceId: requestedWorkspaceId } = req.body;
     if (!refreshToken) {
       return res.status(400).json({ error: 'Refresh token required' });
     }
@@ -129,15 +173,20 @@ export async function refresh(req, res) {
     }
 
     const user = stored.user;
-    const firstWorkspace = user.workspaces[0];
+
+    // Honor the requested workspace if the user is still a member; otherwise fall back to first
+    let activeWorkspace = requestedWorkspaceId
+      ? user.workspaces.find(m => m.tenantId === requestedWorkspaceId)
+      : null;
+    if (!activeWorkspace) activeWorkspace = user.workspaces[0];
 
     const tokenPayload = {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      workspaceId: firstWorkspace?.tenantId || null,
-      workspaceRole: firstWorkspace?.role || user.role
+      workspaceId: activeWorkspace?.tenantId || null,
+      workspaceRole: activeWorkspace?.role || user.role
     };
 
     const accessToken = signAccessToken(tokenPayload);
@@ -179,6 +228,7 @@ export async function me(req, res) {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl || null,
       role: user.role,
       status: user.status,
       workspaces: user.workspaces.map(m => ({
@@ -188,6 +238,33 @@ export async function me(req, res) {
         role: m.role
       }))
     });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /api/auth/me
+ */
+export async function updateMe(req, res) {
+  try {
+    const { name, avatarUrl } = req.body;
+    const updates = {};
+    if (name !== undefined) {
+      if (!name.trim()) return res.status(400).json({ error: 'Name cannot be empty' });
+      updates.name = name.trim();
+    }
+    if (avatarUrl !== undefined) {
+      updates.avatarUrl = avatarUrl || null;
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updates,
+    });
+    return res.json({ id: user.id, name: user.name, avatarUrl: user.avatarUrl, email: user.email });
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error' });
   }

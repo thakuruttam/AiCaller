@@ -8,7 +8,7 @@ import {
 function SectionHeader({ icon: Icon, title, count }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+      <div className="p-2 rounded-lg bg-teal-50 text-teal-600">
         <Icon size={16} />
       </div>
       <h4 className="font-semibold text-sm text-zinc-900 dark:text-slate-100">{title}</h4>
@@ -36,6 +36,13 @@ export default function Step7Review({ payload, onLaunch }) {
 
   const overrideCount = (contacts || []).filter(c => c.overrides?.goals || c.overrides?.dataToCollect).length;
 
+  const maxDurationMin = callSettings?.maxDuration || 5;
+  const estimatedMinutes = (contacts || []).reduce((sum, c) => {
+    const min = c.overrides?.maxCallDurationSec ? Math.ceil(c.overrides.maxCallDurationSec / 60) : maxDurationMin;
+    return sum + min;
+  }, 0);
+  const estimatedCost = estimatedMinutes * 5;
+
   const totalWeight = (dataToCollect || []).reduce((sum, item) => {
     if (item.itemType !== 'question') return sum;
     const sfs = item.fieldsToExtract || [];
@@ -47,14 +54,36 @@ export default function Step7Review({ payload, onLaunch }) {
 
   return (
     <div className="animate-fade-in flex flex-col gap-8 pb-10">
-      <div>
-        <h3 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Final Review</h3>
-        <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1">
-          Review your campaign configuration before launching the automated AI agent.
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+
+        {/* Billing Estimate */}
+        <div className="xl:col-span-2 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 dark:border-teal-700 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/50 text-teal-600">
+              <Database size={14} />
+            </div>
+            <h4 className="font-semibold text-sm text-zinc-900 dark:text-slate-100">Billing Estimate</h4>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Contacts</p>
+              <p className="text-xl font-bold text-zinc-900 dark:text-slate-100 mt-0.5">{(contacts || []).length}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Max / call</p>
+              <p className="text-xl font-bold text-zinc-900 dark:text-slate-100 mt-0.5">{maxDurationMin} min</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Est. minutes</p>
+              <p className="text-xl font-bold text-zinc-900 dark:text-slate-100 mt-0.5">{estimatedMinutes.toLocaleString('en-IN')}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Est. cost</p>
+              <p className="text-xl font-bold text-teal-700 dark:text-teal-400 mt-0.5">₹{estimatedCost.toLocaleString('en-IN')}</p>
+              <p className="text-[10px] text-zinc-400 mt-0.5">at ₹5/min</p>
+            </div>
+          </div>
+        </div>
 
         {/* Campaign Overview */}
         <div className={cardCls}>
@@ -102,12 +131,12 @@ export default function Step7Review({ payload, onLaunch }) {
 
                   return (
                     <div key={i} className="flex items-start gap-4 p-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
-                      <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
                         {i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${q.itemType === 'question' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-violet-50 text-violet-700 border-violet-200'}`}>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${q.itemType === 'question' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
                             {q.itemType}
                           </span>
                           {q.is_mandatory && (
@@ -124,7 +153,11 @@ export default function Step7Review({ payload, onLaunch }) {
                         {q.itemType === 'question' && (
                           <div className="mt-2 flex flex-col gap-2">
                             <div className="flex flex-wrap gap-2 text-xs">
-                              {q.expectedAnswer && q.expectedAnswer.condition !== 'is any value' ? (
+                              {q.scoringActiveTab === 'semantic' && q.scoringCriteria?.trim() ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-semibold shadow-sm">
+                                  <strong>Semantic:</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
+                                </span>
+                              ) : q.expectedAnswer && q.expectedAnswer.condition !== 'is any value' ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-slate-700 border border-zinc-300 dark:border-slate-600 text-zinc-900 dark:text-slate-100 font-semibold shadow-sm">
                                   <strong>Expected:</strong> {q.expectedAnswer.condition} "{q.expectedAnswer.value}"
                                 </span>
@@ -137,6 +170,8 @@ export default function Step7Review({ payload, onLaunch }) {
                               {q.onAnswer && q.onAnswer.action !== 'continue' && (() => {
                                 const isSkip = q.onAnswer.action === 'skip_question';
                                 const isEnd  = q.onAnswer.action === 'end_call';
+                                const useSemanticSkip = q.onAnswer.skipConditionActiveTab === 'semantic';
+                                const semanticText = q.onAnswer.skipSemanticCondition;
                                 const cond   = q.onAnswer.skipCondition || { condition: 'contains', value: '' };
                                 const hasCond = cond.condition !== 'is any value';
                                 let actionText = '';
@@ -149,9 +184,11 @@ export default function Step7Review({ payload, onLaunch }) {
                                 return (
                                   <span key="action" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold border shadow-sm ${isEnd ? 'bg-red-50 border-red-200 text-red-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
                                     ↳{' '}
-                                    {hasCond
-                                      ? <>If answer <strong>{cond.condition}</strong> "{cond.value}" → <strong className="underline">{actionText}</strong></>
-                                      : <>Always → <strong className="underline">{actionText}</strong></>
+                                    {useSemanticSkip && semanticText?.trim()
+                                      ? <>If <strong>semantic</strong> "{semanticText.length > 60 ? semanticText.slice(0, 60) + '…' : semanticText}" → <strong className="underline">{actionText}</strong></>
+                                      : hasCond
+                                        ? <>If answer <strong>{cond.condition}</strong> "{cond.value}" → <strong className="underline">{actionText}</strong></>
+                                        : <>Always → <strong className="underline">{actionText}</strong></>
                                     }
                                   </span>
                                 );
