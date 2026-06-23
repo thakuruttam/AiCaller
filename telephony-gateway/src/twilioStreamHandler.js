@@ -8,6 +8,28 @@ import { setupSTT } from './providers/stt.js';
 import { speakBackToTwilio, DeepgramTTSSocket } from './providers/tts.js';
 import { createNotification, notifyWorkspace } from './utils/notifications.js';
 
+/** Provider-agnostic call hangup — works for both Twilio and Telnyx */
+async function hangupCall(callSid) {
+  const provider = process.env.TELEPHONY_PROVIDER || 'twilio';
+  try {
+    if (provider === 'telnyx') {
+      await fetch(`https://api.telnyx.com/v2/calls/${callSid}/actions/hangup`, {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
+          'Content-Type':  'application/json',
+        },
+      });
+    } else {
+      const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      await client.calls(callSid).update({ status: 'completed' });
+    }
+    console.log(`[Stream] Hung up call ${callSid} via ${provider}`);
+  } catch (err) {
+    console.error(`[Stream] Hangup failed for ${callSid}:`, err.message);
+  }
+}
+
 export function setupTwilioStream(server) {
   const wss = new WebSocketServer({ server, path: '/streams' });
 
@@ -202,8 +224,8 @@ export function setupTwilioStream(server) {
         // Success: end_of_tts handles startNoAnswerTimer at the right time
       } else if (isCallEnding) {
         try {
-          const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-          await client.calls(callSid).update({ status: 'completed' });
+          
+          await hangupCall(callSid);
         } catch (e) {
           console.error('[Stream] Failed to hang up via API:', e.message);
         }
@@ -222,8 +244,8 @@ export function setupTwilioStream(server) {
         console.log(`[Stream] Silence timeout reached (${timeoutSeconds}s). Ending call ${callSid}`);
         isCallEnding = true;
         try {
-           const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-           await client.calls(callSid).update({ status: 'completed' });
+           
+           await hangupCall(callSid);
         } catch (e) {
            console.error("[Stream] Failed to hang up via API on timeout:", e.message);
         }
@@ -417,8 +439,8 @@ export function setupTwilioStream(server) {
             // TTS failed on the sign-off — hang up directly so the call doesn't stay open
             console.warn('[Stream] TTS failed on sign-off turn — hanging up directly');
             try {
-              const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-              await client.calls(callSid).update({ status: 'completed' });
+              
+              await hangupCall(callSid);
             } catch (e) {
               console.error('[Stream] Hangup after TTS failure:', e.message);
             }
@@ -431,8 +453,8 @@ export function setupTwilioStream(server) {
       } else if (isCallEnding) {
         console.log(`[Stream] No TTS needed. Executing final hangup for ${callSid}!`);
         try {
-          const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-          await client.calls(callSid).update({ status: 'completed' });
+          
+          await hangupCall(callSid);
         } catch (e) {
           console.error("[Stream] Failed to hang up via API:", e.message);
         }
@@ -647,8 +669,8 @@ export function setupTwilioStream(server) {
                   }
                 } catch (_) {}
                 if (callSid) {
-                  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-                  await client.calls(callSid).update({ status: 'completed' }).catch(() => {});
+                  
+                  await hangupCall(callSid);
                 }
               }, hangupAfterMs);
               console.log(`[Stream] Max call duration set to ${effectiveDurationSec}s — will hang up in ${hangupAfterMs / 1000}s`);
@@ -708,8 +730,8 @@ export function setupTwilioStream(server) {
               // Must still hang up if the sign-off was playing when user interrupted
               if (isCallEnding && callSid) {
                 try {
-                  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-                  await client.calls(callSid).update({ status: 'completed' });
+                  
+                  await hangupCall(callSid);
                 } catch (e) {
                   console.error('[Stream] Hangup failed after barge-in:', e.message);
                 }
@@ -749,8 +771,8 @@ export function setupTwilioStream(server) {
             if (isCallEnding) {
               console.log(`[Stream] TTS finished playing out loud. Executing final hangup for ${callSid}!`);
               try {
-                 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-                 await client.calls(callSid).update({ status: 'completed' });
+                 
+                 await hangupCall(callSid);
               } catch (e) {
                  console.error("[Stream] Failed to hang up via API:", e.message);
               }
