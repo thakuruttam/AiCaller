@@ -8,18 +8,27 @@ import { setupSTT } from './providers/stt.js';
 import { speakBackToTwilio, DeepgramTTSSocket } from './providers/tts.js';
 import { createNotification, notifyWorkspace } from './utils/notifications.js';
 
-/** Provider-agnostic call hangup — works for both Twilio and Telnyx */
+/** Provider-agnostic call hangup — Twilio / SignalWire / Telnyx */
 async function hangupCall(callSid) {
   const provider = process.env.TELEPHONY_PROVIDER || 'twilio';
   try {
     if (provider === 'telnyx') {
       await fetch(`https://api.telnyx.com/v2/calls/${callSid}/actions/hangup`, {
         method:  'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
-          'Content-Type':  'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`, 'Content-Type': 'application/json' },
       });
+    } else if (provider === 'signalwire') {
+      const projectId = process.env.SIGNALWIRE_PROJECT_ID;
+      const spaceUrl  = (process.env.SIGNALWIRE_SPACE_URL || '').replace(/\/$/, '');
+      const creds     = Buffer.from(`${projectId}:${process.env.SIGNALWIRE_API_TOKEN}`).toString('base64');
+      await fetch(
+        `https://${spaceUrl}/api/laml/2010-04-01/Accounts/${projectId}/Calls/${callSid}.json`,
+        {
+          method:  'POST',
+          headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body:    new URLSearchParams({ Status: 'completed' }),
+        }
+      );
     } else {
       const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
       await client.calls(callSid).update({ status: 'completed' });
