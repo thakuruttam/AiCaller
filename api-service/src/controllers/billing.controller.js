@@ -4,10 +4,19 @@ import { prisma } from '../db.js';
 import { PACKS, TIER_LIMITS, LOW_BALANCE_THRESHOLD } from '../config/billing.js';
 import { createNotification } from '../utils/notifications.js';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy-init: constructing eagerly throws when RAZORPAY_KEY_ID is unset,
+// which would crash the whole server at import time since this module is
+// pulled in from server.js's top-level route registration.
+let razorpay = null;
+function getRazorpay() {
+  if (!razorpay) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+  return razorpay;
+}
 
 // GET /api/billing
 export async function getBilling(req, res) {
@@ -70,7 +79,7 @@ export async function createOrder(req, res) {
   if (!pack) return res.status(400).json({ error: 'Invalid pack' });
 
   try {
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: pack.amountPaise,
       currency: 'INR',
       receipt: `topup_${req.user.workspaceId}_${Date.now()}`,

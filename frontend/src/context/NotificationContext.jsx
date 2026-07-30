@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 const NotificationContext = createContext(null);
 
 const POLL_INTERVAL = 30_000;
+const BASE = () => import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function getToken() {
   return localStorage.getItem('accessToken');
@@ -26,7 +27,7 @@ export function NotificationProvider({ children }) {
   const fetchUnreadCount = useCallback(async () => {
     if (!user || !getToken()) return;
     try {
-      const res = await fetch('/api/notifications/unread-count', { headers: authHeaders() });
+      const res = await fetch(`${BASE()}/api/notifications/unread-count`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setUnreadCount(data.count ?? 0);
@@ -38,7 +39,7 @@ export function NotificationProvider({ children }) {
     if (!user || !getToken()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/notifications', { headers: authHeaders() });
+      const res = await fetch(`${BASE()}/api/notifications`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -52,7 +53,7 @@ export function NotificationProvider({ children }) {
   const markRead = useCallback(async (id) => {
     if (!getToken()) return;
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: 'PATCH', headers: authHeaders() });
+      await fetch(`${BASE()}/api/notifications/${id}/read`, { method: 'PATCH', headers: authHeaders() });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch { /* silent */ }
@@ -61,7 +62,7 @@ export function NotificationProvider({ children }) {
   const markAllRead = useCallback(async () => {
     if (!getToken()) return;
     try {
-      await fetch('/api/notifications/read-all', { method: 'PATCH', headers: authHeaders() });
+      await fetch(`${BASE()}/api/notifications/read-all`, { method: 'PATCH', headers: authHeaders() });
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch { /* silent */ }
