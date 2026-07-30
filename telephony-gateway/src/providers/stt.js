@@ -23,20 +23,20 @@ try {
  * @param {string} language - Campaign language ('English', 'Hindi', 'Hinglish')
  * @param {Object} handlers - { onTranscript: (text) => void, onError: (err) => void, onClose: () => void }
  */
-export function setupSTT(language, handlers) {
+export function setupSTT(language, handlers, encoding = 'mulaw') {
   // Sarvam AI is preferred for all Indian languages when the key is present —
   // it's purpose-built for Indian phone-call audio and handles accents + code-mixing.
   if (process.env.SARVAM_API_KEY) {
     console.log(`[STT] Initializing Sarvam AI (REST) for language: ${language}`);
-    return setupSarvamRest(language, handlers);
+    return setupSarvamRest(language, handlers, encoding);
   }
 
   const provider = language === 'English' ? 'deepgram' : 'google';
   console.log(`[STT] Initializing ${provider} STT for language: ${language}`);
-  return provider === 'deepgram' ? setupDeepgram(language, handlers) : setupGoogle(language, handlers);
+  return provider === 'deepgram' ? setupDeepgram(language, handlers, encoding) : setupGoogle(language, handlers, encoding);
 }
 
-function setupDeepgram(language, handlers) {
+function setupDeepgram(language, handlers, encoding = 'mulaw') {
   const buildDeepgramUrl = (lang) => {
     // endpointing=500: Deepgram fires is_final after 500ms of silence — keeps interim
     // transcripts fast so the accumulator builds up incrementally.
@@ -44,7 +44,8 @@ function setupDeepgram(language, handlers) {
     // no new words. This is the authoritative "user is done speaking" signal we use
     // to flush the transcript immediately, rather than relying on the 200ms fallback
     // timer. Works even when background noise prevents endpointing from firing cleanly.
-    const base = 'smart_format=true&encoding=mulaw&sample_rate=8000&interim_results=true&endpointing=500&utterance_end_ms=2000';
+    const encodingParam = encoding === 'pcm16' ? 'encoding=linear16' : 'encoding=mulaw';
+    const base = `smart_format=true&${encodingParam}&sample_rate=8000&interim_results=true&endpointing=500&utterance_end_ms=2000`;
     if (lang === 'Hinglish') {
       return `wss://api.deepgram.com/v1/listen?model=nova-3&${base}&language=multi`;
     } else if (lang === 'Hindi') {
@@ -106,7 +107,7 @@ function setupDeepgram(language, handlers) {
   };
 }
 
-function setupGoogle(language, handlers) {
+function setupGoogle(language, handlers, encoding = 'mulaw') {
   if (!googleSpeechClient) {
     console.error('[STT/Google] Cannot start Google STT — client not initialized (missing credentials?)');
     return { sendAudio: () => {}, close: () => {} };
@@ -119,7 +120,7 @@ function setupGoogle(language, handlers) {
 
   const request = {
     config: {
-      encoding: 'MULAW',
+      encoding: encoding === 'pcm16' ? 'LINEAR16' : 'MULAW',
       sampleRateHertz: 8000,
       languageCode: languageCode,
       alternativeLanguageCodes: language === 'Hinglish' ? ['en-IN'] : [],
@@ -162,7 +163,7 @@ function setupGoogle(language, handlers) {
 }
 
 // ── G.711 μ-law → 16-bit PCM conversion ──────────────────────────────
-// Twilio Media Streams sends mulaw-encoded 8 kHz audio.
+// Plivo Audio Streaming sends mulaw-encoded 8 kHz audio.
 // Sarvam AI REST expects a WAV file (pcm_s16le).  This lookup table is
 // built once at module load and used for every audio chunk.
 const MULAW_DECODE = new Int16Array(256);
@@ -236,21 +237,26 @@ async function transcribeWithSarvam(wavBuffer, languageCode, mode, apiKey) {
 }
 
 // ── Sarvam AI STT provider (REST batch mode) ──────────────────────────
-// Twilio sends mulaw audio continuously. We use energy-based VAD to
+// Plivo sends mulaw audio continuously. We use energy-based VAD to
 // detect when the user starts and stops speaking, then POST the buffered
 // audio to the Sarvam REST /speech-to-text endpoint and fire onTranscript
 // + onUtteranceEnd once the response arrives (~300-500ms latency).
-function setupSarvamRest(language, handlers) {
+function setupSarvamRest(language, handlers, encoding = 'mulaw') {
   const langCode = language === 'Hindi' || language === 'Hinglish' ? 'hi-IN' : 'en-IN';
   const mode     = language === 'Hinglish' ? 'codemix' : 'transcribe';
   const apiKey   = process.env.SARVAM_API_KEY;
 
-  // Twilio sends 160-byte mulaw packets every 20 ms (8 kHz, 20 ms/frame).
+  // Plivo sends 160-byte mulaw packets every 20 ms (8 kHz, 20 ms/frame).
   const SPEECH_THRESHOLD       = 500;   // RMS above this → speech (vs background noise)
   const SILENCE_FRAMES_TO_FLUSH = 90;   // 90 × 20 ms = 1800 ms silence → end of turn
   // 1.8 s: covers opening-word pauses ("Hello... [thinking]") and mid-sentence
   // pauses without cutting the user off. Total bot response time ~2.7 s.
   const MIN_SPEECH_FRAMES       = 5;    // < 100 ms = noise burst, skip
+  // Sarvam's real-time REST endpoint hard-rejects audio over 30s (400 error).
+  // If someone talks continuously with no pause, waiting for silence would
+  // eventually blow past that cap and lose the whole utterance to an error.
+  // Force a mid-utterance split well under the limit instead.
+  const MAX_BUFFER_FRAMES       = 1250; // 1250 × 20 ms = 25,000 ms
 
   let audioChunks   = [];     // PCM16 buffers buffered during the current utterance
   let silenceFrames = 0;      // consecutive silent frames since last speech frame
@@ -267,31 +273,35 @@ function setupSarvamRest(language, handlers) {
     return Math.sqrt(sum / n);
   }
 
-  function flushSpeech() {
+  /**
+   * @param {boolean} isFinal - true when triggered by an actual silence gap
+   *   (the user's turn is over). false when force-split because the buffer
+   *   hit MAX_BUFFER_FRAMES while the user is still actively talking — in
+   *   that case we transcribe what we have so far but keep listening as the
+   *   same ongoing turn instead of ending it.
+   */
+  function flushSpeech(isFinal = true) {
     if (transcribing) {
-      // Previous API call still running — drop this utterance to stay in sync.
-      audioChunks   = [];
-      hasSpeech     = false;
-      silenceFrames = 0;
+      // Previous API call still running — drop this segment to stay in sync.
+      audioChunks = [];
+      if (isFinal) { hasSpeech = false; silenceFrames = 0; }
       return;
     }
 
     if (audioChunks.length < MIN_SPEECH_FRAMES) {
-      audioChunks   = [];
-      hasSpeech     = false;
-      silenceFrames = 0;
+      audioChunks = [];
+      if (isFinal) { hasSpeech = false; silenceFrames = 0; }
       return;
     }
 
     const chunks = audioChunks;
-    audioChunks   = [];
-    hasSpeech     = false;
-    silenceFrames = 0;
-    transcribing  = true;
+    audioChunks  = [];
+    if (isFinal) { hasSpeech = false; silenceFrames = 0; }
+    transcribing = true;
 
     const pcm = Buffer.concat(chunks);
     const durationMs = (pcm.length / 2 / 8000 * 1000).toFixed(0);
-    console.log(`[STT/Sarvam REST] Transcribing ${durationMs}ms of speech...`);
+    console.log(`[STT/Sarvam REST] Transcribing ${durationMs}ms of speech${isFinal ? '' : ' (mid-utterance split — still speaking)'}...`);
 
     const wav = pcmToWav(pcm, 8000);
     transcribeWithSarvam(wav, langCode, mode, apiKey)
@@ -301,9 +311,10 @@ function setupSarvamRest(language, handlers) {
           console.log(`[STT/Sarvam REST] Transcript: "${text}"`);
           // Fire transcript first so the stream handler accumulates it, then
           // immediately fire utteranceEnd to flush — this prevents the 200ms
-          // fallback timer from acting on a partial sentence.
+          // fallback timer from acting on a partial sentence. Mid-utterance
+          // splits withhold onUtteranceEnd since the user hasn't finished.
           handlers.onTranscript(text);
-          handlers.onUtteranceEnd?.();
+          if (isFinal) handlers.onUtteranceEnd?.();
         }
       })
       .catch(err => {
@@ -314,8 +325,8 @@ function setupSarvamRest(language, handlers) {
   }
 
   return {
-    sendAudio(mulawBuffer) {
-      const pcm     = mulawToPCM16(mulawBuffer);
+    sendAudio(rawBuffer) {
+      const pcm     = encoding === 'pcm16' ? rawBuffer : mulawToPCM16(rawBuffer);
       const energy  = rms(pcm);
 
       if (energy >= SPEECH_THRESHOLD) {
@@ -327,13 +338,20 @@ function setupSarvamRest(language, handlers) {
         }
         silenceFrames = 0;
         audioChunks.push(pcm);
+        if (audioChunks.length >= MAX_BUFFER_FRAMES) {
+          console.log('[STT/Sarvam REST] Max buffer duration reached — splitting long utterance');
+          flushSpeech(false);
+        }
       } else if (hasSpeech) {
         // Silence during an active utterance — keep buffering (natural mid-sentence pauses)
         silenceFrames++;
         audioChunks.push(pcm);
-        if (silenceFrames >= SILENCE_FRAMES_TO_FLUSH) {
+        if (audioChunks.length >= MAX_BUFFER_FRAMES) {
+          console.log('[STT/Sarvam REST] Max buffer duration reached — splitting long utterance');
+          flushSpeech(false);
+        } else if (silenceFrames >= SILENCE_FRAMES_TO_FLUSH) {
           console.log('[STT/Sarvam REST] End of speech — flushing buffer');
-          flushSpeech();
+          flushSpeech(true);
         }
       }
     },

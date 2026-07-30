@@ -22,18 +22,19 @@ try {
 // HTTPS reconnection cost on every agent turn.
 //
 // Double-audio prevention:
-// The WS path sends audio chunks to Twilio's buffer before the Flushed ACK
+// The WS path sends audio chunks to Plivo's buffer before the Flushed ACK
 // arrives. If we fell back to REST on a Flushed timeout, both the WS chunks
-// AND the REST response would sit in Twilio's buffer, playing twice.
+// AND the REST response would sit in Plivo's buffer, playing twice.
 // Fix: track _audioChunksDelivered each speak() call. On timeout:
-//   - chunks > 0 → audio already in Twilio's buffer → resolve as success (no REST)
+//   - chunks > 0 → audio already in Plivo's buffer → resolve as success (no REST)
 //   - chunks = 0 → nothing sent → reject so REST fallback is safe to use
 
 const SPEAK_TIMEOUT_MS = 8000;
 
 export class DeepgramTTSSocket {
-  constructor(model = 'aura-2-asteria-en') {
+  constructor(model = 'aura-2-asteria-en', format = 'mulaw') {
     this._model = model;
+    this._format = format;
     this._ws = null;
     this._audioHandler = null;
     this._flushResolve = null;
@@ -57,7 +58,8 @@ export class DeepgramTTSSocket {
   }
 
   _connect() {
-    const url = `wss://api.deepgram.com/v1/speak?model=${this._model}&encoding=mulaw&container=none&sample_rate=8000`;
+    const encoding = this._format === 'pcm16' ? 'linear16' : 'mulaw';
+    const url = `wss://api.deepgram.com/v1/speak?model=${this._model}&encoding=${encoding}&container=none&sample_rate=8000`;
     this._ws = new WebSocket(url, {
       headers: { Authorization: `Token ${process.env.DEEPGRAM_API_KEY}` }
     });
@@ -71,9 +73,9 @@ export class DeepgramTTSSocket {
 
     this._ws.on('message', (data) => {
       if (Buffer.isBuffer(data)) {
-        // Raw mulaw audio chunk — count it and forward to Twilio immediately
+        // Raw mulaw audio chunk — count it and forward to Plivo immediately
         this._audioChunksDelivered++;
-        try { this._audioHandler?.(data); } catch (e) { /* Twilio WS may have closed */ }
+        try { this._audioHandler?.(data); } catch (e) { /* Plivo WS may have closed */ }
       } else {
         try {
           const msg = JSON.parse(data.toString());
@@ -95,21 +97,13 @@ export class DeepgramTTSSocket {
       console.log('[TTS/DG-WS] Closed');
       if (this._flushTimeout) { clearTimeout(this._flushTimeout); this._flushTimeout = null; }
       // If a speak() is in-flight and we already sent audio, resolve it — the audio
-      // is in Twilio's buffer and will play. If no audio was sent, reject so the
+      // is in Plivo's buffer and will play. If no audio was sent, reject so the
       // caller falls back to REST cleanly.
       if (this._flushResolve) {
         if (this._audioChunksDelivered > 0) {
           console.log(`[TTS/DG-WS] Closed mid-speak but ${this._audioChunksDelivered} chunks delivered — resolving`);
           this._flushResolve();
         } else {
-          // Expose a special property so speakDeepgramWS knows REST fallback is safe
-          this._flushResolve._noAudio = true;
-          const reject = this._flushResolve;
-          this._flushResolve = null;
-          reject._noAudio = true;
-          // We need to reject to trigger fallback — use a sentinel error
-          // Actually _flushResolve is only resolve, we don't have reject here.
-          // We'll handle this via the timeout path instead.
           this._flushResolve();
         }
         this._flushResolve = null;
@@ -147,14 +141,11 @@ export class DeepgramTTSSocket {
         this._audioChunksDelivered = 0;
 
         if (chunks > 0) {
-          // Audio is already in Twilio's buffer and will play.
+          // Audio is already in Plivo's buffer and will play.
           // Falling back to REST would add a second copy → double audio.
-          // Resolve as success so speakDeepgramWS sends the mark and moves on.
           console.warn(`[TTS/DG-WS] Flushed timeout but ${chunks} chunks delivered — resolving as success`);
           resolve();
         } else {
-          // Zero chunks delivered — socket is broken and Twilio buffer is empty.
-          // Safe to reject so speakDeepgramWS falls back to REST cleanly.
           console.warn('[TTS/DG-WS] Flushed timeout, zero chunks — falling back to REST');
           reject(new Error('Flushed timeout - no audio delivered'));
         }
@@ -179,17 +170,17 @@ export class DeepgramTTSSocket {
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 /**
- * Converts text to audio and streams it to the Twilio WebSocket.
+ * Converts text to audio and streams it to the Plivo WebSocket.
  * Uses a persistent Deepgram WS when ttsSocket is provided (English only),
  * falling back to REST only if the WS fails before delivering any audio.
  *
- * @param {WebSocket}          ws          Twilio stream WebSocket
- * @param {string}             streamSid
+ * @param {WebSocket}          ws          Plivo stream WebSocket
+ * @param {string}             streamSid   Plivo streamId
  * @param {string}             text        Text to speak
  * @param {string}             language    'English' | 'Hindi' | 'Hinglish'
  * @param {DeepgramTTSSocket}  [ttsSocket] Per-call persistent socket (English only)
  */
-export async function speakBackToTwilio(ws, streamSid, text, language = 'English', ttsSocket = null) {
+export async function speakBackToPlivo(ws, streamSid, text, language = 'English', ttsSocket = null) {
   const provider = language === 'English' ? 'deepgram' : 'google';
   const mode = (provider === 'deepgram' && ttsSocket) ? 'ws' : 'rest';
   console.log(`[TTS] Generating audio via ${provider}/${mode} for: "${text.substring(0, 60)}..."`);
@@ -203,28 +194,31 @@ export async function speakBackToTwilio(ws, streamSid, text, language = 'English
   return speakGoogle(ws, streamSid, text, language);
 }
 
+function sendCheckpoint(ws, streamSid) {
+  ws.send(JSON.stringify({
+    event: 'checkpoint',
+    streamId: streamSid,
+    name: 'end_of_tts'
+  }));
+}
+
 async function speakDeepgramWS(ws, streamSid, text, ttsSocket) {
   try {
     await ttsSocket.speak(text, (chunk) => {
       ws.send(JSON.stringify({
-        event: 'media',
-        streamSid,
-        media: { payload: chunk.toString('base64') }
+        event: 'playAudio',
+        media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: chunk.toString('base64') }
       }));
     });
 
     // Flushed received (or audio was sent and timeout fired) — mark end of audio
-    ws.send(JSON.stringify({
-      event: 'mark',
-      streamSid,
-      mark: { name: 'end_of_tts' }
-    }));
+    sendCheckpoint(ws, streamSid);
 
-    console.log('[TTS/DG-WS] Finished streaming audio to Twilio');
+    console.log('[TTS/DG-WS] Finished streaming audio to Plivo');
     return true;
   } catch (err) {
     // Only reaches here when zero audio was delivered (connection failure before open).
-    // Twilio's buffer is empty so REST is safe to use.
+    // Plivo's buffer is empty so REST is safe to use.
     console.error('[TTS/DG-WS] Failed with no audio delivered — using REST fallback:', err.message);
     return speakDeepgramREST(ws, streamSid, text);
   }
@@ -259,19 +253,14 @@ async function speakDeepgramREST(ws, streamSid, text) {
       const { done, value } = await reader.read();
       if (done) break;
       ws.send(JSON.stringify({
-        event: 'media',
-        streamSid,
-        media: { payload: Buffer.from(value).toString('base64') }
+        event: 'playAudio',
+        media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: Buffer.from(value).toString('base64') }
       }));
     }
 
-    ws.send(JSON.stringify({
-      event: 'mark',
-      streamSid,
-      mark: { name: 'end_of_tts' }
-    }));
+    sendCheckpoint(ws, streamSid);
 
-    console.log('[TTS/DG-REST] Finished streaming audio to Twilio');
+    console.log('[TTS/DG-REST] Finished streaming audio to Plivo');
     return true;
   } catch (err) {
     console.error('[TTS/DG-REST] Error:', err);
@@ -296,19 +285,14 @@ async function speakGoogle(ws, streamSid, text, language) {
     const chunkSize = 4096;
     for (let i = 0; i < audioBase64.length; i += chunkSize) {
       ws.send(JSON.stringify({
-        event: 'media',
-        streamSid,
-        media: { payload: audioBase64.slice(i, i + chunkSize) }
+        event: 'playAudio',
+        media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: audioBase64.slice(i, i + chunkSize) }
       }));
     }
 
-    ws.send(JSON.stringify({
-      event: 'mark',
-      streamSid,
-      mark: { name: 'end_of_tts' }
-    }));
+    sendCheckpoint(ws, streamSid);
 
-    console.log('[TTS/Google] Finished streaming audio to Twilio');
+    console.log('[TTS/Google] Finished streaming audio to Plivo');
     return true;
   } catch (err) {
     console.error('[TTS/Google] Error:', err);

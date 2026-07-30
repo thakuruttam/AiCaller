@@ -1,7 +1,7 @@
 import { prisma } from '../db.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall } from '../queue/publisher.js';
-import twilio from 'twilio';
+import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
 import { notifyWorkspace } from '../utils/notifications.js';
 
 function dbErrorPayload(error) {
@@ -392,17 +392,16 @@ export const updateCampaignStatus = async (req, res) => {
     });
 
     if (action === 'kill') {
-       // Cancel any active Twilio calls before updating DB
+       // Cancel any active Plivo calls before updating DB
        const inProgressLogs = await prisma.callLog.findMany({
          where: { campaignId: id, status: 'in-progress' }
        });
 
-       if (inProgressLogs.length > 0 && process.env.TWILIO_ACCOUNT_SID) {
-         const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+       if (inProgressLogs.length > 0 && process.env.PLIVO_AUTH_ID) {
          await Promise.allSettled(
            inProgressLogs
              .filter(log => log.providerRef)
-             .map(log => client.calls(log.providerRef).update({ status: 'completed' }))
+             .map(log => hangupPlivoCall(log.providerRef))
          );
        }
 
@@ -518,40 +517,28 @@ export const fetchRecording = async (req, res) => {
     const { id } = req.params;
     const callLog = await prisma.callLog.findUnique({ where: { id }});
     if (!callLog) return res.status(404).json({error: "Call log not found"});
-    
-    // Prioritize the dedicated providerRef field, fallback to transcript hack for legacy logs
-    let callSid = callLog.providerRef;
-    
-    if (!callSid) {
-      const match = callLog.transcript?.match(/\[Twilio_SID:(CA[a-zA-Z0-9]+)\]/);
-      if (match) {
-        callSid = match[1];
-      }
-    }
 
-    if (!callSid) {
+    // Usually already populated by telephony-gateway's /call/recording webhook
+    // once Plivo's recording is ready — only poll Plivo directly as a fallback.
+    if (callLog.recordingUrl) return res.json(callLog);
+
+    const callUuid = callLog.providerRef;
+    if (!callUuid) {
        return res.status(400).json({
-         error: "No Twilio Call SID found for this call.",
-         details: "Ensure the call was successfully initiated and the SID was captured."
+         error: "No Plivo call UUID found for this call.",
+         details: "Ensure the call was successfully initiated and the UUID was captured."
        });
     }
 
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const client = twilio(accountSid, authToken);
-
-    const recordings = await client.calls(callSid).recordings.list({limit: 1});
-    if (recordings && recordings.length > 0) {
-       const recordingSid = recordings[0].sid;
-       const recordingUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.mp3`;
-       
+    const recordingUrl = await fetchPlivoRecordingUrl(callUuid);
+    if (recordingUrl) {
        const updatedLog = await prisma.callLog.update({
          where: { id },
          data: { recordingUrl }
        });
        return res.json(updatedLog);
     } else {
-       return res.status(404).json({error: "Recording not available in Twilio yet. Try again later."});
+       return res.status(404).json({error: "Recording not available yet. Try again later."});
     }
   } catch (error) {
     res.status(500).json({ error: error.message });

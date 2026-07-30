@@ -31,6 +31,10 @@ function getTenantWorker(tenantId) {
       console.error(`[Worker error - ${tenantId}]`, err.message);
     });
 
+    worker.on('failed', (job, err) => {
+      console.error(`[Worker failed - ${tenantId}] job ${job?.id} (call ${job?.data?.phone}):`, err.message);
+    });
+
     tenantWorkers.set(tenantId, worker);
   }
   return tenantWorkers.get(tenantId);
@@ -81,9 +85,9 @@ async function processJob(job, tenantId) {
   const result = await processOutboundCall(job.data);
 
   // Don't overwrite terminal statuses set by the telephony-gateway webhooks.
-  // With the REST (Gather) flow, makeTwilioCall returns immediately with
-  // status='in-progress'; the real completed/recording data arrives via
-  // Twilio status callbacks and must not be clobbered here.
+  // makePlivoCall returns immediately with status='in-progress'; the real
+  // completed/recording data arrives via Plivo callbacks and must not be
+  // clobbered here.
   const currentLog = await prisma.callLog.findUnique({ where: { id: callLogId }, select: { status: true } });
   if (['cancelled', 'completed', 'failed'].includes(currentLog?.status)) {
     console.log(`[Worker] Job ${job.id} — status already '${currentLog.status}', skipping update`);

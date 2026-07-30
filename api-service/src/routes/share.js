@@ -130,7 +130,7 @@ router.get('/:token/calls/:callLogId', async (req, res) => {
   }
 });
 
-// GET /api/share/:token/calls/:callLogId/audio — proxy Twilio recording (public)
+// GET /api/share/:token/calls/:callLogId/audio — proxy Plivo recording (public)
 router.get('/:token/calls/:callLogId/audio', async (req, res) => {
   try {
     const link = await resolveToken(req.params.token, res);
@@ -145,9 +145,9 @@ router.get('/:token/calls/:callLogId/audio', async (req, res) => {
     const callLog = await prisma.callLog.findUnique({ where: { id: req.params.callLogId } });
     if (!callLog?.recordingUrl) return res.status(404).json({ error: 'No recording available' });
 
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const authId = process.env.PLIVO_AUTH_ID;
+    const authToken = process.env.PLIVO_AUTH_TOKEN;
+    const credentials = Buffer.from(`${authId}:${authToken}`).toString('base64');
 
     const upstream = await fetch(callLog.recordingUrl, {
       headers: { Authorization: `Basic ${credentials}` }

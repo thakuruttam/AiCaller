@@ -25,11 +25,12 @@ model Tenant {
   slug      String   @unique
   createdAt DateTime @default(now())
 
-  members     WorkspaceMember[]
-  campaigns   Campaign[]
-  contacts    Contact[]
-  callModules CallModule[]
-  callLogs    CallLog[]
+  members       WorkspaceMember[]
+  campaigns     Campaign[]
+  contacts      Contact[]
+  callModules   CallModule[]
+  callLogs      CallLog[]
+  notifications Notification[]
 }
 
 model User {
@@ -44,6 +45,7 @@ model User {
   workspaces     WorkspaceMember[]
   refreshTokens  RefreshToken[]
   campaigns      Campaign[]
+  notifications  Notification[]
 }
 
 model WorkspaceMember {
@@ -154,4 +156,43 @@ enum CampaignType {
   SALES
   LOAN_RECOVERY
   FEEDBACK
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  tenantId  String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId, tenantId, createdAt(sort: Desc)])
+  @@index([userId, tenantId, isRead])
+}
+
+enum NotificationType {
+  CAMPAIGN_CREATED
+  CAMPAIGN_STARTED
+  CAMPAIGN_PAUSED
+  CAMPAIGN_KILLED
+  CAMPAIGN_RERUN
+  CAMPAIGN_COMPLETED
+  CALL_COMPLETED
+  CALL_FAILED
+  MEMBER_INVITED
+  MEMBER_JOINED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+  SUPPORT_TICKET_SUBMITTED
+  SUPPORT_TICKET_REPLIED
+  SUPPORT_TICKET_RESOLVED
+  TOPUP_SUCCESS
+  BALANCE_LOW
+  BALANCE_DEPLETED
 }

@@ -1,4 +1,4 @@
-// A simple mock for Asterisk/Twilio telephony to fulfill Phase 1 MVP.
+// A simple mock for Asterisk/Plivo telephony to fulfill Phase 1 MVP.
 export async function simulateCall(callData) {
   return new Promise((resolve, reject) => {
     // Simulate random duration of the call between 2 and 5 seconds
