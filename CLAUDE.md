@@ -16,7 +16,7 @@ AI-powered calling platform. Monorepo with 4 services + frontend.
 - Backend: Node.js + Express + Prisma + PostgreSQL
 - Frontend: React + Vite + Tailwind CSS
 - Queue: BullMQ + Redis
-- Telephony: Twilio
+- Telephony: Plivo
 - Eval: OpenAI GPT
 
 ## How to Deploy
@@ -31,11 +31,13 @@ Deploy takes 3–5 minutes.
 ## Live URLs
 - Frontend: https://app.neocampaign.ai
 - API: https://api.neocampaign.ai
-- Twilio webhook: https://api.neocampaign.ai/streams
+- Plivo webhook: https://api.neocampaign.ai/call/answer
 
 ## Database
 - Production: Neon PostgreSQL (connection string in Railway env vars)
-- Run migrations: `cd api-service && npx prisma migrate deploy`
+- No `prisma migrate` / migrations folder — this project uses `prisma db push` to sync schema directly.
+- Sync schema to prod: `cd api-service && DATABASE_URL="<prod-url>" npx prisma db push`
+- After changing `schema.prisma`, always push to production before/with the deploy — schema drift silently breaks features (missing columns/tables throw Prisma `P2022` errors) rather than failing the deploy itself.
 
 ## Local Dev
 ```bash
