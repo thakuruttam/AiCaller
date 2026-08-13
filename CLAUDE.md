@@ -29,9 +29,10 @@ GitHub Actions auto-deploys Railway (backend) + Vercel (frontend).
 Deploy takes 3–5 minutes.
 
 ## Live URLs
-- Frontend: https://app.neocampaign.ai
-- API: https://api.neocampaign.ai
-- Plivo webhook: https://api.neocampaign.ai/call/answer
+- Frontend: https://ai-caller-eta.vercel.app
+- API: https://aicaller-production-c56e.up.railway.app
+- Plivo webhook: https://aicaller-production-c56e.up.railway.app/call/answer
+- (`app.neocampaign.ai` / `api.neocampaign.ai` are aspirational custom domains that don't currently resolve — don't use them for anything until DNS is actually configured.)
 
 ## Database
 - Production: Neon PostgreSQL (connection string in Railway env vars)

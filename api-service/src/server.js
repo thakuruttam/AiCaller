@@ -23,6 +23,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use('/recordings', express.static(path.join(__dirname, '../../recordings')));
 
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'api-service' }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/campaigns', campaignRoutes);
@@ -31,6 +33,12 @@ app.use('/api/share', shareRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/billing', billingRoutes);
+
+// Any unmatched route (e.g. someone hitting the bare API host in a browser) falls back to the frontend login page.
+app.use((req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  res.redirect(`${frontendUrl}/login`);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
