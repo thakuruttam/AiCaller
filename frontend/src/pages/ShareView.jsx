@@ -59,6 +59,12 @@ export default function ShareView() {
     load();
   }, [token]);
 
+  useEffect(() => {
+    document.title = data?.campaign?.name
+      ? `${data.campaign.name} — Shared Report — AI Caller Pro`
+      : 'Shared Campaign Report — AI Caller Pro';
+  }, [data]);
+
   if (loading) return (
     <div className="min-h-screen bg-[#f8f7ff] flex items-center justify-center">
       <div className="text-[#64748b] text-sm">Loading shared report…</div>

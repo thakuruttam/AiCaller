@@ -1,0 +1,22 @@
+{
+  "name": "AI Caller Pro",
+  "short_name": "AI Caller Pro",
+  "description": "AI-powered outbound calling platform for running voice campaigns at scale, evaluating call quality, and reporting on outcomes in real time.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1a",
+  "theme_color": "#0a0f1a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

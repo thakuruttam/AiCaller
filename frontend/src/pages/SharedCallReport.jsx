@@ -79,6 +79,11 @@ export default function SharedCallReport() {
     load();
   }, [token, callLogId]);
 
+  useEffect(() => {
+    const name = data?.callLog?.contact?.name || data?.report?.contactName;
+    document.title = name ? `Call Report — ${name} — AI Caller Pro` : 'Shared Call Report — AI Caller Pro';
+  }, [data]);
+
   if (loading) return (
     <div className="min-h-screen bg-[#f8f7ff] flex items-center justify-center">
       <div className="text-[#64748b] text-sm">Loading…</div>

@@ -118,6 +118,7 @@ export default function Login() {
   const [mounted, setMounted]      = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { document.title = 'Sign in — AI Caller Pro'; }, []);
 
   const handleGoogleLogin = () => {
     window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/google`;
