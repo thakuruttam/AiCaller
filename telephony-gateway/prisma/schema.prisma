@@ -3,7 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -13,6 +14,15 @@ enum Role {
   VIEWER
 }
 
+enum BillingTier {
+  TRIAL
+  BASIC
+  STANDARD
+  PROFESSIONAL
+  ENTERPRISE
+  ENTERPRISE_PLUS
+}
+
 enum UserStatus {
   ACTIVE
   PENDING
@@ -20,10 +30,13 @@ enum UserStatus {
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @map("_id")
   name      String
   slug      String   @unique
   createdAt DateTime @default(now())
+
+  minuteBalance Int         @default(0)
+  billingTier   BillingTier @default(TRIAL)
 
   members       WorkspaceMember[]
   campaigns     Campaign[]
@@ -34,10 +47,12 @@ model Tenant {
 }
 
 model User {
-  id           String     @id @default(uuid())
+  id           String     @id @default(uuid()) @map("_id")
   email        String     @unique
   name         String
-  passwordHash String
+  avatarUrl    String?
+  passwordHash String?
+  googleId     String?
   role         Role       @default(VIEWER)
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
@@ -46,33 +61,35 @@ model User {
   refreshTokens  RefreshToken[]
   campaigns      Campaign[]
   notifications  Notification[]
+
+  @@index([googleId])
 }
 
 model WorkspaceMember {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @map("_id")
   userId      String
   tenantId    String
   role        Role     @default(VIEWER)
   createdAt   DateTime @default(now())
 
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id])
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, tenantId])
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @map("_id")
   token     String   @unique
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 }
 
 model CallModule {
-  id              String     @id @default(uuid())
+  id              String     @id @default(uuid()) @map("_id")
   name            String
   prompt          String?
 
@@ -88,7 +105,7 @@ model CallModule {
 }
 
 model Campaign {
-  id            String       @id @default(uuid())
+  id            String       @id @default(uuid()) @map("_id")
   name          String
   type          CampaignType @default(HR)
   dataToCollect Json?
@@ -96,7 +113,8 @@ model Campaign {
   rules         Json?
   callSettings  Json?
 
-  maxCallDurationSec Int?
+  maxCallDurationSec    Int?
+  estimatedTotalMinutes Int?
 
   tenantId     String
   tenant       Tenant     @relation(fields: [tenantId], references: [id])
@@ -112,7 +130,7 @@ model Campaign {
 }
 
 model Contact {
-  id       String @id @default(uuid())
+  id       String @id @default(uuid()) @map("_id")
   name     String
   phone    String
   tenantId String
@@ -123,7 +141,7 @@ model Contact {
 }
 
 model CampaignContact {
-  id         String @id @default(uuid())
+  id         String @id @default(uuid()) @map("_id")
   campaignId String
   contactId  String
   overrides  Json?
@@ -133,7 +151,7 @@ model CampaignContact {
 }
 
 model CallLog {
-  id           String    @id @default(uuid())
+  id           String    @id @default(uuid()) @map("_id")
   tenantId     String
   tenant       Tenant    @relation(fields: [tenantId], references: [id])
   contactId    String
@@ -159,7 +177,7 @@ enum CampaignType {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
+  id        String           @id @default(uuid()) @map("_id")
   userId    String
   tenantId  String
   type      NotificationType
@@ -169,8 +187,8 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([userId, tenantId, createdAt(sort: Desc)])
   @@index([userId, tenantId, isRead])

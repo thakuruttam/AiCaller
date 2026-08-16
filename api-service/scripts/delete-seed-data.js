@@ -27,9 +27,6 @@ async function main() {
 
   console.log(`Found ${campaignIds.length} seed campaigns. Deleting associated data...`);
 
-  // Delete Call Reports (handled by call-evaluation-service, but they are stored in the same db usually. Wait, CallReport isn't in this prisma schema, it's in the other service. I will ignore it or delete via raw query if needed, but Prisma cascade should handle it or it's separated).
-  // Wait, I should delete from CallLog, CampaignContact, Contact
-  
   await prisma.callLog.deleteMany({
     where: { campaignId: { in: campaignIds } }
   });
@@ -65,13 +62,10 @@ async function main() {
     console.log("- Deleted Call Modules");
   }
   
-  // Clean up CallReport table using raw query since it might be defined in the eval service prisma schema
-  try {
-     await prisma.$executeRaw`DELETE FROM "CallReport" WHERE "campaignId" IN (${campaignIds.join("','")})`;
-     console.log("- Deleted Evaluation Reports");
-  } catch (e) {
-     // Ignore if table doesn't exist
-  }
+  await prisma.callReport.deleteMany({
+    where: { campaignId: { in: campaignIds } }
+  });
+  console.log("- Deleted Evaluation Reports");
 
   console.log("Cleanup finished successfully!");
 }

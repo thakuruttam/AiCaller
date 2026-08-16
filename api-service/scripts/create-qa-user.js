@@ -1,6 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -10,9 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient();
 
 async function main() {
   const workspace = await prisma.tenant.findUnique({
@@ -58,4 +54,4 @@ async function main() {
 
 main()
   .catch(e => { console.error('❌ QA user creation failed:', e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); await pool.end(); });
+  .finally(async () => { await prisma.$disconnect(); });

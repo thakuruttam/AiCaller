@@ -225,11 +225,13 @@ export function setupPlivoStream() {
             console.log(`[Stream] Finalized callLog ${callLogId} status → completed (${billableMinutes} billable min)`);
           }
           if (current?.tenantId) {
-            await prisma.$executeRaw`
-              UPDATE "Tenant"
-              SET "minuteBalance" = GREATEST(0, "minuteBalance" - ${billableMinutes})
-              WHERE id = ${current.tenantId}
-            `;
+            await prisma.$transaction(async (tx) => {
+              const t = await tx.tenant.findUnique({ where: { id: current.tenantId }, select: { minuteBalance: true } });
+              await tx.tenant.update({
+                where: { id: current.tenantId },
+                data: { minuteBalance: Math.max(0, (t?.minuteBalance || 0) - billableMinutes) },
+              });
+            });
           }
         } catch (e) {
           console.warn('[Stream] Could not finalize callLog status:', e.message);

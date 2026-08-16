@@ -177,12 +177,13 @@ export async function razorpayWebhook(req, res) {
 // Not exported as an API endpoint. Called exclusively from verifyPayment and razorpayWebhook.
 async function creditBalance({ topUp, razorpayPaymentId, pack }) {
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`
-      UPDATE "Tenant"
-      SET "minuteBalance" = "minuteBalance" + ${pack.minutes},
-          "billingTier"   = ${pack.tier}::"BillingTier"
-      WHERE id = ${topUp.tenantId}
-    `;
+    await tx.tenant.update({
+      where: { id: topUp.tenantId },
+      data: {
+        minuteBalance: { increment: pack.minutes },
+        billingTier: pack.tier,
+      },
+    });
 
     await tx.topUp.update({
       where: { id: topUp.id },
@@ -285,15 +286,13 @@ export async function deductCallMinutes(tenantId, durationMs) {
   if (!tenantId || !durationMs) return;
   const billableMinutes = Math.max(1, Math.ceil(durationMs / 60000));
 
-  await prisma.$executeRaw`
-    UPDATE "Tenant"
-    SET "minuteBalance" = GREATEST(0, "minuteBalance" - ${billableMinutes})
-    WHERE id = ${tenantId}
-  `;
-
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { minuteBalance: true },
+  const tenant = await prisma.$transaction(async (tx) => {
+    const current = await tx.tenant.findUnique({ where: { id: tenantId }, select: { minuteBalance: true } });
+    return tx.tenant.update({
+      where: { id: tenantId },
+      data: { minuteBalance: Math.max(0, (current?.minuteBalance || 0) - billableMinutes) },
+      select: { minuteBalance: true },
+    });
   });
 
   if (tenant?.minuteBalance === 0) {

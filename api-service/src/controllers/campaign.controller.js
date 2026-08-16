@@ -5,10 +5,15 @@ import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
 import { notifyWorkspace } from '../utils/notifications.js';
 
 function dbErrorPayload(error) {
-  if (error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND') {
+  const unreachable =
+    error?.code === 'ECONNREFUSED' ||
+    error?.code === 'ENOTFOUND' ||
+    error?.code === 'P1001' ||
+    /connection refused|server selection timeout/i.test(error?.message || '');
+  if (unreachable) {
     return {
       error:
-        'Cannot connect to PostgreSQL. Start the database (e.g. `docker compose up -d postgres` from the project root) and ensure DATABASE_URL in backend/.env matches.',
+        'Cannot connect to MongoDB. Start the database (e.g. `docker compose up -d mongo` from the project root) and ensure DATABASE_URL in backend/.env matches.',
       code: error.code,
     };
   }

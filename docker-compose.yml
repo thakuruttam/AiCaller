@@ -1,34 +1,18 @@
-version: '3.8'
 services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: aicalling
+  # Single-node replica set — required by Prisma's MongoDB connector even for
+  # one node (it uses transactions for atomic writes/increments).
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  # PgBouncer — connection pooler to prevent DB connection exhaustion at scale.
-  # All app services should connect to port 5433 (pgbouncer) not 5432 (postgres) directly.
-  pgbouncer:
-    image: edoburu/pgbouncer
-    environment:
-      DB_USER: user
-      DB_PASSWORD: password
-      DB_HOST: postgres
-      DB_NAME: aicalling
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: "1000"
-      DEFAULT_POOL_SIZE: "25"
-      SERVER_RESET_QUERY: DISCARD ALL
-      AUTH_TYPE: scram-sha-256
-    ports:
-      - "5433:5432"
-    depends_on:
-      - postgres
+      - mongodata:/data/db
+    healthcheck:
+      test: mongosh --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7
@@ -53,11 +37,15 @@ services:
     build: ./api-service
     ports: ["3000:3000"]
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/aicalling
+      DATABASE_URL: mongodb://mongo:27017/aicalling?replicaSet=rs0
       REDIS_URL: redis://redis:6379
     env_file:
       - .env
-    depends_on: [postgres, redis]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   telephony-gateway:
     build: ./telephony-gateway
@@ -66,14 +54,18 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/aicalling
+      DATABASE_URL: mongodb://mongo:27017/aicalling?replicaSet=rs0
       REDIS_URL: redis://redis:6379
       PORT: "3001"
     env_file:
       - .env
     deploy:
       replicas: 2
-    depends_on: [postgres, redis]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   call-worker:
     build: ./call-worker
@@ -81,14 +73,18 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/aicalling
+      DATABASE_URL: mongodb://mongo:27017/aicalling?replicaSet=rs0
       REDIS_URL: redis://redis:6379
       MAX_CALLS_PER_TENANT: "5"
     env_file:
       - .env
     deploy:
       replicas: 3
-    depends_on: [postgres, redis]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   call-evaluation-api:
     build: ./call-evaluation-service
@@ -98,12 +94,16 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/aicalling
+      DATABASE_URL: mongodb://mongo:27017/aicalling?replicaSet=rs0
       REDIS_URL: redis://redis:6379
       PORT: "4000"
     env_file:
       - .env
-    depends_on: [postgres, redis]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   call-evaluation-worker:
     build: ./call-evaluation-service
@@ -112,16 +112,20 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/aicalling
+      DATABASE_URL: mongodb://mongo:27017/aicalling?replicaSet=rs0
       REDIS_URL: redis://redis:6379
     env_file:
       - .env
     deploy:
       replicas: 2
-    depends_on: [postgres, redis]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   # ── API Gateway (NGINX) ────────────────────────────────────────────────────
-  # Unifies the REST API (port 3000) and Telephony WebSocket (port 3001) 
+  # Unifies the REST API (port 3000) and Telephony WebSocket (port 3001)
   # behind a single port (8080) so ngrok only needs one tunnel.
   api-gateway:
     image: nginx:alpine
@@ -131,5 +135,5 @@ services:
     depends_on: [api-service, telephony-gateway]
 
 volumes:
-  pgdata:
+  mongodata:
   redisdata:

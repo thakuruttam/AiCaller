@@ -11,18 +11,16 @@
   "dependencies": {
     "@google-cloud/speech": "^7.3.1",
     "@google-cloud/text-to-speech": "^6.4.1",
-    "@prisma/adapter-pg": "^7.7.0",
-    "@prisma/client": "^7.7.0",
+    "@prisma/client": "^6.19.0",
     "bullmq": "^5.74.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "ioredis": "^5.6.1",
     "multer": "^2.2.0",
-    "pg": "^8.20.0",
     "words-to-numbers": "^1.5.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {
-    "prisma": "^7.7.0"
+    "prisma": "^6.19.0"
   }
 }

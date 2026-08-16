@@ -3,7 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -29,7 +30,7 @@ enum UserStatus {
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @map("_id")
   name      String
   slug      String   @unique
   createdAt DateTime @default(now())
@@ -49,12 +50,12 @@ model Tenant {
 }
 
 model User {
-  id           String     @id @default(uuid())
+  id           String     @id @default(uuid()) @map("_id")
   email        String     @unique
   name         String
   avatarUrl    String?
   passwordHash String?
-  googleId     String?    @unique
+  googleId     String?
   role         Role       @default(VIEWER)
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
@@ -65,33 +66,35 @@ model User {
   notifications   Notification[]
   supportTickets  SupportTicket[]
   supportReplies  SupportTicketReply[]
+
+  @@index([googleId])
 }
 
 model WorkspaceMember {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @map("_id")
   userId      String
   tenantId    String
   role        Role     @default(VIEWER)
   createdAt   DateTime @default(now())
 
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id])
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, tenantId])
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @map("_id")
   token     String   @unique
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 }
 
 model CallModule {
-  id              String     @id @default(uuid())
+  id              String     @id @default(uuid()) @map("_id")
   name            String
   prompt          String?
 
@@ -107,7 +110,7 @@ model CallModule {
 }
 
 model Campaign {
-  id            String       @id @default(uuid())
+  id            String       @id @default(uuid()) @map("_id")
   name          String
   type          CampaignType @default(HR)
   dataToCollect Json?
@@ -133,13 +136,13 @@ model Campaign {
 }
 
 model Invite {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @map("_id")
   token     String   @unique @default(uuid())
   email     String
   name      String?
   role      Role     @default(VIEWER)
   tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
@@ -148,17 +151,17 @@ model Invite {
 }
 
 model ShareLink {
-  id         String   @id @default(uuid())
+  id         String   @id @default(uuid()) @map("_id")
   token      String   @unique
   campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
   tenantId   String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
 }
 
 model Contact {
-  id       String @id @default(uuid())
+  id       String @id @default(uuid()) @map("_id")
   name     String
   phone    String
   tenantId String
@@ -169,7 +172,7 @@ model Contact {
 }
 
 model CampaignContact {
-  id         String @id @default(uuid())
+  id         String @id @default(uuid()) @map("_id")
   campaignId String
   contactId  String
   overrides  Json?
@@ -179,7 +182,7 @@ model CampaignContact {
 }
 
 model CallLog {
-  id              String    @id @default(uuid())
+  id              String    @id @default(uuid()) @map("_id")
   tenantId        String
   tenant          Tenant    @relation(fields: [tenantId], references: [id])
   contactId       String
@@ -197,17 +200,16 @@ model CallLog {
 }
 
 model TopUp {
-  id                  String   @id @default(uuid())
+  id                  String   @id @default(uuid()) @map("_id")
   tenantId            String
-  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
   packId              String
   razorpayOrderId     String?  @unique
-  razorpayPaymentId   String?  @unique
+  razorpayPaymentId   String?
   status              String   @default("PENDING")
   createdAt           DateTime @default(now())
 
   @@index([tenantId, createdAt(sort: Desc)])
-  @@index([razorpayOrderId])
 }
 
 enum CampaignType {
@@ -244,7 +246,7 @@ enum NotificationType {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
+  id        String           @id @default(uuid()) @map("_id")
   userId    String
   tenantId  String
   type      NotificationType
@@ -254,8 +256,8 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([userId, tenantId, createdAt(sort: Desc)])
   @@index([userId, tenantId, isRead])
@@ -273,18 +275,18 @@ enum SupportTicketStatus {
 }
 
 model SupportTicket {
-  id        String              @id @default(uuid())
+  id        String              @id @default(uuid()) @map("_id")
   userId    String
   tenantId  String?
   subject   String
-  message   String              @db.Text
+  message   String              
   category  String              @default("general")
   status    SupportTicketStatus @default(OPEN)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user    User    @relation(fields: [userId], references: [id])
+  tenant  Tenant? @relation(fields: [tenantId], references: [id])
   replies SupportTicketReply[]
 
   @@index([userId, createdAt(sort: Desc)])
@@ -293,15 +295,15 @@ model SupportTicket {
 }
 
 model SupportTicketReply {
-  id        String        @id @default(uuid())
+  id        String        @id @default(uuid()) @map("_id")
   ticketId  String
   userId    String
-  message   String        @db.Text
+  message   String        
   isAdmin   Boolean       @default(false)
   createdAt DateTime      @default(now())
 
-  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id])
+  user   User          @relation(fields: [userId], references: [id])
 
   @@index([ticketId, createdAt])
 }
@@ -311,13 +313,14 @@ model SupportTicketReply {
 // ==========================================
 
 model CallReport {
-  id             String   @id @default(uuid())
+  id             String   @id @default(uuid()) @map("_id")
   callLogId      String   @unique
   campaignId     String?
   tenantId       String?
   contactName    String?
+  contactPhone   String?
 
-  outcome        String?  
+  outcome        String?
   failureReason  String?  
   sentiment      String?  
   score          Int?     
@@ -346,7 +349,7 @@ model CallReport {
 }
 
 model ReportJob {
-  id               String     @id @default(uuid())
+  id               String     @id @default(uuid()) @map("_id")
   callLogId        String     @unique
   report           CallReport @relation(fields: [callLogId], references: [callLogId])
 
@@ -371,7 +374,7 @@ model ReportJob {
 }
 
 model DLQEntry {
-  id         String   @id @default(uuid())
+  id         String   @id @default(uuid()) @map("_id")
   callLogId  String
   stage      String
   payload    Json
