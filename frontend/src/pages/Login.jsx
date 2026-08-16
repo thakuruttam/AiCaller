@@ -112,6 +112,7 @@ export default function Login() {
   const [error, setError]          = useState(
     searchParams.get('error') === 'google_failed' ? 'Google sign-in failed. Please try again.' : ''
   );
+  const [errorCode, setErrorCode]  = useState('');
   const [loading, setLoading]      = useState(false);
   const [showToast, setShowToast]  = useState(false);
   const [mounted, setMounted]      = useState(false);
@@ -125,6 +126,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setErrorCode('');
     setLoading(true);
     try {
       await login(email, password);
@@ -132,6 +134,7 @@ export default function Login() {
       setTimeout(() => navigate(from, { replace: true }), 900);
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid email or password');
+      setErrorCode(err.response?.data?.code || '');
     } finally {
       setLoading(false);
     }
@@ -155,9 +158,15 @@ export default function Login() {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0.2; }
         }
+        @keyframes pulse-ring {
+          0%   { box-shadow: 0 0 0 0 rgba(13,148,136,0.35); }
+          70%  { box-shadow: 0 0 0 6px rgba(13,148,136,0); }
+          100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
+        }
         .anim-enter { animation: enter-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .anim-toast { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .dot-blink  { animation: blink 1.8s ease-in-out infinite; }
+        .google-btn-highlight { animation: pulse-ring 1.6s ease-out 2; }
 
         .input-field {
           width: 100%; height: 48px; padding: 0 14px;
@@ -172,7 +181,7 @@ export default function Login() {
 
         @media (prefers-reduced-motion: reduce) {
           .anim-enter, .anim-toast { animation: none; }
-          .dot-blink { animation: none; }
+          .dot-blink, .google-btn-highlight { animation: none; }
         }
       `}</style>
 
@@ -309,8 +318,8 @@ export default function Login() {
             <div className="space-y-2.5 mb-5">
               <button
                 onClick={handleGoogleLogin}
-                className="w-full h-[46px] flex items-center justify-center gap-2.5 rounded-[10px] text-sm font-medium transition-all duration-150 cursor-pointer bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.07]"
-                style={{ border: '1px solid #e2e8f0' }}
+                className={`w-full h-[46px] flex items-center justify-center gap-2.5 rounded-[10px] text-sm font-medium transition-all duration-150 cursor-pointer bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.07] ${errorCode === 'GOOGLE_ACCOUNT_NO_PASSWORD' ? 'google-btn-highlight' : ''}`}
+                style={{ border: errorCode === 'GOOGLE_ACCOUNT_NO_PASSWORD' ? '1px solid #0d9488' : '1px solid #e2e8f0' }}
               >
                 <GoogleIcon /> Continue with Google
               </button>

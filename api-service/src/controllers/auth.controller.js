@@ -76,6 +76,13 @@ export async function login(req, res) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    if (!user.passwordHash) {
+      return res.status(401).json({
+        error: 'This account uses Google sign-in — use the "Continue with Google" button instead',
+        code: 'GOOGLE_ACCOUNT_NO_PASSWORD'
+      });
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid email or password' });

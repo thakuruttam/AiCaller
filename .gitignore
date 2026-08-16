@@ -50,3 +50,5 @@ Thumbs.db
 # ── Prisma (keep schema, ignore generated client) ─────────────────────────────
 **/prisma/generated/
 stitch-exports/
+.vercel
+.env*

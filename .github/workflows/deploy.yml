@@ -5,20 +5,36 @@ on:
     branches: [main]
 
 jobs:
-  # ── Deploy backend to Railway ──────────────────────────────────────
-  deploy-railway:
-    name: Deploy to Railway
+  # ── Build + push image, then deploy backend to EC2 ──────────────────
+  deploy-ec2:
+    name: Deploy to EC2
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CI_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CI_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-      - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Login to ECR
+        run: aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
+
+      - name: Build and push image
+        run: |
+          docker build --platform linux/amd64 -t aicaller:latest .
+          docker tag aicaller:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/aicaller:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/aicaller:latest
+
+      - name: Deploy on EC2 via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: bash ~/deploy.sh
 
   # ── Deploy frontend to Vercel ──────────────────────────────────────
   deploy-vercel:
@@ -31,7 +47,7 @@ jobs:
         run: npm install -g vercel
 
       - name: Deploy to Vercel
-        run: vercel deploy --prod --yes --cwd frontend
+        run: vercel deploy --prod --yes
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
