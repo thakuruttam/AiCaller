@@ -50,7 +50,7 @@ Internet
 Elastic IP (65.2.193.150) — ap-south-1 (Mumbai)
    │
    ▼
-EC2 instance (i-029d54b7dcbd7a059, t3.micro)
+EC2 instance (i-029d54b7dcbd7a059, t3.small — resized up from t3.micro on 2026-08-16, see Runbook)
    │
    ├── Docker container "aicaller"  — the monolith (nginx + 5 PM2 processes), port 80→8080
    └── Docker container "redis"     — redis:7-alpine, maxmemory-policy=noeviction (BullMQ requirement)
@@ -85,7 +85,7 @@ External dependencies (unaffected by this migration):
 
 | Resource | ID / Name | Notes |
 |---|---|---|
-| EC2 instance | `i-029d54b7dcbd7a059` | t3.micro, Amazon Linux 2023 |
+| EC2 instance | `i-029d54b7dcbd7a059` | t3.small (was t3.micro until 2026-08-16), Amazon Linux 2023 |
 | Elastic IP | `65.2.193.150` (`eipalloc-006ba00af07410bf5`) | Stable address — survives instance stop/start |
 | Security group | `sg-081906199c513c0ed` (`aicaller-ec2-sg`) | Inbound 22 (SSH), 80, 443 from anywhere |
 | SSH key pair (original) | `aicaller-ec2-key` | Private `.pem` held outside repo entirely (not in GitHub either) — used only for manual `ssh -i aicaller-ec2-key.pem` access, see "Manual deploy" below |
@@ -142,17 +142,17 @@ Run this *before or alongside* any deploy that changes `schema.prisma` — schem
 
 ## 📈 Scalability
 
-**Current capacity is unbenchmarked.** The only concurrency control actually enforced in code is `MAX_CALLS_PER_TENANT=5` (per-tenant fairness in `call-worker/src/fairDispatcher.js`) — there's no global cap, no load test has been run, and the real ceiling is whatever this single t3.micro can handle. Most of the per-call work (STT/TTS/LLM calls) is I/O-bound waiting on external APIs, not CPU-heavy, so the instance can plausibly handle more concurrent calls than its size implies — but "plausibly" isn't "measured." Load-test before making capacity promises to customers.
+**Current capacity is unbenchmarked.** The only concurrency control actually enforced in code is `MAX_CALLS_PER_TENANT=5` (per-tenant fairness in `call-worker/src/fairDispatcher.js`) — there's no global cap, no load test has been run, and the real ceiling is whatever this single instance can handle. Most of the per-call work (STT/TTS/LLM calls) is I/O-bound waiting on external APIs, not CPU-heavy, so the instance can plausibly handle more concurrent calls than its size implies — but "plausibly" isn't "measured." Load-test before making capacity promises to customers.
 
 **Scaling paths, roughly in the order you'd actually reach for them:**
 
-1. **Vertical (cheapest, first move):** bump the EC2 instance type (t3.micro → t3.small → t3.medium, etc.) via the AWS Console or CLI. Requires a stop/start (brief downtime), no architecture change. Redis and the app both benefit since they share the box's resources.
+1. **Vertical (cheapest, first move):** bump the EC2 instance type (t3.small → t3.medium, etc. — already bumped once from t3.micro on 2026-08-16, see Runbook) via the AWS Console or CLI. Requires a stop/start (brief downtime), no architecture change. Redis and the app both benefit since they share the box's resources.
 2. **Separate Redis from the app instance:** once call volume is high enough that Redis and the app meaningfully compete for the same CPU/RAM, split them — either a second small EC2 running just Redis, or move to a managed option (ElastiCache — but see the NAT Gateway cost note above; only worth it once traffic justifies ~$32+/month extra).
 3. **Horizontal (multiple app instances):** once vertical scaling on one box isn't enough, put an Application Load Balancer in front of multiple EC2 instances (or migrate to ECS Fargate + ALB for managed scaling). This *requires* Redis to already be externalized (step 2) — multiple app instances can't share a Redis that's co-located on just one of them.
 4. **Region:** already on `ap-south-1` (Mumbai) specifically for latency to India-based Plivo calls and Sarvam STT — don't move this without a reason tied to where your traffic actually originates.
 5. **Database:** Neon Postgres autoscales compute independently of this app's hosting — not a bottleneck tied to the AWS migration, scale it separately via the Neon dashboard if it becomes one.
 
-**Cost shape at current size:** EC2 t3.micro (~$7-8/month on-demand in `ap-south-1`, free-tier eligible for new accounts) + ECR storage (negligible) + Elastic IP (free while attached to a running instance) + Neon/Plivo/OpenAI/etc. usage-based costs (see cost breakdown discussed earlier in the project history — those figures are unaffected by this hosting migration). Notably **no NAT Gateway, no managed Redis fee** — the two costs that would have made the App Runner + ElastiCache path meaningfully more expensive for no real benefit at this traffic level.
+**Cost shape at current size:** EC2 t3.small (~$15-16/month on-demand in `ap-south-1`; was t3.micro at ~$7-8/month until the 2026-08-16 resize) + ECR storage (negligible) + Elastic IP (free while attached to a running instance) + Neon/Plivo/OpenAI/etc. usage-based costs (see cost breakdown discussed earlier in the project history — those figures are unaffected by this hosting migration). Notably **no NAT Gateway, no managed Redis fee** — the two costs that would have made the App Runner + ElastiCache path meaningfully more expensive for no real benefit at this traffic level.
 
 ---
 
@@ -175,7 +175,15 @@ aws ec2-instance-connect send-ssh-public-key \
 ssh -i <matching-private-key> ec2-user@65.2.193.150   # works for ~60s after the send call
 ```
 
-If this recurs frequently, it's a sign the box needs the t3.micro → t3.small bump described under "Scalability" above rather than repeat reboots.
+If this recurs frequently, it's a sign the box needs a further instance-type bump described under "Scalability" above rather than repeat reboots — this already happened once: the box was bumped **t3.micro → t3.small on 2026-08-16**, same day as the hang above, after API responses stayed sluggish post-reboot. Diagnosis before resizing: `aws cloudwatch get-metric-statistics --metric-name CPUCreditBalance ...` showed the balance pinned at `0.0` for hours (t3 burstable instances throttle to a 10% baseline once credits run out) and `free -m` over SSH showed only ~33MB "available" out of 916MB total — both symptoms of the 1GB t3.micro being simply too small for 5 Node processes + nginx + Redis under any real load, not a config bug. Resize procedure (Elastic IP survives, no re-provisioning needed):
+```bash
+export AWS_PROFILE=aicaller-migration
+aws ec2 stop-instances --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
+aws ec2 wait instance-stopped --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
+aws ec2 modify-instance-attribute --instance-id i-029d54b7dcbd7a059 --instance-type '{"Value":"t3.small"}' --region ap-south-1
+aws ec2 start-instances --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
+```
+~1-2 min of downtime during the stop/start. Docker containers restart automatically on boot; TLS certs and everything else on the root volume are untouched by a stop/start (unlike full instance replacement — see TLS note above).
 
 ## ⚠️ Known issues / TODO
 
