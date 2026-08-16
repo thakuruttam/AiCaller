@@ -25,17 +25,16 @@ When user says "deploy", "push", or "ship it" — run:
 bash deploy.sh "describe what changed"
 ```
 This commits all changes and pushes to main.
-GitHub Actions auto-deploys Railway (backend) + Vercel (frontend).
-Deploy takes 3–5 minutes.
+GitHub Actions auto-deploys: backend to AWS EC2 (via ECR + SSH), frontend to Vercel.
+Deploy takes ~1-2 minutes. See README.md "☁️ Production Deployment (AWS EC2)" for full architecture.
 
 ## Live URLs
-- Frontend: https://ai-caller-eta.vercel.app
-- API: https://aicaller-production-c56e.up.railway.app
-- Plivo webhook: https://aicaller-production-c56e.up.railway.app/call/answer
-- (`app.neocampaign.ai` / `api.neocampaign.ai` are aspirational custom domains that don't currently resolve — don't use them for anything until DNS is actually configured.)
+- Frontend: https://aicaller.store
+- API: https://api.aicaller.store
+- Plivo webhook: https://api.aicaller.store/call/answer
 
 ## Database
-- Production: Neon PostgreSQL (connection string in Railway env vars)
+- Production: Neon PostgreSQL (connection string in `~/aicaller.env` on the EC2 instance)
 - No `prisma migrate` / migrations folder — this project uses `prisma db push` to sync schema directly.
 - Sync schema to prod: `cd api-service && DATABASE_URL="<prod-url>" npx prisma db push`
 - After changing `schema.prisma`, always push to production before/with the deploy — schema drift silently breaks features (missing columns/tables throw Prisma `P2022` errors) rather than failing the deploy itself.

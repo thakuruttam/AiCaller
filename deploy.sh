@@ -21,15 +21,13 @@ else
   git commit -m "$MSG"
 fi
 
-# Push to main → triggers GitHub Actions → auto-deploys Railway + Vercel
+# Push to main → triggers GitHub Actions → auto-deploys EC2 (backend) + Vercel (frontend)
 git push origin main
 
 echo ""
 echo "✅ Pushed to main."
-echo "   Railway deploy:  https://railway.app/dashboard"
-echo "   Vercel deploy:   https://vercel.com/dashboard"
-echo "   Live site:       https://app.neocampaign.ai"
-echo "   API:             https://api.neocampaign.ai"
+echo "   Live site:       https://aicaller.store"
+echo "   API:             https://api.aicaller.store"
 echo ""
-echo "   Deploys take ~3-5 minutes. Check GitHub Actions for status:"
+echo "   Deploys take ~1-2 minutes. Check GitHub Actions for status:"
 echo "   https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]//' | sed 's/.git$//')/actions"
