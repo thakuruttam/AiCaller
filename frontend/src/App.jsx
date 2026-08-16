@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGate from './components/RoleGate';
+import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import CampaignWizard from './pages/CampaignWizard/CampaignWizard';
 import CampaignDetails from './pages/CampaignDetails';
@@ -404,6 +405,22 @@ function AppLayout() {
   );
 }
 
+function RootRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc]">
+        <div className="w-12 h-12 bg-[#0f766e] rounded-xl flex items-center justify-center shadow-lg">
+          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>graphic_eq</span>
+        </div>
+      </div>
+    );
+  }
+
+  return user ? <AppLayout /> : <Landing />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -417,6 +434,7 @@ function App() {
                 <Route path="/share/:token" element={<ShareView />} />
                 <Route path="/share/:token/calls/:callLogId" element={<SharedCallReport />} />
                 <Route path="/invite/:token" element={<InviteAccept />} />
+                <Route path="/" element={<RootRoute />} />
                 <Route path="/*" element={
                   <ProtectedRoute>
                     <AppLayout />
