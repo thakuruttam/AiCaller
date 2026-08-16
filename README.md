@@ -88,11 +88,12 @@ External dependencies (unaffected by this migration):
 | EC2 instance | `i-029d54b7dcbd7a059` | t3.micro, Amazon Linux 2023 |
 | Elastic IP | `65.2.193.150` (`eipalloc-006ba00af07410bf5`) | Stable address — survives instance stop/start |
 | Security group | `sg-081906199c513c0ed` (`aicaller-ec2-sg`) | Inbound 22 (SSH), 80, 443 from anywhere |
-| SSH key pair | `aicaller-ec2-key` | Private key held outside repo — in GitHub Actions secret `EC2_SSH_KEY` |
+| SSH key pair (original) | `aicaller-ec2-key` | Private `.pem` held outside repo entirely (not in GitHub either) — used only for manual `ssh -i aicaller-ec2-key.pem` access, see "Manual deploy" below |
+| SSH key pair (CI) | `github-actions-aicaller-ci` (ed25519) | Dedicated key added to `~/.ssh/authorized_keys` on the instance for GitHub Actions only. Private half is GitHub Actions secret `EC2_SSH_KEY`; public half lives only on the box (not tracked in AWS as a named key pair) |
 | IAM instance role | `AiCallerEC2Role` / `AiCallerEC2Profile` | ECR read-only — lets the instance pull images without embedded credentials |
 | ECR repository | `486255624168.dkr.ecr.ap-south-1.amazonaws.com/aicaller` | Docker image registry |
 | IAM CI user | `aicaller-ci-deploy` | Scoped to ECR push only — used by GitHub Actions |
-| IAM admin user | `admin@neosharks.in` | Used for initial provisioning via CLI. Has `AdministratorAccess` — broad on purpose for setup speed, **rotate or delete its access key once infra is stable** |
+| IAM admin user | `admin@neosharks.in` | Used for initial provisioning via CLI, and for ops (reboot, EC2 Instance Connect) via the local `aicaller-migration` AWS CLI profile. Has `AdministratorAccess` — broad on purpose for setup speed, **rotate or delete its access key once infra is stable** |
 
 On the instance itself:
 - `~/aicaller.env` — the real environment variables (not in git, not in GitHub Actions — lives only on the box). Edit this file directly via SSH to change a secret/config value, then re-run `~/deploy.sh` (or just `docker restart aicaller` if no image change is needed).
@@ -106,7 +107,18 @@ On the instance itself:
 3. SSHs into the EC2 instance and runs `~/deploy.sh` (pulls the new image, recreates the container with the existing `~/aicaller.env`)
 4. Separately deploys the frontend to Vercel (unchanged from before)
 
-Required GitHub Actions secrets: `AWS_CI_ACCESS_KEY_ID`, `AWS_CI_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `EC2_HOST`, `EC2_SSH_KEY` (plus the pre-existing `VERCEL_*` ones for the frontend job).
+**Status: verified working as of 2026-08-16** (commit `affc908`, run `31961426845` — both jobs green, ~2min total). Before this date the workflow existed but had *never once succeeded* — every run failed in under 30s because none of its required secrets were set; all prior deploys were manual SSH. All 8 secrets are now configured:
+
+| Secret | Purpose |
+|---|---|
+| `AWS_CI_ACCESS_KEY_ID` / `AWS_CI_SECRET_ACCESS_KEY` | `aicaller-ci-deploy` IAM user, scoped to ECR push |
+| `AWS_ACCOUNT_ID` | ECR registry URL construction |
+| `EC2_HOST` | SSH target (`65.2.193.150`) |
+| `EC2_SSH_KEY` | Private half of a **dedicated CI-only ed25519 keypair** (`github-actions-aicaller-ci`) — not the original `aicaller-ec2-key.pem`. Its public half was appended to `~/.ssh/authorized_keys` on the instance. |
+| `VERCEL_TOKEN` | Personal token scoped to the `thakuruttams-projects` team — must be created via the Vercel dashboard (Account Settings → Tokens); the CLI's `vercel tokens add` returns 403 when run under a third-party OAuth client (e.g. an agent's Vercel plugin) |
+| `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | From `.vercel/project.json` (not secret, but kept alongside the others) |
+
+Verify secret presence (not values) any time with `gh secret list`.
 
 ### Manual deploy (if needed)
 
@@ -143,6 +155,27 @@ Run this *before or alongside* any deploy that changes `schema.prisma` — schem
 **Cost shape at current size:** EC2 t3.micro (~$7-8/month on-demand in `ap-south-1`, free-tier eligible for new accounts) + ECR storage (negligible) + Elastic IP (free while attached to a running instance) + Neon/Plivo/OpenAI/etc. usage-based costs (see cost breakdown discussed earlier in the project history — those figures are unaffected by this hosting migration). Notably **no NAT Gateway, no managed Redis fee** — the two costs that would have made the App Runner + ElastiCache path meaningfully more expensive for no real benefit at this traffic level.
 
 ---
+
+## 🩹 Runbook: EC2 unresponsive but AWS says it's healthy
+
+Seen on 2026-08-16: `api.aicaller.store` stopped responding — ports 80/443/22 all accepted the TCP handshake but nothing ever replied (not even the SSH banner), while `aws ec2 describe-instance-status` reported reachability "ok" and CPUUtilization sat flat at ~54% for 20+ minutes. This is OS-level resource exhaustion (nginx master alive, workers/OS wedged) on the 1GB t3.micro with no swap — not an instance-down or app-config problem, and not something `docker restart` from inside a hung box can fix since you can't get a shell in.
+
+Fix:
+```bash
+export AWS_PROFILE=aicaller-migration   # the `default` local profile is broken/expired
+aws ec2 reboot-instances --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
+```
+No SSH required to trigger this. Both containers (`aicaller`, `redis`) restart cleanly on boot with no manual intervention. Confirm recovery with `curl https://api.aicaller.store/health`.
+
+If you need a shell and don't have `aicaller-ec2-key.pem` handy, use EC2 Instance Connect instead of hunting for the file:
+```bash
+aws ec2-instance-connect send-ssh-public-key \
+  --instance-id i-029d54b7dcbd7a059 --instance-os-user ec2-user \
+  --ssh-public-key file://<path-to-a-throwaway-pubkey> --region ap-south-1
+ssh -i <matching-private-key> ec2-user@65.2.193.150   # works for ~60s after the send call
+```
+
+If this recurs frequently, it's a sign the box needs the t3.micro → t3.small bump described under "Scalability" above rather than repeat reboots.
 
 ## ⚠️ Known issues / TODO
 
