@@ -1,6 +1,6 @@
 # AI Calling Platform — Multi-Service Stack
 
-A multi-service AI calling platform built with Node.js, Postgres, Redis, and BullMQ.
+A multi-service AI calling platform built with Node.js, MongoDB, Redis, and BullMQ.
 
 ---
 
@@ -56,8 +56,8 @@ EC2 instance (i-029d54b7dcbd7a059, t3.small — resized up from t3.micro on 2026
    └── Docker container "redis"     — redis:7-alpine, maxmemory-policy=noeviction (BullMQ requirement)
          both on a shared Docker network "aicaller-net", Redis reachable at redis://redis:6379
 
-External dependencies (unaffected by this migration):
-  - Neon Postgres        — DATABASE_URL, us-east-1 (not moved — cheap to leave, not latency-critical for DB)
+External dependencies:
+  - MongoDB Atlas        — DATABASE_URL, ap-south-1 (same region as this instance — ~13ms DB latency; migrated off Neon Postgres on 2026-08-17, see "Database" below)
   - Plivo                — telephony
   - OpenAI (gpt-4.1-mini) — live conversation LLM
   - Groq (llama-3.1-8b)   — sandbox-only LLM
@@ -78,7 +78,7 @@ External dependencies (unaffected by this migration):
 
 1. Started on Railway. Railway's auto-generated `*.up.railway.app` domains failed DNS resolution repeatedly (3 separate generated domains went dead) — a platform-side bug, not fixable from our side. See git history / conversation log around 2026-08-16 for the full incident.
 2. First AWS attempt: **App Runner + ElastiCache**. Works, but ElastiCache requires a VPC Connector, and once App Runner uses a VPC Connector *all* egress traffic (Neon, Plivo, OpenAI, everything) must route through the VPC — which requires a NAT Gateway (~$32+/month minimum) just to reach the public internet. That cost is disproportionate to this app's actual traffic.
-3. Landed on: **single EC2 instance running the app + Redis together**, no managed Redis, no VPC Connector, no NAT Gateway. Cheapest and simplest option that still meets "AWS-only." Redis data is ephemeral job-queue state (not business data — that's all in Neon), so co-locating it with the app instance is an acceptable tradeoff at current scale.
+3. Landed on: **single EC2 instance running the app + Redis together**, no managed Redis, no VPC Connector, no NAT Gateway. Cheapest and simplest option that still meets "AWS-only." Redis data is ephemeral job-queue state (not business data — that lives in MongoDB Atlas), so co-locating it with the app instance is an acceptable tradeoff at current scale.
 4. Initially ran on the bare Elastic IP over plain HTTP (no domain yet) — broke Google Sign-In, since Google requires HTTPS on OAuth redirect URIs and Let's Encrypt can't issue certs for a bare IP. Fixed once `aicaller.store` was purchased — see "Domain / TLS" above.
 
 ### AWS resources (ap-south-1 / Mumbai)
@@ -127,16 +127,24 @@ ssh -i aicaller-ec2-key.pem ec2-user@65.2.193.150
 bash ~/deploy.sh
 ```
 
-### Manual DB schema sync
+### Database — MongoDB Atlas
 
-This project has **no `prisma migrate`** — no migrations folder exists. Schema changes go live via `prisma db push` directly against production, run from your own machine (not part of the deploy pipeline):
+Production database is **MongoDB Atlas** (`aicaller.thg4lch.mongodb.net`, `ap-south-1` — the same AWS region as the EC2 app server, giving ~13ms DB latency measured directly from the box). Migrated off Neon Postgres on **2026-08-17** — code/schema conversion was verified end-to-end (Docker build, full compose stack, real HTTP round-trips) before cutover. The old Postgres data was **intentionally not migrated** (a deliberate fresh start, not an oversight) — it's still sitting untouched in Neon if it's ever needed, just disconnected from the live app.
+
+**Two hard-won constraints, both discovered empirically — don't relitigate without re-reading this:**
+- **Prisma is pinned to `^6.19.0` across all 4 backend services.** Prisma 7 made driver adapters mandatory for every provider, and no `@prisma/adapter-mongodb` exists — Prisma 7 simply cannot connect to MongoDB. Confirmed directly: `new PrismaClient()` with no adapter throws on 7.x; the traditional no-adapter connection method only works on 6.x.
+- **MongoDB's unique indexes are not sparse by default.** `@unique` on an optional field (e.g. `User.googleId`, which is null for every non-Google-signup user) breaks after the *second* document leaves it null — Postgres tolerates unlimited nulls on a unique column, Mongo doesn't. Audit any new optional+`@unique` field pairing before shipping it; the usual fix is dropping `@unique` and adding a plain `@@index` instead if the field is actually queried.
+
+This project has **no `prisma migrate`** — no migrations folder exists, and Mongo has no SQL DDL to migrate anyway. Schema changes go live via `prisma db push` directly against production, run from your own machine (not part of the deploy pipeline):
 
 ```bash
 cd api-service
-DATABASE_URL="<prod Neon URL>" npx prisma db push
+DATABASE_URL="<prod Mongo URL>" npx prisma db push
 ```
 
-Run this *before or alongside* any deploy that changes `schema.prisma` — schema drift fails silently in prod (Prisma `P2022`/`P2021` errors on the missing column/table) rather than failing the deploy itself.
+Run this *before or alongside* any deploy that changes `schema.prisma` — schema drift fails silently in prod rather than failing the deploy itself. All 4 services have their own `schema.prisma`; they've drifted from each other before (different field sets on shared models like `Tenant`/`User`/`Campaign`) — when editing a shared model, check the other 3 files too.
+
+**Local dev** needs a real MongoDB replica set (Prisma's Mongo connector requires one even for a single node) — `docker-compose.yml`'s `mongo` service (`mongo:7`, `--replSet rs0`) handles this automatically via a self-initiating healthcheck. Run `docker compose up -d mongo` and wait for it to report healthy before pointing any service at it. Connecting from the bare host (outside Docker) needs `?directConnection=true` in the connection string instead of `?replicaSet=rs0`, since the replica set advertises the Docker service name (`mongo`) as its member host, which doesn't resolve outside the Docker network.
 
 ---
 
@@ -149,10 +157,10 @@ Run this *before or alongside* any deploy that changes `schema.prisma` — schem
 1. **Vertical (cheapest, first move):** bump the EC2 instance type (t3.small → t3.medium, etc. — already bumped once from t3.micro on 2026-08-16, see Runbook) via the AWS Console or CLI. Requires a stop/start (brief downtime), no architecture change. Redis and the app both benefit since they share the box's resources.
 2. **Separate Redis from the app instance:** once call volume is high enough that Redis and the app meaningfully compete for the same CPU/RAM, split them — either a second small EC2 running just Redis, or move to a managed option (ElastiCache — but see the NAT Gateway cost note above; only worth it once traffic justifies ~$32+/month extra).
 3. **Horizontal (multiple app instances):** once vertical scaling on one box isn't enough, put an Application Load Balancer in front of multiple EC2 instances (or migrate to ECS Fargate + ALB for managed scaling). This *requires* Redis to already be externalized (step 2) — multiple app instances can't share a Redis that's co-located on just one of them.
-4. **Region:** already on `ap-south-1` (Mumbai) specifically for latency to India-based Plivo calls and Sarvam STT — don't move this without a reason tied to where your traffic actually originates.
-5. **Database:** Neon Postgres autoscales compute independently of this app's hosting — not a bottleneck tied to the AWS migration, scale it separately via the Neon dashboard if it becomes one.
+4. **Region:** already on `ap-south-1` (Mumbai) specifically for latency to India-based Plivo calls and Sarvam STT — don't move this without a reason tied to where your traffic actually originates. MongoDB Atlas is also in `ap-south-1` (as of the 2026-08-17 migration), so the app-to-DB hop is same-region too — this was a deliberate outcome, not luck; don't move either piece independently without re-checking the other.
+5. **Database:** MongoDB Atlas scales compute independently of this app's hosting — not a bottleneck currently, scale it separately via the Atlas dashboard if it becomes one.
 
-**Cost shape at current size:** EC2 t3.small (~$15-16/month on-demand in `ap-south-1`; was t3.micro at ~$7-8/month until the 2026-08-16 resize) + ECR storage (negligible) + Elastic IP (free while attached to a running instance) + Neon/Plivo/OpenAI/etc. usage-based costs (see cost breakdown discussed earlier in the project history — those figures are unaffected by this hosting migration). Notably **no NAT Gateway, no managed Redis fee** — the two costs that would have made the App Runner + ElastiCache path meaningfully more expensive for no real benefit at this traffic level.
+**Cost shape at current size:** EC2 t3.small (~$15-16/month on-demand in `ap-south-1`; was t3.micro at ~$7-8/month until the 2026-08-16 resize) + ECR storage (negligible) + Elastic IP (free while attached to a running instance) + MongoDB Atlas/Plivo/OpenAI/etc. usage-based costs. Notably **no NAT Gateway, no managed Redis fee** — the two costs that would have made the App Runner + ElastiCache path meaningfully more expensive for no real benefit at this traffic level.
 
 ---
 
@@ -190,7 +198,8 @@ aws ec2 start-instances --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
 - **TLS/renewal automation lives on the host, not in the image** — if the EC2 instance is ever replaced (not just the Docker container redeployed), the certbot install + systemd timer + renewal hook need to be redone manually. Worth folding into instance user-data at some point so a fresh instance self-configures.
 - **Single point of failure** — one EC2 instance, no redundancy. Instance failure = downtime until manually replaced. Acceptable at current scale; revisit under "Horizontal" scaling above once it isn't.
 - **`admin@neosharks.in` IAM user has `AdministratorAccess`** — granted broad during initial AWS provisioning to avoid repeated permission round-trips. Rotate its access key or scope it down now that infra is stable; it shouldn't be used for routine operations going forward (use `aicaller-ci-deploy`, which is properly scoped to ECR push only, for anything automated).
-- **Redis has no persistence/backup** — it's pure job-queue/ephemeral state (BullMQ queues, live-call conversation state), not business data, so losing it on container replacement just means in-flight jobs need re-triggering, not data loss. Business data all lives in Neon Postgres, which has its own backup story.
+- **Redis has no persistence/backup** — it's pure job-queue/ephemeral state (BullMQ queues, live-call conversation state), not business data, so losing it on container replacement just means in-flight jobs need re-triggering, not data loss. Business data all lives in MongoDB Atlas, which has its own backup story (check current backup/point-in-time-recovery settings in the Atlas dashboard — not yet audited as of the 2026-08-17 migration).
+- **CI test suite doesn't block deploy** — `test-backend`/`test-frontend` jobs run on every push and report pass/fail in the Actions UI, but a failing test currently does not stop `deploy-ec2`/`deploy-vercel` (no `needs:` gate). Deliberate for now while the suite is new; revisit once it's had more runway. See "🧪 Testing" below.
 
 ---
 
@@ -203,12 +212,15 @@ aws ec2 start-instances --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
 ├── Dockerfile                 ← Root monolith image, deployed to EC2 via ECR
 ├── nginx-monolith.conf        ← nginx config baked into the deployed image
 ├── ecosystem.config.js        ← PM2 config running all 5 processes
-├── docker-compose.yml         ← Local dev only
-├── .github/workflows/deploy.yml
+├── docker-compose.yml         ← Local dev only (runs a MongoDB replica set + Redis)
+├── .github/workflows/deploy.yml   ← test-backend/test-frontend + deploy-ec2/deploy-vercel jobs
 ├── api-service/
+│   ├── src/app.js             ← Express app (exported, for supertest) — src/server.js just imports + listens
+│   └── test/                  ← unit + integration tests (Vitest, mongodb-memory-server)
 ├── telephony-gateway/
 ├── call-worker/
 ├── call-evaluation-service/
+│   └── src/app.js             ← same app.js/server.js split as api-service
 └── frontend/
 ```
 
@@ -218,4 +230,22 @@ aws ec2 start-instances --instance-ids i-029d54b7dcbd7a059 --region ap-south-1
 
 Real values live in `.env` locally and in `~/aicaller.env` on the EC2 instance — never commit real secrets. See `.env.example` for the full list of variable names and what each is for.
 
-Key ones worth knowing at a glance: `DATABASE_URL` (Neon), `REDIS_URL` (`redis://redis:6379` in prod — the sibling container, not external), `BASE_URL=https://api.aicaller.store` (must exactly match the domain in "Domain / TLS" above), `TELEPHONY_PROVIDER=plivo`, `GOOGLE_CALLBACK_URL` (must exactly match what's registered in Google Cloud Console), `FRONTEND_URL=https://aicaller.store`.
+Key ones worth knowing at a glance: `DATABASE_URL` (MongoDB Atlas connection string, e.g. `mongodb+srv://user:pass@aicaller.thg4lch.mongodb.net/aicalling?retryWrites=true&w=majority`), `REDIS_URL` (`redis://redis:6379` in prod — the sibling container, not external), `BASE_URL=https://api.aicaller.store` (must exactly match the domain in "Domain / TLS" above), `TELEPHONY_PROVIDER=plivo`, `GOOGLE_CALLBACK_URL` (must exactly match what's registered in Google Cloud Console), `FRONTEND_URL=https://aicaller.store`.
+
+---
+
+## 🧪 Testing
+
+Vitest across all 5 packages (`api-service`, `telephony-gateway`, `call-worker`, `call-evaluation-service`, `frontend`) — set up 2026-08-17, ~196 tests as of this writing. Run `npm test` in any package directory (or `npm run test:watch` / `npm run test:coverage`).
+
+**Coverage is real but intentionally narrow, not comprehensive** — focused on the highest-value/highest-risk surfaces first:
+- `call-evaluation-service`'s scoring/evaluation pipeline (`normalizer.js`, `scorer.js`, `affirmatives.js`, `complianceChecker.js`) — pure functions, no mocking, near-100% covered
+- `api-service`'s auth (middleware + full route integration against a real in-memory MongoDB replica set), billing (Razorpay order/verify/webhook flows, idempotency), and campaign (visibility filtering, access control, wizard creation, status state machine) controllers
+- `call-worker`'s `telephonyFactory` provider routing
+- Frontend: `ProtectedRoute`, `RoleGate`, `AuthContext`, `Login`, `CampaignWizard`
+
+**Not yet covered**, by explicit scope choice: `telephony-gateway` (almost entirely I/O — WebSocket/STT/TTS/LLM turn-taking interleaved with no extracted pure-logic module; needs a refactor before real unit tests are worth writing there — has a placeholder test only), `fairDispatcher.js` and the telephony adapters in `call-worker`, notification/support/workspace controllers, and most frontend pages (Dashboard, report pages, AdminDashboard, Billing UI, Support, MyTeam, WorkspaceSettings).
+
+**Integration test infra worth knowing about** (`api-service/test/globalSetup.js`): spins up a real `MongoMemoryReplSet` (Prisma's Mongo connector needs a replica set, even in tests) once per test run, then runs `prisma db push` against it. **Must use async `child_process.execFile`, never `execFileSync`** — the sync version deadlocks Vitest's `globalSetup` completely (no error, just hangs forever; confirmed the underlying command itself was fast when run outside Vitest). If you're adding a new service's test setup and need to shell out to a CLI tool from `globalSetup`, this is not optional.
+
+CI (`.github/workflows/deploy.yml`) runs the full suite on every push to `main` via `test-backend` (matrixed across the 4 backend services) and `test-frontend` jobs — **informational only, does not currently block deploy** (see Known Issues).
