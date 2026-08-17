@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Generated at build time by scripts/sync-docs.mjs
+public/docs

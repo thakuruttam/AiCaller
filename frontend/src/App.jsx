@@ -23,6 +23,7 @@ import Support from './pages/Support';
 import MyTeam from './pages/MyTeam';
 import Billing from './pages/Billing';
 import Usage from './pages/Usage';
+import Docs from './pages/Docs';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import NotificationDropdown from './components/NotificationDropdown';
@@ -300,6 +301,12 @@ function Sidebar() {
               <span>Admin Panel</span>
             </NavLink>
           </RoleGate>
+          <RoleGate allow={['SUPER_ADMIN', 'ADMIN']}>
+            <NavLink to="/docs" className={isAt('/docs') ? activeClass : inactiveClass}>
+              <span className="material-symbols-outlined text-[20px]">menu_book</span>
+              <span>Docs</span>
+            </NavLink>
+          </RoleGate>
           <NavLink to="/team" className={isAt('/team') ? activeClass : inactiveClass}>
             <span className="material-symbols-outlined text-[20px]">group</span>
             <span>My Team</span>
@@ -409,6 +416,16 @@ function AppLayout() {
             <Route path="/campaigns/:id/report" element={<CampaignReport />} />
             <Route path="/campaign/:campaignId/calls/:id" element={<CallDetails />} />
             <Route path="/campaign/:campaignId/calls/:id/report" element={<CallReport />} />
+            <Route path="/docs" element={
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to view documentation.</div>}>
+                <Docs />
+              </RoleGate>
+            } />
+            <Route path="/docs/:slug" element={
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to view documentation.</div>}>
+                <Docs />
+              </RoleGate>
+            } />
             <Route path="/settings/workspace" element={<WorkspaceSettings />} />
             <Route path="/team" element={<MyTeam />} />
             <Route path="/billing" element={<Billing />} />
