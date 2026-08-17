@@ -56,6 +56,39 @@ describe('VoiceAgent.sayVerbatim', () => {
   });
 });
 
+describe('VoiceAgent.lastReplyWasBypass', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is false after a real LLM reply (non-English forces every turn onto the LLM)', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    const fetchSpy = mockFetchOnce('llm reply');
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const agent = makeAgent({ language: 'Hindi' }); // forces every turn onto the LLM path
+    await agent.processInput('Yes speaking');
+    expect(agent.lastReplyWasBypass).toBe(false);
+
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it('is true for the deterministic English bypass path', () => {
+    const agent = makeAgent();
+    agent.sayVerbatim('Hi there.');
+    expect(agent.lastReplyWasBypass).toBe(true);
+  });
+
+  it('is true for wrong-person and negative-sentiment hangups', async () => {
+    const wrongPerson = makeAgent();
+    await wrongPerson.processInput('wrong number'); // denial during identity confirmation
+    expect(wrongPerson.lastReplyWasBypass).toBe(true);
+
+    const refused = makeAgent();
+    await refused.processInput('Yes speaking'); // confirm identity, asks Q1
+    await refused.processInput('not interested, stop calling'); // negative sentiment mid-call
+    expect(refused.lastReplyWasBypass).toBe(true);
+  });
+});
+
 describe('VoiceAgent._buildBypass', () => {
   it('bypasses a plain non-mandatory question and strips [placeholder] brackets', () => {
     const agent = makeAgent();

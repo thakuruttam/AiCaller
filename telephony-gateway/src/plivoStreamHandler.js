@@ -110,7 +110,7 @@ export function setupPlivoStream() {
         if (agent.shouldHangUp) isCallEnding = true;
         if (reply && reply.length > 0) {
           isSpeaking = true;
-          const ok = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket);
+          const ok = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
           if (!ok) isSpeaking = false;
         }
       }, MAX_ANSWER_SECONDS * 1000);
@@ -167,7 +167,7 @@ export function setupPlivoStream() {
 
         if (reply && reply.length > 0) {
           isSpeaking = true;
-          const ok = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket);
+          const ok = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
           if (!ok) isSpeaking = false;
         }
       }, NO_ANSWER_SECONDS * 1000);
@@ -183,7 +183,7 @@ export function setupPlivoStream() {
 
       if (reply && reply.length > 0) {
         isSpeaking = true;
-        const ok = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket);
+        const ok = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
         if (!ok) isSpeaking = false;
       } else if (isCallEnding) {
         try {
@@ -374,7 +374,7 @@ export function setupPlivoStream() {
 
       if (reply && reply.length > 0) {
         isSpeaking = true;
-        const success = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket);
+        const success = await speakBackToPlivo(ws, streamSid, reply, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
         if (!success) {
           isSpeaking = false;
           if (isCallEnding && callSid) {
@@ -571,7 +571,7 @@ export function setupPlivoStream() {
                     : await agent.processInput(`(System: You've reached the maximum call time. Say this exact closing to the user: "${signOff}" — then the call will end.)`);
                   if (closing) {
                     isSpeaking = true;
-                    await speakBackToPlivo(ws, streamSid, closing, campaignLanguage, ttsSocket);
+                    await speakBackToPlivo(ws, streamSid, closing, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
                   }
                 } catch (_) {}
                 if (callSid) {
@@ -599,7 +599,7 @@ export function setupPlivoStream() {
             console.log(`[Agent] Greeting: ${greeting}`);
             if (greeting && greeting.length > 0) {
               isSpeaking = true;
-              const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket);
+              const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
               if (!ok) isSpeaking = false;
               else if (agent.expectsUserReply) startNoAnswerTimer();
             } else {

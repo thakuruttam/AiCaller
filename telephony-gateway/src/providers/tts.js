@@ -1,5 +1,6 @@
 import textToSpeech from '@google-cloud/text-to-speech';
 import { WebSocket } from 'ws';
+import { createHash } from 'crypto';
 
 let googleTtsClient = null;
 try {
@@ -167,6 +168,50 @@ export class DeepgramTTSSocket {
   }
 }
 
+// ─── Audio cache ──────────────────────────────────────────────────────────────
+// Scripted lines (questions, info, sign-off, greeting, retries) are now spoken
+// verbatim without an LLM call (see VoiceAgent.sayVerbatim / lastReplyWasBypass)
+// — which means the exact same text gets synthesized over and over across every
+// call in a campaign. Cache the resulting audio bytes in Redis, keyed by the
+// content itself, so repeat text skips TTS synthesis entirely on later calls.
+// Content-addressed by the text's hash, so a script edit naturally produces a
+// new key — no invalidation logic needed, stale entries just age out via TTL.
+
+const TTS_CACHE_TTL_SECONDS = parseInt(process.env.TTS_CACHE_TTL_SECONDS || '2592000', 10); // 30 days
+
+function ttsCacheKey(campaignId, language, text) {
+  const hash = createHash('sha256').update(text).digest('hex').slice(0, 24);
+  return `ttscache:${campaignId || 'global'}:${language}:${hash}`;
+}
+
+async function getCachedAudio(redis, key) {
+  try {
+    const raw = await redis.get(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn('[TTS Cache] Read failed:', err.message);
+    return null;
+  }
+}
+
+function setCachedAudio(redis, key, chunks) {
+  // Fire-and-forget — this call's audio has already played; caching only
+  // benefits future calls, so it must never add latency to this turn.
+  redis.setex(key, TTS_CACHE_TTL_SECONDS, JSON.stringify(chunks))
+    .then(() => console.log(`[TTS Cache] Cached ${chunks.length} chunk(s), key ${key}`))
+    .catch(err => console.warn('[TTS Cache] Write failed:', err.message));
+}
+
+function playCachedAudio(ws, streamSid, chunks) {
+  for (const chunk of chunks) {
+    ws.send(JSON.stringify({
+      event: 'playAudio',
+      media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: chunk }
+    }));
+  }
+  sendCheckpoint(ws, streamSid);
+}
+
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 /**
@@ -179,19 +224,43 @@ export class DeepgramTTSSocket {
  * @param {string}             text        Text to speak
  * @param {string}             language    'English' | 'Hindi' | 'Hinglish'
  * @param {DeepgramTTSSocket}  [ttsSocket] Per-call persistent socket (English only)
+ * @param {Object}             [cacheOpts] { redis, campaignId, cacheable } — caching is
+ *                                         English-only and skipped unless cacheable is
+ *                                         true (the caller knows the text is scripted,
+ *                                         not LLM-generated — see agent.lastReplyWasBypass).
  */
-export async function speakBackToPlivo(ws, streamSid, text, language = 'English', ttsSocket = null) {
+export async function speakBackToPlivo(ws, streamSid, text, language = 'English', ttsSocket = null, cacheOpts = null) {
+  const cachingEnabled = language === 'English' && cacheOpts?.cacheable && cacheOpts?.redis;
+
+  if (cachingEnabled) {
+    const key = ttsCacheKey(cacheOpts.campaignId, language, text);
+    const cached = await getCachedAudio(cacheOpts.redis, key);
+    if (cached) {
+      console.log(`[TTS Cache] HIT for "${text.substring(0, 60)}..."`);
+      playCachedAudio(ws, streamSid, cached);
+      return true;
+    }
+  }
+
   const provider = language === 'English' ? 'deepgram' : 'google';
   const mode = (provider === 'deepgram' && ttsSocket) ? 'ws' : 'rest';
   console.log(`[TTS] Generating audio via ${provider}/${mode} for: "${text.substring(0, 60)}..."`);
 
+  const collector = cachingEnabled ? [] : null;
+  let ok;
   if (provider === 'deepgram') {
-    if (ttsSocket) {
-      return speakDeepgramWS(ws, streamSid, text, ttsSocket);
-    }
-    return speakDeepgramREST(ws, streamSid, text);
+    ok = ttsSocket
+      ? await speakDeepgramWS(ws, streamSid, text, ttsSocket, collector)
+      : await speakDeepgramREST(ws, streamSid, text, collector);
+  } else {
+    ok = await speakGoogle(ws, streamSid, text, language);
   }
-  return speakGoogle(ws, streamSid, text, language);
+
+  if (ok && collector && collector.length > 0) {
+    setCachedAudio(cacheOpts.redis, ttsCacheKey(cacheOpts.campaignId, language, text), collector);
+  }
+
+  return ok;
 }
 
 function sendCheckpoint(ws, streamSid) {
@@ -202,13 +271,18 @@ function sendCheckpoint(ws, streamSid) {
   }));
 }
 
-async function speakDeepgramWS(ws, streamSid, text, ttsSocket) {
+function sendAudioChunk(ws, base64Payload, collector) {
+  ws.send(JSON.stringify({
+    event: 'playAudio',
+    media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: base64Payload }
+  }));
+  if (collector) collector.push(base64Payload);
+}
+
+async function speakDeepgramWS(ws, streamSid, text, ttsSocket, collector = null) {
   try {
     await ttsSocket.speak(text, (chunk) => {
-      ws.send(JSON.stringify({
-        event: 'playAudio',
-        media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: chunk.toString('base64') }
-      }));
+      sendAudioChunk(ws, chunk.toString('base64'), collector);
     });
 
     // Flushed received (or audio was sent and timeout fired) — mark end of audio
@@ -220,11 +294,11 @@ async function speakDeepgramWS(ws, streamSid, text, ttsSocket) {
     // Only reaches here when zero audio was delivered (connection failure before open).
     // Plivo's buffer is empty so REST is safe to use.
     console.error('[TTS/DG-WS] Failed with no audio delivered — using REST fallback:', err.message);
-    return speakDeepgramREST(ws, streamSid, text);
+    return speakDeepgramREST(ws, streamSid, text, collector);
   }
 }
 
-async function speakDeepgramREST(ws, streamSid, text) {
+async function speakDeepgramREST(ws, streamSid, text, collector = null) {
   try {
     const response = await fetch(
       `https://api.deepgram.com/v1/speak?model=aura-2-asteria-en&encoding=mulaw&container=none&sample_rate=8000`,
@@ -252,10 +326,7 @@ async function speakDeepgramREST(ws, streamSid, text) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      ws.send(JSON.stringify({
-        event: 'playAudio',
-        media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: Buffer.from(value).toString('base64') }
-      }));
+      sendAudioChunk(ws, Buffer.from(value).toString('base64'), collector);
     }
 
     sendCheckpoint(ws, streamSid);

@@ -17,6 +17,7 @@ export class VoiceAgent {
     this.identityConfirmed = null;             // null=unknown, true=confirmed, false=denied (wrong person)
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
     this.mandatoryRetries = 0;                 // counter for how many times we've re-asked an invalid mandatory answer
+    this.lastReplyWasBypass = false;           // true when the most recent reply was spoken verbatim (sayVerbatim), not LLM-generated — tells the caller it's safe to TTS-cache
     this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
     console.log("--------------------------------------------------");
@@ -262,6 +263,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
   sayVerbatim(text, { expectsUserReply = false, hangUp = false } = {}) {
     this.chatHistory.push({ role: 'assistant', content: text });
     this.expectsUserReply = expectsUserReply;
+    this.lastReplyWasBypass = true;
     if (hangUp) this.shouldHangUp = true;
     console.log(`[VoiceAgent] Bypassed LLM (deterministic turn): "${text}"`);
     return text;
@@ -450,14 +452,10 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       if (isDenial) {
         // Hang up immediately — no LLM call, guaranteed clean output
         this.identityConfirmed = false;
-        this.shouldHangUp = true;
         this.done = true;
-        this.expectsUserReply = false;
-        const apology = "I apologize for the confusion. Have a great day.";
         this.chatHistory.push({ role: 'user', content: userInput });
-        this.chatHistory.push({ role: 'assistant', content: apology });
         console.log('[VoiceAgent] Wrong person detected — hanging up.');
-        return apology;
+        return this.sayVerbatim('I apologize for the confusion. Have a great day.', { expectsUserReply: false, hangUp: true });
       }
 
       // If they ask a clarification question (e.g., "Who is this?", "What is this about?"), handle it without advancing the state
@@ -541,14 +539,10 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         const isNegative = NEGATIVE_WORDS.some(w => userClean.includes(w));
         
         if (isNegative) {
-          this.shouldHangUp = true;
           this.done = true;
-          this.expectsUserReply = false;
-          const refusalApology = "I apologize for the interruption. Have a great day.";
           this.chatHistory.push({ role: 'user', content: userInput });
-          this.chatHistory.push({ role: 'assistant', content: refusalApology });
           console.log('[VoiceAgent] Negative sentiment or refusal detected — hanging up.');
-          return refusalApology;
+          return this.sayVerbatim('I apologize for the interruption. Have a great day.', { expectsUserReply: false, hangUp: true });
         }
 
         // 2. Confusion Detection
@@ -724,6 +718,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
   /** Calls Groq (Llama 3.1 8B) with the current chat history and returns the sanitized reply. */
   async _callLLM() {
+    this.lastReplyWasBypass = false;
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
