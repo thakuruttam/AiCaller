@@ -141,14 +141,17 @@ export function setupPlivoStream() {
           const exactText = lastAskedItem?.text
             ? lastAskedItem.text.replace(/\[([^\]]+)\]/g, '$1')
             : null;
+          const isQuestion = exactText && (lastAskedItem?.itemType || 'question') === 'question';
 
-          let directive;
-          if (exactText && (lastAskedItem?.itemType || 'question') === 'question') {
-            directive = `(System: The user has not responded. Say "Are you still there?" and then immediately repeat this exact question word for word: "${exactText}". Do NOT change a single word.)`;
+          if (campaignLanguage === 'English') {
+            const text = isQuestion ? `Are you still there? ${exactText}` : 'Are you still there?';
+            reply = agent.sayVerbatim(text, { expectsUserReply: true });
           } else {
-            directive = `(System: The user has not responded. Ask "Are you still there?" and wait.)`;
+            const directive = isQuestion
+              ? `(System: The user has not responded. Say "Are you still there?" and then immediately repeat this exact question word for word: "${exactText}". Do NOT change a single word.)`
+              : `(System: The user has not responded. Ask "Are you still there?" and wait.)`;
+            reply = await agent.processInput(directive);
           }
-          reply = await agent.processInput(directive);
         } else {
           noAnswerRetries = 0;
           reply = await agent.continueWithoutUser();
@@ -563,8 +566,9 @@ export function setupPlivoStream() {
                 isCallEnding = true;
                 try {
                   const signOff = finalGoals.callSignOff || "I'm sorry, I need to end this call now. Thank you for your time. Goodbye!";
-                  const closingText = `(System: You've reached the maximum call time. Say this exact closing to the user: "${signOff}" — then the call will end.)`;
-                  const closing = await agent.processInput(closingText);
+                  const closing = campaignLanguage === 'English'
+                    ? agent.sayVerbatim(signOff, { expectsUserReply: false })
+                    : await agent.processInput(`(System: You've reached the maximum call time. Say this exact closing to the user: "${signOff}" — then the call will end.)`);
                   if (closing) {
                     isSpeaking = true;
                     await speakBackToPlivo(ws, streamSid, closing, campaignLanguage, ttsSocket);
@@ -589,10 +593,9 @@ export function setupPlivoStream() {
               }
             }
 
-            const langDirective = campaignLanguage !== 'English'
-              ? ` Speak in ${campaignLanguage}. Deliver this greeting translated naturally into ${campaignLanguage}, keeping the meaning identical and adding no extra content.`
-              : '';
-            const greeting = await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.)`);
+            const greeting = campaignLanguage === 'English'
+              ? agent.sayVerbatim(processedIntro, { expectsUserReply: true })
+              : await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user word for word: "${processedIntro}". Speak in ${campaignLanguage}. Deliver this greeting translated naturally into ${campaignLanguage}, keeping the meaning identical and adding no extra content. Do NOT add any extra sentences or questions beyond what is written.)`);
             console.log(`[Agent] Greeting: ${greeting}`);
             if (greeting && greeting.length > 0) {
               isSpeaking = true;

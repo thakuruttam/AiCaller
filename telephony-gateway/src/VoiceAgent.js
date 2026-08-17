@@ -235,6 +235,72 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
   }
 
   /**
+   * Speak fully-known text directly, bypassing the LLM round trip entirely.
+   * Used for turns whose content is already fully assembled (scripted
+   * questions/info, sign-off, greeting) — nothing about producing this text
+   * requires language understanding, so there's no reason to pay for an
+   * OpenAI call just to have it parroted back verbatim.
+   */
+  sayVerbatim(text, { expectsUserReply = false, hangUp = false } = {}) {
+    this.chatHistory.push({ role: 'assistant', content: text });
+    this.expectsUserReply = expectsUserReply;
+    if (hangUp) this.shouldHangUp = true;
+    console.log(`[VoiceAgent] Bypassed LLM (deterministic turn): "${text}"`);
+    return text;
+  }
+
+  /**
+   * Mirrors _buildNextDirective()'s branching but returns plain spoken text
+   * instead of an LLM directive, for the common cases where the content is
+   * already fully known (single question, single info, info→question pair,
+   * terminal sign-off). Returns null WITHOUT mutating any state when the
+   * turn needs real reasoning — mandatory-answer judgment, 2+ chained info
+   * items, or non-English (live translation) — so the caller falls back to
+   * _buildNextDirective() + the LLM untouched.
+   */
+  _buildBypass() {
+    if (this.language !== 'English') return null;
+
+    const idx = this.currentIndex;
+    const item = this.items[idx];
+
+    if (!item || idx >= this.items.length) {
+      if (this.done) return null; // already closed — let the existing no-op path handle it
+      const signOff = this.config.callSignOff || 'Thank you for your time. Goodbye.';
+      this.done = true;
+      return { text: signOff, expectsUserReply: false, hangUp: true };
+    }
+
+    const itemType = item.itemType || 'question';
+
+    if (itemType === 'question') {
+      if (item.is_mandatory) return null; // needs the LLM's judgment on whether to repeat
+      const text = this._stripPlaceholders(item.text);
+      this.currentIndex = idx + 1;
+      return { text, expectsUserReply: true, hangUp: false };
+    }
+
+    // itemType === 'information'
+    const infoText = item.text;
+    const next = this.items[idx + 1];
+
+    if (!next) {
+      const signOff = this.config.callSignOff || 'Thank you for your time. Goodbye.';
+      this.currentIndex = idx + 1;
+      this.done = true;
+      return { text: `${infoText} ${signOff}`, expectsUserReply: false, hangUp: true };
+    }
+
+    const nextType = next.itemType || 'question';
+    if (nextType === 'information') return null; // 2+ chained info blocks — LLM path
+    if (next.is_mandatory) return null;           // chained question is mandatory — LLM path
+
+    const questionText = this._stripPlaceholders(next.text);
+    this.currentIndex = idx + 2;
+    return { text: `${infoText} ${questionText}`, expectsUserReply: true, hangUp: false };
+  }
+
+  /**
    * Build the next LLM directive from the current state-machine pointer.
    * @returns {{ directive: string, expectsUserReply: boolean }}
    */
@@ -322,6 +388,11 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
   async continueWithoutUser() {
     if (this.done) return '';
 
+    const bypass = this._buildBypass();
+    if (bypass) {
+      return this.sayVerbatim(bypass.text, { expectsUserReply: bypass.expectsUserReply, hangUp: bypass.hangUp });
+    }
+
     const { directive, expectsUserReply } = this._buildNextDirective();
     this.expectsUserReply = expectsUserReply;
     if (!directive) return '';
@@ -399,6 +470,12 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
             const fullInput = `${userInput}\n(System: The user confirmed their identity. Say "Thanks." Then follow this instruction exactly: ${directive})`;
             this.chatHistory.push({ role: 'user', content: fullInput });
             return await this._callLLM();
+          } else if (this.language === 'English' && !firstItem.is_mandatory) {
+            // Regular question, deterministic content — bypass the LLM
+            this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
+            this.chatHistory.push({ role: 'user', content: userInput });
+            const text = `Thanks. ${this._stripPlaceholders(firstItem.text)}`;
+            return this.sayVerbatim(text, { expectsUserReply: true });
           } else {
             // Regular question — original behaviour
             const mandatory = firstItem.is_mandatory ? ' This question is MANDATORY — if the user does not give a clear answer, repeat it verbatim.' : '';
@@ -469,6 +546,11 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
           const maxRetries = parseInt(process.env.MAX_CONFUSION_RETRIES || '2', 10);
           if (this.confusionRetries < maxRetries) {
             this.confusionRetries += 1;
+            if (this.language === 'English') {
+              this.chatHistory.push({ role: 'user', content: userInput });
+              const repeatText = `Sorry about that. ${this._stripPlaceholders(prevItem.text)}`;
+              return this.sayVerbatim(repeatText, { expectsUserReply: true });
+            }
             const repeatDirective = `(System: The user did not understand or could not hear you. Apologize briefly and repeat this exact previous text verbatim: "${prevItem.text}")`;
             this.expectsUserReply = true;
             const fullInput = `${userInput}\n${repeatDirective}`;
@@ -542,7 +624,16 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       }
     }
 
-    // ── 2. Build the directive for the LLM ────────────────────────
+    // ── 2. Try to bypass the LLM entirely for deterministic turns ──
+    if (!isSystemMsg) {
+      const bypass = this._buildBypass();
+      if (bypass) {
+        this.chatHistory.push({ role: 'user', content: userInput });
+        return this.sayVerbatim(bypass.text, { expectsUserReply: bypass.expectsUserReply, hangUp: bypass.hangUp });
+      }
+    }
+
+    // ── 3. Build the directive for the LLM ────────────────────────
     // System messages (e.g. the initial greeting) pass straight through —
     // they must NOT touch the state machine pointer.
     let directive = '';
@@ -561,7 +652,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       this.expectsUserReply = next.expectsUserReply;
     }
 
-    // ── 3. Call LLM ───────────────────────────────────────────────
+    // ── 4. Call LLM ───────────────────────────────────────────────
     // Inject directive into the user message so the LLM has full context.
     // System messages already contain their own directive — don't double-inject.
     const fullInput = (isSystemMsg || !directive) ? userInput : `${userInput}\n${directive}`;

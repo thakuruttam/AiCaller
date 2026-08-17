@@ -1,0 +1,236 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { VoiceAgent } from '../src/VoiceAgent.js';
+
+// These tests cover the LLM-bypass optimization: scripted turns whose text is
+// already fully known (plain questions, info statements, sign-off, greeting,
+// confusion-repeat) should be spoken directly without an OpenAI round trip.
+// Turns that need real reasoning (mandatory-answer judgment, multi-info
+// chains, non-English translation, identity clarification) must still hit
+// the LLM — verified here via a fetch spy rather than assuming behavior.
+
+function makeAgent(overrides = {}) {
+  return new VoiceAgent({
+    name: 'Test Campaign',
+    contactName: 'Alex',
+    goal: 'Collect info',
+    callIntro: 'Hi, this is a test call.',
+    callSignOff: 'Thanks, goodbye.',
+    dataToCollect: [
+      { id: 'q1', itemType: 'question', text: 'What is your [role]?', is_mandatory: false },
+      { id: 'q2', itemType: 'question', text: 'What is your budget?', is_mandatory: false },
+    ],
+    language: 'English',
+    ...overrides,
+  });
+}
+
+function mockFetchOnce(replyText = 'ok') {
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: replyText } }] }),
+    text: async () => '',
+  });
+}
+
+describe('VoiceAgent.sayVerbatim', () => {
+  it('pushes an assistant turn and sets flags without touching the LLM', () => {
+    const agent = makeAgent();
+    const fetchSpy = mockFetchOnce();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const result = agent.sayVerbatim('Hello there.', { expectsUserReply: true });
+
+    expect(result).toBe('Hello there.');
+    expect(agent.expectsUserReply).toBe(true);
+    expect(agent.shouldHangUp).toBe(false);
+    expect(agent.getHistory().at(-1)).toEqual({ role: 'assistant', content: 'Hello there.' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('sets shouldHangUp when hangUp: true', () => {
+    const agent = makeAgent();
+    agent.sayVerbatim('Goodbye.', { hangUp: true });
+    expect(agent.shouldHangUp).toBe(true);
+  });
+});
+
+describe('VoiceAgent._buildBypass', () => {
+  it('bypasses a plain non-mandatory question and strips [placeholder] brackets', () => {
+    const agent = makeAgent();
+    const result = agent._buildBypass();
+    expect(result).toEqual({ text: 'What is your role?', expectsUserReply: true, hangUp: false });
+    expect(agent.currentIndex).toBe(1);
+  });
+
+  it('returns null (no state mutation) for a mandatory question', () => {
+    const agent = makeAgent({
+      dataToCollect: [{ id: 'q1', itemType: 'question', text: 'Mandatory Q?', is_mandatory: true }],
+    });
+    const result = agent._buildBypass();
+    expect(result).toBeNull();
+    expect(agent.currentIndex).toBe(0);
+  });
+
+  it('returns null for any non-English campaign', () => {
+    const agent = makeAgent({ language: 'Hindi' });
+    const result = agent._buildBypass();
+    expect(result).toBeNull();
+    expect(agent.currentIndex).toBe(0);
+  });
+
+  it('chains a single info item into the following non-mandatory question', () => {
+    const agent = makeAgent({
+      dataToCollect: [
+        { id: 'i1', itemType: 'information', text: 'We are open till 9pm.' },
+        { id: 'q1', itemType: 'question', text: 'What time works for you?', is_mandatory: false },
+      ],
+    });
+    const result = agent._buildBypass();
+    expect(result).toEqual({
+      text: 'We are open till 9pm. What time works for you?',
+      expectsUserReply: true,
+      hangUp: false,
+    });
+    expect(agent.currentIndex).toBe(2);
+  });
+
+  it('returns null for 2+ chained info items (leaves it to the LLM path)', () => {
+    const agent = makeAgent({
+      dataToCollect: [
+        { id: 'i1', itemType: 'information', text: 'Info one.' },
+        { id: 'i2', itemType: 'information', text: 'Info two.' },
+      ],
+    });
+    const result = agent._buildBypass();
+    expect(result).toBeNull();
+    expect(agent.currentIndex).toBe(0);
+  });
+
+  it('returns null when the chained question after info is mandatory', () => {
+    const agent = makeAgent({
+      dataToCollect: [
+        { id: 'i1', itemType: 'information', text: 'Info.' },
+        { id: 'q1', itemType: 'question', text: 'Mandatory Q?', is_mandatory: true },
+      ],
+    });
+    const result = agent._buildBypass();
+    expect(result).toBeNull();
+    expect(agent.currentIndex).toBe(0);
+  });
+
+  it('closes the call with sign-off + hangUp when a trailing info item is the last item', () => {
+    const agent = makeAgent({
+      dataToCollect: [{ id: 'i1', itemType: 'information', text: 'Final notice.' }],
+      callSignOff: 'Bye now.',
+    });
+    const result = agent._buildBypass();
+    expect(result).toEqual({ text: 'Final notice. Bye now.', expectsUserReply: false, hangUp: true });
+    expect(agent.done).toBe(true);
+  });
+
+  it('closes the call once items are exhausted', () => {
+    const agent = makeAgent({ dataToCollect: [], callSignOff: 'All done, bye.' });
+    const result = agent._buildBypass();
+    expect(result).toEqual({ text: 'All done, bye.', expectsUserReply: false, hangUp: true });
+    expect(agent.done).toBe(true);
+  });
+
+  it('returns null once already done (defers to the existing no-op path)', () => {
+    const agent = makeAgent({ dataToCollect: [] });
+    agent.done = true;
+    expect(agent._buildBypass()).toBeNull();
+  });
+});
+
+describe('VoiceAgent.continueWithoutUser', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('bypasses the LLM for a deterministic auto-advance', async () => {
+    const agent = makeAgent();
+    const fetchSpy = mockFetchOnce();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const reply = await agent.continueWithoutUser();
+
+    expect(reply).toBe('What is your role?');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('VoiceAgent.processInput — scripted turns bypass the LLM', () => {
+  let fetchSpy;
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    fetchSpy = mockFetchOnce();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it('confirms identity and asks Q1 without calling the LLM (non-mandatory, English)', async () => {
+    const agent = makeAgent();
+    const reply = await agent.processInput('Yes speaking');
+
+    expect(reply).toBe('Thanks. What is your role?');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(agent.expectsUserReply).toBe(true);
+  });
+
+  it('advances to Q2 without calling the LLM once Q1 is answered', async () => {
+    const agent = makeAgent();
+    await agent.processInput('Yes speaking'); // asks Q1
+    const reply = await agent.processInput('Engineer');
+
+    expect(reply).toBe('What is your budget?');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('closes the call with sign-off once all questions are answered', async () => {
+    const agent = makeAgent();
+    await agent.processInput('Yes speaking');       // asks Q1
+    await agent.processInput('Engineer');            // asks Q2
+    const reply = await agent.processInput('50k');   // exhausts items
+
+    expect(reply).toBe('Thanks, goodbye.');
+    expect(agent.shouldHangUp).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still calls the LLM for a mandatory question', async () => {
+    const agent = makeAgent({
+      dataToCollect: [{ id: 'q1', itemType: 'question', text: 'Mandatory Q?', is_mandatory: true }],
+    });
+    await agent.processInput('Yes speaking');
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  it('still calls the LLM for a non-English campaign', async () => {
+    const agent = makeAgent({ language: 'Hindi' });
+    await agent.processInput('Yes speaking');
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  it('bypasses the LLM on confusion-retry (English) with a canned apology', async () => {
+    const agent = makeAgent();
+    await agent.processInput('Yes speaking'); // asks Q1: "What is your role?"
+    fetchSpy.mockClear();
+
+    const reply = await agent.processInput('what?');
+
+    expect(reply).toBe('Sorry about that. What is your role?');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still hangs up immediately on wrong-person detection without calling the LLM', async () => {
+    const agent = makeAgent();
+    const reply = await agent.processInput('wrong number');
+
+    expect(reply).toBe('I apologize for the confusion. Have a great day.');
+    expect(agent.shouldHangUp).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
