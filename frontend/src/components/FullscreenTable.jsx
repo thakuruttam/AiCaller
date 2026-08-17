@@ -32,7 +32,7 @@ export default function FullscreenTable({ children, className = '' }) {
   return (
     <div
       ref={ref}
-      className={`${isFs ? 'bg-white dark:bg-[#1e1e2e] overflow-auto flex flex-col' : ''} ${className}`}
+      className={`${isFs ? 'bg-white dark:bg-slate-800 overflow-auto flex flex-col' : ''} ${className}`}
     >
       {typeof children === 'function' ? children({ toggle, isFs }) : children}
     </div>

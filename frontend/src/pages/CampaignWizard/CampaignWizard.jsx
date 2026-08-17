@@ -227,10 +227,10 @@ export default function CampaignWizard() {
       </nav>
 
       {/* Right Canvas */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-50 dark:bg-[#13131f]">
+      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-50 dark:bg-slate-900">
 
         {/* Sticky step header */}
-        <div className="shrink-0 border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-[#13131f] px-8 py-6">
+        <div className="shrink-0 border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 px-8 py-6">
           <div className="max-w-4xl mx-auto">
             <h3 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 mb-1 tracking-tight">{steps[step - 1]}</h3>
             <p className="text-[#334155] dark:text-slate-400 text-sm">
@@ -251,7 +251,7 @@ export default function CampaignWizard() {
         </div>
 
         {/* Sticky footer — always visible */}
-        <div className="shrink-0 border-t border-zinc-200 bg-white dark:bg-[#1e1e2e] dark:border-slate-700">
+        <div className="shrink-0 border-t border-zinc-200 bg-white dark:bg-slate-800 dark:border-slate-700">
           <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
             <button
               onClick={() => addToast('Draft saved', 'success')}

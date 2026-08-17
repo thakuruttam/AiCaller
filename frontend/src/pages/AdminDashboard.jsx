@@ -7,18 +7,18 @@ import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 const STATUS_BADGE = {
-  completed:    'bg-emerald-50 text-emerald-700',
-  failed:       'bg-[#ffdad6] text-[#ba1a1a]',
-  cancelled:    'bg-orange-50 text-orange-700',
-  'in-progress':'bg-blue-50 text-blue-700',
-  queued:       'bg-zinc-100 text-zinc-600',
+  completed:    "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  failed:       'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300',
+  cancelled:    "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+  "in-progress":"bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  queued:       "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400",
 };
 
 const TICKET_STATUS_BADGE = {
-  OPEN:        'bg-blue-50 text-blue-700 border border-blue-200',
-  IN_PROGRESS: 'bg-amber-50 text-amber-700 border border-amber-200',
-  RESOLVED:    'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CLOSED:      'bg-zinc-100 text-zinc-500 border border-zinc-200',
+  OPEN:        "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
+  IN_PROGRESS: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
+  RESOLVED:    "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
+  CLOSED:      "bg-zinc-100 text-zinc-500 border border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600",
 };
 
 export default function AdminDashboard() {
@@ -189,9 +189,9 @@ export default function AdminDashboard() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="material-symbols-outlined text-[#0d9488] text-3xl">shield</span>
-            <h2 className="text-3xl font-semibold text-[#0f172a] tracking-tight">Admin Dashboard</h2>
+            <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Admin Dashboard</h2>
           </div>
-          <p className="text-[#334155] text-base">Real-time system oversight and campaign orchestration.</p>
+          <p className="text-[#334155] dark:text-slate-400 text-base">Real-time system oversight and campaign orchestration.</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
             <span className="material-symbols-outlined text-[18px]">skull</span>
             Kill All
           </button>
-          <button className="bg-zinc-100 text-zinc-900 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm border border-zinc-200 hover:bg-zinc-200 transition-colors" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <button className="bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm border border-zinc-200 dark:border-slate-600 hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export Logs
           </button>
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tab Bar */}
-      <div className="flex gap-1 mb-6 bg-zinc-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 mb-6 bg-zinc-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
         {[
           { key: 'campaigns', icon: 'campaign', label: 'Campaigns' },
           { key: 'support', icon: 'contact_support', label: `Support Tickets${tickets.filter(t => t.status === 'OPEN').length > 0 ? ` (${tickets.filter(t => t.status === 'OPEN').length})` : ''}` },
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
             style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
@@ -257,53 +257,52 @@ export default function AdminDashboard() {
       {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
       <div className="grid grid-cols-12 gap-6 mb-6">
-        <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Active Channels</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a]">{totalChannels} / 2,000</h3>
-          <div className="w-full bg-zinc-100 h-1.5 rounded-full mt-3">
+        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Active Channels</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{totalChannels} / 2,000</h3>
+          <div className="w-full bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full mt-3">
             <div className="bg-[#0d9488] h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
           </div>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls per Second</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a]">{totalCPS} CPS</h3>
+        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls per Second</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{totalCPS} CPS</h3>
           <p className="text-emerald-600 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
           </p>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>System Latency</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a]">142ms</h3>
-          <p className="text-zinc-500 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>System Latency</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">142ms</h3>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
           </p>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-          <p className="text-xs text-[#334155] mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Error Rate</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a]">0.04%</h3>
-          <p className="text-zinc-500 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Error Rate</p>
+          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">0.04%</h3>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
             <span className="material-symbols-outlined text-sm">info</span> Low impact
           </p>
         </div>
       </div>
 
       {/* Campaign Table */}
-      <FullscreenTable className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden mb-6">
+      <FullscreenTable className="bg-white dark:bg-slate-800 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
         {({ toggle, isFs }) => (<>
-        <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h4 className="text-base font-semibold text-[#0f172a]">All Campaigns</h4>
-            <span className="flex items-center gap-1.5 text-xs text-zinc-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h4 className="text-base font-semibold text-[#0f172a] dark:text-slate-100">All Campaigns</h4>
+            <span className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-slate-500" style={{fontFamily:"JetBrains Mono, monospace"}}>              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 text-emerald-800" style={{fontFamily:'JetBrains Mono, monospace'}}>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
               {totalActive} Active
             </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 text-amber-800" style={{fontFamily:'JetBrains Mono, monospace'}}>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
               {totalPaused} Paused
             </span>
@@ -311,15 +310,15 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="px-6 py-3 border-b border-zinc-100">
+        <div className="px-6 py-3 border-b border-zinc-100 dark:border-slate-700">
           <DebouncedSearch onSearch={setCampaignSearchQuery} placeholder="Search campaigns..." className="w-72" />
         </div>
 
-        <div className="divide-y divide-zinc-100">
+        <div className="divide-y divide-zinc-100 dark:divide-slate-700">
           {loading && (
             <div className="px-6 py-10 flex flex-col items-center gap-3">
               <Spinner size={28} className="text-[#0d9488]" />
-              <p className="text-sm text-[#64748b]" style={{fontFamily:'JetBrains Mono, monospace'}}>Loading campaigns…</p>
+              <p className="text-sm text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Loading campaigns…</p>
             </div>
           )}
           {!loading && filtered.map(campaign => {
@@ -345,27 +344,27 @@ export default function AdminDashboard() {
 
             return (
               <div key={campaign.id} className="group">
-                <div className="flex items-center px-6 py-4 cursor-pointer hover:bg-zinc-50/30 transition-colors" onClick={() => toggleCampaign(campaign.id)}>
+                <div className="flex items-center px-6 py-4 cursor-pointer hover:bg-zinc-50/30 dark:hover:bg-slate-700/30 transition-colors" onClick={() => toggleCampaign(campaign.id)}>
                   <div className="w-8 flex-shrink-0">
-                    <span className={`material-symbols-outlined text-zinc-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                    <span className={`material-symbols-outlined text-zinc-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
                   <div className="flex-1 grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-3">
-                      <p className="text-sm font-medium text-zinc-900" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.name}</p>
-                      <p className="text-xs text-zinc-500" style={{fontFamily:'JetBrains Mono, monospace'}}>ID: {campaign.id?.substring(0,12)}</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>ID: {campaign.id?.substring(0,12)}</p>
                     </div>
                     <div className="col-span-3">
-                      <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Workspace</p>
-                      <p className="text-sm font-medium text-zinc-900 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.tenant?.name || '—'}</p>
-                      <p className="text-[10px] text-zinc-400 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.createdBy?.email || '—'}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Workspace</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.tenant?.name || '—'}</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-slate-500 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.createdBy?.email || '—'}</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls</p>
-                      <p className="text-sm font-medium text-zinc-900" style={{fontFamily:'JetBrains Mono, monospace'}}>{logs.length.toLocaleString()}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{logs.length.toLocaleString()}</p>
                     </div>
                     <div className="col-span-1">
-                      <p className="text-xs text-zinc-500 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Type</p>
-                      <p className="text-sm font-medium text-zinc-900 capitalize" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'HR'}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Type</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 capitalize" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'HR'}</p>
                     </div>
                     <div className="col-span-3 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
                       {(hasDraft || !logs.length) && (
@@ -374,7 +373,7 @@ export default function AdminDashboard() {
                         </button>
                       )}
                       {(hasQueued || hasInProgress) && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'pause')} disabled={actionLoading} className="bg-zinc-100 text-zinc-600 p-2 rounded-lg hover:bg-zinc-200 transition-colors border border-zinc-200 disabled:opacity-50" title="Pause">
+                        <button onClick={() => handleCampaignAction(campaign.id, 'pause')} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="Pause">
                           <span className="material-symbols-outlined text-sm">pause</span>
                         </button>
                       )}
@@ -384,12 +383,12 @@ export default function AdminDashboard() {
                         </button>
                       )}
                       {hasActive && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'kill')} disabled={actionLoading} className="bg-zinc-100 text-[#ba1a1a] p-2 rounded-lg hover:bg-[#ffdad6] transition-colors border border-zinc-200 disabled:opacity-50" title="Kill">
+                        <button onClick={() => handleCampaignAction(campaign.id, 'kill')} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-[#ba1a1a] dark:text-red-400 p-2 rounded-lg hover:bg-[#ffdad6] dark:hover:bg-red-900/30 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="Kill">
                           <span className="material-symbols-outlined text-sm">stop</span>
                         </button>
                       )}
                       {hasEverRun && (
-                        <button onClick={() => confirmRerun(campaign.id)} disabled={actionLoading} className="bg-zinc-100 text-zinc-600 p-2 rounded-lg hover:bg-zinc-200 transition-colors border border-zinc-200 disabled:opacity-50" title="Re-run">
+                        <button onClick={() => confirmRerun(campaign.id)} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="Re-run">
                           <span className="material-symbols-outlined text-sm">refresh</span>
                         </button>
                       )}
@@ -398,26 +397,26 @@ export default function AdminDashboard() {
                 </div>
 
                 {isExpanded && (
-                  <div className="bg-zinc-50/80 px-14 border-t border-zinc-100">
+                  <div className="bg-zinc-50/80 dark:bg-slate-900/50 px-14 border-t border-zinc-100 dark:border-slate-700">
                     <div className="py-6">
                       <div className="flex justify-between items-center mb-4">
-                        <h5 className="text-sm font-medium text-zinc-700" style={{fontFamily:'JetBrains Mono, monospace'}}>Live Call Stream</h5>
+                        <h5 className="text-sm font-medium text-zinc-700 dark:text-slate-300" style={{fontFamily:'JetBrains Mono, monospace'}}>Live Call Stream</h5>
                         <div className="flex items-center gap-3">
                           <DebouncedSearch onSearch={(q) => handleCallSearch(campaign.id, q)} placeholder="Search call logs..." className="w-64" />
-                          <button onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 transition-colors disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Evaluate All</button>
-                          <button onClick={() => handleBulkRecall(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 transition-colors disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Re-call Failed</button>
+                          <button onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Evaluate All</button>
+                          <button onClick={() => handleBulkRecall(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Re-call Failed</button>
                         </div>
                       </div>
-                      <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white shadow-sm">
+                      <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                         <table className="w-full text-left">
-                          <thead className="bg-zinc-100 border-b border-zinc-200">
+                          <thead className="bg-zinc-100 dark:bg-slate-700 border-b border-zinc-200 dark:border-slate-600">
                             <tr>
                               {['Contact','Phone','Status','Actions'].map(h => (
-                                <th key={h} className="px-4 py-2 text-xs font-medium text-zinc-600" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                                <th key={h} className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-slate-300" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-100 text-sm">
+                          <tbody className="divide-y divide-zinc-100 dark:divide-slate-700 text-sm">
                             {(campaign.campaignContacts || [])
                               .filter(cc => {
                                 const q = callSearchQueries[campaign.id]?.toLowerCase() || '';
@@ -429,23 +428,23 @@ export default function AdminDashboard() {
                                 const log = logs.find(l => l.contactId === cc.contact?.id);
                                 const name = cc.overrides?.name || cc.contact?.name;
                                 return (
-                                  <tr key={cc.id} className="hover:bg-zinc-50">
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{name}</td>
-                                    <td className="px-4 py-3 text-zinc-500" style={{fontFamily:'JetBrains Mono, monospace'}}>{cc.contact?.phone}</td>
+                                  <tr key={cc.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50">
+                                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-slate-100">{name}</td>
+                                    <td className="px-4 py-3 text-zinc-500 dark:text-slate-400" style={{fontFamily:"JetBrains Mono, monospace"}}>{cc.contact?.phone}</td>
                                     <td className="px-4 py-3">
                                       {log ? (
                                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
                                           {log.status}
                                         </span>
                                       ) : (
-                                        <span className="text-xs text-zinc-400 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>No log</span>
+                                        <span className="text-xs text-zinc-400 dark:text-slate-500 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>No log</span>
                                       )}
                                     </td>
                                     <td className="px-4 py-3">
                                       {log && (
                                         <div className="flex gap-2">
-                                          <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Eval</button>
-                                          <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-50 flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                          <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Eval</button>
+                                          <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
                                             <span className="material-symbols-outlined text-[12px]">history</span> Re-call
                                           </button>
                                         </div>
@@ -455,7 +454,7 @@ export default function AdminDashboard() {
                                 );
                               })}
                             {(!campaign.campaignContacts || campaign.campaignContacts.length === 0) && (
-                              <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-zinc-400 italic">No contacts in this campaign.</td></tr>
+                              <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-slate-500 italic">No contacts in this campaign.</td></tr>
                             )}
                           </tbody>
                         </table>
@@ -468,7 +467,7 @@ export default function AdminDashboard() {
           })}
 
           {!loading && filtered.length === 0 && (
-            <div className="px-6 py-12 text-center text-sm text-[#64748b]" style={{fontFamily:'JetBrains Mono, monospace'}}>No campaigns found.</div>
+            <div className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>No campaigns found.</div>
           )}
         </div>
         </>)}
@@ -482,15 +481,15 @@ export default function AdminDashboard() {
         title="Re-run Campaign?"
         footer={
           <>
-            <button onClick={() => setIsConfirmOpen(false)} className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-9 px-4 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 transition-colors">Cancel</button>
+            <button onClick={() => setIsConfirmOpen(false)} className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-9 px-4 border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors">Cancel</button>
             <button onClick={() => handleCampaignAction(confirmAction, 'rerun')} disabled={actionLoading} className="inline-flex items-center justify-center rounded-lg text-sm font-semibold h-9 px-4 bg-[#ba1a1a] text-white hover:bg-red-700 disabled:opacity-50 transition-colors">
               {actionLoading ? 'Processing…' : 'Reset & Rerun'}
             </button>
           </>
         }
       >
-        <p className="text-sm text-zinc-600 leading-relaxed">
-          Are you sure? This will <strong className="text-zinc-900">permanently delete</strong> all previous transcripts and recordings for this campaign and start fresh.
+        <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed">
+          Are you sure? This will <strong className="text-zinc-900 dark:text-slate-100">permanently delete</strong> all previous transcripts and recordings for this campaign and start fresh.
         </p>
       </Modal>
       </>)}
@@ -499,16 +498,16 @@ export default function AdminDashboard() {
 }
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: 'bg-[#ffdad6] text-[#ba1a1a]',
-  ADMIN:       'bg-[#0d9488]/10 text-[#0d9488]',
-  EDITOR:      'bg-amber-50 text-amber-700',
-  VIEWER:      'bg-zinc-100 text-zinc-600',
+  SUPER_ADMIN: "bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300",
+  ADMIN:       "bg-[#0d9488]/10 text-[#0d9488] dark:bg-teal-900/30 dark:text-teal-300",
+  EDITOR:      "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  VIEWER:      "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400",
 };
 
 const STATUS_USER_BADGE = {
-  ACTIVE:    'bg-emerald-50 text-emerald-700',
-  PENDING:   'bg-amber-50 text-amber-700',
-  SUSPENDED: 'bg-[#ffdad6] text-[#ba1a1a]',
+  ACTIVE:    "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  PENDING:   "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  SUSPENDED: "bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300",
 };
 
 function Avatar({ user, size = 'md' }) {
@@ -535,73 +534,73 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
     <div className="space-y-6">
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider font-mono mb-1">Open</p>
+        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono mb-1">Open</p>
           <p className="text-2xl font-bold text-blue-600">{openCount}</p>
         </div>
-        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider font-mono mb-1">In Progress</p>
+        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono mb-1">In Progress</p>
           <p className="text-2xl font-bold text-amber-600">{ipCount}</p>
         </div>
-        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider font-mono mb-1">Resolved</p>
+        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono mb-1">Resolved</p>
           <p className="text-2xl font-bold text-emerald-600">{resolveCount}</p>
         </div>
       </div>
 
       <div className="flex gap-5 items-start">
         {/* ── Ticket list ── */}
-        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden`}>
-          <div className="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
-            <div className="flex gap-0.5 bg-zinc-100 p-0.5 rounded-lg">
+        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden`}>
+          <div className="px-4 py-3 border-b border-zinc-100 dark:border-slate-700 flex items-center justify-between">
+            <div className="flex gap-0.5 bg-zinc-100 dark:bg-slate-700 p-0.5 rounded-lg">
               {FILTERS.map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${filter === f ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${filter === f ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
                   style={{fontFamily:'JetBrains Mono, monospace'}}
                 >
                   {f === 'all' ? 'All' : f.replace('_', ' ')}
                 </button>
               ))}
             </div>
-            <button onClick={onRefresh} className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors">
-              <span className="material-symbols-outlined text-zinc-400 text-[16px]">refresh</span>
+            <button onClick={onRefresh} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors">
+              <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500 text-[16px]">refresh</span>
             </button>
           </div>
 
           {loading ? (
-            <div className="px-5 py-10 text-center text-zinc-400 text-sm">Loading…</div>
+            <div className="px-5 py-10 text-center text-zinc-400 dark:text-slate-500 text-sm">Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <span className="material-symbols-outlined text-zinc-200 text-[40px] block mb-2">inbox</span>
-              <p className="text-zinc-400 text-sm">No tickets</p>
+              <span className="material-symbols-outlined text-zinc-200 dark:text-slate-600 text-[40px] block mb-2">inbox</span>
+              <p className="text-zinc-400 dark:text-slate-500 text-sm">No tickets</p>
             </div>
           ) : (
-            <div className="divide-y divide-zinc-50 max-h-[65vh] overflow-y-auto">
+            <div className="divide-y divide-zinc-50 dark:divide-slate-700/50 max-h-[65vh] overflow-y-auto">
               {filtered.map(t => (
                 <div
                   key={t.id}
                   onClick={() => onOpen(t)}
-                  className={`px-4 py-3.5 cursor-pointer hover:bg-zinc-50 transition-colors ${selectedTicket?.id === t.id ? 'bg-zinc-50 border-l-[3px] border-[#0d9488]' : 'border-l-[3px] border-transparent'}`}
+                  className={`px-4 py-3.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors ${selectedTicket?.id === t.id ? "bg-zinc-50 dark:bg-slate-700/50 border-l-[3px] border-[#0d9488]" : "border-l-[3px] border-transparent"}`}
                 >
                   <div className="flex items-start gap-3">
                     <Avatar user={t.user} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-zinc-900 truncate leading-tight">{t.subject}</p>
+                        <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate leading-tight">{t.subject}</p>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}>
                           {t.status.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-500 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-slate-400 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-zinc-400 capitalize font-mono">{t.category}</span>
-                        <span className="text-[10px] text-zinc-300">·</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">{new Date(t.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-zinc-400 dark:text-slate-500 capitalize font-mono">{t.category}</span>
+                        <span className="text-[10px] text-zinc-300 dark:text-slate-600">·</span>
+                        <span className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono">{new Date(t.createdAt).toLocaleDateString()}</span>
                         {t._count?.replies > 0 && <>
-                          <span className="text-[10px] text-zinc-300">·</span>
-                          <span className="text-[10px] text-zinc-400">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
+                          <span className="text-[10px] text-zinc-300 dark:text-slate-600">·</span>
+                          <span className="text-[10px] text-zinc-400 dark:text-slate-500">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
                         </>}
                       </div>
                     </div>
@@ -617,26 +616,26 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
           <div className="flex-1 flex gap-4 items-start min-w-0">
 
             {/* Sender card */}
-            <div className="w-[220px] shrink-0 bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-zinc-100">
-                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Submitted by</p>
+            <div className="w-[220px] shrink-0 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-100 dark:border-slate-700">
+                <p className="text-[10px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Submitted by</p>
               </div>
               <div className="p-4 space-y-4">
                 {/* Avatar + name */}
                 <div className="flex flex-col items-center text-center gap-2">
                   <Avatar user={selectedTicket.user} size="lg" />
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900 leading-tight">{selectedTicket.user?.name}</p>
-                    <p className="text-[11px] text-zinc-400 mt-0.5 break-all">{selectedTicket.user?.email}</p>
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-slate-100 leading-tight">{selectedTicket.user?.name}</p>
+                    <p className="text-[11px] text-zinc-400 dark:text-slate-500 mt-0.5 break-all">{selectedTicket.user?.email}</p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-1">
                     {selectedTicket.user?.role && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || 'bg-zinc-100 text-zinc-600'}`}>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.user.role.replace('_', ' ')}
                       </span>
                     )}
                     {selectedTicket.user?.status && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || 'bg-zinc-100 text-zinc-500'}`}>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || "bg-zinc-100 text-zinc-500 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.user.status}
                       </span>
                     )}
@@ -644,58 +643,58 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 </div>
 
                 {/* Detail rows */}
-                <div className="space-y-2.5 border-t border-zinc-100 pt-3">
+                <div className="space-y-2.5 border-t border-zinc-100 dark:border-slate-700 pt-3">
                   {selectedTicket.tenant?.name && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Workspace</p>
-                      <p className="text-xs text-zinc-700 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
+                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Workspace</p>
+                      <p className="text-xs text-zinc-700 dark:text-slate-300 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceRole && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Workspace Role</p>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || 'bg-zinc-100 text-zinc-600'}`}>
+                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Workspace Role</p>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.submitterContext.workspaceRole}
                       </span>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceMemberSince && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Member Since</p>
-                      <p className="text-xs text-zinc-600 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
+                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Member Since</p>
+                      <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.user?.createdAt && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Account Created</p>
-                      <p className="text-xs text-zinc-600 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
+                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Account Created</p>
+                      <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.totalTickets != null && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Total Tickets</p>
-                      <p className="text-xs font-semibold text-zinc-700 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
+                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Total Tickets</p>
+                      <p className="text-xs font-semibold text-zinc-700 dark:text-slate-300 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Ticket meta */}
-                <div className="space-y-2.5 border-t border-zinc-100 pt-3">
+                <div className="space-y-2.5 border-t border-zinc-100 dark:border-slate-700 pt-3">
                   <div>
-                    <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Category</p>
-                    <p className="text-xs text-zinc-700 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
+                    <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Category</p>
+                    <p className="text-xs text-zinc-700 dark:text-slate-300 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Opened</p>
-                    <p className="text-xs text-zinc-600 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                    <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Opened</p>
+                    <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">Status</p>
+                    <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Status</p>
                     <select
                       value={selectedTicket.status}
                       onChange={e => onUpdateStatus(selectedTicket.id, e.target.value)}
                       disabled={statusLoading}
-                      className="mt-0.5 w-full text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white font-mono outline-none focus:ring-2 focus:ring-[#0d9488]"
+                      className="mt-0.5 w-full text-xs border border-zinc-200 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-700 dark:text-slate-100 font-mono outline-none focus:ring-2 focus:ring-[#0d9488]"
                     >
                       {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
                         <option key={s} value={s}>{s.replace('_', ' ')}</option>
@@ -707,19 +706,19 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
             </div>
 
             {/* Conversation panel */}
-            <div className="flex-1 bg-white border border-zinc-200 rounded-xl shadow-sm flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
+            <div className="flex-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
               {/* Header */}
-              <div className="px-5 py-4 border-b border-zinc-100 flex items-start justify-between shrink-0">
+              <div className="px-5 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-start justify-between shrink-0">
                 <div className="min-w-0 pr-3">
-                  <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider capitalize">{selectedTicket.category.replace('_', ' ')}</p>
-                  <h3 className="text-sm font-semibold text-zinc-900 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
+                  <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono uppercase tracking-wider capitalize">{selectedTicket.category.replace('_', ' ')}</p>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {selectedTicket.status === 'CLOSED' ? (
                     <button
                       onClick={() => onUpdateStatus(selectedTicket.id, 'OPEN')}
                       disabled={statusLoading}
-                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#ede9fe] disabled:opacity-50 transition-colors"
+                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#ede9fe] dark:hover:bg-teal-900/30 disabled:opacity-50 transition-colors"
                     >
                       Reopen
                     </button>
@@ -727,13 +726,13 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <button
                       onClick={() => onUpdateStatus(selectedTicket.id, 'CLOSED')}
                       disabled={statusLoading}
-                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-600 text-zinc-500 dark:text-slate-400 hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
                     >
                       Close
                     </button>
                   )}
-                  <button onClick={onCloseTicket} className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors">
-                    <span className="material-symbols-outlined text-zinc-400 text-[18px]">close</span>
+                  <button onClick={onCloseTicket} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors">
+                    <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500 text-[18px]">close</span>
                   </button>
                 </div>
               </div>
@@ -745,13 +744,13 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                   <Avatar user={selectedTicket.user} size="sm" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <p className="text-xs font-semibold text-zinc-800">{selectedTicket.user?.name}</p>
-                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || 'bg-zinc-100 text-zinc-600'}`}>
+                      <p className="text-xs font-semibold text-zinc-800 dark:text-slate-200">{selectedTicket.user?.name}</p>
+                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.user?.role?.replace('_', ' ')}
                       </span>
-                      <p className="text-[10px] text-zinc-400 font-mono ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                     </div>
-                    <div className="bg-zinc-50 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
+                    <div className="bg-zinc-50 dark:bg-slate-900 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
                       {selectedTicket.message}
                     </div>
                   </div>
@@ -763,13 +762,13 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <Avatar user={r.user} size="sm" />
                     <div className={`flex-1 ${r.isAdmin ? 'items-end' : ''}`}>
                       <div className={`flex items-center gap-2 mb-1.5 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
-                        <p className="text-xs font-semibold text-zinc-800">{r.user?.name}</p>
+                        <p className="text-xs font-semibold text-zinc-800 dark:text-slate-200">{r.user?.name}</p>
                         {r.isAdmin && (
                           <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0d9488]/10 text-[#0d9488]">Support</span>
                         )}
-                        <p className="text-[10px] text-zinc-400 font-mono">{new Date(r.createdAt).toLocaleString()}</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono">{new Date(r.createdAt).toLocaleString()}</p>
                       </div>
-                      <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#ede9fe] text-[#0d9488] rounded-tr-sm' : 'bg-zinc-50 text-zinc-700 rounded-tl-sm'}`}>
+                      <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#ede9fe] dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-tr-sm' : 'bg-zinc-50 dark:bg-slate-900 text-zinc-700 dark:text-slate-300 rounded-tl-sm'}`}>
                         {r.message}
                       </div>
                     </div>
@@ -779,14 +778,14 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
 
               {/* Reply box */}
               {selectedTicket.status !== 'CLOSED' && (
-                <div className="p-4 border-t border-zinc-100 shrink-0">
+                <div className="p-4 border-t border-zinc-100 dark:border-slate-700 shrink-0">
                   <div className="flex gap-3">
                     <textarea
                       value={ticketReply}
                       onChange={e => setTicketReply(e.target.value)}
                       placeholder="Reply to this ticket…"
                       rows={3}
-                      className="flex-1 text-sm bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-[#0d9488] text-zinc-800 placeholder:text-zinc-400"
+                      className="flex-1 text-sm bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-[#0d9488] text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500"
                     />
                     <button
                       onClick={onSendReply}

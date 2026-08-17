@@ -35,22 +35,22 @@ function ShareModal({ campaignId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-zinc-900">Share Campaign Report</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-zinc-100 text-zinc-500 transition-colors">
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-500 dark:text-slate-400 transition-colors">
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
         {!link ? (
           <>
-            <p className="text-sm text-zinc-500 mb-5">Generate a public link to share all call reports for this campaign. No login required.</p>
+            <p className="text-sm text-zinc-500 dark:text-slate-400 mb-5">Generate a public link to share all call reports for this campaign. No login required.</p>
             <div className="mb-5">
-              <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-2">Link Valid For</label>
+              <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-300 uppercase tracking-wider mb-2">Link Valid For</label>
               <div className="flex gap-2">
                 {[3, 7, 14, 30].map(d => (
                   <button key={d} onClick={() => setDays(d)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${days === d ? 'bg-[#0d9488] text-white border-[#0d9488]' : 'border-zinc-200 text-zinc-600 hover:border-[#0d9488]'}`}>
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${days === d ? 'bg-[#0d9488] text-white border-[#0d9488]' : 'border-zinc-200 dark:border-slate-700 text-zinc-600 dark:text-slate-400 hover:border-[#0d9488]'}`}>
                     {d}d
                   </button>
                 ))}
@@ -63,15 +63,15 @@ function ShareModal({ campaignId, onClose }) {
           </>
         ) : (
           <>
-            <p className="text-xs text-zinc-500 mb-3">Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong></p>
-            <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-200 bg-zinc-50 mb-4">
-              <span className="text-xs text-zinc-700 flex-1 break-all font-mono">{link.url}</span>
-              <button onClick={copy} className="shrink-0 p-1.5 rounded-lg hover:bg-zinc-200 transition-colors text-zinc-500">
+            <p className="text-xs text-zinc-500 dark:text-slate-400 mb-3">Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong></p>
+            <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 mb-4">
+              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all font-mono">{link.url}</span>
+              <button onClick={copy} className="shrink-0 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors text-zinc-500 dark:text-slate-400">
                 <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
               </button>
             </div>
             <button onClick={() => setLink(null)}
-              className="w-full py-2.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
+              className="w-full py-2.5 border border-zinc-200 dark:border-slate-700 rounded-xl text-sm text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors">
               Generate Another
             </button>
           </>
@@ -82,11 +82,11 @@ function ShareModal({ campaignId, onClose }) {
 }
 
 const STATUS_BADGE = {
-  completed:    'bg-emerald-100 text-emerald-800',
-  queued:       'bg-zinc-100 text-zinc-600',
-  'in-progress':'bg-amber-100 text-amber-800',
-  failed:       'bg-[#ffdad6] text-[#ba1a1a]',
-  cancelled:    'bg-orange-50 text-orange-700',
+  completed:    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+  queued:       'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400',
+  'in-progress':'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  failed:       'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300',
+  cancelled:    'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
 };
 
 const STATUS_DOT = {
@@ -97,7 +97,13 @@ const STATUS_DOT = {
   cancelled:    'bg-orange-400',
 };
 
-const INITIALS_COLORS = ['bg-[#e2dfff] text-[#0d9488]','bg-emerald-50 text-emerald-700','bg-amber-50 text-amber-700','bg-red-50 text-red-700','bg-teal-50 text-teal-700'];
+const INITIALS_COLORS = [
+  'bg-[#e2dfff] text-[#0d9488] dark:bg-indigo-900/30 dark:text-teal-300',
+  'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+];
 
 function getInitials(name) {
   return (name || '?').split(' ').map(p => p[0]).join('').substring(0,2).toUpperCase();
@@ -129,7 +135,7 @@ export default function CampaignDetails() {
 
   if (loading) return <PageLoader text="Loading campaign…" />;
   if (!campaign) return (
-    <div className="flex items-center justify-center h-64 text-sm text-[#64748b]">Campaign not found.</div>
+    <div className="flex items-center justify-center h-64 text-sm text-[#64748b] dark:text-slate-400">Campaign not found.</div>
   );
 
   const contacts = campaign.campaignContacts || [];
@@ -153,7 +159,7 @@ export default function CampaignDetails() {
   const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PER_PAGE));
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto bg-[#f0fdfa] min-h-full">
+    <div className="p-8 max-w-[1440px] mx-auto bg-[#f0fdfa] dark:bg-slate-900 min-h-full">
       {/* Breadcrumb */}
       <div className="mb-6">
         <Link to="/" className="flex items-center gap-1 text-[#0d9488] hover:underline transition-all text-sm" style={{fontFamily:'JetBrains Mono, monospace'}}>
@@ -165,19 +171,19 @@ export default function CampaignDetails() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-widest text-[#64748b]" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign Details</p>
+          <p className="text-xs uppercase tracking-widest text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign Details</p>
           <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-semibold text-[#0f172a] tracking-tight">{campaign.name}</h2>
-            <span className="px-2.5 py-0.5 bg-[#e2dfff]/50 text-[#0d9488] border border-[#0d9488]/20 rounded text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'Campaign'}</span>
+            <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">{campaign.name}</h2>
+            <span className="px-2.5 py-0.5 bg-[#e2dfff]/50 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 border border-[#0d9488]/20 dark:border-teal-700 rounded text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'Campaign'}</span>
           </div>
-          <p className="text-base text-[#334155] max-w-2xl">
+          <p className="text-base text-[#334155] dark:text-slate-400 max-w-2xl">
             {campaign.callModule?.callIntro || 'Automated outreach campaign.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowShare(true)}
-            className="px-4 py-2 bg-white border border-zinc-200 text-zinc-900 text-sm rounded shadow-sm hover:bg-zinc-50 transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 text-sm rounded shadow-sm hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
             style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">share</span>
@@ -185,7 +191,7 @@ export default function CampaignDetails() {
           </button>
           <Link
             to={`/campaigns/${id}/report`}
-            className="px-4 py-2 bg-white border border-zinc-200 text-zinc-900 text-sm rounded shadow-sm hover:bg-zinc-50 transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 text-sm rounded shadow-sm hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
             style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">analytics</span>
@@ -210,10 +216,10 @@ export default function CampaignDetails() {
           { label:'Avg. Duration', value: avgDuration >= 60 ? `${Math.floor(avgDuration/60)}m ${avgDuration%60}s` : `${avgDuration}s`, barColor:'bg-amber-500', barW:'50%' },
           { label:'Success Rate', value: `${successRate}%`, barColor:'bg-teal-500', barW:`${successRate}%` },
         ].map(s => (
-          <div key={s.label} className="bg-white border border-zinc-200 p-6 rounded shadow-sm">
-            <p className="text-xs text-[#334155] mb-2" style={{fontFamily:'JetBrains Mono, monospace'}}>{s.label}</p>
-            <p className="text-2xl font-semibold text-[#0f172a]">{s.value}</p>
-            <div className="mt-2 h-1 w-full bg-zinc-100 rounded">
+          <div key={s.label} className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded shadow-sm">
+            <p className="text-xs text-[#334155] dark:text-slate-400 mb-2" style={{fontFamily:'JetBrains Mono, monospace'}}>{s.label}</p>
+            <p className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{s.value}</p>
+            <div className="mt-2 h-1 w-full bg-zinc-100 dark:bg-slate-700 rounded">
               <div className={`h-1 ${s.barColor} rounded`} style={{width:s.barW}}></div>
             </div>
           </div>
@@ -221,24 +227,24 @@ export default function CampaignDetails() {
       </div>
 
       {/* Activity Table */}
-      <FullscreenTable className="bg-white border border-zinc-200 rounded shadow-sm overflow-hidden">
+      <FullscreenTable className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded shadow-sm overflow-hidden">
         {({ toggle, isFs }) => {
           const paginated = isFs ? filteredContacts : filteredContacts.slice((page-1)*PER_PAGE, page*PER_PAGE);
           return (<>
-        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-          <h3 className="text-lg font-semibold text-[#0f172a]">Contact Call Status</h3>
+        <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-center justify-between bg-zinc-50/50 dark:bg-slate-900/50">
+          <h3 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100">Contact Call Status</h3>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#334155] text-[18px]">filter_list</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#334155] dark:text-slate-400 text-[18px]">filter_list</span>
               <input
-                className="pl-10 pr-4 py-1.5 border border-zinc-300 rounded text-sm text-[#0f172a] focus:ring-2 focus:ring-[#0d9488] focus:border-[#0d9488] outline-none transition-all placeholder:text-[#64748b]"
+                className="pl-10 pr-4 py-1.5 border border-zinc-300 dark:border-slate-600 rounded text-sm text-[#0f172a] dark:text-slate-100 focus:ring-2 focus:ring-[#0d9488] focus:border-[#0d9488] outline-none transition-all placeholder:text-[#64748b] dark:placeholder:text-slate-500"
                 placeholder="Filter activity..."
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               />
             </div>
-            <button className="p-1.5 hover:bg-zinc-200 rounded transition-all">
-              <span className="material-symbols-outlined text-[#334155]">download</span>
+            <button className="p-1.5 hover:bg-zinc-200 dark:hover:bg-slate-700 rounded transition-all">
+              <span className="material-symbols-outlined text-[#334155] dark:text-slate-400">download</span>
             </button>
             <FullscreenButton toggle={toggle} isFs={isFs} />
           </div>
@@ -246,14 +252,14 @@ export default function CampaignDetails() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-zinc-50 border-b border-zinc-100">
+            <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
               <tr>
                 {['Name','Phone','Tags / Overrides','Status','Duration','Call Details'].map(h => (
-                  <th key={h} className="px-6 py-4 text-xs text-[#334155] uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                  <th key={h} className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
               {paginated.map((cc, i) => {
                 const contact = cc.contact;
                 const log = logs.find(l => l.contactId === contact?.id);
@@ -267,23 +273,23 @@ export default function CampaignDetails() {
                   : '—';
 
                 return (
-                  <tr key={cc.id} className="hover:bg-zinc-50/80 transition-colors">
+                  <tr key={cc.id} className="hover:bg-zinc-50/80 dark:hover:bg-slate-700/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-xs ${colorClass}`}>{initials}</div>
-                        <span className="text-base font-medium text-[#0f172a]">{name}</span>
+                        <span className="text-base font-medium text-[#0f172a] dark:text-slate-100">{name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
                       {contact?.phone || '—'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-2">
                         {cc.overrides?.tag && (
-                          <span className="px-2 py-0.5 bg-[#e2dfff]/60 text-[#0d9488] rounded-full text-[10px] border border-[#5eead4]" style={{fontFamily:'JetBrains Mono, monospace'}}>{cc.overrides.tag}</span>
+                          <span className="px-2 py-0.5 bg-[#e2dfff]/60 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-full text-[10px] border border-[#5eead4] dark:border-teal-700" style={{fontFamily:'JetBrains Mono, monospace'}}>{cc.overrides.tag}</span>
                         )}
                         {cc.overrides?.goals && (
-                          <span className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded-full text-[10px] border border-zinc-200" style={{fontFamily:'JetBrains Mono, monospace'}}>Script Override</span>
+                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-[10px] border border-zinc-200 dark:border-slate-600" style={{fontFamily:'JetBrains Mono, monospace'}}>Script Override</span>
                         )}
                       </div>
                     </td>
@@ -294,10 +300,10 @@ export default function CampaignDetails() {
                           {status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
                         </span>
                       ) : (
-                        <span className="text-xs text-[#64748b] italic" style={{fontFamily:'JetBrains Mono, monospace'}}>No call</span>
+                        <span className="text-xs text-[#64748b] dark:text-slate-400 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>No call</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155]" style={{fontFamily:'JetBrains Mono, monospace'}}>{durationStr}</td>
+                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{durationStr}</td>
                     <td className="px-6 py-4">
                       {log ? (
                         <Link
@@ -309,7 +315,7 @@ export default function CampaignDetails() {
                           <span className="text-sm">View Call</span>
                         </Link>
                       ) : (
-                        <span className="text-xs text-zinc-300 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>N/A</span>
+                        <span className="text-xs text-zinc-300 dark:text-slate-600 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>N/A</span>
                       )}
                     </td>
                   </tr>
@@ -317,7 +323,7 @@ export default function CampaignDetails() {
               })}
               {filteredContacts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#64748b]">
+                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">
                     {searchQuery ? 'No contacts match your search.' : 'No contacts in this campaign.'}
                   </td>
                 </tr>
@@ -326,23 +332,23 @@ export default function CampaignDetails() {
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-zinc-100 flex items-center justify-between">
-          <span className="text-xs text-[#334155]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <div className="px-6 py-4 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between">
+          <span className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
             {isFs ? `${filteredContacts.length} entries` : `Showing ${paginated.length} of ${filteredContacts.length} entries`}
           </span>
           {!isFs && (
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page <= 1} className="p-1 hover:bg-zinc-100 rounded disabled:opacity-30">
+              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page <= 1} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-700 rounded disabled:opacity-30">
                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
               </button>
               {[...Array(Math.min(3, totalPages))].map((_, i) => (
-                <button key={i+1} onClick={() => setPage(i+1)} className={`px-3 py-1 rounded text-xs ${page===i+1 ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 text-[#0f172a]'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{i+1}</button>
+                <button key={i+1} onClick={() => setPage(i+1)} className={`px-3 py-1 rounded text-xs ${page===i+1 ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{i+1}</button>
               ))}
-              {totalPages > 3 && <span className="px-2 text-zinc-400">...</span>}
+              {totalPages > 3 && <span className="px-2 text-zinc-400 dark:text-slate-500">...</span>}
               {totalPages > 3 && (
-                <button onClick={() => setPage(totalPages)} className={`px-3 py-1 rounded text-xs ${page===totalPages ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 text-[#0f172a]'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{totalPages}</button>
+                <button onClick={() => setPage(totalPages)} className={`px-3 py-1 rounded text-xs ${page===totalPages ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{totalPages}</button>
               )}
-              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="p-1 hover:bg-zinc-100 rounded disabled:opacity-30">
+              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-700 rounded disabled:opacity-30">
                 <span className="material-symbols-outlined text-[20px]">chevron_right</span>
               </button>
             </div>

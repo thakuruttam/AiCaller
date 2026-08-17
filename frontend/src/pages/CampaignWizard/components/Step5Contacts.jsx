@@ -358,20 +358,20 @@ export default function Step5Contacts({ payload, updatePayload }) {
           <h4 className="font-semibold text-zinc-900 dark:text-slate-100 text-base mb-3">
             Current Contacts <span className="text-zinc-400 dark:text-slate-500 font-normal text-sm">({payload.contacts.length})</span>
           </h4>
-          <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+          <div className="border border-zinc-200 dark:border-slate-700 rounded-xl overflow-hidden">
             <div className="overflow-y-auto" style={{maxHeight: '340px'}}>
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-zinc-50 dark:bg-[#13131f] border-b border-zinc-200 dark:border-zinc-700">
+                  <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700">
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Name</th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Phone</th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Tag</th>
                     <th className="px-5 py-3 w-10" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-[#1e1e2e]">
+                <tbody className="divide-y divide-zinc-100 dark:divide-slate-800 bg-white dark:bg-slate-800">
                   {payload.contacts.map((c, i) => (
-                    <tr key={i} className="hover:bg-zinc-50/60 dark:hover:bg-[#13131f]/60 transition-colors group">
+                    <tr key={i} className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors group">
                       <td className="px-5 py-2.5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-[#e2dfff] flex items-center justify-center text-xs font-bold text-[#0d9488] shrink-0">
@@ -380,7 +380,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
                           <input
                             value={c.name}
                             onChange={e => editContact(i, 'name', e.target.value)}
-                            className="flex-1 font-semibold text-sm text-zinc-900 dark:text-zinc-100 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-[#13131f] rounded-md px-2 py-1 outline-none transition-all min-w-0"
+                            className="flex-1 font-semibold text-sm text-zinc-900 dark:text-slate-100 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-slate-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-slate-900 rounded-md px-2 py-1 outline-none transition-all min-w-0"
                           />
                         </div>
                       </td>
@@ -388,7 +388,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
                         <input
                           value={c.phone}
                           onChange={e => editContact(i, 'phone', e.target.value)}
-                          className="w-full font-mono text-sm text-zinc-500 dark:text-zinc-400 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-[#13131f] rounded-md px-2 py-1 outline-none transition-all"
+                          className="w-full font-mono text-sm text-zinc-500 dark:text-slate-400 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-slate-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-slate-900 rounded-md px-2 py-1 outline-none transition-all"
                         />
                       </td>
                       <td className="px-5 py-2.5">
@@ -396,7 +396,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
                           value={c.tag || c.overrides?.tag || ''}
                           onChange={e => editContact(i, 'tag', e.target.value)}
                           placeholder="—"
-                          className="w-full text-sm text-zinc-500 dark:text-zinc-400 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-[#13131f] rounded-md px-2 py-1 outline-none transition-all placeholder:text-zinc-300"
+                          className="w-full text-sm text-zinc-500 dark:text-slate-400 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-slate-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-slate-900 rounded-md px-2 py-1 outline-none transition-all placeholder:text-zinc-300"
                         />
                       </td>
                       <td className="px-4 py-2.5 text-right">

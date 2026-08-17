@@ -4,9 +4,9 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
 const ROLE_COLOR = {
-  ADMIN:  'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20',
-  EDITOR: 'bg-amber-50 text-amber-700 border-amber-200',
-  VIEWER: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+  ADMIN:  "bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20 dark:bg-indigo-900/30 dark:text-teal-300 dark:border-teal-700",
+  EDITOR: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
+  VIEWER: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600",
 };
 
 export default function InviteAccept() {
@@ -59,7 +59,7 @@ export default function InviteAccept() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f0fdfa] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center">
         <span className="material-symbols-outlined text-[40px] text-[#0d9488] animate-spin">progress_activity</span>
       </div>
     );
@@ -67,13 +67,13 @@ export default function InviteAccept() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#f0fdfa] flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+      <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center px-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
           <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-red-500">error</span>
           </div>
-          <h2 className="text-xl font-bold text-zinc-900 mb-2">Invalid Invite</h2>
-          <p className="text-zinc-500 text-sm mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-slate-100 mb-2">Invalid Invite</h2>
+          <p className="text-zinc-500 dark:text-slate-400 text-sm mb-6">{error}</p>
           <button onClick={() => navigate('/login')}
             className="px-6 py-2.5 bg-[#0d9488] text-white rounded-xl text-sm font-semibold hover:bg-[#0f766e] transition-colors">
             Go to Login
@@ -85,13 +85,13 @@ export default function InviteAccept() {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-[#f0fdfa] flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+      <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center px-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
           <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-emerald-600">check_circle</span>
           </div>
-          <h2 className="text-xl font-bold text-zinc-900 mb-2">You're in!</h2>
-          <p className="text-zinc-500 text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-slate-100 mb-2">You're in!</h2>
+          <p className="text-zinc-500 dark:text-slate-400 text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
         </div>
       </div>
     );
@@ -100,8 +100,8 @@ export default function InviteAccept() {
   const emailMismatch = user && user.email.toLowerCase() !== invite.email.toLowerCase();
 
   return (
-    <div className="min-h-screen bg-[#f0fdfa] flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+    <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center px-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
 
         {/* Header */}
         <div className="bg-[#0d9488] px-8 py-6 text-center">
@@ -114,26 +114,26 @@ export default function InviteAccept() {
 
         <div className="px-8 py-6">
           {/* Invite details */}
-          <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 mb-6">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Invite Details</p>
+          <div className="bg-zinc-50 dark:bg-slate-900 border border-zinc-100 dark:border-slate-700 rounded-xl p-4 mb-6">
+            <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider mb-3">Invite Details</p>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500">Workspace</span>
-                <span className="text-sm font-semibold text-zinc-900">{invite.workspaceName}</span>
+                <span className="text-sm text-zinc-500 dark:text-slate-400">Workspace</span>
+                <span className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{invite.workspaceName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500">Invited email</span>
-                <span className="text-sm font-mono text-zinc-700">{invite.email}</span>
+                <span className="text-sm text-zinc-500 dark:text-slate-400">Invited email</span>
+                <span className="text-sm font-mono text-zinc-700 dark:text-slate-300">{invite.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500">Your role</span>
+                <span className="text-sm text-zinc-500 dark:text-slate-400">Your role</span>
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_COLOR[invite.role] || ROLE_COLOR.VIEWER}`}>
                   {invite.role}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500">Expires</span>
-                <span className="text-sm text-zinc-500">{new Date(invite.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                <span className="text-sm text-zinc-500 dark:text-slate-400">Expires</span>
+                <span className="text-sm text-zinc-500 dark:text-slate-400">{new Date(invite.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
             </div>
           </div>
@@ -147,11 +147,11 @@ export default function InviteAccept() {
           {/* Action buttons */}
           {!user ? (
             <div className="space-y-3">
-              <p className="text-sm text-zinc-500 text-center mb-4">
+              <p className="text-sm text-zinc-500 dark:text-slate-400 text-center mb-4">
                 Sign in with the Google account for <strong>{invite.email}</strong> to join this workspace.
               </p>
               <button onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 py-3 border border-zinc-200 rounded-xl text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors">
+                className="w-full flex items-center justify-center gap-3 py-3 border border-zinc-200 dark:border-slate-600 rounded-xl text-sm font-semibold text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors">
                 <svg width="18" height="18" viewBox="0 0 18 18">
                   <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
                   <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
@@ -163,7 +163,7 @@ export default function InviteAccept() {
             </div>
           ) : emailMismatch ? (
             <button onClick={() => navigate('/login')}
-              className="w-full py-3 border border-zinc-200 rounded-xl text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
+              className="w-full py-3 border border-zinc-200 dark:border-slate-600 rounded-xl text-sm font-semibold text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors">
               Sign in with a different account
             </button>
           ) : (

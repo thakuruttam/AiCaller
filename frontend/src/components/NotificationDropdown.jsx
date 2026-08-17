@@ -13,7 +13,7 @@ const TYPE_META = {
   MEMBER_INVITED:       { icon: '✉️', color: 'text-teal-500' },
   MEMBER_JOINED:        { icon: '👋', color: 'text-teal-500' },
   MEMBER_ROLE_CHANGED:  { icon: '🔑', color: 'text-orange-500' },
-  MEMBER_REMOVED:       { icon: '🚪', color: 'text-gray-500' },
+  MEMBER_REMOVED:       { icon: '🚪', color: 'text-gray-500 dark:text-slate-400' },
 };
 
 function timeAgo(dateStr) {
@@ -53,7 +53,7 @@ export default function NotificationDropdown() {
       {/* Bell button */}
       <button
         onClick={handleOpen}
-        className="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        className="relative p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
         aria-label="Notifications"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,10 +69,10 @@ export default function NotificationDropdown() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-            <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">Notifications</span>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700">
+            <span className="font-semibold text-sm text-gray-800 dark:text-slate-100">Notifications</span>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
@@ -84,28 +84,28 @@ export default function NotificationDropdown() {
           </div>
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700">
+          <div className="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-slate-700">
             {loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-gray-400">Loading…</div>
+              <div className="px-4 py-8 text-center text-sm text-gray-400 dark:text-slate-500">Loading…</div>
             )}
             {!loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet</div>
+              <div className="px-4 py-8 text-center text-sm text-gray-400 dark:text-slate-500">No notifications yet</div>
             )}
             {notifications.map(n => {
-              const meta = TYPE_META[n.type] || { icon: '🔔', color: 'text-gray-500' };
+              const meta = TYPE_META[n.type] || { icon: '🔔', color: 'text-gray-500 dark:text-slate-400' };
               return (
                 <button
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors ${!n.isRead ? 'bg-teal-50/60 dark:bg-teal-900/20' : ''}`}
+                  className={`w-full text-left px-4 py-3 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-slate-700/60 transition-colors ${!n.isRead ? 'bg-teal-50/60 dark:bg-teal-900/20' : ''}`}
                 >
                   <span className="text-lg leading-none mt-0.5">{meta.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${!n.isRead ? 'text-gray-900 dark:text-gray-50' : 'text-gray-700 dark:text-gray-300'}`}>
+                    <p className={`text-sm font-medium truncate ${!n.isRead ? 'text-gray-900 dark:text-slate-50' : 'text-gray-700 dark:text-slate-300'}`}>
                       {n.title}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{n.body}</p>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{timeAgo(n.createdAt)}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-0.5">{n.body}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
                   </div>
                   {!n.isRead && (
                     <span className="mt-1.5 w-2 h-2 rounded-full bg-teal-500 flex-shrink-0" />

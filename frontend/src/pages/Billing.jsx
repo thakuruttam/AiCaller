@@ -5,11 +5,11 @@ import { useToast } from '../context/ToastContext';
 const TIER_ORDER = ['TRIAL', 'BASIC', 'STANDARD', 'PROFESSIONAL', 'ENTERPRISE', 'ENTERPRISE_PLUS'];
 
 const TIER_BADGE = {
-  TRIAL:          'bg-zinc-100 text-zinc-600 border-zinc-200',
-  BASIC:          'bg-amber-50 text-amber-700 border-amber-200',
-  STANDARD:       'bg-sky-50 text-sky-700 border-sky-200',
-  PROFESSIONAL:   'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20',
-  ENTERPRISE:     'bg-teal-50 text-teal-700 border-teal-200',
+  TRIAL:          'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600',
+  BASIC:          'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
+  STANDARD:       'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-700',
+  PROFESSIONAL:   'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20 dark:bg-indigo-900/30 dark:text-teal-300 dark:border-teal-700',
+  ENTERPRISE:     'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-700',
   ENTERPRISE_PLUS:'bg-gradient-to-r from-teal-600 to-teal-700 text-white border-transparent',
 };
 
@@ -139,8 +139,8 @@ export default function Billing() {
       {/* Page Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-zinc-100 tracking-tight">Billing & Credits</h1>
-          <p className="text-base text-[#334155] dark:text-zinc-400 mt-1">Top up your minute balance to run campaigns.</p>
+          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Billing & Credits</h1>
+          <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Top up your minute balance to run campaigns.</p>
         </div>
       </div>
 
@@ -175,8 +175,8 @@ export default function Billing() {
         </div>
 
         {/* Limits card */}
-        <div className="bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-          <p className="text-xs font-semibold text-[#334155] dark:text-zinc-400 uppercase tracking-wider mb-4">Plan Limits</p>
+        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+          <p className="text-xs font-semibold text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-4">Plan Limits</p>
           <div className="space-y-3">
             {[
               { label: 'Team members', value: limits.teamMembers },
@@ -184,14 +184,14 @@ export default function Billing() {
               { label: 'Contacts / campaign', value: limits.contacts },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center">
-                <span className="text-sm text-[#334155] dark:text-zinc-400">{label}</span>
-                <span className="text-sm font-semibold text-[#0f172a] dark:text-zinc-100">
+                <span className="text-sm text-[#334155] dark:text-slate-400">{label}</span>
+                <span className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">
                   {value === -1 ? 'Unlimited' : value.toLocaleString('en-IN')}
                 </span>
               </div>
             ))}
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[#334155] dark:text-zinc-400">API access</span>
+              <span className="text-sm text-[#334155] dark:text-slate-400">API access</span>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${limits.api ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
                 {limits.api ? 'Enabled' : 'Not included'}
               </span>
@@ -200,25 +200,25 @@ export default function Billing() {
         </div>
 
         {/* Total spend card */}
-        <div className="bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-          <p className="text-xs font-semibold text-[#334155] dark:text-zinc-400 uppercase tracking-wider mb-4">Account Summary</p>
+        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+          <p className="text-xs font-semibold text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-4">Account Summary</p>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[#334155] dark:text-zinc-400">Minutes purchased</span>
-              <span className="text-sm font-semibold text-[#0f172a] dark:text-zinc-100">
+              <span className="text-sm text-[#334155] dark:text-slate-400">Minutes purchased</span>
+              <span className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">
                 {totalMinutesPurchased.toLocaleString('en-IN')}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[#334155] dark:text-zinc-400">Top-ups</span>
-              <span className="text-sm font-semibold text-[#0f172a] dark:text-zinc-100">{history.length}</span>
+              <span className="text-sm text-[#334155] dark:text-slate-400">Top-ups</span>
+              <span className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{history.length}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[#334155] dark:text-zinc-400">Rate</span>
-              <span className="text-sm font-semibold text-[#0f172a] dark:text-zinc-100">₹5.00 / min</span>
+              <span className="text-sm text-[#334155] dark:text-slate-400">Rate</span>
+              <span className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">₹5.00 / min</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[#334155] dark:text-zinc-400">Balance expires</span>
+              <span className="text-sm text-[#334155] dark:text-slate-400">Balance expires</span>
               <span className="text-sm font-semibold text-emerald-600">Never</span>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function Billing() {
 
       {/* Pack grid */}
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[#0f172a] dark:text-zinc-100 mb-4">Top Up</h2>
+        <h2 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Top Up</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {packs.map((pack) => {
             const isCurrentTier = pack.tier === billingTier;
@@ -240,7 +240,7 @@ export default function Billing() {
                 className={`relative flex flex-col rounded-xl border p-5 cursor-pointer transition-all ${
                   isSelected
                     ? 'border-[#0d9488] shadow-lg shadow-[#0d9488]/15 bg-[#f0fdfa] dark:bg-[#1e1a3a]'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1e1e2e] hover:border-[#cbd5e1] hover:shadow-sm'
+                    : 'border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-800 hover:border-[#cbd5e1] hover:shadow-sm'
                 }`}
               >
                 {isCurrentTier && (
@@ -253,14 +253,14 @@ export default function Billing() {
 
                 {/* Selected checkmark */}
                 <div className={`absolute top-3 left-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                  isSelected ? 'border-[#0d9488] bg-[#0d9488]' : 'border-zinc-200 dark:border-zinc-600'
+                  isSelected ? 'border-[#0d9488] bg-[#0d9488]' : 'border-zinc-200 dark:border-slate-600'
                 }`}>
                   {isSelected && <span className="material-symbols-outlined text-white text-[13px]">check</span>}
                 </div>
 
                 <div className="flex-1 pt-4">
-                  <p className="text-xs font-bold text-[#334155] dark:text-zinc-400 uppercase tracking-wider mb-1">{pack.label}</p>
-                  <p className={`text-2xl font-bold ${isSelected ? 'text-[#0d9488]' : 'text-[#0f172a] dark:text-zinc-100'}`}>{pack.displayAmount}</p>
+                  <p className="text-xs font-bold text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-1">{pack.label}</p>
+                  <p className={`text-2xl font-bold ${isSelected ? 'text-[#0d9488]' : 'text-[#0f172a] dark:text-slate-100'}`}>{pack.displayAmount}</p>
                   <p className="text-sm text-[#0d9488] font-semibold mt-1">{pack.minutes.toLocaleString('en-IN')} min</p>
                   <p className="text-xs text-zinc-400 mt-0.5">{pack.rateDisplay}</p>
                 </div>
@@ -280,8 +280,8 @@ export default function Billing() {
               <div className="flex items-center gap-4">
                 <span className="material-symbols-outlined text-[#0d9488] text-[22px]">shopping_cart</span>
                 <div>
-                  <p className="text-sm font-semibold text-[#0f172a] dark:text-zinc-100">{pack.label} — {pack.displayAmount}</p>
-                  <p className="text-xs text-[#334155] dark:text-zinc-400">{pack.minutes.toLocaleString('en-IN')} minutes at {pack.rateDisplay}</p>
+                  <p className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{pack.label} — {pack.displayAmount}</p>
+                  <p className="text-xs text-[#334155] dark:text-slate-400">{pack.minutes.toLocaleString('en-IN')} minutes at {pack.rateDisplay}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -310,16 +310,16 @@ export default function Billing() {
 
       {/* Transaction history */}
       <div>
-        <h2 className="text-lg font-semibold text-[#0f172a] dark:text-zinc-100 mb-4">Transaction History</h2>
-        <div className="bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        <h2 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Transaction History</h2>
+        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 gap-2">
-              <span className="material-symbols-outlined text-zinc-200 dark:text-zinc-700 text-[40px]">receipt_long</span>
+              <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[40px]">receipt_long</span>
               <p className="text-sm text-zinc-400">No transactions yet.</p>
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 dark:bg-[#13131f] border-b border-zinc-100 dark:border-zinc-800">
+              <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
                 <tr>
                   <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Date</th>
                   <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Pack</th>
@@ -329,13 +329,13 @@ export default function Billing() {
                   <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
+              <tbody className="divide-y divide-zinc-50 dark:divide-slate-800">
                 {history.map((t) => (
-                  <tr key={t.id} className="hover:bg-zinc-50/60 dark:hover:bg-[#13131f]/60 transition-colors">
-                    <td className="px-5 py-4 text-zinc-600 dark:text-zinc-300">{formatDate(t.createdAt)}</td>
-                    <td className="px-5 py-4 font-semibold text-[#0f172a] dark:text-zinc-100 capitalize">{t.packId.replace('_', ' ')}</td>
-                    <td className="px-5 py-4 text-zinc-600 dark:text-zinc-300">+{(t.minutes || 0).toLocaleString('en-IN')} min</td>
-                    <td className="px-5 py-4 font-semibold text-[#0f172a] dark:text-zinc-100">{t.displayAmount}</td>
+                  <tr key={t.id} className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors">
+                    <td className="px-5 py-4 text-zinc-600 dark:text-slate-300">{formatDate(t.createdAt)}</td>
+                    <td className="px-5 py-4 font-semibold text-[#0f172a] dark:text-slate-100 capitalize">{t.packId.replace('_', ' ')}</td>
+                    <td className="px-5 py-4 text-zinc-600 dark:text-slate-300">+{(t.minutes || 0).toLocaleString('en-IN')} min</td>
+                    <td className="px-5 py-4 font-semibold text-[#0f172a] dark:text-slate-100">{t.displayAmount}</td>
                     <td className="px-5 py-4">
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${TIER_BADGE[t.tierUnlocked]}`}>
                         {t.tierUnlocked.replace('_', '+')}

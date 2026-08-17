@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: 'bg-teal-50 text-teal-700 border-teal-200',
-  ADMIN:       'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20',
-  EDITOR:      'bg-amber-50 text-amber-700 border-amber-200',
-  VIEWER:      'bg-zinc-100 text-zinc-600 border-zinc-200',
+  SUPER_ADMIN: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-700',
+  ADMIN:       'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20 dark:bg-indigo-900/30 dark:text-teal-300 dark:border-teal-700',
+  EDITOR:      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
+  VIEWER:      'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600',
 };
 
 
@@ -113,8 +113,8 @@ export default function WorkspaceSettings() {
     <div className="p-8 max-w-[1440px] mx-auto">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-zinc-100 tracking-tight">Settings</h1>
-          <p className="text-base text-[#334155] dark:text-zinc-400 mt-1">Manage your profile and workspace configuration.</p>
+          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Settings</h1>
+          <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Manage your profile and workspace configuration.</p>
         </div>
       </div>
 
@@ -129,9 +129,9 @@ export default function WorkspaceSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left: Avatar card */}
-          <div className="bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col items-center text-center gap-4">
+          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col items-center text-center gap-4">
             <div className="relative group mt-2">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#0f766e] flex items-center justify-center ring-4 ring-offset-2 ring-zinc-100 dark:ring-zinc-800">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#0f766e] flex items-center justify-center ring-4 ring-offset-2 ring-zinc-100 dark:ring-slate-800">
                 {avatarPreview
                   ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   : <span className="text-3xl font-bold text-white">{user?.name?.charAt(0)?.toUpperCase() || '?'}</span>
@@ -146,26 +146,26 @@ export default function WorkspaceSettings() {
               <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
             <div>
-              <p className="text-base font-semibold text-[#0f172a] dark:text-zinc-100">{user?.name}</p>
-              <p className="text-sm text-[#334155] dark:text-zinc-400 mt-0.5">{user?.email}</p>
+              <p className="text-base font-semibold text-[#0f172a] dark:text-slate-100">{user?.name}</p>
+              <p className="text-sm text-[#334155] dark:text-slate-400 mt-0.5">{user?.email}</p>
             </div>
             <div className="flex flex-col items-center gap-2 w-full">
               <button
                 onClick={() => avatarRef.current?.click()}
-                className="w-full py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-[#0d9488] hover:bg-[#e6fffa] transition-colors"
+                className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-medium text-[#0d9488] hover:bg-[#e6fffa] transition-colors"
               >
                 Change photo
               </button>
               {avatarPreview && avatarPreview !== (user?.avatarUrl || null) && (
                 <button
                   onClick={() => { setAvatarPreview(user?.avatarUrl || null); setAvatarData(null); }}
-                  className="w-full py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-medium text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                 >
                   Remove photo
                 </button>
               )}
             </div>
-            <div className="w-full pt-4 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="w-full pt-4 border-t border-zinc-100 dark:border-slate-800">
               <p className="text-[10px] font-semibold text-[#334155] uppercase tracking-wider mb-2">Workspace Role</p>
               <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
                 {user?.workspaceRole || user?.role}
@@ -174,25 +174,25 @@ export default function WorkspaceSettings() {
           </div>
 
           {/* Right: Edit form */}
-          <div className="lg:col-span-2 bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-base font-semibold text-[#0f172a] dark:text-zinc-100 mb-6">Personal Information</h3>
+          <div className="lg:col-span-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Personal Information</h3>
             <div className="space-y-5 max-w-lg">
               <Field label="Display Name">
                 <input
                   value={profileName}
                   onChange={e => setProfileName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full h-10 px-3 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-[#13131f] text-[#0f172a] dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
+                  className="w-full h-10 px-3 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
                 />
               </Field>
               <Field label="Email">
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-[#13131f] border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-[#334155] dark:text-zinc-400 select-all">
+                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm text-[#334155] dark:text-slate-400 select-all">
                   {user?.email}
                 </div>
                 <p className="text-xs text-zinc-400 mt-1">Email cannot be changed here.</p>
               </Field>
             </div>
-            <div className="mt-8 pt-5 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="mt-8 pt-5 border-t border-zinc-100 dark:border-slate-800">
               <button
                 onClick={saveProfile}
                 disabled={savingProfile}
@@ -212,8 +212,8 @@ export default function WorkspaceSettings() {
       {/* ── Workspace Tab ─────────────────────────────────────────── */}
       {tab === 'general' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-base font-semibold text-[#0f172a] dark:text-zinc-100 mb-6">Workspace Information</h3>
+          <div className="lg:col-span-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Workspace Information</h3>
             <div className="space-y-5 max-w-lg">
               <div>
                 <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">Workspace Name</label>
@@ -222,7 +222,7 @@ export default function WorkspaceSettings() {
                     value={workspaceName}
                     onChange={e => setWorkspaceName(e.target.value)}
                     disabled={!isAdmin}
-                    className="flex-1 h-10 px-3 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-[#13131f] text-[#0f172a] dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488] disabled:bg-zinc-50 disabled:text-zinc-400"
+                    className="flex-1 h-10 px-3 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488] disabled:bg-zinc-50 disabled:text-zinc-400"
                   />
                   {isAdmin && (
                     <button
@@ -238,22 +238,22 @@ export default function WorkspaceSettings() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">Workspace ID</label>
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-[#13131f] border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs text-[#334155] font-mono select-all">
+                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-xs text-[#334155] font-mono select-all">
                   {workspaceId}
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">Slug</label>
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-[#13131f] border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-[#334155] font-mono">
+                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm text-[#334155] font-mono">
                   {currentWorkspace?.slug || '—'}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#1e1e2e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col gap-3">
-            <h3 className="text-base font-semibold text-[#0f172a] dark:text-zinc-100 mb-1">Your Access</h3>
-            <p className="text-sm text-[#334155] dark:text-zinc-400">Your role determines what you can do in this workspace.</p>
+          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col gap-3">
+            <h3 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-1">Your Access</h3>
+            <p className="text-sm text-[#334155] dark:text-slate-400">Your role determines what you can do in this workspace.</p>
             <span className={`self-start text-xs font-bold px-3 py-1.5 rounded-full border mt-2 ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
               {user?.workspaceRole || user?.role}
             </span>

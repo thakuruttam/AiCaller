@@ -122,7 +122,7 @@ const CallDetails = () => {
 
   if (loading) return <PageLoader text="Loading call details…" />;
   if (!callLog) return (
-    <div className="flex items-center justify-center h-64 text-[#64748b]">Call log not found.</div>
+    <div className="flex items-center justify-center h-64 text-[#64748b] dark:text-slate-400">Call log not found.</div>
   );
 
   const contactName = callLog.contact?.name || 'Unknown';
@@ -136,12 +136,12 @@ const CallDetails = () => {
     : '—';
 
   const statusColor = callLog.status === 'completed'
-    ? 'bg-emerald-50 text-emerald-700'
+    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
     : callLog.status === 'failed'
-      ? 'bg-[#ffdad6] text-[#ba1a1a]'
+      ? 'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300'
       : callLog.status === 'in-progress'
-        ? 'bg-amber-50 text-amber-700'
-        : 'bg-zinc-100 text-zinc-600';
+        ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+        : 'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400';
 
   const turns = parseTranscript(callLog.transcript);
 
@@ -157,16 +157,16 @@ const CallDetails = () => {
               </span>
               {callLog.status ? callLog.status.charAt(0).toUpperCase() + callLog.status.slice(1) : 'Pending'}
             </span>
-            <span className="text-[#64748b] text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="text-[#64748b] dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>
               ID: {callLog.id?.substring(0, 12).toUpperCase() || '—'}
             </span>
           </div>
-          <h2 className="text-3xl font-semibold text-[#0f172a] tracking-tight">Call Details: {contactName}</h2>
+          <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Call Details: {contactName}</h2>
         </div>
         <div className="flex gap-3">
           <Link
             to={`/campaigns/${campaignId || callLog.campaignId}`}
-            className="flex items-center gap-2 px-4 py-2 border border-zinc-300 text-[#0f172a] text-sm rounded hover:bg-zinc-50 transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-all"
             style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
@@ -184,28 +184,28 @@ const CallDetails = () => {
       </div>
 
       {/* Info Strip */}
-      <div className="grid grid-cols-4 bg-white border border-zinc-200 rounded-lg p-6 mb-8">
-        <div className="space-y-1 border-r border-zinc-100 pr-6">
-          <p className="text-xs text-zinc-500 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Contact Info</p>
-          <p className="text-sm font-medium text-[#0f172a]" style={{fontFamily:'JetBrains Mono, monospace'}}>{callLog.contact?.phone || '—'}</p>
-          <p className="text-sm text-zinc-600">{contactName}</p>
+      <div className="grid grid-cols-4 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg p-6 mb-8">
+        <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 pr-6">
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Contact Info</p>
+          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{callLog.contact?.phone || '—'}</p>
+          <p className="text-sm text-zinc-600 dark:text-slate-400">{contactName}</p>
         </div>
-        <div className="space-y-1 border-r border-zinc-100 px-6">
-          <p className="text-xs text-zinc-500 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign</p>
-          <p className="text-sm font-medium text-[#0f172a]" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaignName}</p>
-          <p className="text-sm text-zinc-600 capitalize">{callLog.status || '—'}</p>
+        <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 px-6">
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign</p>
+          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaignName}</p>
+          <p className="text-sm text-zinc-600 dark:text-slate-400 capitalize">{callLog.status || '—'}</p>
         </div>
-        <div className="space-y-1 border-r border-zinc-100 px-6">
-          <p className="text-xs text-zinc-500 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Call Timing</p>
-          <p className="text-sm font-medium text-[#0f172a]" style={{fontFamily:'JetBrains Mono, monospace'}}>{callDate}</p>
-          <p className="text-sm text-zinc-600">Duration: {durationStr}</p>
+        <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 px-6">
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Call Timing</p>
+          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{callDate}</p>
+          <p className="text-sm text-zinc-600 dark:text-slate-400">Duration: {durationStr}</p>
         </div>
         <div className="space-y-1 pl-6">
-          <p className="text-xs text-zinc-500 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Outcome</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Outcome</p>
           <p className="text-sm font-bold text-[#0d9488]" style={{fontFamily:'JetBrains Mono, monospace'}}>
             {callLog.status === 'completed' ? 'Call Completed' : callLog.status === 'failed' ? 'Call Failed' : 'In Progress'}
           </p>
-          <p className="text-sm text-zinc-600">Status: {callLog.status || '—'}</p>
+          <p className="text-sm text-zinc-600 dark:text-slate-400">Status: {callLog.status || '—'}</p>
         </div>
       </div>
 
@@ -246,21 +246,21 @@ const CallDetails = () => {
           </div>
 
           {/* Sentiment Card */}
-          <div className="bg-white border border-zinc-200 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-[#0f172a] mb-4" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment &amp; Insights</h3>
+          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg p-6">
+            <h3 className="text-sm font-medium text-[#0f172a] dark:text-slate-100 mb-4" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment &amp; Insights</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600">Caller Sentiment</span>
+                <span className="text-sm text-zinc-600 dark:text-slate-400">Caller Sentiment</span>
                 <span className="text-xs font-medium text-emerald-600" style={{fontFamily:'JetBrains Mono, monospace'}}>Positive</span>
               </div>
-              <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-zinc-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
                 <div className="bg-emerald-500 h-full w-[72%]" />
               </div>
               <div className="pt-2">
-                <p className="text-xs text-zinc-500 mb-2 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Keywords Detected</p>
+                <p className="text-xs text-zinc-500 dark:text-slate-400 mb-2 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Keywords Detected</p>
                 <div className="flex flex-wrap gap-2">
                   {['Call', 'Campaign', 'Outreach'].map(kw => (
-                    <span key={kw} className="bg-zinc-100 text-zinc-700 px-2 py-1 rounded text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{kw}</span>
+                    <span key={kw} className="bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 px-2 py-1 rounded text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{kw}</span>
                   ))}
                 </div>
               </div>
@@ -270,18 +270,18 @@ const CallDetails = () => {
 
         {/* Right Column: Transcript */}
         <div className="col-span-12 lg:col-span-7">
-          <div className="bg-white border border-zinc-200 rounded-lg flex flex-col" style={{minHeight: '600px'}}>
+          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg flex flex-col" style={{minHeight: '600px'}}>
             {/* Transcript Header */}
-            <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+            <div className="p-4 border-b border-zinc-100 dark:border-slate-700 flex justify-between items-center bg-zinc-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-zinc-400">description</span>
-                <h3 className="text-sm font-medium text-[#0f172a]" style={{fontFamily:'JetBrains Mono, monospace'}}>Transcript</h3>
+                <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500">description</span>
+                <h3 className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>Transcript</h3>
               </div>
               {callLog.transcript && (
                 <div className="flex gap-2">
                   <button
                     onClick={handleCopyTranscript}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-zinc-200 rounded hover:bg-zinc-50 transition-all text-xs"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 rounded hover:bg-zinc-50 dark:hover:bg-slate-600 transition-all text-xs"
                     style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     <span className="material-symbols-outlined text-[16px]">content_copy</span>
@@ -289,7 +289,7 @@ const CallDetails = () => {
                   </button>
                   <button
                     onClick={handleDownloadTranscript}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-zinc-200 rounded hover:bg-zinc-50 transition-all text-xs"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 rounded hover:bg-zinc-50 dark:hover:bg-slate-600 transition-all text-xs"
                     style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     <span className="material-symbols-outlined text-[16px]">file_download</span>
@@ -300,12 +300,12 @@ const CallDetails = () => {
             </div>
 
             {/* Transcript Body */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-zinc-50/30">
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-zinc-50/30 dark:bg-slate-900/30">
               {callLog.transcript ? (
                 turns.map((turn, i) => {
                   if (turn.raw) {
                     return (
-                      <div key={i} className="text-sm text-[#334155] whitespace-pre-line leading-relaxed">
+                      <div key={i} className="text-sm text-[#334155] dark:text-slate-400 whitespace-pre-line leading-relaxed">
                         {turn.text}
                       </div>
                     );
@@ -318,9 +318,9 @@ const CallDetails = () => {
                         </div>
                         <div className="space-y-1 max-w-[85%]">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-[#0f172a]" style={{fontFamily:'JetBrains Mono, monospace'}}>{turn.speaker}</span>
+                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{turn.speaker}</span>
                           </div>
-                          <div className="bg-white border border-zinc-200 p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] leading-relaxed">
+                          <div className="bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed">
                             {turn.text}
                           </div>
                         </div>
@@ -334,7 +334,7 @@ const CallDetails = () => {
                       </div>
                       <div className="space-y-1 max-w-[85%] text-right">
                         <div className="flex items-center gap-2 justify-end">
-                          <span className="text-sm font-medium text-[#0f172a]" style={{fontFamily:'JetBrains Mono, monospace'}}>{turn.speaker}</span>
+                          <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{turn.speaker}</span>
                         </div>
                         <div className="bg-zinc-800 text-white p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left">
                           {turn.text}
@@ -344,7 +344,7 @@ const CallDetails = () => {
                   );
                 })
               ) : (
-                <div className="flex items-center justify-center h-full text-sm text-zinc-400 italic">
+                <div className="flex items-center justify-center h-full text-sm text-zinc-400 dark:text-slate-500 italic">
                   No transcript available for this call.
                 </div>
               )}

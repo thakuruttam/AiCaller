@@ -412,7 +412,7 @@ export default function CampaignReport() {
       </section>
 
       {/* Results Section — By Contact / By Question */}
-      <FullscreenTable className="flex flex-col gap-4 bg-zinc-50/50 dark:bg-[#13131f] rounded-2xl">
+      <FullscreenTable className="flex flex-col gap-4 bg-zinc-50/50 dark:bg-slate-900 rounded-2xl">
       {({ toggle, isFs }) => {
         const paginated = isFs ? filteredContacts : filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
