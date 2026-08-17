@@ -11,7 +11,10 @@
     "dev:api": "node --watch src/server.js",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@bull-board/api": "^5.21.0",
@@ -27,6 +30,9 @@
     "words-to-numbers": "^1.5.1"
   },
   "devDependencies": {
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "vitest": "^3.2.0",
+    "@vitest/coverage-v8": "^3.2.0",
+    "supertest": "^7.1.0"
   }
 }
