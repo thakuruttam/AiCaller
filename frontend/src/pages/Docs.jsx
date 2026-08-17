@@ -97,7 +97,7 @@ export default function Docs() {
       </aside>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-10 py-8 max-w-4xl">
+      <div className="flex-1 overflow-y-auto px-12 py-8">
         {status === 'loading' && (
           <div className="flex items-center gap-2 text-sm text-[#64748b] dark:text-slate-400">
             <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
