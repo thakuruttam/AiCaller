@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import api from './api/axios';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGate from './components/RoleGate';
 import Landing from './pages/Landing';
@@ -104,19 +104,19 @@ function TopBarWorkspacePicker() {
 
       {/* ── Dropdown ── */}
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 w-64 bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] border border-[#e2e8f0] z-50 overflow-hidden">
+        <div className="absolute top-[calc(100%+8px)] right-0 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] border border-[#e2e8f0] dark:border-slate-700 z-50 overflow-hidden">
 
           {/* Current workspace header — clean, no gradient */}
-          <div className="px-4 py-3.5 border-b border-[#f1f5f9]">
+          <div className="px-4 py-3.5 border-b border-[#f1f5f9] dark:border-slate-700/50">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-[#0d9488] flex items-center justify-center text-white text-sm font-bold shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold text-[#0f172a] truncate leading-snug">
+                <p className="text-[13px] font-bold text-[#0f172a] dark:text-slate-100 truncate leading-snug">
                   {current?.name || 'No Workspace'}
                 </p>
-                <p className="text-[11px] text-[#0d9488] font-medium capitalize leading-none mt-0.5">
+                <p className="text-[11px] text-[#0d9488] dark:text-teal-400 font-medium capitalize leading-none mt-0.5">
                   {(current?.role || user?.workspaceRole || user?.role || '').toLowerCase()}
                 </p>
               </div>
@@ -127,7 +127,7 @@ function TopBarWorkspacePicker() {
           {/* Workspace list */}
           {workspaces.length > 1 && (
             <div className="py-1">
-              <p className="px-4 pt-2 pb-1.5 text-[10px] font-semibold text-[#94a3b8] uppercase tracking-widest">
+              <p className="px-4 pt-2 pb-1.5 text-[10px] font-semibold text-[#94a3b8] dark:text-slate-500 uppercase tracking-widest">
                 Switch workspace
               </p>
               <div className="max-h-40 overflow-y-auto">
@@ -136,23 +136,23 @@ function TopBarWorkspacePicker() {
                     key={w.id}
                     onClick={() => handleSwitch(w.id)}
                     disabled={!!switching}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#f8fafc] group cursor-pointer"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#f8fafc] dark:hover:bg-slate-700/50 group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-md bg-[#f0fdfa] flex items-center justify-center shrink-0 text-xs font-bold text-[#0d9488] group-hover:bg-[#0d9488] group-hover:text-white transition-colors">
+                    <div className="w-7 h-7 rounded-md bg-[#f0fdfa] dark:bg-slate-700 flex items-center justify-center shrink-0 text-xs font-bold text-[#0d9488] dark:text-teal-400 group-hover:bg-[#0d9488] group-hover:text-white transition-colors">
                       {switching === w.id
                         ? <span className="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
                         : w.name.charAt(0).toUpperCase()}
                     </div>
-                    <p className="flex-1 text-[13px] font-medium text-[#334155] truncate group-hover:text-[#0f172a] transition-colors">
+                    <p className="flex-1 text-[13px] font-medium text-[#334155] dark:text-slate-300 truncate group-hover:text-[#0f172a] dark:group-hover:text-slate-100 transition-colors">
                       {w.name}
                     </p>
-                    <span className="material-symbols-outlined text-[14px] text-[#cbd5e1] group-hover:text-[#0d9488] transition-colors">
+                    <span className="material-symbols-outlined text-[14px] text-[#cbd5e1] dark:text-slate-600 group-hover:text-[#0d9488] dark:group-hover:text-teal-400 transition-colors">
                       chevron_right
                     </span>
                   </button>
                 ))}
               </div>
-              <div className="mx-4 border-t border-[#f1f5f9]" />
+              <div className="mx-4 border-t border-[#f1f5f9] dark:border-slate-700/50" />
             </div>
           )}
 
@@ -164,7 +164,7 @@ function TopBarWorkspacePicker() {
                   autoFocus required value={newWsName}
                   onChange={e => setNewWsName(e.target.value)}
                   placeholder="Workspace name…"
-                  className="w-full h-8 px-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-lg text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all"
+                  className="w-full h-8 px-3 bg-[#f8fafc] dark:bg-slate-700 border border-[#e2e8f0] dark:border-slate-600 rounded-lg text-sm text-[#0f172a] dark:text-slate-100 placeholder:text-[#94a3b8] dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all"
                 />
                 <div className="flex gap-2">
                   <button type="submit" disabled={creating || !newWsName.trim()}
@@ -174,7 +174,7 @@ function TopBarWorkspacePicker() {
                       : <><span className="material-symbols-outlined text-[13px]">add</span>Create</>}
                   </button>
                   <button type="button" onClick={() => { setShowCreate(false); setNewWsName(''); }}
-                    className="h-8 px-3 border border-[#e2e8f0] text-[#64748b] rounded-lg text-xs font-medium hover:bg-[#f8fafc] transition-colors cursor-pointer">
+                    className="h-8 px-3 border border-[#e2e8f0] dark:border-slate-600 text-[#64748b] dark:text-slate-400 rounded-lg text-xs font-medium hover:bg-[#f8fafc] dark:hover:bg-slate-700 transition-colors cursor-pointer">
                     Cancel
                   </button>
                 </div>
@@ -182,7 +182,7 @@ function TopBarWorkspacePicker() {
             ) : (
               <button
                 onClick={() => setShowCreate(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-medium text-[#64748b] hover:text-[#0d9488] hover:bg-[#f0fdfa] transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-medium text-[#64748b] dark:text-slate-400 hover:text-[#0d9488] dark:hover:text-teal-400 hover:bg-[#f0fdfa] dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[15px]">add_circle</span>
                 New workspace
@@ -238,6 +238,21 @@ function BalanceWidget() {
         <span className="material-symbols-outlined text-[14px] text-zinc-500">arrow_forward</span>
       </NavLink>
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="p-2 rounded-lg text-[#64748b] dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      <span className="material-symbols-outlined text-[20px] block">{isDark ? 'light_mode' : 'dark_mode'}</span>
+    </button>
   );
 }
 
@@ -338,23 +353,24 @@ function TopBar() {
   const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
 
   return (
-    <header className="fixed top-0 right-0 w-[calc(100%-280px)] bg-[#f8fafc] flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] shadow-sm">
+    <header className="fixed top-0 right-0 w-[calc(100%-280px)] bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
         <div className="relative w-full max-w-md">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] text-[18px]">search</span>
-          <input className="w-full bg-[#f0fdfa] border-none rounded-full py-2 pl-10 pr-4 text-sm text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#0d9488] placeholder:text-[#64748b]" placeholder="Search logs, campaigns..." type="text" />
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] dark:text-slate-400 text-[18px]">search</span>
+          <input className="w-full bg-[#f0fdfa] dark:bg-slate-800 border-none rounded-full py-2 pl-10 pr-4 text-sm text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488] placeholder:text-[#64748b] dark:placeholder:text-slate-500" placeholder="Search logs, campaigns..." type="text" />
         </div>
       </div>
       <div className="flex items-center gap-4">
         <TopBarWorkspacePicker />
+        <ThemeToggle />
         <NotificationDropdown />
-        <div className="h-8 w-px bg-[#cbd5e1] mx-2"></div>
+        <div className="h-8 w-px bg-[#cbd5e1] dark:bg-slate-700 mx-2"></div>
         <div className="flex items-center gap-3">
           <div className="text-right hidden lg:block">
-            <p className="text-sm text-[#0f172a] font-medium leading-tight" style={{fontFamily:'JetBrains Mono, monospace'}}>{user?.name || 'User'}</p>
-            <p className="text-[10px] text-[#64748b] uppercase tracking-wider">{user?.workspaceRole || user?.role}</p>
+            <p className="text-sm text-[#0f172a] dark:text-slate-100 font-medium leading-tight" style={{fontFamily:'JetBrains Mono, monospace'}}>{user?.name || 'User'}</p>
+            <p className="text-[10px] text-[#64748b] dark:text-slate-400 uppercase tracking-wider">{user?.workspaceRole || user?.role}</p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-[#0f766e] flex items-center justify-center text-white text-sm font-bold border border-[#cbd5e1] overflow-hidden shrink-0">
+          <div className="w-9 h-9 rounded-full bg-[#0f766e] flex items-center justify-center text-white text-sm font-bold border border-[#cbd5e1] dark:border-slate-600 overflow-hidden shrink-0">
             {user?.avatarUrl
               ? <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
               : initials}
@@ -367,7 +383,7 @@ function TopBar() {
 
 function AppLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+    <div className="flex h-screen overflow-hidden bg-[#f8fafc] dark:bg-slate-900">
       <Sidebar />
       <div className="ml-[280px] flex-1 flex flex-col overflow-hidden">
         <TopBar />
@@ -375,17 +391,17 @@ function AppLayout() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/create-campaign" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] text-sm">You don't have permission to create campaigns.</div>}>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to create campaigns.</div>}>
                 <CampaignWizard />
               </RoleGate>
             } />
             <Route path="/edit-campaign/:id" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] text-sm">You don't have permission to edit campaigns.</div>}>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to edit campaigns.</div>}>
                 <CampaignWizard />
               </RoleGate>
             } />
             <Route path="/admin" element={
-              <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] text-sm">You don't have permission to access the admin panel.</div>}>
+              <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to access the admin panel.</div>}>
                 <AdminDashboard />
               </RoleGate>
             } />
@@ -410,7 +426,7 @@ function RootRoute() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc]">
+      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc] dark:bg-slate-900">
         <div className="w-12 h-12 bg-[#0f766e] rounded-xl flex items-center justify-center shadow-lg">
           <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>graphic_eq</span>
         </div>
