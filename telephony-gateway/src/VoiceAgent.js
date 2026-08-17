@@ -16,6 +16,7 @@ export class VoiceAgent {
     this.awaitingIdentityConfirm = true;       // true until user confirms they are the intended contact
     this.identityConfirmed = null;             // null=unknown, true=confirmed, false=denied (wrong person)
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
+    this.mandatoryRetries = 0;                 // counter for how many times we've re-asked an invalid mandatory answer
     this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
     console.log("--------------------------------------------------");
@@ -159,6 +160,23 @@ export class VoiceAgent {
     return result;
   }
 
+  /**
+   * Deterministic replacement for the old "let the LLM judge whether the
+   * answer was clear" behavior. Reuses the SAME expectedAnswer/scoringCriteria
+   * data campaign creators already author in the Scoring tab for post-call
+   * evaluation (call-evaluation-service/src/pipeline/scorer.js) — that data
+   * just wasn't being checked live during the call before. Defaults to
+   * "is any value" (non-empty) when a campaign never touched the scoring UI.
+   */
+  async _isValidAnswer(item, userInput) {
+    if (item.scoringActiveTab === 'semantic' && item.scoringCriteria?.trim()) {
+      return this._evalSemanticCondition(item.scoringCriteria.trim(), userInput);
+    }
+    const condition = item.expectedAnswer?.condition || 'is any value';
+    const value = item.expectedAnswer?.value || '';
+    return this.evalCondition(condition, value, userInput);
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // System prompt  (lean – no navigation instructions)
   // ─────────────────────────────────────────────────────────────────
@@ -253,10 +271,12 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
    * Mirrors _buildNextDirective()'s branching but returns plain spoken text
    * instead of an LLM directive, for the common cases where the content is
    * already fully known (single question, single info, info→question pair,
-   * terminal sign-off). Returns null WITHOUT mutating any state when the
-   * turn needs real reasoning — mandatory-answer judgment, 2+ chained info
-   * items, or non-English (live translation) — so the caller falls back to
-   * _buildNextDirective() + the LLM untouched.
+   * terminal sign-off). Mandatory questions are included — answer-validity
+   * judgment happens separately and deterministically in _isValidAnswer(),
+   * so asking a mandatory question is just verbatim text like any other.
+   * Returns null WITHOUT mutating any state when the turn needs real
+   * reasoning — 2+ chained info items, or non-English (live translation) —
+   * so the caller falls back to _buildNextDirective() + the LLM untouched.
    */
   _buildBypass() {
     if (this.language !== 'English') return null;
@@ -274,7 +294,6 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
     const itemType = item.itemType || 'question';
 
     if (itemType === 'question') {
-      if (item.is_mandatory) return null; // needs the LLM's judgment on whether to repeat
       const text = this._stripPlaceholders(item.text);
       this.currentIndex = idx + 1;
       return { text, expectsUserReply: true, hangUp: false };
@@ -293,7 +312,6 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
 
     const nextType = next.itemType || 'question';
     if (nextType === 'information') return null; // 2+ chained info blocks — LLM path
-    if (next.is_mandatory) return null;           // chained question is mandatory — LLM path
 
     const questionText = this._stripPlaceholders(next.text);
     this.currentIndex = idx + 2;
@@ -470,8 +488,10 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
             const fullInput = `${userInput}\n(System: The user confirmed their identity. Say "Thanks." Then follow this instruction exactly: ${directive})`;
             this.chatHistory.push({ role: 'user', content: fullInput });
             return await this._callLLM();
-          } else if (this.language === 'English' && !firstItem.is_mandatory) {
-            // Regular question, deterministic content — bypass the LLM
+          } else if (this.language === 'English') {
+            // Regular question, deterministic content — bypass the LLM.
+            // Mandatory-answer validity is judged separately in _isValidAnswer()
+            // on the NEXT turn, so asking is safe to bypass either way.
             this.advanceTo(); // advance to Q2 so next user turn doesn't re-ask Q1
             this.chatHistory.push({ role: 'user', content: userInput });
             const text = `Thanks. ${this._stripPlaceholders(firstItem.text)}`;
@@ -568,6 +588,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         }
       }
 
+      let skippedOrEnded = false;
       if ((prevItem?.itemType || 'question') === 'question' && prevItem.onAnswer?.action) {
         const { action, skipCondition, skipToId, skipSemanticCondition, skipConditionActiveTab } = prevItem.onAnswer;
         const useSemanticSkip = skipConditionActiveTab === 'semantic';
@@ -613,13 +634,44 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
             const answerIsComplete = /[.?!]$/.test(userInput.trimEnd());
             if (answerIsComplete) {
               this.currentIndex = this.items.length;
+              skippedOrEnded = true;
             } else {
               console.log(`[VoiceAgent] Deferring end_call — answer lacks trailing punctuation, likely partial: "${userInput.trim()}"`);
             }
           } else if (action === 'skip_question' && skipToId) {
             const targetIdx = this.items.findIndex(i => i.id === skipToId);
-            if (targetIdx !== -1) this.currentIndex = targetIdx;
+            if (targetIdx !== -1) { this.currentIndex = targetIdx; skippedOrEnded = true; }
           }
+        }
+      }
+
+      // ── Mandatory-answer validation on the PREVIOUS item ──
+      // Replaces the old approach of hoping the LLM notices an unclear answer
+      // and repeats the question on its own. A skip/end_call condition firing
+      // above takes priority — the campaign creator explicitly routed this
+      // answer somewhere, so don't second-guess it with a generic validity check.
+      if (!skippedOrEnded && prevItem && (prevItem.itemType || 'question') === 'question' && prevItem.is_mandatory) {
+        const isValid = await this._isValidAnswer(prevItem, userInput);
+        if (!isValid) {
+          const maxRetries = parseInt(process.env.MAX_MANDATORY_RETRIES || '2', 10);
+          if (this.mandatoryRetries < maxRetries) {
+            this.mandatoryRetries += 1;
+            console.log(`[VoiceAgent] Mandatory answer invalid — retry ${this.mandatoryRetries}/${maxRetries}: "${userInput}"`);
+            if (this.language === 'English') {
+              this.chatHistory.push({ role: 'user', content: userInput });
+              return this.sayVerbatim(this._stripPlaceholders(prevItem.text), { expectsUserReply: true });
+            }
+            const repeatDirective = `(System: The user's answer did not satisfy this mandatory question. Apologize briefly and repeat this exact question verbatim: "${prevItem.text}")`;
+            this.expectsUserReply = true;
+            const fullInput = `${userInput}\n${repeatDirective}`;
+            this.chatHistory.push({ role: 'user', content: fullInput });
+            return await this._callLLM();
+          }
+          // Retries exhausted — accept the answer as-is and move on.
+          console.log(`[VoiceAgent] Mandatory retries exhausted — moving on with best-effort answer: "${userInput}"`);
+          this.mandatoryRetries = 0;
+        } else {
+          this.mandatoryRetries = 0;
         }
       }
     }
@@ -751,6 +803,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       awaitingIdentityConfirm: this.awaitingIdentityConfirm,
       identityConfirmed:       this.identityConfirmed,
       confusionRetries:        this.confusionRetries,
+      mandatoryRetries:        this.mandatoryRetries,
       expectsUserReply:        this.expectsUserReply,
       chatHistory:             this.chatHistory
     };
@@ -778,6 +831,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       agent.awaitingIdentityConfirm = state.awaitingIdentityConfirm;
       agent.identityConfirmed       = state.identityConfirmed ?? null;
       agent.confusionRetries        = state.confusionRetries;
+      agent.mandatoryRetries        = state.mandatoryRetries ?? 0;
       agent.expectsUserReply        = state.expectsUserReply ?? false;
       agent.chatHistory             = state.chatHistory;
       console.log(`[VoiceAgent] Restored state from Redis for ${callSid} (turn ${state.currentIndex})`);
