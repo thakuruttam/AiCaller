@@ -357,10 +357,12 @@ function Sidebar() {
 
 function TopBar() {
   const { user } = useAuth();
+  const location = useLocation();
+  const isDocsRoute = location.pathname.startsWith('/docs');
   const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
 
   return (
-    <header className="fixed top-0 right-0 w-[calc(100%-280px)] bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm">
+    <header className={`fixed top-0 right-0 ${isDocsRoute ? 'w-full' : 'w-[calc(100%-280px)]'} bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm`}>
       <div className="flex items-center gap-4 flex-1">
         <div className="relative w-full max-w-md">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] dark:text-slate-400 text-[18px]">search</span>
@@ -389,10 +391,13 @@ function TopBar() {
 }
 
 function AppLayout() {
+  const location = useLocation();
+  const isDocsRoute = location.pathname.startsWith('/docs');
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc] dark:bg-slate-900">
-      <Sidebar />
-      <div className="ml-[280px] flex-1 flex flex-col overflow-hidden">
+      {!isDocsRoute && <Sidebar />}
+      <div className={`${isDocsRoute ? '' : 'ml-[280px]'} flex-1 flex flex-col overflow-hidden`}>
         <TopBar />
         <main className="flex-1 overflow-y-auto pt-16">
           <Routes>

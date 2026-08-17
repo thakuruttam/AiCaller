@@ -25,10 +25,14 @@ const markdownComponents = {
   thead: ({ children }) => <thead className="bg-[#f8fafc] dark:bg-slate-800">{children}</thead>,
   th: ({ children }) => <th className="text-left px-3 py-2 font-semibold text-[#0f172a] dark:text-slate-100 border-b border-[#e2e8f0] dark:border-slate-700">{children}</th>,
   td: ({ children }) => <td className="px-3 py-2 text-[#334155] dark:text-slate-300 border-b border-[#f1f5f9] dark:border-slate-800">{children}</td>,
-  code: ({ inline, children }) =>
-    inline
-      ? <code className="px-1.5 py-0.5 rounded bg-[#f0fdfa] dark:bg-slate-800 text-[#0f766e] dark:text-teal-400 text-[13px] font-mono">{children}</code>
-      : <code className="text-[13px] font-mono text-zinc-200">{children}</code>,
+  // react-markdown v9 no longer passes an `inline` prop to this renderer, so inline vs.
+  // fenced code is distinguished purely via CSS: the [pre_&]: variant only applies when
+  // this <code> sits inside a <pre> (fenced block), overriding the default inline "chip" look.
+  code: ({ children }) => (
+    <code className="px-1.5 py-0.5 rounded bg-[#f0fdfa] dark:bg-slate-800 text-[#0f766e] dark:text-teal-400 text-[13px] font-mono [pre_&]:bg-transparent [pre_&]:px-0 [pre_&]:py-0 [pre_&]:rounded-none [pre_&]:text-zinc-200 [pre_&]:dark:text-zinc-200">
+      {children}
+    </code>
+  ),
   pre: ({ children }) => <pre className="mb-4 p-4 rounded-lg bg-[#0a0f1a] overflow-x-auto">{children}</pre>,
 };
 
@@ -64,22 +68,29 @@ export default function Docs() {
     <div className="flex h-full">
       {/* Doc picker */}
       <aside className="w-56 shrink-0 border-r border-[#e2e8f0] dark:border-slate-700 px-3 py-6">
+        <button
+          onClick={() => navigate('/')}
+          className="w-full flex items-center gap-2.5 px-3 py-2 mb-5 rounded-lg text-[13px] font-medium text-left transition-colors cursor-pointer border border-[#e2e8f0] dark:border-slate-700 text-[#64748b] dark:text-slate-400 hover:bg-[#f8fafc] dark:hover:bg-slate-800/50 hover:text-[#0f172a] dark:hover:text-slate-200"
+        >
+          <span className="material-symbols-outlined text-[18px]">home</span>
+          Home
+        </button>
         <p className="px-3 pb-3 text-[10px] font-semibold text-[#94a3b8] dark:text-slate-500 uppercase tracking-widest" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
           Documentation
         </p>
         <nav className="flex flex-col gap-0.5">
-          {DOC_LIST.map(doc => (
+          {DOC_LIST.map(d => (
             <button
-              key={doc.slug}
-              onClick={() => navigate(`/docs/${doc.slug}`)}
+              key={d.slug}
+              onClick={() => navigate(`/docs/${d.slug}`)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-left transition-colors cursor-pointer ${
-                doc.slug === active.slug
+                d.slug === active.slug
                   ? 'bg-[#f0fdfa] dark:bg-slate-800 text-[#0d9488] dark:text-teal-400'
                   : 'text-[#64748b] dark:text-slate-400 hover:bg-[#f8fafc] dark:hover:bg-slate-800/50 hover:text-[#0f172a] dark:hover:text-slate-200'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">{doc.icon}</span>
-              {doc.title}
+              <span className="material-symbols-outlined text-[18px]">{d.icon}</span>
+              {d.title}
             </button>
           ))}
         </nav>
