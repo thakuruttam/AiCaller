@@ -177,7 +177,12 @@ export class DeepgramTTSSocket {
 // Content-addressed by the text's hash, so a script edit naturally produces a
 // new key — no invalidation logic needed, stale entries just age out via TTL.
 
-const TTS_CACHE_TTL_SECONDS = parseInt(process.env.TTS_CACHE_TTL_SECONDS || '2592000', 10); // 30 days
+// Conservative default — prod Redis is co-located with the app on a single,
+// memory-constrained EC2 instance (maxmemory-policy=noeviction), shared with
+// BullMQ's job queues and live-call state. A short TTL bounds worst-case
+// growth; per-campaign script lines (questions/info/sign-off) are low-
+// cardinality and get re-cached cheaply on the next call after expiry.
+const TTS_CACHE_TTL_SECONDS = parseInt(process.env.TTS_CACHE_TTL_SECONDS || '604800', 10); // 7 days
 
 function ttsCacheKey(campaignId, language, text) {
   const hash = createHash('sha256').update(text).digest('hex').slice(0, 24);

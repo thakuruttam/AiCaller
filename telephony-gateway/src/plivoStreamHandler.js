@@ -599,7 +599,9 @@ export function setupPlivoStream() {
             console.log(`[Agent] Greeting: ${greeting}`);
             if (greeting && greeting.length > 0) {
               isSpeaking = true;
-              const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: agent.lastReplyWasBypass });
+              // Greeting is per-contact (name substituted into "Am I speaking with X?"),
+              // so it's high-cardinality/low-reuse across a campaign — not cacheable.
+              const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket, { redis, campaignId, cacheable: false });
               if (!ok) isSpeaking = false;
               else if (agent.expectsUserReply) startNoAnswerTimer();
             } else {
