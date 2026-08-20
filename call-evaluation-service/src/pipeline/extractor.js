@@ -43,7 +43,7 @@ function groundAnswers(questionResults, turns) {
 
     if (matchCount === 0) {
       // No words from the extracted answer appear in any user turn → hallucination
-      return { ...qr, answerExtracted: null, scoreRatio: 0, subFieldsExtracted: {} };
+      return { ...qr, answerExtracted: null, scoreRatio: 0, explanation: null, subFieldsExtracted: {} };
     }
 
     return qr;
@@ -116,7 +116,8 @@ ${questionSpecJson}
 For each question, return:
 1. "answerExtracted": The user's answer in a concise normalized form (null if not answered or question was never asked).
 2. "scoreRatio": A number 0.0–1.0 for how well the answer meets the "expectedDescription". Use semantic understanding — e.g. "React Node" satisfies contains "Node js" because they refer to the same technology. 1.0 = fully meets, 0.5 = partially meets, 0.0 = does not meet or question was not asked.
-3. "subFieldsExtracted": If the question has "hasSubFields: true", extract each sub-field from the user's reply ONLY if the question was actually asked. For each sub-field: { "value": <value or null>, "confidence": "high"|"medium"|"low", "raw": "<exact user quote or null>" }
+3. "explanation": One short sentence (max ~20 words) explaining WHY you gave that scoreRatio, grounded in what the user actually said — e.g. "Declined to disclose competing offers" or "Gave a vague timeframe ('sometime soon') with no concrete date." Null if the question was never asked.
+4. "subFieldsExtracted": If the question has "hasSubFields: true", extract each sub-field from the user's reply ONLY if the question was actually asked. For each sub-field: { "value": <value or null>, "confidence": "high"|"medium"|"low", "raw": "<exact user quote or null>" }
 
 Return a single valid JSON object:
 {
@@ -127,6 +128,7 @@ Return a single valid JSON object:
       "questionId": "<id>",
       "answerExtracted": "<normalized answer or null>",
       "scoreRatio": <0.0 to 1.0>,
+      "explanation": "<one short sentence or null>",
       "subFieldsExtracted": {
         "<fieldName>": { "value": <value or null>, "confidence": "high"|"medium"|"low", "raw": "<user quote or null>" }
       }

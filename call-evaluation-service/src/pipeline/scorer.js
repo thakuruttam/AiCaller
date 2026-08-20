@@ -233,6 +233,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
         awarded: 0,
         maxPoints: maxWeight,
         reason: 'skipped',
+        explanation: 'The agent never asked this question on the call.',
       }],
     };
   }
@@ -290,6 +291,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
         awarded,
         maxPoints: weight,
         reason: ratio >= 1 ? 'met' : ratio > 0 ? 'partial' : 'not_met',
+        explanation: llmResult?.explanation ?? null,
       });
     }
   } else {
@@ -306,6 +308,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
         awarded: 0,
         maxPoints: weight,
         reason: 'no_answer',
+        explanation: llmResult?.explanation ?? 'No answer was extracted from the transcript.',
       });
     } else {
       const ratio = getExpectedRatio(answer);
@@ -319,6 +322,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
         awarded,
         maxPoints: weight,
         reason: ratio >= 1 ? 'met' : ratio > 0 ? 'partial' : 'not_met',
+        explanation: llmResult?.explanation ?? null,
       });
     }
   }

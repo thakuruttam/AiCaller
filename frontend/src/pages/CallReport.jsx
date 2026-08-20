@@ -240,7 +240,7 @@ export default function CallReport() {
                 <table className="w-full text-left">
                   <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                     <tr>
-                      {['Question', 'Answer', 'Confidence', 'Scoring Rule', 'Points'].map(h => (
+                      {['Question', 'Answer', 'Confidence', 'Scoring Rule', 'Reason', 'Points'].map(h => (
                         <th key={h} className="px-6 py-4 text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
                       ))}
                     </tr>
@@ -329,11 +329,14 @@ export default function CallReport() {
                             <td className="px-6 py-4 text-sm text-zinc-600 dark:text-slate-400 max-w-[200px] truncate" title={mainRow.rule}>
                               {mainRow.rule || '—'}
                             </td>
+                            <td className="px-6 py-4 text-sm text-zinc-500 dark:text-slate-400 max-w-[240px] truncate" title={mainRow.explanation || ''}>
+                              {mainRow.explanation || '—'}
+                            </td>
                             <td className={`px-6 py-4 font-medium whitespace-nowrap ${mainColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
                               +{qAwarded.toFixed(1)} / {qMax}
                             </td>
                           </tr>
-                          
+
                           {/* Sub-fields Expansion */}
                           {hasSubfields && isExpanded && subRows.map((sub, idx) => {
                             const subConfStr = report.extractedFields?.[sub.field]?.confidence || '—';
@@ -365,6 +368,7 @@ export default function CallReport() {
                                 <td className="px-6 py-3 text-sm text-zinc-500 dark:text-slate-400 max-w-[200px] truncate" title={sub.rule}>
                                   {sub.rule || '—'}
                                 </td>
+                                <td className="px-6 py-3 text-sm text-zinc-400 dark:text-slate-500">—</td>
                                 <td className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${subColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
                                   +{(sub.awarded ?? 0).toFixed(1)} / {sub.maxPoints ?? 0}
                                 </td>

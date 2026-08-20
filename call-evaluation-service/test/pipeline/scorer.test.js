@@ -163,6 +163,25 @@ describe('scoreQuestion', () => {
     expect(result.questionScore).toBe(20);
   });
 
+  it('threads the LLM explanation through into the breakdown row', () => {
+    const question = { id: 'q1', text: 'Any competing offers?', weight: 25, expectedAnswer: { condition: 'is any value' } };
+    const result = scoreQuestion(
+      question,
+      { answerExtracted: "I don't want to disclose", scoreRatio: 0, explanation: 'Declined to disclose competing offers.' },
+      { wasAsked: true }
+    );
+    expect(result.breakdownRows[0].explanation).toBe('Declined to disclose competing offers.');
+  });
+
+  it('falls back to a canned explanation when skipped or unanswered', () => {
+    const question = { id: 'q1', text: 'Any competing offers?', weight: 25, expectedAnswer: { condition: 'is any value' } };
+    const skipped = scoreQuestion(question, {}, { wasAsked: false });
+    expect(skipped.breakdownRows[0].explanation).toBe('The agent never asked this question on the call.');
+
+    const noAnswer = scoreQuestion(question, { answerExtracted: null }, { wasAsked: true });
+    expect(noAnswer.breakdownRows[0].explanation).toBe('No answer was extracted from the transcript.');
+  });
+
   it('scores sub-fields independently and only counts main question weight when it has real logic', () => {
     const question = {
       id: 'q1',
