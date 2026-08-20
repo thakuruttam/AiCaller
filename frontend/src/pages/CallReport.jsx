@@ -291,7 +291,7 @@ export default function CallReport() {
                           <span className="truncate block pr-2">{c.label}</span>
                           <span
                             onMouseDown={handleResizeStart(c.key)}
-                            className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-teal-400/40 active:bg-teal-500/60"
+                            className="absolute top-0 -right-1 h-full w-3 cursor-col-resize hover:bg-teal-400/40 active:bg-teal-500/60"
                             title="Drag to resize"
                           />
                         </th>

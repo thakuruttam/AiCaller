@@ -121,7 +121,7 @@ For each question, return:
 
 Return a single valid JSON object:
 {
-  "summary": "<one sentence summary of the overall call>",
+  "summary": "<a detailed 4-6 sentence summary of the call — cover how it opened (identity confirmation, tone), what the user said for each question asked (with specifics, not just 'answered the question'), any notable moments (hesitation, refusal, confusion, interruption), and how the call concluded>",
   "sentiment": "positive"|"neutral"|"negative",
   "questionResults": [
     {
