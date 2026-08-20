@@ -286,14 +286,18 @@ export default function CallReport() {
                   </colgroup>
                   <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                     <tr>
-                      {BREAKDOWN_COLUMNS.map(c => (
+                      {BREAKDOWN_COLUMNS.map((c, i) => (
                         <th key={c.key} className="relative px-6 py-4 text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider select-none" style={{fontFamily:'JetBrains Mono, monospace'}}>
                           <span className="truncate block pr-2">{c.label}</span>
-                          <span
-                            onMouseDown={handleResizeStart(c.key)}
-                            className="absolute top-0 -right-1 h-full w-3 cursor-col-resize hover:bg-teal-400/40 active:bg-teal-500/60"
-                            title="Drag to resize"
-                          />
+                          {i < BREAKDOWN_COLUMNS.length - 1 && (
+                            <span
+                              onMouseDown={handleResizeStart(c.key)}
+                              className="absolute top-0 -right-1 h-full w-3 cursor-col-resize flex items-center justify-center group"
+                              title="Drag to resize"
+                            >
+                              <span className="h-1/2 w-0.5 rounded-full bg-zinc-300 dark:bg-slate-600 group-hover:bg-teal-500 group-hover:w-1 transition-all" />
+                            </span>
+                          )}
                         </th>
                       ))}
                     </tr>
