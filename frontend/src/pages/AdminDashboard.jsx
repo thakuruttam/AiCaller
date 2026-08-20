@@ -5,6 +5,7 @@ import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
+import Step7Review from './CampaignWizard/components/Step7Review';
 
 const STATUS_BADGE = {
   completed:    "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
@@ -40,6 +41,9 @@ export default function AdminDashboard() {
   const [ticketReply, setTicketReply] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewLoadingId, setViewLoadingId] = useState(null);
   const { addToast } = useToast();
 
   const fetchTickets = async () => {
@@ -164,6 +168,19 @@ export default function AdminDashboard() {
     setActionLoading(false);
     addToast(`Queued ${ok} of ${calls.length} re-calls`, "success");
     await fetchCampaigns();
+  };
+
+  const openViewModal = async (campaignId) => {
+    try {
+      setViewLoadingId(campaignId);
+      const res = await api.get(`/api/campaigns/${campaignId}`);
+      setSelectedCampaign(res.data);
+      setIsViewModalOpen(true);
+    } catch (e) {
+      addToast('Failed to load campaign details', 'error');
+    } finally {
+      setViewLoadingId(null);
+    }
   };
 
   const confirmRerun = (campaignId) => { setConfirmAction(campaignId); setIsConfirmOpen(true); };
@@ -367,6 +384,11 @@ export default function AdminDashboard() {
                       <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 capitalize" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'HR'}</p>
                     </div>
                     <div className="col-span-3 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="View">
+                        {viewLoadingId === campaign.id
+                          ? <Spinner size={14} className="text-zinc-600 dark:text-slate-400" />
+                          : <span className="material-symbols-outlined text-sm">visibility</span>}
+                      </button>
                       {(hasDraft || !logs.length) && (
                         <button onClick={() => handleCampaignAction(campaign.id, 'start')} disabled={actionLoading} className="bg-[#0d9488] text-white p-2 rounded-lg hover:bg-[#0f766e] transition-colors shadow-sm disabled:opacity-50" title="Start">
                           <span className="material-symbols-outlined text-sm">play_arrow</span>
@@ -492,6 +514,28 @@ export default function AdminDashboard() {
           Are you sure? This will <strong className="text-zinc-900 dark:text-slate-100">permanently delete</strong> all previous transcripts and recordings for this campaign and start fresh.
         </p>
       </Modal>
+
+      {/* View Modal */}
+      {selectedCampaign && (
+        <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Campaign Details" className="max-w-5xl w-full">
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Step7Review payload={{
+              name: selectedCampaign.name,
+              type: selectedCampaign.type,
+              goals: {
+                goal: selectedCampaign.callModule?.goal || '',
+                callIntro: selectedCampaign.callModule?.callIntro || '',
+                callSignOff: selectedCampaign.callModule?.callSignOff || ''
+              },
+              dataToCollect: selectedCampaign.dataToCollect || [],
+              callSettings: selectedCampaign.callSettings || {},
+              contacts: selectedCampaign.campaignContacts || [],
+              endCallIf: selectedCampaign.endCallIf || '',
+              rules: selectedCampaign.rules || {}
+            }} />
+          </div>
+        </Modal>
+      )}
       </>)}
     </div>
   );
