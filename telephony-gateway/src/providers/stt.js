@@ -262,6 +262,13 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
   let silenceFrames = 0;      // consecutive silent frames since last speech frame
   let hasSpeech     = false;  // currently inside a speech segment
   let transcribing  = false;  // API call in flight — guard against overlap
+  let speechStartFired = false; // onSpeechStart (barge-in trigger) already fired for this utterance
+
+  function resetSpeechState() {
+    hasSpeech = false;
+    silenceFrames = 0;
+    speechStartFired = false;
+  }
 
   function rms(buf) {
     let sum = 0;
@@ -284,19 +291,19 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
     if (transcribing) {
       // Previous API call still running — drop this segment to stay in sync.
       audioChunks = [];
-      if (isFinal) { hasSpeech = false; silenceFrames = 0; }
+      if (isFinal) resetSpeechState();
       return;
     }
 
     if (audioChunks.length < MIN_SPEECH_FRAMES) {
       audioChunks = [];
-      if (isFinal) { hasSpeech = false; silenceFrames = 0; }
+      if (isFinal) resetSpeechState();
       return;
     }
 
     const chunks = audioChunks;
     audioChunks  = [];
-    if (isFinal) { hasSpeech = false; silenceFrames = 0; }
+    if (isFinal) resetSpeechState();
     transcribing = true;
 
     const pcm = Buffer.concat(chunks);
@@ -333,11 +340,18 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
         if (!hasSpeech) {
           hasSpeech     = true;
           silenceFrames = 0;
-          console.log('[STT/Sarvam REST] Speech started');
-          handlers.onSpeechStart?.();  // fires immediately — lets stream handler stop TTS
+          console.log('[STT/Sarvam REST] Speech started (buffering)');
         }
         silenceFrames = 0;
         audioChunks.push(pcm);
+        // Only signal barge-in once speech has been sustained for MIN_SPEECH_FRAMES
+        // (100ms) — firing on the very first 20ms frame let a single noise blip or
+        // cough cut off the bot's audio mid-sentence with nothing real being said.
+        if (!speechStartFired && audioChunks.length >= MIN_SPEECH_FRAMES) {
+          speechStartFired = true;
+          console.log('[STT/Sarvam REST] Sustained speech confirmed — signaling barge-in');
+          handlers.onSpeechStart?.();
+        }
         if (audioChunks.length >= MAX_BUFFER_FRAMES) {
           console.log('[STT/Sarvam REST] Max buffer duration reached — splitting long utterance');
           flushSpeech(false);
