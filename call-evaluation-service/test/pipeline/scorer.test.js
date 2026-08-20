@@ -57,6 +57,16 @@ describe('wasQuestionAsked', () => {
   it('returns false when the question text has no significant keywords', () => {
     expect(wasQuestionAsked([turn('agent', 'ok yes no')], 'ok?')).toBe(false);
   });
+
+  it('detects a question made entirely of short words (regression — was always false with the old length>5 cutoff)', () => {
+    const turns = [turn('agent', 'What date would you be able to join us by?')];
+    expect(wasQuestionAsked(turns, 'What date would you be able to join us by?')).toBe(true);
+  });
+
+  it('still rejects an unrelated short-worded agent turn', () => {
+    const turns = [turn('agent', 'Thanks for your time today')];
+    expect(wasQuestionAsked(turns, 'What date would you be able to join us by?')).toBe(false);
+  });
 });
 
 describe('scoreExpectedAnswer', () => {

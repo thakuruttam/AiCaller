@@ -30,11 +30,27 @@ function toDays(str) {
   return null;
 }
 
+// Common short function words excluded from keyword matching — without this,
+// a length-only cutoff either lets these through (false positives across
+// unrelated questions) or, if set high enough to exclude them, also excludes
+// legitimate short content words like "date"/"join"/"role" (false negatives —
+// see the wasQuestionAsked docstring below for the bug this caused).
+const STOPWORDS = new Set([
+  'about', 'after', 'again', 'against', 'because', 'before', 'being', 'between',
+  'could', 'doing', 'during', 'either', 'have', 'having', 'into', 'itself',
+  'neither', 'other', 'over', 'shall', 'should', 'that', 'their', 'them', 'then',
+  'there', 'these', 'they', 'this', 'those', 'though', 'through', 'under',
+  'until', 'unless', 'very', 'were', 'what', 'when', 'where', 'which', 'while',
+  'with', 'would', 'your', 'yours',
+]);
+
 /**
  * Detect whether the agent asked a question on the call.
- * Uses significant-word overlap: requires at least 2 distinct keywords (length > 5)
- * to appear in the same agent turn, preventing false positives from short common
- * words like "your", "have", "what" that appear across multiple questions.
+ * Uses significant-word overlap: requires at least 2 distinct keywords (length > 3,
+ * excluding common stopwords) to appear in the same agent turn. A pure length
+ * cutoff (previously > 5) silently zeroed out any question made entirely of short
+ * words — e.g. "What date would you be able to join us by?" has no word over 5
+ * characters, so it always scored as "not asked" regardless of the transcript.
  */
 export function wasQuestionAsked(turns, questionText) {
   const agentTurns = (turns || [])
@@ -47,7 +63,7 @@ export function wasQuestionAsked(turns, questionText) {
   const qWords = qText
     .split(/\s+/)
     .map(w => w.replace(/[^\w]/g, ''))
-    .filter(w => w.length > 5);
+    .filter(w => w.length > 3 && !STOPWORDS.has(w));
   if (!qWords.length) return false;
 
   const needed = Math.min(2, qWords.length);
