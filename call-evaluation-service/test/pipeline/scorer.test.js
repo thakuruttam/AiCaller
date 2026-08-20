@@ -151,6 +151,18 @@ describe('scoreQuestion', () => {
     expect(result.breakdownRows[0].reason).toBe('met');
   });
 
+  it('shows the semantic scoring criteria in the breakdown rule, not "Any answer" (regression)', () => {
+    const question = {
+      id: 'q1', text: 'What date would you be able to join us by?', weight: 25,
+      expectedAnswer: { condition: 'is any value' },
+      scoringActiveTab: 'semantic',
+      scoringCriteria: 'candidate provides a specific, concrete joining date',
+    };
+    const result = scoreQuestion(question, { answerExtracted: 'by next month', scoreRatio: 0.8 }, { wasAsked: true });
+    expect(result.breakdownRows[0].rule).toBe('Semantic: candidate provides a specific, concrete joining date');
+    expect(result.questionScore).toBe(20);
+  });
+
   it('scores sub-fields independently and only counts main question weight when it has real logic', () => {
     const question = {
       id: 'q1',

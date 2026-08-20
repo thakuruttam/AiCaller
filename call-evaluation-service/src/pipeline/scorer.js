@@ -72,7 +72,10 @@ export function wasQuestionAsked(turns, questionText) {
   );
 }
 
-function formatExpectedRule(expectedAnswer) {
+function formatExpectedRule(expectedAnswer, scoringCriteria) {
+  if (scoringCriteria?.trim()) {
+    return `Semantic: ${scoringCriteria.trim()}`;
+  }
   if (!expectedAnswer?.condition || expectedAnswer.condition === 'is any value') {
     return 'Any answer';
   }
@@ -213,6 +216,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
   const breakdownRows = [];
   let totalPoints = 0;
   const maxWeight = getQuestionTotalWeight(question);
+  const activeSemanticCriteria = question.scoringActiveTab === 'semantic' ? question.scoringCriteria : null;
 
   if (!wasAsked) {
     return {
@@ -279,7 +283,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
       const awarded = parseFloat((weight * ratio).toFixed(2));
       totalPoints += awarded;
       breakdownRows.push({
-        rule: formatExpectedRule(question.expectedAnswer),
+        rule: formatExpectedRule(question.expectedAnswer, activeSemanticCriteria),
         field: question.text,
         fieldValue: llmResult?.answerExtracted ?? 'No answer',
         weight,
@@ -295,7 +299,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
 
     if (noAnswer) {
       breakdownRows.push({
-        rule: formatExpectedRule(question.expectedAnswer),
+        rule: formatExpectedRule(question.expectedAnswer, activeSemanticCriteria),
         field: question.text,
         fieldValue: 'No answer',
         weight,
@@ -308,7 +312,7 @@ export function scoreQuestion(question, llmResult, { wasAsked }) {
       const awarded = parseFloat((weight * ratio).toFixed(2));
       totalPoints += awarded;
       breakdownRows.push({
-        rule: formatExpectedRule(question.expectedAnswer),
+        rule: formatExpectedRule(question.expectedAnswer, activeSemanticCriteria),
         field: question.text,
         fieldValue: String(answer),
         weight,
