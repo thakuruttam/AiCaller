@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { EVAL_BASE } from '../api/config';
@@ -30,6 +30,15 @@ const CONFIDENCE_BAR = {
   low:    { color: "bg-zinc-400 dark:bg-slate-500", pct: "40%" },
 };
 
+const BREAKDOWN_COLUMNS = [
+  { key: 'question',   label: 'Question',     defaultWidth: 260, minWidth: 120 },
+  { key: 'answer',     label: 'Answer',       defaultWidth: 200, minWidth: 100 },
+  { key: 'confidence', label: 'Confidence',   defaultWidth: 130, minWidth: 90 },
+  { key: 'rule',       label: 'Scoring Rule', defaultWidth: 220, minWidth: 100 },
+  { key: 'reason',     label: 'Reason',       defaultWidth: 240, minWidth: 100 },
+  { key: 'points',     label: 'Points',       defaultWidth: 110, minWidth: 80 },
+];
+
 export default function CallReport() {
   const { campaignId, id } = useParams();
   const [report, setReport] = useState(null);
@@ -37,6 +46,38 @@ export default function CallReport() {
   const [error, setError] = useState(null);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const [filterScore, setFilterScore] = useState('all');
+
+  // Drag-to-resize for the breakdown table's columns.
+  const [colWidths, setColWidths] = useState(() =>
+    Object.fromEntries(BREAKDOWN_COLUMNS.map(c => [c.key, c.defaultWidth]))
+  );
+  const resizeState = useRef(null); // { key, startX, startWidth }
+
+  const handleResizeMove = useCallback((e) => {
+    const rs = resizeState.current;
+    if (!rs) return;
+    const col = BREAKDOWN_COLUMNS.find(c => c.key === rs.key);
+    const next = Math.max(col.minWidth, rs.startWidth + (e.clientX - rs.startX));
+    setColWidths(w => ({ ...w, [rs.key]: next }));
+  }, []);
+
+  const handleResizeEnd = useCallback(() => {
+    resizeState.current = null;
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+  }, [handleResizeMove]);
+
+  const handleResizeStart = useCallback((key) => (e) => {
+    e.preventDefault();
+    resizeState.current = { key, startX: e.clientX, startWidth: colWidths[key] };
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+  }, [colWidths, handleResizeMove, handleResizeEnd]);
+
+  useEffect(() => () => {
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+  }, [handleResizeMove, handleResizeEnd]);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -237,11 +278,23 @@ export default function CallReport() {
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="text-left table-fixed" style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
+                  <colgroup>
+                    {BREAKDOWN_COLUMNS.map(c => (
+                      <col key={c.key} style={{ width: colWidths[c.key] }} />
+                    ))}
+                  </colgroup>
                   <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                     <tr>
-                      {['Question', 'Answer', 'Confidence', 'Scoring Rule', 'Reason', 'Points'].map(h => (
-                        <th key={h} className="px-6 py-4 text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                      {BREAKDOWN_COLUMNS.map(c => (
+                        <th key={c.key} className="relative px-6 py-4 text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider select-none" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                          <span className="truncate block pr-2">{c.label}</span>
+                          <span
+                            onMouseDown={handleResizeStart(c.key)}
+                            className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-teal-400/40 active:bg-teal-500/60"
+                            title="Drag to resize"
+                          />
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -291,7 +344,7 @@ export default function CallReport() {
                             className={`hover:bg-zinc-50/50 dark:hover:bg-slate-700/50 transition-colors ${hasSubfields ? 'cursor-pointer' : ''}`}
                             onClick={() => hasSubfields && setExpandedQuestions(p => ({ ...p, [qr.questionId]: !p[qr.questionId] }))}
                           >
-                            <td className="px-6 py-4 max-w-[250px] truncate font-medium text-[#0f172a] dark:text-slate-100" title={qr.questionText} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                            <td className="px-6 py-4 truncate font-medium text-[#0f172a] dark:text-slate-100" title={qr.questionText} style={{fontFamily:'JetBrains Mono, monospace'}}>
                               <div className="flex items-center gap-2">
                                 {hasSubfields && (
                                   <span className="material-symbols-outlined text-[18px] text-zinc-400 dark:text-slate-500">
@@ -308,7 +361,7 @@ export default function CallReport() {
                                   ? (qr.answerExtracted || `${subRows.filter(r => r.reason === 'present').length}/${subRows.length} fields`)
                                   : (mainRow.fieldValue);
                                 return (
-                                  <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-[200px] truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={String(displayVal || '—')}>
+                                  <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={String(displayVal || '—')}>
                                     {typeof displayVal === 'object' ? JSON.stringify(displayVal) : String(displayVal || '—')}
                                   </span>
                                 );
@@ -326,10 +379,10 @@ export default function CallReport() {
                                 <span className="text-zinc-500 dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>—</span>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm text-zinc-600 dark:text-slate-400 max-w-[200px] truncate" title={mainRow.rule}>
+                            <td className="px-6 py-4 text-sm text-zinc-600 dark:text-slate-400 truncate" title={mainRow.rule}>
                               {mainRow.rule || '—'}
                             </td>
-                            <td className="px-6 py-4 text-sm text-zinc-500 dark:text-slate-400 max-w-[240px] truncate" title={mainRow.explanation || ''}>
+                            <td className="px-6 py-4 text-sm text-zinc-500 dark:text-slate-400 truncate" title={mainRow.explanation || ''}>
                               {mainRow.explanation || '—'}
                             </td>
                             <td className={`px-6 py-4 font-medium whitespace-nowrap ${mainColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
@@ -345,11 +398,11 @@ export default function CallReport() {
                             
                             return (
                               <tr key={`${qr.questionId}-sub-${idx}`} className="bg-zinc-50/30 dark:bg-slate-900/30">
-                                <td className={`px-6 py-3 pl-14 max-w-[250px] truncate text-sm ${subColorClass}`} title={sub.field} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                <td className={`px-6 py-3 pl-14 truncate text-sm ${subColorClass}`} title={sub.field} style={{fontFamily:'JetBrains Mono, monospace'}}>
                                   ↳ {sub.field}
                                 </td>
                                 <td className="px-6 py-3">
-                                  <span className="bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-[200px] truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={sub.fieldValue}>
+                                  <span className="bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={sub.fieldValue}>
                                     {typeof sub.fieldValue === 'object' ? JSON.stringify(sub.fieldValue) : String(sub.fieldValue || '—')}
                                   </span>
                                 </td>
@@ -365,7 +418,7 @@ export default function CallReport() {
                                     <span className="text-zinc-500 dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>—</span>
                                   )}
                                 </td>
-                                <td className="px-6 py-3 text-sm text-zinc-500 dark:text-slate-400 max-w-[200px] truncate" title={sub.rule}>
+                                <td className="px-6 py-3 text-sm text-zinc-500 dark:text-slate-400 truncate" title={sub.rule}>
                                   {sub.rule || '—'}
                                 </td>
                                 <td className="px-6 py-3 text-sm text-zinc-400 dark:text-slate-500">—</td>
