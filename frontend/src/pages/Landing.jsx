@@ -13,7 +13,7 @@ const FEATURES = [
   {
     icon: 'call_split',
     title: 'Branching call flows',
-    body: 'Skip a question or end the call early based on how someone actually answers — no dead-end scripts, no wasted minutes.',
+    body: 'Skip a question or end the call early based on how someone actually answers — no dead-end conversations, no wasted minutes.',
   },
   {
     icon: 'psychology',
@@ -61,7 +61,7 @@ const TESTIMONIALS = [
   {
     name: 'Rohan Iyer',
     title: 'Operations Manager, Bluewave Logistics',
-    quote: 'Setting up a new call script took less than twenty minutes. My whole team could just start using it — no engineering ticket required.',
+    quote: 'Setting up a new campaign took less than twenty minutes. My whole team could just start using it — no engineering ticket required.',
   },
   {
     name: 'Kavya Reddy',
@@ -76,15 +76,15 @@ const TESTIMONIALS = [
 ];
 
 const STEPS = [
-  { icon: 'upload_file', title: 'Upload contacts & script', body: 'Import your contact list and define what the AI agent should accomplish on the call.' },
+  { icon: 'upload_file', title: 'Build your campaign', body: 'Use our no-code wizard to add your contact list, questions, and branching logic — no script writing required.' },
   { icon: 'call', title: 'The AI agent calls', body: 'Calls go out over telephony automatically, following your objective in a natural conversation.' },
   { icon: 'fact_check', title: 'Every call is scored', body: 'Transcripts, sentiment, and outcome are captured and evaluated the moment a call ends.' },
   { icon: 'insights', title: 'Review results live', body: 'Track campaign performance on the dashboard, or share a report link with anyone who needs it.' },
 ];
 
 const PILLARS = [
-  { icon: 'dialer_sip', label: 'Enterprise telephony via Plivo' },
-  { icon: 'smart_toy', label: 'GPT-powered call evaluation' },
+  { icon: 'dialer_sip', label: 'Enterprise-grade telephony' },
+  { icon: 'smart_toy', label: 'Powered by top AI models' },
   { icon: 'speed', label: 'Live dashboards, not batch reports' },
   { icon: 'admin_panel_settings', label: 'Role-based workspaces' },
 ];
@@ -96,11 +96,11 @@ const FAQS = [
   },
   {
     q: 'How does the AI agent make calls?',
-    a: 'Campaigns run over Plivo’s telephony network. The AI agent follows the objective you set for the campaign and holds a natural, real-time conversation with each contact.',
+    a: 'Campaigns run over enterprise-grade telephony infrastructure. The AI agent follows the objective you set for the campaign and holds a natural, real-time conversation with each contact.',
   },
   {
     q: 'How is call quality evaluated?',
-    a: 'Every completed call is transcribed and scored automatically using GPT-based evaluation — covering sentiment, outcome (completed, reschedule, wrong person, and more), and question-level quality — so nobody has to listen to every recording.',
+    a: 'Every completed call is transcribed and scored automatically using top AI models — covering sentiment, outcome (completed, reschedule, wrong person, and more), and question-level quality — so nobody has to listen to every recording.',
   },
   {
     q: 'Can I share results with my team or clients?',
@@ -317,7 +317,7 @@ function Hero() {
 
 function Features() {
   return (
-    <section id="features" className="bg-[#f8fafc] py-20 md:py-28">
+    <section id="features" className="bg-white py-20 md:py-28 border-t border-[#e2e8f0]">
       <div className="max-w-6xl mx-auto px-6">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">Features</p>
@@ -347,7 +347,7 @@ function Features() {
 
 function HowItWorks() {
   return (
-    <section id="how-it-works" className="bg-white py-20 md:py-28 border-t border-[#e2e8f0]">
+    <section id="how-it-works" className="bg-[#f8fafc] py-20 md:py-28 border-t border-[#e2e8f0]">
       <div className="max-w-6xl mx-auto px-6">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">How it works</p>
@@ -377,7 +377,7 @@ function HowItWorks() {
 
 function DemoVideo() {
   return (
-    <section id="demo" className="bg-[#f8fafc] py-20 md:py-28 border-t border-[#e2e8f0]">
+    <section id="demo" className="bg-[#f8fafc] py-20 md:py-28">
       <div className="max-w-4xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">Demo</p>
@@ -568,9 +568,9 @@ export default function Landing() {
       <Nav />
       <main>
         <Hero />
+        <DemoVideo />
         <Features />
         <HowItWorks />
-        <DemoVideo />
         <Testimonials />
         <Faq />
         <FinalCta />
