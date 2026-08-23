@@ -111,8 +111,40 @@ export default function CampaignWizard() {
         addToast(`Total call score weight exceeds 100% (currently ${totalWeight}%). Please reduce question weights.`, 'error');
         return;
       }
+
+      const CONDITIONS_REQUIRING_VALUE = new Set([
+        'contains', 'does not contain', 'equals', 'starts with', 'ends with', 'is greater than', 'is less than',
+      ]);
+      const incompleteScoring = (payload.dataToCollect || []).filter(item => {
+        if ((item.itemType || 'question') !== 'question') return false;
+        if (item.scoringActiveTab === 'semantic') return !item.scoringCriteria?.trim();
+        const condition = item.expectedAnswer?.condition;
+        if (!condition || !CONDITIONS_REQUIRING_VALUE.has(condition)) return false;
+        return !item.expectedAnswer?.value?.toString().trim();
+      });
+      if (incompleteScoring.length > 0) {
+        addToast(`${incompleteScoring.length} question(s) have an incomplete scoring rule — fill in the expected value, or set it to "is any value".`, 'error');
+        return;
+      }
     }
     setStep(s => Math.min(s + 1, 5));
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      if (id) {
+        await api.put(`/api/campaigns/wizard/${id}`, payload);
+      } else {
+        const res = await api.post('/api/campaigns/wizard', payload);
+        // Now that a real campaign exists, keep editing it in place instead
+        // of creating a duplicate on the next save.
+        navigate(`/edit-campaign/${res.data.campaign.id}`, { replace: true });
+      }
+      addToast('Draft saved', 'success');
+    } catch (err) {
+      console.error(err);
+      addToast(err.response?.data?.error || 'Failed to save draft', 'error');
+    }
   };
 
   const handleLaunch = async () => {
@@ -254,7 +286,7 @@ export default function CampaignWizard() {
         <div className="shrink-0 border-t border-zinc-200 bg-white dark:bg-slate-800 dark:border-slate-700">
           <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
             <button
-              onClick={() => addToast('Draft saved', 'success')}
+              onClick={handleSaveDraft}
               className="px-6 py-2.5 border border-zinc-300 dark:border-slate-600 rounded text-sm text-zinc-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors"
               style={{fontFamily:'JetBrains Mono, monospace'}}
             >

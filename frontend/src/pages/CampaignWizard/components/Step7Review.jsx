@@ -153,19 +153,43 @@ export default function Step7Review({ payload, onLaunch }) {
                         {q.itemType === 'question' && (
                           <div className="mt-2 flex flex-col gap-2">
                             <div className="flex flex-wrap gap-2 text-xs">
-                              {q.scoringActiveTab === 'semantic' && q.scoringCriteria?.trim() ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-semibold shadow-sm">
-                                  <strong>Semantic:</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
-                                </span>
-                              ) : q.expectedAnswer && q.expectedAnswer.condition !== 'is any value' ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-slate-700 border border-zinc-300 dark:border-slate-600 text-zinc-900 dark:text-slate-100 font-semibold shadow-sm">
-                                  <strong>Expected:</strong> {q.expectedAnswer.condition} "{q.expectedAnswer.value}"
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-slate-800/50 border border-zinc-200 dark:border-slate-700 text-zinc-400 dark:text-slate-500 font-medium italic">
-                                  Any response accepted
-                                </span>
-                              )}
+                              {(() => {
+                                const hasSemantic = !!q.scoringCriteria?.trim();
+                                const hasCondition = !!q.expectedAnswer && q.expectedAnswer.condition !== 'is any value';
+                                const semanticActive = q.scoringActiveTab === 'semantic' && hasSemantic;
+
+                                if (!hasSemantic && !hasCondition) {
+                                  return (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-slate-800/50 border border-zinc-200 dark:border-slate-700 text-zinc-400 dark:text-slate-500 font-medium italic">
+                                      Any response accepted
+                                    </span>
+                                  );
+                                }
+
+                                const activeBadge = semanticActive ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-semibold shadow-sm">
+                                    <strong>Semantic (active):</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
+                                  </span>
+                                ) : hasCondition ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-slate-700 border border-zinc-300 dark:border-slate-600 text-zinc-900 dark:text-slate-100 font-semibold shadow-sm">
+                                    <strong>{hasSemantic ? 'Condition (active): ' : 'Expected: '}</strong>{q.expectedAnswer.condition} "{q.expectedAnswer.value}"
+                                  </span>
+                                ) : null;
+
+                                // Whichever rule ISN'T active but was still filled in — surface it so
+                                // reviewers aren't blindsided by a rule that's saved but silent.
+                                const inactiveBadge = semanticActive && hasCondition ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-slate-800/50 border border-dashed border-zinc-300 dark:border-slate-600 text-zinc-500 dark:text-slate-400 font-medium">
+                                    <strong>Condition (not active):</strong> {q.expectedAnswer.condition} "{q.expectedAnswer.value}"
+                                  </span>
+                                ) : !semanticActive && hasCondition && hasSemantic ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-slate-800/50 border border-dashed border-zinc-300 dark:border-slate-600 text-zinc-500 dark:text-slate-400 font-medium">
+                                    <strong>Semantic (not active):</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
+                                  </span>
+                                ) : null;
+
+                                return <>{activeBadge}{inactiveBadge}</>;
+                              })()}
 
                               {q.onAnswer && q.onAnswer.action !== 'continue' && (() => {
                                 const isSkip = q.onAnswer.action === 'skip_question';

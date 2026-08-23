@@ -439,45 +439,54 @@ export default function AdminDashboard() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-slate-700 text-sm">
-                            {(campaign.campaignContacts || [])
-                              .filter(cc => {
-                                const q = callSearchQueries[campaign.id]?.toLowerCase() || '';
+                            {(() => {
+                              // One row per call attempt (callLog), not per contact — a contact
+                              // can have multiple logs (re-calls), and keying off contacts with
+                              // .find() silently dropped every attempt but the first.
+                              const contactByContactId = new Map(
+                                (campaign.campaignContacts || []).map(cc => [cc.contactId, cc])
+                              );
+                              const q = callSearchQueries[campaign.id]?.toLowerCase() || '';
+                              const rows = logs.filter(log => {
                                 if (!q) return true;
-                                return (cc.overrides?.name || cc.contact?.name || '').toLowerCase().includes(q) ||
-                                       (cc.contact?.phone || '').includes(q);
-                              })
-                              .map(cc => {
-                                const log = logs.find(l => l.contactId === cc.contact?.id);
-                                const name = cc.overrides?.name || cc.contact?.name;
+                                const cc = contactByContactId.get(log.contactId);
+                                const name = cc?.overrides?.name || cc?.contact?.name || '';
+                                const phone = cc?.contact?.phone || '';
+                                return name.toLowerCase().includes(q) || phone.includes(q);
+                              });
+
+                              if (rows.length === 0) {
                                 return (
-                                  <tr key={cc.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50">
+                                  <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-slate-500 italic">
+                                    {logs.length === 0 ? 'No contacts in this campaign.' : 'No call logs match.'}
+                                  </td></tr>
+                                );
+                              }
+
+                              return rows.map(log => {
+                                const cc = contactByContactId.get(log.contactId);
+                                const name = cc?.overrides?.name || cc?.contact?.name || '—';
+                                return (
+                                  <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50">
                                     <td className="px-4 py-3 font-medium text-zinc-900 dark:text-slate-100">{name}</td>
-                                    <td className="px-4 py-3 text-zinc-500 dark:text-slate-400" style={{fontFamily:"JetBrains Mono, monospace"}}>{cc.contact?.phone}</td>
+                                    <td className="px-4 py-3 text-zinc-500 dark:text-slate-400" style={{fontFamily:"JetBrains Mono, monospace"}}>{cc?.contact?.phone}</td>
                                     <td className="px-4 py-3">
-                                      {log ? (
-                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
-                                          {log.status}
-                                        </span>
-                                      ) : (
-                                        <span className="text-xs text-zinc-400 dark:text-slate-500 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>No log</span>
-                                      )}
+                                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                        {log.status}
+                                      </span>
                                     </td>
                                     <td className="px-4 py-3">
-                                      {log && (
-                                        <div className="flex gap-2">
-                                          <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Eval</button>
-                                          <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
-                                            <span className="material-symbols-outlined text-[12px]">history</span> Re-call
-                                          </button>
-                                        </div>
-                                      )}
+                                      <div className="flex gap-2">
+                                        <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Eval</button>
+                                        <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                          <span className="material-symbols-outlined text-[12px]">history</span> Re-call
+                                        </button>
+                                      </div>
                                     </td>
                                   </tr>
                                 );
-                              })}
-                            {(!campaign.campaignContacts || campaign.campaignContacts.length === 0) && (
-                              <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-slate-500 italic">No contacts in this campaign.</td></tr>
-                            )}
+                              });
+                            })()}
                           </tbody>
                         </table>
                       </div>

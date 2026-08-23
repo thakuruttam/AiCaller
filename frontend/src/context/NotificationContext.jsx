@@ -43,7 +43,11 @@ export function NotificationProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
-        setUnreadCount(data.filter(n => !n.isRead).length);
+        // Don't derive unreadCount from this list — it's capped to the 10 most
+        // recent notifications server-side, so it silently under-reports and
+        // fights with fetchUnreadCount()'s real (uncapped) count, making the
+        // badge flicker between the two values. fetchUnreadCount is the only
+        // source of truth for the badge.
       }
     } catch { /* silent */ } finally {
       setLoading(false);
@@ -76,6 +80,7 @@ export function NotificationProvider({ children }) {
       return;
     }
     fetchNotifications();
+    fetchUnreadCount();
     intervalRef.current = setInterval(fetchUnreadCount, POLL_INTERVAL);
     return () => clearInterval(intervalRef.current);
   }, [user, fetchNotifications, fetchUnreadCount]);

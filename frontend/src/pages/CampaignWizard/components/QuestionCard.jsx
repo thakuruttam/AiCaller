@@ -22,7 +22,7 @@ export function emptyItem(order) {
     is_mandatory: false,
     weight: 0,
     isWeightManuallySet: false,
-    expectedAnswer: { condition: 'contains', value: '' },
+    expectedAnswer: { condition: 'is any value', value: '' },
     scoringCriteria: '',
     scoringActiveTab: 'condition',
     onAnswer: { action: 'continue', skipToId: '', skipConditionActiveTab: 'condition', skipCondition: { condition: 'contains', value: '' } },
@@ -59,7 +59,7 @@ export default function QuestionCard({
   const [answerTab, setAnswerTab] = useState(item.scoringActiveTab || 'condition');
   const [skipConditionTab, setSkipConditionTab] = useState(item.onAnswer?.skipConditionActiveTab || 'condition');
 
-  const expectedAnswer = item.expectedAnswer || { condition: 'contains', value: '' };
+  const expectedAnswer = item.expectedAnswer || { condition: 'is any value', value: '' };
   const scoringCriteria = item.scoringCriteria || '';
   const onAnswer = {
     action: 'continue', skipToId: '',
@@ -224,7 +224,7 @@ export default function QuestionCard({
                       className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-y"
                     />
                     <p className="text-xs text-zinc-400 dark:text-slate-500">
-                      AI uses this to score the answer in reports. Describe criteria and scoring thresholds in plain English. Overrides the Condition tab for report scoring.
+                      AI uses this to score the answer in reports. Describe criteria and scoring thresholds in plain English. This tab must stay selected for it to govern scoring — switching back to Condition uses that rule instead, even if this is filled in.
                     </p>
                   </div>
                 )}

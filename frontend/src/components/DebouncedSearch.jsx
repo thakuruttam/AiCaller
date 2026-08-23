@@ -4,12 +4,21 @@ import { Search } from 'lucide-react';
 export default function DebouncedSearch({
   onSearch,
   placeholder = 'Search…',
-  delay = 300,
+  delay = 0,
   className = '',
 }) {
   const [value, setValue] = useState('');
 
+  // Every current usage of this component filters data that's already
+  // loaded client-side (no API call), so there's nothing to debounce —
+  // a nonzero delay only opens a window where the visible list doesn't
+  // match what's in the search box yet. Default to instant; callers that
+  // ever wire this to a real server-side search can still pass `delay`.
   useEffect(() => {
+    if (delay <= 0) {
+      onSearch(value);
+      return;
+    }
     const t = setTimeout(() => onSearch(value), delay);
     return () => clearTimeout(t);
   }, [value, onSearch, delay]);

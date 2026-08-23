@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import { GripVertical } from 'lucide-react';
 import { EVAL_BASE } from '../api/config';
 import PageLoader from '../components/PageLoader';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
@@ -292,10 +293,13 @@ export default function CallReport() {
                           {i < BREAKDOWN_COLUMNS.length - 1 && (
                             <span
                               onMouseDown={handleResizeStart(c.key)}
-                              className="absolute top-0 -right-1 h-full w-3 cursor-col-resize flex items-center justify-center group"
-                              title="Drag to resize"
+                              className="absolute top-0 -right-2.5 h-full w-5 cursor-col-resize flex items-center justify-center group z-10"
+                              title="Drag to resize column"
                             >
-                              <span className="h-1/2 w-0.5 rounded-full bg-zinc-300 dark:bg-slate-600 group-hover:bg-teal-500 group-hover:w-1 transition-all" />
+                              <GripVertical
+                                size={14}
+                                className="text-zinc-400 dark:text-slate-500 group-hover:text-teal-500 transition-colors shrink-0"
+                              />
                             </span>
                           )}
                         </th>
@@ -303,21 +307,34 @@ export default function CallReport() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
-                    {questionResults.filter(qr => {
-                      if (filterScore === 'all') return true;
-                      const maxPoints = qr.weight || 0;
-                      const awarded = qr.questionScore || 0;
-                      if (maxPoints === 0) return true; // always show zero-weight questions unless filtering strictly? Better to keep them in 'all' or evaluate them strictly based on score. Let's just evaluate numeric match.
-                      
-                      const isFull = awarded >= maxPoints;
-                      const isFailed = awarded === 0;
-                      const isPartial = awarded > 0 && awarded < maxPoints;
-                      
-                      if (filterScore === 'full') return isFull;
-                      if (filterScore === 'partial') return isPartial;
-                      if (filterScore === 'failed') return isFailed;
-                      return true;
-                    }).map((qr) => {
+                    {(() => {
+                      const filteredQuestions = questionResults.filter(qr => {
+                        if (filterScore === 'all') return true;
+                        const maxPoints = qr.weight || 0;
+                        const awarded = qr.questionScore || 0;
+                        if (maxPoints === 0) return true; // always show zero-weight questions unless filtering strictly? Better to keep them in 'all' or evaluate them strictly based on score. Let's just evaluate numeric match.
+
+                        const isFull = awarded >= maxPoints;
+                        const isFailed = awarded === 0;
+                        const isPartial = awarded > 0 && awarded < maxPoints;
+
+                        if (filterScore === 'full') return isFull;
+                        if (filterScore === 'partial') return isPartial;
+                        if (filterScore === 'failed') return isFailed;
+                        return true;
+                      });
+
+                      if (filteredQuestions.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-12 text-center text-sm text-zinc-400 dark:text-slate-500 italic">
+                              No questions match the "{filterScore}" filter.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return filteredQuestions.map((qr) => {
                       // Sub-field rows are always those with rule "Field present"
                       // The main row evaluates the expectedAnswer condition (or skipped state)
                       const subRows = qr.breakdownRows?.filter(r => r.rule === 'Field present') || [];
@@ -434,11 +451,12 @@ export default function CallReport() {
                           })}
                         </React.Fragment>
                       );
-                    })}
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Compliance info inside the same card if it exists */}
               {Object.keys(compliance).length > 0 && (
                 <div className="p-6 border-t border-zinc-100 dark:border-slate-700 bg-zinc-50/50 dark:bg-slate-900/50">
