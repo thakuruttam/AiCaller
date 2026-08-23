@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 
@@ -99,7 +99,7 @@ const STATUS = {
 };
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -140,6 +140,11 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // Already signed in — skip the login form and go straight to the app.
+  if (!isLoading && user) {
+    return <Navigate to={from} replace />;
+  }
 
   return (
     <>

@@ -30,6 +30,8 @@ recordings/
 **/*.mp3
 **/*.mp4
 **/*.ogg
+# Marketing/landing-page assets are intentional static files, not call recordings
+!frontend/public/demo.mp4
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 **/*.log

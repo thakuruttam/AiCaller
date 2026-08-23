@@ -4,39 +4,74 @@ import { Link } from 'react-router-dom';
 const NAV_LINKS = [
   { href: '#features', label: 'Features' },
   { href: '#how-it-works', label: 'How it works' },
+  { href: '#demo', label: 'Demo' },
+  { href: '#testimonials', label: 'Reviews' },
   { href: '#faq', label: 'FAQ' },
 ];
 
 const FEATURES = [
   {
-    icon: 'call',
-    title: 'AI voice campaigns',
-    body: 'Upload a contact list and a call objective — an AI agent places and conducts every outbound call for you, at any scale.',
+    icon: 'call_split',
+    title: 'Branching call flows',
+    body: 'Skip a question or end the call early based on how someone actually answers — no dead-end scripts, no wasted minutes.',
+  },
+  {
+    icon: 'psychology',
+    title: 'Semantic answer scoring',
+    body: 'Describe what a good answer looks like in plain English — the AI judges it. No regex, no rigid keyword rules.',
+  },
+  {
+    icon: 'record_voice_over',
+    title: 'Natural, interruptible speech',
+    body: 'Real-time conversation with barge-in handling — talk over the AI mid-sentence, just like a real call.',
+  },
+  {
+    icon: 'translate',
+    title: 'Multi-language support',
+    body: 'English, Hindi, and Hinglish today, with more configurable per campaign.',
   },
   {
     icon: 'fact_check',
     title: 'Automatic call evaluation',
-    body: 'Every call is transcribed and scored with GPT-based evaluation — sentiment, outcome, and question-level quality — with no manual review.',
+    body: 'Every call is transcribed and scored automatically — sentiment, outcome, and question-level quality — with no manual review.',
   },
   {
-    icon: 'monitoring',
-    title: 'Real-time reporting',
-    body: 'Watch campaigns run live: completion rate, outcomes, and scores update on the dashboard as calls happen.',
+    icon: 'admin_panel_settings',
+    title: 'Full team oversight',
+    body: 'Live visibility across every campaign and call, with role-based workspaces for admins, editors, and viewers.',
   },
   {
-    icon: 'share',
-    title: 'Shareable reports',
-    body: 'Send a campaign or call report to a teammate or client with a single link — no account required on their end.',
-  },
-  {
-    icon: 'group',
-    title: 'Workspaces & roles',
-    body: 'Run multiple workspaces with role-based access for admins, editors, and viewers, so teams stay in their lane.',
+    icon: 'description',
+    title: 'Recordings & transcripts',
+    body: 'Every conversation is captured, searchable, and tied directly back to its evaluation score.',
   },
   {
     icon: 'payments',
     title: 'Usage-based billing',
     body: 'Consumption is tracked by call minutes, so you always know exactly what a campaign costs before and after it runs.',
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    name: 'Priya Nair',
+    title: 'Head of Talent Acquisition, Nimbus Retail',
+    quote: 'We used to spend two full days a week just on first-round phone screens. Now it happens overnight, and I only look at the candidates who actually score well.',
+  },
+  {
+    name: 'Rohan Iyer',
+    title: 'Operations Manager, Bluewave Logistics',
+    quote: 'Setting up a new call script took less than twenty minutes. My whole team could just start using it — no engineering ticket required.',
+  },
+  {
+    name: 'Kavya Reddy',
+    title: 'Growth Lead, Solstice Fintech',
+    quote: 'The semantic scoring is what won me over. I describe what a good answer looks like in plain English instead of writing rules, and it just works.',
+  },
+  {
+    name: 'Ananya Krishnan',
+    title: 'Customer Success Director, Orbit Health',
+    quote: 'Call quality review used to mean someone manually listening to recordings all afternoon. Now it’s automatic, and honestly more consistent than our manual process ever was.',
   },
 ];
 
@@ -74,6 +109,18 @@ const FAQS = [
   {
     q: 'How do I get access?',
     a: 'Sign in to get started. Usage is tracked by call minutes so you can monitor and control consumption as campaigns scale.',
+  },
+  {
+    q: 'Does the AI sound robotic?',
+    a: 'No — it uses natural text-to-speech with real-time interruption handling, so it responds like a real conversation, not a phone tree.',
+  },
+  {
+    q: 'What languages are supported?',
+    a: 'English, Hindi, and Hinglish today, with more configurable per campaign.',
+  },
+  {
+    q: 'Do I need to write any code to build a campaign?',
+    a: 'No — campaigns are built entirely through a no-code wizard: questions, branching logic, and scoring rules, all from the dashboard.',
   },
 ];
 
@@ -282,7 +329,7 @@ function Features() {
           </p>
         </div>
 
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {FEATURES.map(f => (
             <article key={f.title} className="rounded-2xl bg-white border border-[#e2e8f0] p-6 hover:border-[#0d9488]/40 hover:shadow-[0_4px_24px_rgba(13,148,136,0.08)] transition-all">
               <div className="w-11 h-11 rounded-xl bg-[#f0fdfa] flex items-center justify-center mb-4">
@@ -323,6 +370,75 @@ function HowItWorks() {
             </li>
           ))}
         </ol>
+      </div>
+    </section>
+  );
+}
+
+function DemoVideo() {
+  return (
+    <section id="demo" className="bg-[#f8fafc] py-20 md:py-28 border-t border-[#e2e8f0]">
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="text-center max-w-2xl mx-auto">
+          <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">Demo</p>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-[#0f172a] tracking-tight">
+            See it in action
+          </h2>
+          <p className="mt-4 text-[15px] text-[#475569] leading-relaxed">
+            A one-minute walkthrough of a real campaign — from the questions and branching logic behind the scenes, to a fully scored call.
+          </p>
+        </div>
+
+        <div className="mt-10 rounded-2xl overflow-hidden border border-[#e2e8f0] shadow-[0_8px_40px_rgba(15,23,42,0.08)] bg-black">
+          <video
+            className="w-full aspect-video"
+            controls
+            preload="metadata"
+            playsInline
+          >
+            <source src="/demo.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Testimonials() {
+  return (
+    <section id="testimonials" className="bg-white py-20 md:py-28 border-t border-[#e2e8f0]">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">Testimonials</p>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-[#0f172a] tracking-tight">
+            Teams already running on autopilot
+          </h2>
+        </div>
+
+        <div className="mt-14 grid sm:grid-cols-2 gap-6">
+          {TESTIMONIALS.map(t => (
+            <figure key={t.name} className="rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-7">
+              <span className="material-symbols-outlined text-[#0d9488]/25 text-[36px] leading-none" aria-hidden="true" style={{ fontVariationSettings: "'FILL' 1" }}>
+                format_quote
+              </span>
+              <blockquote className="mt-3 text-[14.5px] text-[#334155] leading-relaxed">
+                "{t.quote}"
+              </blockquote>
+              <figcaption className="mt-5 flex items-center gap-3">
+                <span
+                  className="w-10 h-10 rounded-full bg-[#0f766e] flex items-center justify-center text-white font-bold text-[13px] shrink-0"
+                  aria-hidden="true"
+                >
+                  {t.name.split(' ').map(n => n[0]).join('')}
+                </span>
+                <span>
+                  <span className="block text-[13.5px] font-bold text-[#0f172a]">{t.name}</span>
+                  <span className="block text-[12px] text-[#64748b]">{t.title}</span>
+                </span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -454,6 +570,8 @@ export default function Landing() {
         <Hero />
         <Features />
         <HowItWorks />
+        <DemoVideo />
+        <Testimonials />
         <Faq />
         <FinalCta />
       </main>
