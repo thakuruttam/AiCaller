@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
   const [nameCol, setNameCol]         = useState(() => headers.find(h => /name/i.test(h)) || '');
   const [phoneCol, setPhoneCol]       = useState(() => headers.find(h => /phone|mobile|contact/i.test(h)) || '');
-  const [tagCol, setTagCol]           = useState('');
+  const [tagCol, setTagCol]           = useState(() => headers.find(h => /tag|group|segment|label/i.test(h)) || '');
   const [countryCode, setCountryCode] = useState('+91');
   const [error, setError]             = useState('');
 

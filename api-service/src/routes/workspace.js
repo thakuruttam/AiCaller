@@ -9,6 +9,8 @@ import {
   updateMemberRole,
   removeMember,
   createInvite,
+  listInvites,
+  revokeInvite,
   getInvite,
   acceptInvite
 } from '../controllers/workspace.controller.js';
@@ -34,5 +36,7 @@ router.post('/:id/members', requireWorkspaceAdmin, addMember);
 router.patch('/:id/members/:userId', requireWorkspaceAdmin, updateMemberRole);
 router.delete('/:id/members/:userId', requireWorkspaceAdmin, removeMember);
 router.post('/:id/invites', requireWorkspaceAdmin, createInvite);
+router.get('/:id/invites', requireWorkspaceAdmin, listInvites);
+router.delete('/:id/invites/:inviteId', requireWorkspaceAdmin, revokeInvite);
 
 export default router;

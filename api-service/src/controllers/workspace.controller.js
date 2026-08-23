@@ -181,8 +181,47 @@ export async function createInvite(req, res) {
       email: invite.email,
       role: invite.role,
       expiresAt: invite.expiresAt,
+      emailSent: !emailWarning,
       ...(emailWarning && { emailWarning })
     });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * GET /api/workspaces/:id/invites — list pending (unused, unexpired) invites
+ */
+export async function listInvites(req, res) {
+  try {
+    const { id } = req.params;
+    const invites = await prisma.invite.findMany({
+      where: { tenantId: id, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json(invites.map(inv => ({
+      id: inv.id,
+      email: inv.email,
+      role: inv.role,
+      expiresAt: inv.expiresAt,
+      createdAt: inv.createdAt,
+      inviteUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/invite/${inv.token}`
+    })));
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * DELETE /api/workspaces/:id/invites/:inviteId — revoke a pending invite
+ */
+export async function revokeInvite(req, res) {
+  try {
+    const { id, inviteId } = req.params;
+    const invite = await prisma.invite.findUnique({ where: { id: inviteId } });
+    if (!invite || invite.tenantId !== id) return res.status(404).json({ error: 'Invite not found' });
+    await prisma.invite.delete({ where: { id: inviteId } });
+    return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

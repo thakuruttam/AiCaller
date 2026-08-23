@@ -13,9 +13,9 @@ const ROLE_BADGE = {
 
 const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'];
 
-function InviteModal({ workspaceId, onClose }) {
+function InviteModal({ workspaceId, onClose, prefill }) {
   const { addToast } = useToast();
-  const [form, setForm] = useState({ email: '', role: 'VIEWER' });
+  const [form, setForm] = useState({ email: prefill?.email || '', role: prefill?.role || 'VIEWER' });
   const [loading, setLoading] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
   const [error, setError] = useState('');
@@ -113,12 +113,19 @@ export default function MyTeam() {
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [roleChanging, setRoleChanging] = useState({});
+  const [invites, setInvites] = useState([]);
+  const [invitesLoading, setInvitesLoading] = useState(true);
+  const [revokingId, setRevokingId] = useState(null);
+  const [resendPrefill, setResendPrefill] = useState(null);
 
   const workspaceId = user?.workspaceId;
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.workspaceRole === 'ADMIN';
 
   useEffect(() => {
-    if (workspaceId) loadMembers();
+    if (workspaceId) {
+      loadMembers();
+      if (isAdmin) loadInvites();
+    }
   }, [workspaceId]);
 
   const loadMembers = async () => {
@@ -128,6 +135,35 @@ export default function MyTeam() {
       setMembers(res.data);
     } catch { addToast('Could not load members', 'error'); }
     finally { setLoading(false); }
+  };
+
+  const loadInvites = async () => {
+    setInvitesLoading(true);
+    try {
+      const res = await api.get(`/api/workspaces/${workspaceId}/invites`);
+      setInvites(res.data);
+    } catch { addToast('Could not load pending invites', 'error'); }
+    finally { setInvitesLoading(false); }
+  };
+
+  const copyInviteLink = (url) => {
+    navigator.clipboard.writeText(url);
+    addToast('Invite link copied!', 'success');
+  };
+
+  const revokeInvite = async (inviteId) => {
+    setRevokingId(inviteId);
+    try {
+      await api.delete(`/api/workspaces/${workspaceId}/invites/${inviteId}`);
+      setInvites(is => is.filter(i => i.id !== inviteId));
+      addToast('Invite revoked', 'success');
+    } catch { addToast('Failed to revoke invite', 'error'); }
+    finally { setRevokingId(null); }
+  };
+
+  const resendInvite = (invite) => {
+    setResendPrefill({ email: invite.email, role: invite.role });
+    setShowInvite(true);
   };
 
   const changeRole = async (memberId, role) => {
@@ -262,10 +298,74 @@ export default function MyTeam() {
         </>)}
       </FullscreenTable>
 
+      {isAdmin && (
+        <div className="mt-8">
+          <p className="text-sm text-zinc-500 dark:text-slate-400 mb-3">
+            {invitesLoading ? 'Loading pending invites…' : `${invites.length} pending invite${invites.length !== 1 ? 's' : ''}`}
+          </p>
+          {!invitesLoading && invites.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Email</th>
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Role</th>
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Expires</th>
+                    <th className="px-5 py-3.5" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50 dark:divide-slate-800">
+                  {invites.map(inv => (
+                    <tr key={inv.id} className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors">
+                      <td className="px-5 py-4 text-zinc-900 dark:text-slate-100">{inv.email}</td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_BADGE[inv.role] || ROLE_BADGE.VIEWER}`}>
+                          {inv.role}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-zinc-400">
+                        {new Date(inv.expiresAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => copyInviteLink(inv.inviteUrl)}
+                            title="Copy invite link"
+                            className="p-1.5 text-zinc-400 hover:text-[#0d9488] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                          </button>
+                          <button
+                            onClick={() => resendInvite(inv)}
+                            title="Resend invite"
+                            className="p-1.5 text-zinc-400 hover:text-[#0d9488] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">send</span>
+                          </button>
+                          <button
+                            onClick={() => revokeInvite(inv.id)}
+                            disabled={revokingId === inv.id}
+                            title="Revoke invite"
+                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">cancel</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {showInvite && (
         <InviteModal
           workspaceId={workspaceId}
-          onClose={() => { setShowInvite(false); loadMembers(); }}
+          prefill={resendPrefill}
+          onClose={() => { setShowInvite(false); setResendPrefill(null); loadMembers(); loadInvites(); }}
         />
       )}
     </div>
