@@ -195,14 +195,14 @@ export default function CampaignWizard() {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Left Step Panel */}
-      <nav className="w-72 bg-[#f0fdfa] border-r border-zinc-200/50 flex flex-col shrink-0">
+      <nav className="w-72 bg-[#f0fdfa] dark:bg-slate-800/60 border-r border-zinc-200/50 dark:border-slate-700 flex flex-col shrink-0">
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs uppercase tracking-widest text-zinc-500" style={{fontFamily:'JetBrains Mono, monospace'}}>Progress</span>
-            <span className="text-sm font-medium text-[#0d9488]" style={{fontFamily:'JetBrains Mono, monospace'}}>{progress}%</span>
+            <span className="text-xs uppercase tracking-widest text-zinc-500 dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Progress</span>
+            <span className="text-sm font-medium text-[#0d9488] dark:text-teal-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{progress}%</span>
           </div>
-          <div className="w-full bg-zinc-200 h-1.5 rounded-full">
+          <div className="w-full bg-zinc-200 dark:bg-slate-700 h-1.5 rounded-full">
             <div
               className="bg-[#0d9488] h-1.5 rounded-full transition-all duration-700"
               style={{width: `${progress}%`}}
@@ -220,10 +220,10 @@ export default function CampaignWizard() {
                 key={i}
                 className={`px-6 py-4 flex items-center gap-4 transition-colors ${
                   isActive
-                    ? 'bg-white shadow-sm'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm'
                     : isComplete
-                      ? 'opacity-60 cursor-pointer hover:bg-white/70'
-                      : 'opacity-60 cursor-pointer hover:bg-white/50'
+                      ? 'opacity-60 cursor-pointer hover:bg-white/70 dark:hover:bg-slate-700/70'
+                      : 'opacity-60 cursor-pointer hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
                 style={isActive ? {borderLeft: '3px solid #0d9488'} : {borderLeft: '3px solid transparent'}}
                 onClick={() => isComplete && setStep(i + 1)}
@@ -232,15 +232,15 @@ export default function CampaignWizard() {
                   isActive
                     ? 'bg-[#0d9488] text-white'
                     : isComplete
-                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                      : 'border border-zinc-300 text-zinc-500'
+                      ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                      : 'border border-zinc-300 dark:border-slate-600 text-zinc-500 dark:text-slate-400'
                 }`} style={{fontFamily:'JetBrains Mono, monospace'}}>
                   {isComplete ? (
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   ) : stepNums[i]}
                 </div>
                 <span className={`text-sm ${
-                  isActive ? 'font-bold text-[#0d9488]' : 'text-[#334155]'
+                  isActive ? 'font-bold text-[#0d9488] dark:text-teal-400' : 'text-[#334155] dark:text-slate-400'
                 }`} style={{fontFamily:'JetBrains Mono, monospace'}}>
                   {s}
                 </span>
@@ -250,10 +250,10 @@ export default function CampaignWizard() {
         </div>
 
         {/* AI Logic Confidence Card */}
-        <div className="p-6 border-t border-zinc-200">
-          <div className="bg-teal-50 p-4 rounded-lg border border-teal-100">
-            <h4 className="text-sm font-medium text-teal-900 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Logic Confidence</h4>
-            <p className="text-xs text-teal-700 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
+        <div className="p-6 border-t border-zinc-200 dark:border-slate-700">
+          <div className="bg-teal-50 dark:bg-teal-500/10 p-4 rounded-lg border border-teal-100 dark:border-teal-800">
+            <h4 className="text-sm font-medium text-teal-900 dark:text-teal-300 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Logic Confidence</h4>
+            <p className="text-xs text-teal-700 dark:text-teal-400 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
           </div>
         </div>
       </nav>

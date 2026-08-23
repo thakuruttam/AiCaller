@@ -19,7 +19,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
     onApply({ nameCol, phoneCol, tagCol, countryCode: countryCode.trim() });
   };
 
-  const selectCls = "w-full h-11 rounded-lg border border-zinc-200 bg-white px-3 pr-8 text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors cursor-pointer appearance-none";
+  const selectCls = "w-full h-11 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 pr-8 text-sm text-zinc-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors cursor-pointer appearance-none";
 
   // Compute preview rows with auto-assigned IDs
   const previewRows = preview.slice(0, 5);
@@ -32,11 +32,11 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-6">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{maxHeight: '90vh'}}>
+      <div className="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{maxHeight: '90vh'}}>
 
         {/* Header — centered */}
         <div className="pt-8 pb-5 px-8 text-center shrink-0">
-          <h3 className="text-2xl font-bold text-[#0f172a] tracking-tight">Map your data columns</h3>
+          <h3 className="text-2xl font-bold text-[#0f172a] dark:text-slate-100 tracking-tight">Map your data columns</h3>
         </div>
 
         {/* Body */}
@@ -50,25 +50,25 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
               { label: 'Group / Tag', value: tagCol, onChange: e => setTagCol(e.target.value), options: headers, placeholder: '— none —' },
             ].map(({ label, value, onChange, options, placeholder }) => (
               <div key={label}>
-                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">{label}</p>
+                <p className="text-[10px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-widest mb-2">{label}</p>
                 <div className="relative">
                   <select
-                    className="w-full h-11 rounded-lg border border-zinc-200 bg-white px-3 pr-8 text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors cursor-pointer appearance-none"
+                    className="w-full h-11 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 pr-8 text-sm text-zinc-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors cursor-pointer appearance-none"
                     value={value}
                     onChange={onChange}
                   >
                     <option value="">{placeholder}</option>
                     {options.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
-                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-zinc-400 text-[18px]">expand_more</span>
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-zinc-400 dark:text-slate-500 text-[18px]">expand_more</span>
                 </div>
               </div>
             ))}
             <div>
-              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Default Code</p>
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-widest mb-2">Default Code</p>
               <input
                 type="text"
-                className="w-full h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors"
+                className="w-full h-11 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors"
                 value={countryCode}
                 onChange={e => setCountryCode(e.target.value)}
                 placeholder="+1"
@@ -77,7 +77,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-3 rounded-lg mb-5">
+            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 px-4 py-3 rounded-lg mb-5">
               <AlertTriangle size={14} className="shrink-0" /> {error}
             </div>
           )}
@@ -86,33 +86,33 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
           {previewRows.length > 0 && (
             <div>
               <div className="mb-3">
-                <p className="text-[11px] font-bold text-[#0f172a] uppercase tracking-widest">Data Preview</p>
+                <p className="text-[11px] font-bold text-[#0f172a] dark:text-slate-100 uppercase tracking-widest">Data Preview</p>
               </div>
-              <div className="rounded-xl border border-zinc-200 overflow-hidden">
+              <div className="rounded-xl border border-zinc-200 dark:border-slate-700 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-[#f7f6fb] border-b border-zinc-200">
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">ID</th>
+                    <tr className="bg-[#f7f6fb] dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700">
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">ID</th>
                       {displayCols.map(h => {
                         const isName  = h === nameCol  && nameCol;
                         const isPhone = h === phoneCol && phoneCol;
                         return (
-                          <th key={h} className={`px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider ${isName || isPhone ? 'text-[#0d9488]' : 'text-zinc-400'}`}>
+                          <th key={h} className={`px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider ${isName || isPhone ? 'text-[#0d9488] dark:text-teal-400' : 'text-zinc-400 dark:text-slate-500'}`}>
                             {h}
                           </th>
                         );
                       })}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
                     {previewRows.map((row, i) => (
-                      <tr key={i} className="bg-white">
-                        <td className="px-5 py-3.5 text-sm text-zinc-400 font-mono">{baseId + i}</td>
+                      <tr key={i} className="bg-white dark:bg-slate-800">
+                        <td className="px-5 py-3.5 text-sm text-zinc-400 dark:text-slate-500 font-mono">{baseId + i}</td>
                         {displayCols.map(h => {
                           const isName  = h === nameCol  && nameCol;
                           const isPhone = h === phoneCol && phoneCol;
                           return (
-                            <td key={h} className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap max-w-[200px] truncate ${isName || isPhone ? 'text-[#0d9488]' : 'text-zinc-600'}`}>
+                            <td key={h} className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap max-w-[200px] truncate ${isName || isPhone ? 'text-[#0d9488] dark:text-teal-400' : 'text-zinc-600 dark:text-slate-400'}`}>
                               {String(row[h] ?? '—')}
                             </td>
                           );
@@ -127,13 +127,13 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 border-t border-zinc-100 flex items-center justify-between bg-white shrink-0">
-          <div className="flex items-center gap-2 text-sm text-[#334155]">
+        <div className="px-8 py-4 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800 shrink-0">
+          <div className="flex items-center gap-2 text-sm text-[#334155] dark:text-slate-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
             {totalRows} record{totalRows !== 1 ? 's' : ''} ready
           </div>
           <div className="flex items-center gap-5">
-            <button onClick={onClose} className="text-sm font-semibold text-[#334155] hover:text-[#0f172a] transition-colors">
+            <button onClick={onClose} className="text-sm font-semibold text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100 transition-colors">
               Cancel
             </button>
             <button
