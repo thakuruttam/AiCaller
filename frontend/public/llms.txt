@@ -2,16 +2,17 @@
 
 > AI Caller Pro is an AI-powered outbound voice calling platform. It lets teams
 > launch and run automated calling campaigns, have an AI agent conduct the
-> conversations over the phone (via Plivo telephony), automatically evaluate
-> every call's quality and outcome with GPT-based scoring, and review
-> real-time reporting and analytics — all from a single dashboard.
+> conversations over the phone on enterprise-grade telephony infrastructure,
+> automatically evaluate every call's quality and outcome using top AI
+> models, and review real-time reporting and analytics — all from a single
+> dashboard.
 
 ## What it does
 
 - Launch outbound AI voice calling campaigns from an uploaded contact list.
 - An AI voice agent places and conducts each call in real time.
 - Every call is automatically transcribed, scored, and evaluated for
-  sentiment, outcome, and quality using GPT-based evaluation.
+  sentiment, outcome, and quality using top AI models.
 - Campaign and per-call reports, dashboards, and shareable report links.
 - Multi-workspace, team, and role-based access (admin/editor/viewer).
 - Usage and billing tracking by call minutes.
