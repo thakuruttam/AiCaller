@@ -51,17 +51,30 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
     let needsUpdate = false;
     let nextData = [...payload.dataToCollect];
 
-    const anyQuestionManual = questions.some(q => q.isWeightManuallySet);
-    if (!anyQuestionManual) {
-      const N = questions.length;
-      const base = Math.floor(100 / N);
-      const rem  = 100 % N;
+    // Non-question items never carry a score weight.
+    nextData = nextData.map(item => {
+      if (item.itemType !== 'question') {
+        if (item.weight !== 0) { needsUpdate = true; return { ...item, weight: 0 }; }
+      }
+      return item;
+    });
+
+    // Auto-balance questions the user hasn't manually weighted: split whatever
+    // weight is left over after manually-set questions, not the full 100% —
+    // otherwise a new question added after an existing one was hand-weighted
+    // would be stuck at 0 forever instead of picking up the remainder.
+    const autoQuestions = questions.filter(q => !q.isWeightManuallySet);
+    if (autoQuestions.length > 0) {
+      const usedWeight = questions
+        .filter(q => q.isWeightManuallySet)
+        .reduce((sum, q) => sum + (q.weight || 0), 0);
+      const remaining = Math.max(0, 100 - usedWeight);
+      const N = autoQuestions.length;
+      const base = Math.floor(remaining / N);
+      const rem  = remaining % N;
       nextData = nextData.map(item => {
-        if (item.itemType !== 'question') {
-          if (item.weight !== 0) { needsUpdate = true; return { ...item, weight: 0 }; }
-          return item;
-        }
-        const idx = questions.findIndex(q => q.id === item.id);
+        if (item.itemType !== 'question' || item.isWeightManuallySet) return item;
+        const idx = autoQuestions.findIndex(q => q.id === item.id);
         const expected = idx < rem ? base + 1 : base;
         if (item.weight !== expected) { needsUpdate = true; return { ...item, weight: expected }; }
         return item;
