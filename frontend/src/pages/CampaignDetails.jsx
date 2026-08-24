@@ -113,6 +113,7 @@ export default function CampaignDetails() {
   const { id } = useParams();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,20 +123,24 @@ export default function CampaignDetails() {
   useEffect(() => { fetchCampaignDetails(); }, [id]);
 
   const fetchCampaignDetails = async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
-      const res = await api.get('/api/campaigns');
-      const camp = res.data.find(c => c.id === id);
-      setCampaign(camp);
+      const res = await api.get(`/api/campaigns/${id}`);
+      setCampaign(res.data);
     } catch (e) {
       console.error(e);
+      setLoadError(e.response?.status === 403 ? 'access-denied' : 'not-found');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) return <PageLoader text="Loading campaign…" />;
-  if (!campaign) return (
-    <div className="flex items-center justify-center h-64 text-sm text-[#64748b] dark:text-slate-400">Campaign not found.</div>
+  if (loadError || !campaign) return (
+    <div className="flex items-center justify-center h-64 text-sm text-[#64748b] dark:text-slate-400">
+      {loadError === 'access-denied' ? "You don't have access to this campaign." : 'Campaign not found.'}
+    </div>
   );
 
   const contacts = campaign.campaignContacts || [];

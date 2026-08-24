@@ -31,6 +31,9 @@ export const getCampaignById = async (req, res) => {
           include: {
             contact: true
           }
+        },
+        callLogs: {
+          orderBy: { createdAt: 'desc' }
         }
       }
     });
