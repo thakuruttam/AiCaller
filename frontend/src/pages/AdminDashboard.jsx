@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewLoadingId, setViewLoadingId] = useState(null);
   const { addToast } = useToast();
+  const wasFailingRef = useRef(false);
 
   const fetchTickets = async () => {
     setTicketsLoading(true);
@@ -92,7 +93,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchCampaigns();
     fetchTickets();
-    const pollInterval = setInterval(fetchCampaigns, 3000);
+    const pollInterval = setInterval(fetchCampaigns, 8000);
     const clockInterval = setInterval(() => {
       setSecondsAgo(prev => prev + 1);
     }, 1000);
@@ -105,9 +106,16 @@ export default function AdminDashboard() {
       setCampaigns(res.data);
       setLastUpdated(Date.now());
       setSecondsAgo(0);
+      wasFailingRef.current = false;
     } catch (e) {
       console.error(e);
-      addToast("Failed to load campaigns", "error");
+      // Only toast on the first failure of a streak — a slow/flaky network
+      // window during an active call otherwise fires a new toast every poll,
+      // stacking up and making a transient blip look like the page broke.
+      if (!wasFailingRef.current) {
+        addToast("Failed to load campaigns", "error");
+        wasFailingRef.current = true;
+      }
     } finally {
       setLoading(false);
     }
