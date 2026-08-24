@@ -29,7 +29,11 @@ try {
 //   - chunks > 0 → audio already in Plivo's buffer → resolve as success (no REST)
 //   - chunks = 0 → nothing sent → reject so REST fallback is safe to use
 
-const SPEAK_TIMEOUT_MS = 8000;
+// A flat 8s timeout cut off long questions mid-sentence: at natural speech
+// rate (~12-15 chars/sec) anything past ~100-120 chars could outrun it, and
+// on timeout we terminate the socket — dropping whatever audio hadn't been
+// generated yet. 30s comfortably covers even long questions.
+const SPEAK_TIMEOUT_MS = 30000;
 
 export class DeepgramTTSSocket {
   constructor(model = 'aura-2-asteria-en', format = 'mulaw') {
