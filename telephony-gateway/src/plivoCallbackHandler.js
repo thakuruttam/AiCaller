@@ -15,11 +15,57 @@
 
 import express from 'express';
 import { prisma } from './db.js';
+import { enqueueCall } from './queues/callQueue.js';
 
 const router = express.Router();
 router.use(express.urlencoded({ extended: false }));
 
 const baseUrl = (process.env.BASE_URL || '').replace(/\/$/, '');
+
+// Plivo's hangup_url CallStatus values that mean the callee was never actually
+// reached — retryable per campaign settings. 'completed' always means the
+// stream connected (handled separately via the WS 'stop' event), so it's
+// deliberately excluded here.
+const RETRYABLE_CALL_STATUSES = new Set(['busy', 'no-answer', 'failed', 'canceled']);
+const RETRY_DELAY_MS = 20 * 60 * 1000; // 20 min — long enough to be reasonable after a busy/no-answer/decline, short enough to still be same-day useful.
+
+async function maybeScheduleRetry(callLog) {
+  if (!callLog.campaignId) return; // not tied to a campaign — nothing to read retryAttempts from
+  try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: callLog.campaignId },
+      select: { callSettings: true }
+    });
+    const maxRetries = campaign?.callSettings?.retryAttempts ?? 0;
+    if (maxRetries <= 0) return;
+
+    // Count real attempts only — the 'draft' call log created when a contact
+    // is first added to a campaign isn't an attempt and would otherwise
+    // silently eat into the retry budget.
+    const attemptsSoFar = await prisma.callLog.count({
+      where: { campaignId: callLog.campaignId, contactId: callLog.contactId, status: { not: 'draft' } }
+    });
+    if (attemptsSoFar >= 1 + maxRetries) return;
+
+    const contact = await prisma.contact.findUnique({ where: { id: callLog.contactId }, select: { phone: true } });
+    if (!contact?.phone) return;
+
+    const newCallLog = await prisma.callLog.create({
+      data: { tenantId: callLog.tenantId, contactId: callLog.contactId, campaignId: callLog.campaignId, status: 'queued' }
+    });
+
+    await enqueueCall(callLog.tenantId, {
+      callLogId: newCallLog.id,
+      phone: contact.phone,
+      contactId: callLog.contactId,
+      campaignId: callLog.campaignId
+    }, { delay: RETRY_DELAY_MS });
+
+    console.log(`[Plivo] Scheduled retry ${attemptsSoFar + 1}/${1 + maxRetries} for contact ${callLog.contactId} in ${RETRY_DELAY_MS / 60000}min`);
+  } catch (err) {
+    console.error('[Plivo] maybeScheduleRetry error:', err);
+  }
+}
 
 router.post('/answer', (req, res) => {
   const campaignId = req.query.campaignId || '';
@@ -39,23 +85,32 @@ router.post('/answer', (req, res) => {
 router.post('/status', async (req, res) => {
   res.sendStatus(200); // ack immediately
 
-  const { CallUUID: callSid } = req.body;
+  const { CallUUID: callSid, CallStatus } = req.body;
   if (!callSid) return;
 
   try {
     // The stream handler's 'stop' event is the primary place transcript/eval
-    // get finalized. This is just a safety net for calls whose WS never got
-    // a clean 'stop' (e.g. Plivo terminated the socket abruptly).
+    // get finalized, for calls that actually connected — this only matters
+    // for calls that never got a WS stream at all (still 'in-progress' here
+    // means the bidirectional stream never opened, i.e. the callee was never
+    // reached), or whose WS was terminated abruptly without a clean 'stop'.
     const callLog = await prisma.callLog.findFirst({
       where: { providerRef: callSid },
-      select: { id: true, status: true }
+      select: { id: true, status: true, campaignId: true, contactId: true, tenantId: true }
     });
-    if (callLog && callLog.status === 'in-progress') {
-      await prisma.callLog.update({
-        where: { id: callLog.id },
-        data:  { status: 'completed' }
-      });
-      console.log(`[Plivo] /status: force-completed callLog ${callLog.id} (WS 'stop' never fired)`);
+    if (!callLog || callLog.status !== 'in-progress') return;
+
+    const isFailure = RETRYABLE_CALL_STATUSES.has((CallStatus || '').toLowerCase());
+    const finalStatus = isFailure ? 'failed' : 'completed';
+
+    await prisma.callLog.update({
+      where: { id: callLog.id },
+      data:  { status: finalStatus }
+    });
+    console.log(`[Plivo] /status: callLog ${callLog.id} → ${finalStatus} (CallStatus=${CallStatus})`);
+
+    if (isFailure) {
+      await maybeScheduleRetry(callLog);
     }
   } catch (err) {
     console.error('[Plivo] /status error:', err);
