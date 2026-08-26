@@ -253,8 +253,11 @@ export const updateWizardCampaign = async (req, res) => {
       }
     }
 
-    // 4. Cleanup old contacts that were removed from the wizard (only safe for drafts)
-    if (validContactIds.length > 0) {
+    // 4. Cleanup old contacts that were removed from the wizard (only safe for drafts).
+    // Not gated on validContactIds.length — `notIn: []` correctly matches every
+    // row, which is exactly right when the user removed their last contact and
+    // the wizard submitted an empty contacts list.
+    {
       // Delete ghost draft call logs
       await prisma.callLog.deleteMany({
         where: {
