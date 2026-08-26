@@ -14,7 +14,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, try silent refresh — on failure, redirect to login
+// On 401, try silent refresh — on failure, redirect to login.
+// A single in-flight refresh is shared across all concurrent 401s instead of
+// each one racing its own POST /api/auth/refresh: a burst of simultaneous
+// requests (e.g. polling right after a call) hitting an expired token used to
+// fire N redundant refresh calls at once.
+let refreshPromise = null;
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -23,13 +29,20 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
+        if (!refreshPromise) {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) throw new Error('No refresh token');
 
-        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const { data } = await axios.post(`${baseURL}/api/auth/refresh`, { refreshToken });
-        localStorage.setItem('accessToken', data.accessToken);
-        original.headers['Authorization'] = `Bearer ${data.accessToken}`;
+          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          refreshPromise = axios.post(`${baseURL}/api/auth/refresh`, { refreshToken })
+            .then(({ data }) => {
+              localStorage.setItem('accessToken', data.accessToken);
+              return data.accessToken;
+            })
+            .finally(() => { refreshPromise = null; });
+        }
+        const accessToken = await refreshPromise;
+        original.headers['Authorization'] = `Bearer ${accessToken}`;
         return api(original);
       } catch (_) {
         localStorage.removeItem('accessToken');
