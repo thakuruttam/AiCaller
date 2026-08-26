@@ -213,13 +213,18 @@ async function creditBalance({ topUp, razorpayPaymentId, pack }) {
 // GET /api/billing/usage
 export async function getUsage(req, res) {
   try {
+    // SUPER_ADMIN accounts span multiple tenants — without ?all=true this was
+    // silently scoped to whichever single workspace the session currently has
+    // active, hiding real call/usage history for every other tenant.
+    const allTenants = req.user.role === 'SUPER_ADMIN' && req.query.all === 'true';
     const campaigns = await prisma.campaign.findMany({
-      where: { tenantId: req.user.workspaceId },
+      where: allTenants ? {} : { tenantId: req.user.workspaceId },
       select: {
         id: true,
         name: true,
         type: true,
         createdAt: true,
+        tenant: { select: { name: true } },
         campaignContacts: {
           select: { contactId: true, overrides: true },
         },
@@ -254,6 +259,7 @@ export async function getUsage(req, res) {
         name: c.name,
         type: c.type,
         createdAt: c.createdAt,
+        tenantName: c.tenant?.name,
         totalCalls: c.callLogs.length,
         completedCalls,
         totalMinutes,

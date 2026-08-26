@@ -101,7 +101,12 @@ export default function Step7Review({ payload, onLaunch }) {
             <ReviewField label="AI Tone" value={callSettings?.tone} />
             <ReviewField label="Language" value={callSettings?.language} />
             <ReviewField label="Max Duration" value={`${callSettings?.maxDuration} mins`} />
-            <ReviewField label="Retry Attempts" value={callSettings?.retryAttempts} />
+            <ReviewField
+              label="Retry Attempts"
+              value={callSettings?.retryAttempts > 0
+                ? `${callSettings.retryAttempts} (retries 20 min after a no-answer/busy/failed call)`
+                : callSettings?.retryAttempts}
+            />
           </div>
         </div>
 

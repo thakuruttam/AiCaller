@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_STYLE = {
   completed:  'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -101,7 +102,10 @@ function CampaignRow({ campaign }) {
             )}
             <div>
               <p className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{campaign.name}</p>
-              <p className="text-xs text-zinc-400">{formatDate(campaign.createdAt)}</p>
+              <p className="text-xs text-zinc-400">
+                {formatDate(campaign.createdAt)}
+                {campaign.tenantName && <> · {campaign.tenantName}</>}
+              </p>
             </div>
           </div>
         </td>
@@ -156,19 +160,21 @@ function CampaignRow({ campaign }) {
 
 export default function Usage() {
   const { addToast } = useToast();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const { data: res } = await api.get('/api/billing/usage');
+      const { data: res } = await api.get(isSuperAdmin ? '/api/billing/usage?all=true' : '/api/billing/usage');
       setData(res);
     } catch {
       addToast('Failed to load usage data', 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isSuperAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
