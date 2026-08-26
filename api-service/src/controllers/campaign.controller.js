@@ -169,8 +169,6 @@ export const updateWizardCampaign = async (req, res) => {
       contacts 
     } = req.body;
 
-    const tenantId = req.user.workspaceId;
-
     const maxCallDurationSec = Math.max(30, (callSettings?.maxDuration || 5) * 60);
 
     // 1. Update Campaign
@@ -186,6 +184,12 @@ export const updateWizardCampaign = async (req, res) => {
         maxCallDurationSec,
       }
     });
+
+    // Contacts must be scoped to the campaign's own tenant, not the editing
+    // user's currently-active workspace — a SUPER_ADMIN editing a campaign
+    // that belongs to a different tenant than the one their session has
+    // active would otherwise create/link contacts under the wrong tenant.
+    const tenantId = campaign.tenantId;
 
     // 2. Update Call Module
     await prisma.callModule.update({
