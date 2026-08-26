@@ -650,3 +650,62 @@ export const recallCall = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// ONE-OFF ADMIN MIGRATION — remove after use. Merges duplicate Contact rows
+// (same tenantId+phone) created by the pre-fix non-atomic find-or-create race
+// in createWizardCampaign/updateWizardCampaign. Reassigns call logs and
+// campaign links to a single surviving contact per phone number, then deletes
+// the redundant ones — required before Contact(tenantId, phone) can carry a
+// unique index, since Mongo will reject building it over existing duplicates.
+export const mergeDuplicateContacts = async (req, res) => {
+  try {
+    const contacts = await prisma.contact.findMany();
+    const groups = new Map();
+    for (const c of contacts) {
+      const key = `${c.tenantId}|${c.phone}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    }
+    const dupGroups = [...groups.values()].filter(g => g.length > 1);
+
+    const summary = [];
+    for (const group of dupGroups) {
+      const sorted = [...group].sort((a, b) => a.id.localeCompare(b.id));
+      const primary = sorted[0];
+      const duplicates = sorted.slice(1);
+
+      for (const dup of duplicates) {
+        await prisma.callLog.updateMany({
+          where: { contactId: dup.id },
+          data: { contactId: primary.id }
+        });
+
+        const dupCCs = await prisma.campaignContact.findMany({ where: { contactId: dup.id } });
+        for (const cc of dupCCs) {
+          const existingPrimaryCC = await prisma.campaignContact.findFirst({
+            where: { campaignId: cc.campaignId, contactId: primary.id }
+          });
+          if (existingPrimaryCC) {
+            await prisma.campaignContact.delete({ where: { id: cc.id } });
+          } else {
+            await prisma.campaignContact.update({ where: { id: cc.id }, data: { contactId: primary.id } });
+          }
+        }
+
+        await prisma.contact.delete({ where: { id: dup.id } });
+      }
+
+      summary.push({
+        tenantId: primary.tenantId,
+        phone: primary.phone,
+        primaryId: primary.id,
+        mergedIds: duplicates.map(d => d.id)
+      });
+    }
+
+    res.json({ mergedGroups: summary.length, summary });
+  } catch (error) {
+    console.error('[mergeDuplicateContacts]', error);
+    res.status(500).json({ error: error.message });
+  }
+};

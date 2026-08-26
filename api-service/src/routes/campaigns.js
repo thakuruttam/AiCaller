@@ -11,7 +11,8 @@ import {
   fetchRecording,
   updateCampaignStatus,
   reevaluateCall,
-  recallCall
+  recallCall,
+  mergeDuplicateContacts
 } from '../controllers/campaign.controller.js';
 
 const router = Router();
@@ -32,6 +33,9 @@ router.post('/wizard', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), createWizard
 router.put('/wizard/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateWizardCampaign);
 router.post('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateCampaignStatus);
 router.post('/:campaignId/contacts', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('campaignId'), uploadContacts);
+
+// TEMPORARY — one-off data migration, remove after use (see controller for context)
+router.post('/admin/merge-duplicate-contacts', authorize('SUPER_ADMIN'), mergeDuplicateContacts);
 
 
 export default router;
