@@ -253,12 +253,12 @@ export const updateWizardCampaign = async (req, res) => {
       }
     }
 
-    // 4. Cleanup old contacts that were removed from the wizard (only safe for drafts).
+    // 4. Cleanup old contacts that were removed from the wizard.
     // Not gated on validContactIds.length — `notIn: []` correctly matches every
     // row, which is exactly right when the user removed their last contact and
     // the wizard submitted an empty contacts list.
     {
-      // Delete ghost draft call logs
+      // Delete ghost draft call logs (never attempted — safe to discard outright).
       await prisma.callLog.deleteMany({
         where: {
           campaignId: id,
@@ -266,15 +266,17 @@ export const updateWizardCampaign = async (req, res) => {
           status: 'draft'
         }
       });
-      // Delete ghost campaign contacts if they don't have non-draft call logs
-      const activeLogs = await prisma.callLog.findMany({
-        where: { campaignId: id, contactId: { notIn: validContactIds }, status: { not: 'draft' } }
-      });
-      const activeContactIds = activeLogs.map(l => l.contactId);
+      // Remove the contact from this campaign's active list. CallLog rows are
+      // keyed by campaignId+contactId directly (not through CampaignContact),
+      // and call reports/evaluations are queried by campaignId on CallReport —
+      // neither depends on this row existing, so removing it never touches
+      // historical call/report data. Previously this was skipped for contacts
+      // with any non-draft call log, which meant a contact could never be
+      // removed from a campaign again once a single real call had been placed.
       await prisma.campaignContact.deleteMany({
         where: {
           campaignId: id,
-          contactId: { notIn: [...validContactIds, ...activeContactIds] }
+          contactId: { notIn: validContactIds }
         }
       });
     }
