@@ -12,7 +12,8 @@ import {
   updateCampaignStatus,
   reevaluateCall,
   recallCall,
-  mergeDuplicateContacts
+  mergeDuplicateContacts,
+  debugDuplicateContacts
 } from '../controllers/campaign.controller.js';
 
 const router = Router();
@@ -36,6 +37,7 @@ router.post('/:campaignId/contacts', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR')
 
 // TEMPORARY — one-off data migration, remove after use (see controller for context)
 router.post('/admin/merge-duplicate-contacts', authorize('SUPER_ADMIN'), mergeDuplicateContacts);
+router.get('/admin/debug-duplicate-contacts', authorize('SUPER_ADMIN'), debugDuplicateContacts);
 
 
 export default router;

@@ -657,6 +657,16 @@ export const recallCall = async (req, res) => {
 // campaign links to a single surviving contact per phone number, then deletes
 // the redundant ones — required before Contact(tenantId, phone) can carry a
 // unique index, since Mongo will reject building it over existing duplicates.
+export const debugDuplicateContacts = async (req, res) => {
+  try {
+    const phones = ['+918059859242', '+918887098336'];
+    const contacts = await prisma.contact.findMany({ where: { phone: { in: phones } } });
+    res.json(contacts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const mergeDuplicateContacts = async (req, res) => {
   try {
     const contacts = await prisma.contact.findMany();
