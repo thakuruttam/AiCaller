@@ -16,6 +16,7 @@ export class VoiceAgent {
     this.awaitingIdentityConfirm = true;       // true until user confirms they are the intended contact
     this.identityConfirmed = null;             // null=unknown, true=confirmed, false=denied (wrong person)
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
+    this.mandatoryRetries = 0;                 // counter for how many times we've re-asked an invalid mandatory answer
     this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
     console.log("--------------------------------------------------");
@@ -157,6 +158,64 @@ export class VoiceAgent {
     const result = this.evalCondition(condition, conditionValue, userAnswer);
     console.log(`[VoiceAgent] String condition — "${condition} '${conditionValue}'" on "${userAnswer}" → ${result}`);
     return result;
+  }
+
+  /**
+   * Cheap classification for whether a reply is even a genuine attempt to
+   * answer — used as the MANDATORY-question fallback when a campaign never
+   * configured a stricter scoring rule (the common case for open-ended
+   * questions, where "is any value" would otherwise let gibberish like
+   * "I am a parrot" through just because it's non-empty).
+   */
+  async _isGenuineAnswerAttempt(questionText, userAnswer) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          messages: [{
+            role: "user",
+            content: `A phone agent asked: "${questionText}"\nThe caller replied: "${userAnswer}"\n\nIs this a genuine, on-topic attempt to answer the question — even if brief, incomplete, or uncertain? Answer "no" only if the reply is gibberish, a refusal, a completely unrelated remark, or clearly dodges the question.\n\nReply with ONLY "yes" or "no".`
+          }],
+          temperature: 0,
+          max_tokens: 5,
+          stream: false
+        })
+      });
+      if (!response.ok) return true; // fail open — don't block the call on an API hiccup
+      const data = await response.json();
+      const reply = data.choices[0].message.content.trim().toLowerCase();
+      const result = reply.startsWith('yes');
+      console.log(`[VoiceAgent] Genuine-answer check on "${userAnswer}" → ${result}`);
+      return result;
+    } catch (e) {
+      console.error('[VoiceAgent] Genuine-answer check failed:', e.message);
+      return true; // fail open
+    }
+  }
+
+  /**
+   * Check for whether an answer satisfies a MANDATORY question. Prefers the
+   * expectedAnswer/scoringCriteria data campaign creators already author in
+   * the Scoring tab (consumed post-call by
+   * call-evaluation-service/src/pipeline/scorer.js) — that data was never
+   * checked live during the call before. When a campaign never configured a
+   * real rule there (still "is any value"), falls back to a genuine-attempt
+   * check instead of accepting any non-empty reply.
+   */
+  async _isValidAnswer(item, userInput) {
+    if (item.scoringActiveTab === 'semantic' && item.scoringCriteria?.trim()) {
+      return this._evalConditionWithLLM(null, null, userInput, item.scoringCriteria);
+    }
+    const condition = item.expectedAnswer?.condition || 'is any value';
+    if (condition !== 'is any value') {
+      return this._evalConditionWithLLM(condition, item.expectedAnswer?.value, userInput, null);
+    }
+    return this._isGenuineAnswerAttempt(item.text, userInput);
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -486,6 +545,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         }
       }
 
+      let skippedOrEnded = false;
       if ((prevItem?.itemType || 'question') === 'question' && prevItem.onAnswer?.action) {
         const { action, skipCondition, skipToId, skipSemanticCondition, skipConditionActiveTab } = prevItem.onAnswer;
         const useSemanticSkip = skipConditionActiveTab === 'semantic';
@@ -531,13 +591,48 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
             const answerIsComplete = /[.?!]$/.test(userInput.trimEnd());
             if (answerIsComplete) {
               this.currentIndex = this.items.length;
+              skippedOrEnded = true;
             } else {
               console.log(`[VoiceAgent] Deferring end_call — answer lacks trailing punctuation, likely partial: "${userInput.trim()}"`);
             }
           } else if (action === 'skip_question' && skipToId) {
             const targetIdx = this.items.findIndex(i => i.id === skipToId);
-            if (targetIdx !== -1) this.currentIndex = targetIdx;
+            if (targetIdx !== -1) { this.currentIndex = targetIdx; skippedOrEnded = true; }
           }
+        }
+      }
+
+      // ── Mandatory-answer validation on the PREVIOUS item ──
+      // Replaces the old approach of hoping the LLM notices an unclear answer
+      // and repeats the question on its own — that had no cap and could loop
+      // forever. A skip/end_call condition firing above takes priority: the
+      // campaign creator explicitly routed this answer somewhere, so don't
+      // second-guess it with a generic validity check.
+      if (!skippedOrEnded && prevItem && (prevItem.itemType || 'question') === 'question' && prevItem.is_mandatory) {
+        const isValid = await this._isValidAnswer(prevItem, userInput);
+        if (!isValid) {
+          const maxRetries = parseInt(process.env.MAX_MANDATORY_RETRIES || '2', 10);
+          if (this.mandatoryRetries < maxRetries) {
+            this.mandatoryRetries += 1;
+            console.log(`[VoiceAgent] Mandatory answer invalid — retry ${this.mandatoryRetries}/${maxRetries}: "${userInput}"`);
+            const repeatDirective = `(System: The user's answer did not satisfy this mandatory question. Apologize briefly and repeat this exact question verbatim: "${prevItem.text}")`;
+            this.expectsUserReply = true;
+            const fullInput = `${userInput}\n${repeatDirective}`;
+            this.chatHistory.push({ role: 'user', content: fullInput });
+            try {
+              if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
+              return await this._callLLM();
+            } catch (e) {
+              console.error('[VoiceAgent] Error on mandatory-retry directive:', e.message);
+              this.shouldHangUp = true;
+              return "I'm sorry, I'm having trouble. Goodbye.";
+            }
+          }
+          // Retries exhausted — accept the best-effort answer and move on.
+          console.log(`[VoiceAgent] Mandatory retries exhausted — moving on with best-effort answer: "${userInput}"`);
+          this.mandatoryRetries = 0;
+        } else {
+          this.mandatoryRetries = 0;
         }
       }
     }
@@ -660,6 +755,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       awaitingIdentityConfirm: this.awaitingIdentityConfirm,
       identityConfirmed:       this.identityConfirmed,
       confusionRetries:        this.confusionRetries,
+      mandatoryRetries:        this.mandatoryRetries,
       expectsUserReply:        this.expectsUserReply,
       chatHistory:             this.chatHistory
     };
@@ -687,6 +783,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       agent.awaitingIdentityConfirm = state.awaitingIdentityConfirm;
       agent.identityConfirmed       = state.identityConfirmed ?? null;
       agent.confusionRetries        = state.confusionRetries;
+      agent.mandatoryRetries        = state.mandatoryRetries ?? 0;
       agent.expectsUserReply        = state.expectsUserReply ?? false;
       agent.chatHistory             = state.chatHistory;
       console.log(`[VoiceAgent] Restored state from Redis for ${callSid} (turn ${state.currentIndex})`);

@@ -12,6 +12,7 @@ export class VoiceAgent {
     this.shouldHangUp = false;                 // set to true when HANGUP_NOW is emitted
     this.awaitingIdentityConfirm = true;       // true until user confirms they are the intended contact
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
+    this.mandatoryRetries = 0;                 // counter for how many times we've re-asked an invalid mandatory answer
     this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
     console.log("--------------------------------------------------");
@@ -70,6 +71,96 @@ export class VoiceAgent {
       case 'is any value':  return a.length > 0;
       default:              return false;
     }
+  }
+
+  /**
+   * Semantically evaluate whether an answer satisfies a scoring criterion,
+   * for questions authored with the "semantic" scoring tab instead of a
+   * literal condition.
+   */
+  async _evalSemanticCondition(semanticCondition, userAnswer) {
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{
+            role: "user",
+            content: `Does the following user answer satisfy this condition?\n\nCondition: "${semanticCondition}"\nUser answer: "${userAnswer}"\n\nReply with ONLY "yes" or "no".`
+          }],
+          temperature: 0,
+          max_tokens: 5,
+          stream: false
+        })
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      const reply = data.choices[0].message.content.trim().toLowerCase();
+      return reply.startsWith('yes');
+    } catch (e) {
+      console.error('[VoiceAgent] Semantic condition eval failed:', e.message);
+      return false;
+    }
+  }
+
+  /**
+   * Cheap classification for whether a reply is even a genuine attempt to
+   * answer — used as the MANDATORY-question fallback when a campaign never
+   * configured a stricter scoring rule (the common case for open-ended
+   * questions, where "is any value" would otherwise let gibberish like
+   * "I am a parrot" through just because it's non-empty).
+   */
+  async _isGenuineAnswerAttempt(questionText, userAnswer) {
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{
+            role: "user",
+            content: `A phone agent asked: "${questionText}"\nThe caller replied: "${userAnswer}"\n\nIs this a genuine, on-topic attempt to answer the question — even if brief, incomplete, or uncertain? Answer "no" only if the reply is gibberish, a refusal, a completely unrelated remark, or clearly dodges the question.\n\nReply with ONLY "yes" or "no".`
+          }],
+          temperature: 0,
+          max_tokens: 5,
+          stream: false
+        })
+      });
+      if (!response.ok) return true; // fail open — don't block the call on an API hiccup
+      const data = await response.json();
+      const reply = data.choices[0].message.content.trim().toLowerCase();
+      return reply.startsWith('yes');
+    } catch (e) {
+      console.error('[VoiceAgent] Genuine-answer check failed:', e.message);
+      return true; // fail open
+    }
+  }
+
+  /**
+   * Check for whether an answer satisfies a MANDATORY question. Prefers the
+   * expectedAnswer/scoringCriteria data campaign creators already author in
+   * the Scoring tab (consumed post-call by
+   * call-evaluation-service/src/pipeline/scorer.js) — that data was never
+   * checked live during the call before. When a campaign never configured a
+   * real rule there (still "is any value"), falls back to a genuine-attempt
+   * check instead of accepting any non-empty reply.
+   */
+  async _isValidAnswer(item, userInput) {
+    if (item.scoringActiveTab === 'semantic' && item.scoringCriteria?.trim()) {
+      return this._evalSemanticCondition(item.scoringCriteria.trim(), userInput);
+    }
+    const condition = item.expectedAnswer?.condition || 'is any value';
+    if (condition !== 'is any value') {
+      return this.evalCondition(condition, item.expectedAnswer?.value || '', userInput);
+    }
+    return this._isGenuineAnswerAttempt(item.text, userInput);
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -345,6 +436,7 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
         }
       }
 
+      let skippedOrEnded = false;
       if (prevItem?.itemType === 'question' && prevItem.onAnswer?.action) {
         const { action, skipCondition, skipToId } = prevItem.onAnswer;
         const conditionFired = this.evalCondition(
@@ -356,10 +448,44 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
         if (conditionFired) {
           if (action === 'end_call') {
             this.currentIndex = this.items.length;
+            skippedOrEnded = true;
           } else if (action === 'skip_question' && skipToId) {
             const targetIdx = this.items.findIndex(i => i.id === skipToId);
-            if (targetIdx !== -1) this.currentIndex = targetIdx;
+            if (targetIdx !== -1) { this.currentIndex = targetIdx; skippedOrEnded = true; }
           }
+        }
+      }
+
+      // ── Mandatory-answer validation on the PREVIOUS item ──
+      // Replaces the old approach of hoping the LLM notices an unclear answer
+      // and repeats the question on its own — that had no cap and could loop
+      // forever. A skip/end_call condition firing above takes priority: the
+      // campaign creator explicitly routed this answer somewhere, so don't
+      // second-guess it with a generic validity check.
+      if (!skippedOrEnded && prevItem && (prevItem.itemType || 'question') === 'question' && prevItem.is_mandatory) {
+        const isValid = await this._isValidAnswer(prevItem, userInput);
+        if (!isValid) {
+          const maxRetries = parseInt(process.env.MAX_MANDATORY_RETRIES || '2', 10);
+          if (this.mandatoryRetries < maxRetries) {
+            this.mandatoryRetries += 1;
+            const repeatDirective = `(System: The user's answer did not satisfy this mandatory question. Apologize briefly and repeat this exact question verbatim: "${prevItem.text}")`;
+            this.expectsUserReply = true;
+            const fullInput = `${userInput}\n${repeatDirective}`;
+            this.chatHistory.push({ role: 'user', content: fullInput });
+            try {
+              if (!process.env.GROQ_API_KEY) {
+                return 'Please add GROQ_API_KEY to your backend .env file to use the cloud Llama 3 API.';
+              }
+              return await this._callLLM();
+            } catch (e) {
+              console.error('[VoiceAgent] Error on mandatory-retry directive:', e);
+              return "I'm sorry, I'm having trouble processing that right now. HANGUP_NOW";
+            }
+          }
+          // Retries exhausted — accept the best-effort answer and move on.
+          this.mandatoryRetries = 0;
+        } else {
+          this.mandatoryRetries = 0;
         }
       }
     }
@@ -472,6 +598,7 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
       shouldHangUp:          this.shouldHangUp,
       awaitingIdentityConfirm: this.awaitingIdentityConfirm,
       confusionRetries:      this.confusionRetries,
+      mandatoryRetries:      this.mandatoryRetries,
       expectsUserReply:      this.expectsUserReply,
       chatHistory:           this.chatHistory
     };
@@ -498,6 +625,7 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
       agent.shouldHangUp            = state.shouldHangUp;
       agent.awaitingIdentityConfirm = state.awaitingIdentityConfirm;
       agent.confusionRetries        = state.confusionRetries;
+      agent.mandatoryRetries        = state.mandatoryRetries ?? 0;
       agent.expectsUserReply        = state.expectsUserReply ?? false;
       agent.chatHistory             = state.chatHistory;
       console.log(`[VoiceAgent] Restored state from Redis for ${callSid} (turn ${state.currentIndex})`);
