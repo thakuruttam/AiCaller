@@ -1,3 +1,12 @@
+// Node's fetch has no default timeout — a stalled Groq/OpenAI request
+// (network hiccup, provider-side stall) hangs every await on it forever,
+// with no exception for any catch block to recover from. That left live
+// calls (and sandbox sessions) stuck completely silent with the line still
+// connected, since nothing ever rejected. Every LLM call below carries this
+// as its abort signal so a stall fails fast into the existing
+// fallback/retry paths instead of hanging the whole turn indefinitely.
+const LLM_FETCH_TIMEOUT_MS = 10000;
+
 export class VoiceAgent {
   constructor(config) {
     this.config = config;
@@ -95,7 +104,8 @@ export class VoiceAgent {
           temperature: 0,
           max_tokens: 5,
           stream: false
-        })
+        }),
+        signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS)
       });
       if (!response.ok) return false;
       const data = await response.json();
@@ -131,7 +141,8 @@ export class VoiceAgent {
           temperature: 0,
           max_tokens: 5,
           stream: false
-        })
+        }),
+        signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS)
       });
       if (!response.ok) return true; // fail open — don't block the call on an API hiccup
       const data = await response.json();
@@ -548,7 +559,8 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
         messages: this.chatHistory,
         temperature: 0.3,
         stream: false
-      })
+      }),
+      signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS)
     });
 
     if (!response.ok) {
