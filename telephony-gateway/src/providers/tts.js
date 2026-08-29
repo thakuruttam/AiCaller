@@ -45,19 +45,7 @@ export class DeepgramTTSSocket {
     this._flushTimeout = null;
     this._ready = false;
     this._closed = false;
-    this._readyReject = null;
     this._audioChunksDelivered = 0; // chunks sent to caller THIS speak() call
-    this._readyPromise = new Promise((resolve, reject) => {
-      this._readyResolve = resolve;
-      this._readyReject  = reject;
-    });
-    // Safety net: if Deepgram WS never opens (bad key, network error), reject after 5s
-    this._connectTimeout = setTimeout(() => {
-      if (!this._ready) {
-        console.warn('[TTS/DG-WS] Connect timeout — will fall back to REST');
-        this._readyReject?.(new Error('Deepgram WS connect timeout'));
-      }
-    }, 5000);
     this._connect();
   }
 
@@ -70,8 +58,6 @@ export class DeepgramTTSSocket {
 
     this._ws.on('open', () => {
       this._ready = true;
-      if (this._connectTimeout) { clearTimeout(this._connectTimeout); this._connectTimeout = null; }
-      this._readyResolve?.();
       console.log('[TTS/DG-WS] Connected');
     });
 
@@ -114,21 +100,27 @@ export class DeepgramTTSSocket {
         this._audioHandler = null;
         this._audioChunksDelivered = 0;
       }
-      // Reconnect on unexpected close so future turns still get WS speed
+      // Reconnect on unexpected close so future turns still get WS speed —
+      // happens in the background; speak() below never waits on it.
       if (!this._closed) {
-        console.log('[TTS/DG-WS] Unexpected close — reconnecting in 500ms');
-        this._readyPromise = new Promise(r => { this._readyResolve = r; });
+        console.log('[TTS/DG-WS] Unexpected close — reconnecting in background');
         setTimeout(() => { if (!this._closed) this._connect(); }, 500);
       }
     });
   }
 
-  /** Synthesise text, streaming mulaw audio chunks to onAudio(buffer). */
+  /**
+   * Synthesise text, streaming mulaw audio chunks to onAudio(buffer).
+   * Fails FAST — no waiting on a connect/reconnect handshake — whenever the
+   * socket isn't already open. A turn landing right after an unexpected
+   * close (or before the initial connect finishes) used to sit through a
+   * 500ms-plus reconnect as real dead air on the call; now it falls back to
+   * the synchronous REST path immediately instead, while the socket keeps
+   * reconnecting in the background for the turn after.
+   */
   async speak(text, onAudio) {
-    // Throws if connect-timeout fired — speakDeepgramWS catches and falls through to REST
-    await this._readyPromise;
     if (!this._ready || this._ws.readyState !== 1 /* OPEN */) {
-      throw new Error('[TTS/DG-WS] Socket not ready');
+      throw new Error('[TTS/DG-WS] Socket not ready — caller should fall back to REST');
     }
     this._audioHandler = onAudio;
     this._audioChunksDelivered = 0; // reset counter for this speak() call
