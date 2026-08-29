@@ -124,13 +124,24 @@ router.post('/recording', async (req, res) => {
 
   try {
     const callLog = await prisma.callLog.findFirst({
-      where: { providerRef: callSid }, select: { id: true }
+      where: { providerRef: callSid }, select: { id: true, durationMs: true }
     });
     if (!callLog) return;
 
+    const recordingDurationMs = parseInt(durationMs || '0', 10);
+
     await prisma.callLog.update({
       where: { id: callLog.id },
-      data:  { recordingUrl: recordUrl, durationMs: parseInt(durationMs || '0', 10) }
+      data: {
+        recordingUrl: recordUrl,
+        // The wall-clock duration saveTranscript() computes from callStartTime
+        // (plivoStreamHandler.js) is the accurate source and arrives first in
+        // the common case — don't let this webhook (which can land after it,
+        // and whose recording_duration_ms used to be truncated to Plivo's 60s
+        // recording default) clobber it. Only fall back here for calls whose
+        // WS stream never got a clean 'stop' event.
+        ...(!callLog.durationMs && recordingDurationMs > 0 ? { durationMs: recordingDurationMs } : {})
+      }
     });
     console.log(`[Plivo] Recording ready for ${callSid} — ${recordUrl}`);
   } catch (err) {
