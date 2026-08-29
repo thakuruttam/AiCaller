@@ -27,6 +27,11 @@ export async function startPlivoRecording(callUuid) {
       body: JSON.stringify({
         callback_url:    `${baseUrl}/call/recording`,
         callback_method: 'POST',
+        // Plivo's Record API defaults time_limit to 60s, silently truncating
+        // every recording to exactly 1 minute regardless of actual call length.
+        // Campaigns cap calls at up to 60 minutes (Step1Basics "Max Call
+        // Duration"), so match that as the recording ceiling.
+        time_limit: 3600,
       }),
     });
     if (!res.ok) {
