@@ -437,7 +437,24 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
       }
 
       let skippedOrEnded = false;
-      if (prevItem?.itemType === 'question' && prevItem.onAnswer?.action) {
+
+      // ── Global "End Call If" condition — evaluated on every real user turn ──
+      // Previously this only lived in the system prompt as a hope-the-LLM-
+      // notices instruction, with no code-level check at all — unlike the
+      // per-question skip/end_call conditions below, which ARE deterministically
+      // evaluated. A directive-heavy turn (e.g. a mandatory-question repeat)
+      // reliably drowned this out, so the call would never actually end even
+      // when the condition was obviously true.
+      if (this.config.endCallIf?.trim()) {
+        const globalEndCallFired = await this._evalSemanticCondition(this.config.endCallIf.trim(), userInput);
+        if (globalEndCallFired) {
+          console.log(`[VoiceAgent] Global "End Call If" condition matched: "${this.config.endCallIf}" on "${userInput}"`);
+          this.currentIndex = this.items.length;
+          skippedOrEnded = true;
+        }
+      }
+
+      if (!skippedOrEnded && prevItem?.itemType === 'question' && prevItem.onAnswer?.action) {
         const { action, skipCondition, skipToId } = prevItem.onAnswer;
         const conditionFired = this.evalCondition(
           skipCondition?.condition,

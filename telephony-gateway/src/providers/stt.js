@@ -258,16 +258,34 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
   // Force a mid-utterance split well under the limit instead.
   const MAX_BUFFER_FRAMES       = 1250; // 1250 × 20 ms = 25,000 ms
 
+  // Barge-in specifically (the onSpeechStart callback that makes the stream
+  // handler clearAudio and cut the bot off) needs a much stricter gate than
+  // regular speech capture. There's no acoustic echo cancellation on this
+  // pipeline, so the tail of the bot's own TTS leaking back in — over a
+  // speakerphone, a noisy line, or just imperfect handset isolation — reads
+  // as "speech" under the plain SPEECH_THRESHOLD/MIN_SPEECH_FRAMES gate and
+  // was clearing the bot's own audio mid-word (reported as questions cut off
+  // by the last few letters, or occasionally skipped almost entirely when
+  // the false trigger landed right as the audio started). A genuine
+  // interruption from a phone mic is reliably louder and more sustained than
+  // that leaked echo, so require both a higher energy floor and a longer
+  // sustained run before honoring it as a real barge-in. Regular transcript
+  // capture below is untouched — this only gates the interrupt trigger.
+  const BARGE_IN_ENERGY_THRESHOLD = parseInt(process.env.SARVAM_BARGE_IN_ENERGY_THRESHOLD || '1400', 10);
+  const BARGE_IN_MIN_FRAMES       = parseInt(process.env.SARVAM_BARGE_IN_MIN_FRAMES || '15', 10); // 15 × 20 ms = 300 ms
+
   let audioChunks   = [];     // PCM16 buffers buffered during the current utterance
   let silenceFrames = 0;      // consecutive silent frames since last speech frame
   let hasSpeech     = false;  // currently inside a speech segment
   let transcribing  = false;  // API call in flight — guard against overlap
   let speechStartFired = false; // onSpeechStart (barge-in trigger) already fired for this utterance
+  let bargeInFrames = 0;      // consecutive frames at/above BARGE_IN_ENERGY_THRESHOLD
 
   function resetSpeechState() {
     hasSpeech = false;
     silenceFrames = 0;
     speechStartFired = false;
+    bargeInFrames = 0;
   }
 
   function rms(buf) {
@@ -344,12 +362,13 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
         }
         silenceFrames = 0;
         audioChunks.push(pcm);
-        // Only signal barge-in once speech has been sustained for MIN_SPEECH_FRAMES
-        // (100ms) — firing on the very first 20ms frame let a single noise blip or
-        // cough cut off the bot's audio mid-sentence with nothing real being said.
-        if (!speechStartFired && audioChunks.length >= MIN_SPEECH_FRAMES) {
+        // Only signal barge-in once LOUD speech has been sustained for
+        // BARGE_IN_MIN_FRAMES — see the constants above for why this needs to
+        // be stricter than plain speech detection (no echo cancellation).
+        bargeInFrames = energy >= BARGE_IN_ENERGY_THRESHOLD ? bargeInFrames + 1 : 0;
+        if (!speechStartFired && bargeInFrames >= BARGE_IN_MIN_FRAMES) {
           speechStartFired = true;
-          console.log('[STT/Sarvam REST] Sustained speech confirmed — signaling barge-in');
+          console.log('[STT/Sarvam REST] Sustained loud speech confirmed — signaling barge-in');
           handlers.onSpeechStart?.();
         }
         if (audioChunks.length >= MAX_BUFFER_FRAMES) {
