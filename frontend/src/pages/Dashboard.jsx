@@ -8,6 +8,7 @@ import DebouncedSearch from '../components/DebouncedSearch';
 import Modal from '../components/Modal';
 import Step7Review from './CampaignWizard/components/Step7Review';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 const STATUS_BADGE = {
   active:      'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -94,6 +95,7 @@ function CampaignCostInsight({ campaign }) {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToast } = useToast();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +103,7 @@ const Dashboard = () => {
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [loadingCampaignId, setLoadingCampaignId] = useState(null);
+  const [cloningId, setCloningId] = useState(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -131,6 +134,20 @@ const Dashboard = () => {
       console.error('Error fetching campaign details:', err);
     } finally {
       setLoadingCampaignId(null);
+    }
+  };
+
+  const handleClone = async (campaignId) => {
+    try {
+      setCloningId(campaignId);
+      const res = await api.post(`/api/campaigns/${campaignId}/clone`);
+      addToast('Campaign cloned — add contacts and start when ready.', 'success');
+      navigate(`/edit-campaign/${res.data.campaign.id}`);
+    } catch (err) {
+      console.error('Error cloning campaign:', err);
+      addToast('Failed to clone campaign', 'error');
+    } finally {
+      setCloningId(null);
     }
   };
 
@@ -303,6 +320,16 @@ const Dashboard = () => {
                       <Link to={`/edit-campaign/${c.id}`} className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded" title="Edit">
                         <span className="material-symbols-outlined text-[20px]">edit</span>
                       </Link>
+                      <button
+                        onClick={() => handleClone(c.id)}
+                        disabled={cloningId === c.id}
+                        className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded disabled:opacity-50"
+                        title="Clone"
+                      >
+                        {cloningId === c.id
+                          ? <Spinner size={18} className="text-[#0d9488]" />
+                          : <span className="material-symbols-outlined text-[20px]">content_copy</span>}
+                      </button>
                       <Link to={`/campaigns/${c.id}/report`} className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded" title="Report">
                         <span className="material-symbols-outlined text-[20px]">assessment</span>
                       </Link>

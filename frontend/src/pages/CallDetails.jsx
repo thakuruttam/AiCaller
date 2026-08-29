@@ -65,13 +65,21 @@ const CallDetails = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [lastRetryTime, setLastRetryTime] = useState(null);
   const [copied, setCopied] = useState(false);
+  const autoSyncedRef = useRef(false);
 
-  useEffect(() => { fetchCallDetails(); }, [id]);
+  useEffect(() => { autoSyncedRef.current = false; fetchCallDetails(); }, [id]);
 
   const fetchCallDetails = async () => {
     try {
       const res = await api.get(`/api/campaigns/calls/${id}`);
       setCallLog(res.data);
+      // Recording usually lands via telephony-gateway's webhook right after the
+      // call ends, but that can occasionally lag or miss — proactively check
+      // with Plivo once on load instead of making the user click Sync.
+      if (res.data.status === 'completed' && !res.data.recordingUrl && !autoSyncedRef.current) {
+        autoSyncedRef.current = true;
+        syncRecording({ silent: true });
+      }
     } catch (error) {
       console.error('Error fetching call details', error);
     } finally {
@@ -79,8 +87,8 @@ const CallDetails = () => {
     }
   };
 
-  const handleRetryFetch = async () => {
-    if (lastRetryTime && Date.now() - lastRetryTime < 60000) {
+  const syncRecording = async ({ silent = false } = {}) => {
+    if (!silent && lastRetryTime && Date.now() - lastRetryTime < 60000) {
       addToast(`Please wait ${Math.ceil((60000 - (Date.now() - lastRetryTime)) / 1000)} seconds before retrying.`, "warning");
       return;
     }
@@ -89,9 +97,9 @@ const CallDetails = () => {
     try {
       const res = await api.post(`/api/campaigns/calls/${id}/fetch-recording`);
       setCallLog(res.data);
-      addToast("Recording synced successfully!", "success");
+      if (!silent) addToast("Recording synced successfully!", "success");
     } catch (error) {
-      addToast(error.response?.data?.error || "Error retrying", "error");
+      if (!silent) addToast(error.response?.data?.error || "Error retrying", "error");
     } finally {
       setIsRetrying(false);
     }
@@ -228,17 +236,21 @@ const CallDetails = () => {
               <div className="mt-6">
                 <AudioPlayer src={callLog.recordingUrl} />
               </div>
+            ) : isRetrying ? (
+              <div className="mt-6 flex items-center justify-center">
+                <p className="text-sm italic text-zinc-400">Checking for recording…</p>
+              </div>
             ) : (
               <div className="mt-6 flex flex-col items-center gap-4">
                 <p className="text-sm italic text-zinc-400">No recording found for this call.</p>
                 {callLog.status === 'completed' && (
                   <button
-                    onClick={handleRetryFetch}
+                    onClick={() => syncRecording()}
                     disabled={isRetrying}
                     className="px-4 py-2 border border-zinc-600 rounded text-sm text-zinc-300 hover:bg-zinc-800 transition-colors disabled:opacity-50"
                     style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
-                    {isRetrying ? 'Syncing...' : 'Sync from Twilio'}
+                    Retry Sync
                   </button>
                 )}
               </div>

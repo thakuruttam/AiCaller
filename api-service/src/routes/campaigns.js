@@ -5,6 +5,7 @@ import {
   getCampaignById,
   updateWizardCampaign,
   createWizardCampaign,
+  cloneCampaign,
   uploadContacts,
   getCampaigns,
   getCallDetails,
@@ -33,6 +34,7 @@ router.post('/calls/:callLogId/recall', authorize('SUPER_ADMIN', 'ADMIN', 'EDITO
 router.post('/wizard', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), createWizardCampaign);
 router.put('/wizard/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateWizardCampaign);
 router.post('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateCampaignStatus);
+router.post('/:id/clone', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), cloneCampaign);
 router.post('/:campaignId/contacts', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('campaignId'), uploadContacts);
 
 // TEMPORARY — one-off data migration, remove after use (see controller for context)

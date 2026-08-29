@@ -398,6 +398,71 @@ export const getCampaigns = async (req, res) => {
   }
 }
 
+// Duplicates only what a creator entered in the wizard (name, type, goal/intro/
+// sign-off, questions, end-call rule, scoring rules, call settings) into a brand
+// new campaign — no contacts, no call logs, no evaluation/report data. Lands the
+// clone in the same empty-but-configured state a freshly created campaign is in,
+// ready for the wizard's Contacts step before it can be started.
+export const cloneCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const source = await prisma.campaign.findUnique({
+      where: { id },
+      include: { callModule: true }
+    });
+
+    if (!source) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Belongs to the SOURCE campaign's tenant, not the cloning SUPER_ADMIN's
+    // currently-active workspace — same reasoning as campaign contact edits.
+    const tenantId = source.tenantId;
+
+    const callModule = await prisma.callModule.create({
+      data: {
+        name: `${source.name} (Copy) Script`,
+        prompt: source.callModule?.prompt || '',
+        goal: source.callModule?.goal || null,
+        callIntro: source.callModule?.callIntro || null,
+        callSignOff: source.callModule?.callSignOff || null,
+        courtesyClose: source.callModule?.courtesyClose || false,
+        successCriteria: source.callModule?.successCriteria || null,
+        tenantId
+      }
+    });
+
+    const clone = await prisma.campaign.create({
+      data: {
+        name: `${source.name} (Copy)`,
+        type: source.type,
+        dataToCollect: source.dataToCollect ?? [],
+        endCallIf: source.endCallIf,
+        rules: source.rules ?? {},
+        callSettings: source.callSettings ?? {},
+        maxCallDurationSec: source.maxCallDurationSec,
+        tenantId,
+        callModuleId: callModule.id,
+        createdById: req.user.id
+      }
+    });
+
+    notifyWorkspace({
+      tenantId,
+      type: 'CAMPAIGN_CREATED',
+      title: `Campaign cloned: ${clone.name}`,
+      body: 'Cloned from an existing campaign — add contacts and start when ready.',
+      link: `/edit-campaign/${clone.id}`
+    });
+
+    res.status(201).json({ campaign: clone });
+  } catch (error) {
+    console.error('[cloneCampaign]', error);
+    res.status(500).json(dbErrorPayload(error));
+  }
+};
+
 export const updateCampaignStatus = async (req, res) => {
   try {
     const { id } = req.params;
