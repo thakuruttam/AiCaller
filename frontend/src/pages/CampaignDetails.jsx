@@ -151,7 +151,20 @@ export default function CampaignDetails() {
     : 0;
   const successRate = logs.length ? ((completed / logs.length) * 100).toFixed(1) : '0.0';
 
-  const filteredContacts = contacts.filter(cc => {
+  // One row per call attempt (not per contact) — a re-run keeps every past
+  // completed/failed log (see campaign.controller.js `rerun`), so a contact
+  // called multiple times must show each call, each with its own recording
+  // and transcript, instead of only the most recent attempt hiding the rest.
+  // `logs` is already ordered newest-first from the API. Contacts with no
+  // call yet still get a single placeholder row.
+  const contactById = new Map(contacts.map(cc => [cc.contactId, cc]));
+  const loggedContactIds = new Set(logs.map(l => l.contactId));
+  const rows = [
+    ...logs.map(log => ({ log, cc: contactById.get(log.contactId) })).filter(r => r.cc),
+    ...contacts.filter(cc => !loggedContactIds.has(cc.contactId)).map(cc => ({ log: null, cc })),
+  ];
+
+  const filteredRows = rows.filter(({ cc }) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -161,7 +174,7 @@ export default function CampaignDetails() {
     );
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PER_PAGE));
 
   return (
     <div className="p-8 max-w-[1440px] mx-auto bg-[#f0fdfa] dark:bg-slate-900 min-h-full">
@@ -234,7 +247,7 @@ export default function CampaignDetails() {
       {/* Activity Table */}
       <FullscreenTable className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded shadow-sm overflow-hidden">
         {({ toggle, isFs }) => {
-          const paginated = isFs ? filteredContacts : filteredContacts.slice((page-1)*PER_PAGE, page*PER_PAGE);
+          const paginated = isFs ? filteredRows : filteredRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
           return (<>
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-center justify-between bg-zinc-50/50 dark:bg-slate-900/50">
           <h3 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100">Contact Call Status</h3>
@@ -259,15 +272,14 @@ export default function CampaignDetails() {
           <table className="w-full text-left">
             <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
               <tr>
-                {['Name','Phone','Tags / Overrides','Status','Duration','Call Details'].map(h => (
+                {['Name','Phone','Tags / Overrides','Called At','Status','Duration','Call Details'].map(h => (
                   <th key={h} className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
-              {paginated.map((cc, i) => {
+              {paginated.map(({ cc, log }, i) => {
                 const contact = cc.contact;
-                const log = logs.find(l => l.contactId === contact?.id);
                 const name = cc.overrides?.name || contact?.name || '?';
                 const initials = getInitials(name);
                 const colorClass = INITIALS_COLORS[i % INITIALS_COLORS.length];
@@ -278,7 +290,7 @@ export default function CampaignDetails() {
                   : '—';
 
                 return (
-                  <tr key={cc.id} className="hover:bg-zinc-50/80 dark:hover:bg-slate-700/50 transition-colors">
+                  <tr key={log?.id || cc.id} className="hover:bg-zinc-50/80 dark:hover:bg-slate-700/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-xs ${colorClass}`}>{initials}</div>
@@ -297,6 +309,9 @@ export default function CampaignDetails() {
                           <span className="px-2 py-0.5 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-[10px] border border-zinc-200 dark:border-slate-600" style={{fontFamily:'JetBrains Mono, monospace'}}>Script Override</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                      {log?.createdAt ? new Date(log.createdAt).toLocaleString() : '—'}
                     </td>
                     <td className="px-6 py-4">
                       {status ? (
@@ -326,9 +341,9 @@ export default function CampaignDetails() {
                   </tr>
                 );
               })}
-              {filteredContacts.length === 0 && (
+              {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">
                     {searchQuery ? 'No contacts match your search.' : 'No contacts in this campaign.'}
                   </td>
                 </tr>
@@ -339,7 +354,7 @@ export default function CampaignDetails() {
 
         <div className="px-6 py-4 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between">
           <span className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
-            {isFs ? `${filteredContacts.length} entries` : `Showing ${paginated.length} of ${filteredContacts.length} entries`}
+            {isFs ? `${filteredRows.length} entries` : `Showing ${paginated.length} of ${filteredRows.length} entries`}
           </span>
           {!isFs && (
             <div className="flex items-center gap-1">

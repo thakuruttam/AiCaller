@@ -528,7 +528,7 @@ export default function AdminDashboard() {
         }
       >
         <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed">
-          Are you sure? This will <strong className="text-zinc-900 dark:text-slate-100">permanently delete</strong> all previous transcripts and recordings for this campaign and start fresh.
+          Are you sure? Every contact will be re-queued for a fresh call. Recordings and transcripts from previous completed calls are kept — only pending or in-progress calls are cleared.
         </p>
       </Modal>
 

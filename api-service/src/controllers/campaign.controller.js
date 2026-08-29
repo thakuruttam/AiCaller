@@ -492,7 +492,7 @@ export const updateCampaignStatus = async (req, res) => {
         resume: { type: 'CAMPAIGN_STARTED',  title: `Campaign resumed: ${campaign.name}`,  body: 'The campaign has resumed.' },
         pause:  { type: 'CAMPAIGN_PAUSED',   title: `Campaign paused: ${campaign.name}`,   body: 'The campaign has been paused.' },
         kill:   { type: 'CAMPAIGN_KILLED',   title: `Campaign stopped: ${campaign.name}`,  body: 'The campaign was stopped and all queued calls cancelled.' },
-        rerun:  { type: 'CAMPAIGN_RERUN',    title: `Campaign re-run: ${campaign.name}`,   body: 'All previous logs cleared and calls re-queued.' },
+        rerun:  { type: 'CAMPAIGN_RERUN',    title: `Campaign re-run: ${campaign.name}`,   body: 'All contacts re-queued for a fresh call; previous recordings and transcripts were kept.' },
       };
       const notif = notifMap[action];
       if (notif) {
