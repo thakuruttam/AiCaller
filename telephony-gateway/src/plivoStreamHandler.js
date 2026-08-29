@@ -324,6 +324,20 @@ export function setupPlivoStream() {
       if (ws.readyState === ws.OPEN && streamSid) {
         ws.send(JSON.stringify({ event: 'clearAudio', streamId: streamSid }));
       }
+      // pendingTranscript can already hold a COMPLETE, finalized utterance from
+      // earlier in the same bot turn (e.g. a quick "Yes" right after the
+      // greeting) that just hadn't been delivered yet. A second, louder
+      // utterance triggering this barge-in doesn't make that first one stale —
+      // wiping it here silently dropped real answers. Carry it into the
+      // accumulator (where the new speech will land once transcribed) instead,
+      // and schedule a flush in case no follow-up speech ever arrives.
+      if (pendingTranscript) {
+        transcriptAccumulator = transcriptAccumulator
+          ? `${transcriptAccumulator} ${pendingTranscript}`
+          : pendingTranscript;
+        if (transcriptTimer) clearTimeout(transcriptTimer);
+        transcriptTimer = setTimeout(flushTranscript, TRANSCRIPT_BUFFER_MS);
+      }
       pendingTranscript = '';
       pendingUtteranceEnd = false;
       clearMaxAnswerTimer();
@@ -361,6 +375,16 @@ export function setupPlivoStream() {
       }
 
       isFlushingTranscript = false;
+
+      // The call can end (WS closed, transcript already saved) while the LLM
+      // call above was in flight — e.g. a barge-in collision delaying this
+      // turn until after the caller had already hung up. Speaking into a
+      // dead socket at that point is pointless and can leave a "reply" logged
+      // for a call already marked completed.
+      if (transcriptSaved) {
+        console.log('[Stream] Call already ended while processing this turn — discarding reply');
+        return;
+      }
 
       clearMaxAnswerTimer();
       noAnswerRetries = 0;
