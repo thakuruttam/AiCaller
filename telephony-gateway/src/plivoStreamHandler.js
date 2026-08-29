@@ -685,13 +685,31 @@ export function setupPlivoStream() {
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', async () => {
       console.log('[Stream] Client disconnected');
       clearSilenceTimeout();
       clearNoAnswerTimer();
       clearMaxAnswerTimer();
       if (sttStream) sttStream.close();
       if (ttsSocket) { ttsSocket.close(); ttsSocket = null; }
+
+      // A proper end-of-call always sends a 'stop' event first (handled above,
+      // which already saves the transcript) before the socket closes. Getting
+      // here WITHOUT that — a media-stream WS error or network blip — means
+      // Plivo may have dropped only the audio stream, not the underlying call
+      // itself: the bot has no way to speak or listen anymore, but the caller
+      // can still be sitting connected to a dead line indefinitely. Force the
+      // actual call to hang up so it doesn't strand them. hangupCall() already
+      // swallows errors, so this is a harmless no-op if the call already ended.
+      if (!transcriptSaved && callSid) {
+        console.warn(`[Stream] Socket closed without a prior 'stop' event — forcing hangup for ${callSid}`);
+        try {
+          await hangupCall(callSid);
+        } catch (e) {
+          console.error('[Stream] Forced hangup after abnormal close failed:', e.message);
+        }
+      }
+
       saveTranscript();
     });
   });
