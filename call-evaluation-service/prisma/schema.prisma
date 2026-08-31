@@ -57,7 +57,7 @@ model User {
   createdAt    DateTime   @default(now())
 
   invitedById  String?
-  invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id])
+  invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   invitedUsers User[]     @relation("UserInvitedBy")
 
   workspaces     WorkspaceMember[]
@@ -75,7 +75,7 @@ model WorkspaceMember {
   role        Role     @default(VIEWER)
   createdAt   DateTime @default(now())
 
-  user    User   @relation(fields: [userId], references: [id])
+  user    User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenant  Tenant @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, tenantId])
@@ -88,7 +88,7 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model CallModule {
@@ -125,7 +125,7 @@ model Campaign {
   callModule   CallModule @relation(fields: [callModuleId], references: [id])
 
   createdById  String?
-  createdBy    User?      @relation(fields: [createdById], references: [id])
+  createdBy    User?      @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   campaignContacts CampaignContact[]
   callLogs         CallLog[]
@@ -149,7 +149,7 @@ model CampaignContact {
   contactId  String
   overrides  Json?
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact  Contact  @relation(fields: [contactId], references: [id])
 }
 
@@ -160,7 +160,7 @@ model CallLog {
   contactId    String
   contact      Contact   @relation(fields: [contactId], references: [id])
   campaignId   String?
-  campaign     Campaign? @relation(fields: [campaignId], references: [id])
+  campaign     Campaign? @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   status       String
   transcript   String?
   recordingUrl String?

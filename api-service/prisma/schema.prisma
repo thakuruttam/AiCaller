@@ -61,7 +61,7 @@ model User {
   createdAt    DateTime   @default(now())
 
   invitedById  String?
-  invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id])
+  invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   invitedUsers User[]     @relation("UserInvitedBy")
 
   workspaces      WorkspaceMember[]
@@ -82,7 +82,7 @@ model WorkspaceMember {
   role        Role     @default(VIEWER)
   createdAt   DateTime @default(now())
 
-  user    User   @relation(fields: [userId], references: [id])
+  user    User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenant  Tenant @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, tenantId])
@@ -95,7 +95,7 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model CallModule {
@@ -132,7 +132,7 @@ model Campaign {
   callModule   CallModule @relation(fields: [callModuleId], references: [id])
 
   createdById  String?
-  createdBy    User?      @relation(fields: [createdById], references: [id])
+  createdBy    User?      @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   campaignContacts CampaignContact[]
   callLogs         CallLog[]
@@ -163,7 +163,7 @@ model ShareLink {
   id         String   @id @default(uuid()) @map("_id")
   token      String   @unique
   campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenantId   String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
@@ -186,7 +186,7 @@ model CampaignContact {
   contactId  String
   overrides  Json?
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact  Contact  @relation(fields: [contactId], references: [id])
 }
 
@@ -197,7 +197,7 @@ model CallLog {
   contactId       String
   contact         Contact   @relation(fields: [contactId], references: [id])
   campaignId      String?
-  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  campaign        Campaign? @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   status          String
   transcript      String?
   recordingUrl    String?
@@ -266,7 +266,7 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
 
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([userId, tenantId, createdAt(sort: Desc)])
@@ -295,7 +295,7 @@ model SupportTicket {
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenant  Tenant? @relation(fields: [tenantId], references: [id])
   replies SupportTicketReply[]
 
@@ -312,8 +312,8 @@ model SupportTicketReply {
   isAdmin   Boolean       @default(false)
   createdAt DateTime      @default(now())
 
-  ticket SupportTicket @relation(fields: [ticketId], references: [id])
-  user   User          @relation(fields: [userId], references: [id])
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user   User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([ticketId, createdAt])
 }
