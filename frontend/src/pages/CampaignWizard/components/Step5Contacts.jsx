@@ -36,7 +36,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
 
         {/* Header — centered */}
         <div className="pt-8 pb-5 px-8 text-center shrink-0">
-          <h3 className="text-2xl font-bold text-[#0f172a] dark:text-slate-100 tracking-tight">Map your data columns</h3>
+          <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Map your data columns</h3>
         </div>
 
         {/* Body */}
@@ -50,7 +50,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
               { label: 'Group / Tag', value: tagCol, onChange: e => setTagCol(e.target.value), options: headers, placeholder: '— none —' },
             ].map(({ label, value, onChange, options, placeholder }) => (
               <div key={label}>
-                <p className="text-[10px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-widest mb-2">{label}</p>
+                <p className="text-xs font-medium text-zinc-400 dark:text-slate-500 uppercase tracking-widest mb-2">{label}</p>
                 <div className="relative">
                   <select
                     className="w-full h-11 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 pr-8 text-sm text-zinc-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors cursor-pointer appearance-none"
@@ -65,7 +65,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
               </div>
             ))}
             <div>
-              <p className="text-[10px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-widest mb-2">Default Code</p>
+              <p className="text-xs font-medium text-zinc-400 dark:text-slate-500 uppercase tracking-widest mb-2">Default Code</p>
               <input
                 type="text"
                 className="w-full h-11 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-colors"
@@ -86,18 +86,18 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
           {previewRows.length > 0 && (
             <div>
               <div className="mb-3">
-                <p className="text-[11px] font-bold text-[#0f172a] dark:text-slate-100 uppercase tracking-widest">Data Preview</p>
+                <p className="text-xs font-medium text-[#0f172a] dark:text-slate-100 uppercase tracking-widest">Data Preview</p>
               </div>
               <div className="rounded-xl border border-zinc-200 dark:border-slate-700 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[#f7f6fb] dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700">
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">ID</th>
+                      <th className="px-5 py-3 text-left text-xs font-medium text-zinc-400 dark:text-slate-500 uppercase tracking-wider">ID</th>
                       {displayCols.map(h => {
                         const isName  = h === nameCol  && nameCol;
                         const isPhone = h === phoneCol && phoneCol;
                         return (
-                          <th key={h} className={`px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider ${isName || isPhone ? 'text-[#0d9488] dark:text-teal-400' : 'text-zinc-400 dark:text-slate-500'}`}>
+                          <th key={h} className={`px-5 py-3 text-left text-xs font-medium uppercase tracking-wider ${isName || isPhone ? 'text-[#0d9488] dark:text-teal-400' : 'text-zinc-400 dark:text-slate-500'}`}>
                             {h}
                           </th>
                         );
@@ -107,7 +107,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
                   <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
                     {previewRows.map((row, i) => (
                       <tr key={i} className="bg-white dark:bg-slate-800">
-                        <td className="px-5 py-3.5 text-sm text-zinc-400 dark:text-slate-500 font-mono">{baseId + i}</td>
+                        <td className="px-5 py-3.5 text-sm text-zinc-400 dark:text-slate-500">{baseId + i}</td>
                         {displayCols.map(h => {
                           const isName  = h === nameCol  && nameCol;
                           const isPhone = h === phoneCol && phoneCol;
@@ -307,7 +307,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
         >
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileInput} />
           <Upload className="w-12 h-12 text-zinc-400 dark:text-slate-500 mb-4" />
-          <h4 className="font-semibold text-zinc-700 dark:text-slate-300 mb-1">
+          <h4 className="text-sm font-semibold text-zinc-700 dark:text-slate-300 mb-1">
             {dragging ? 'Drop your file here' : 'Drag and drop CSV here'}
           </h4>
           <p className="text-sm text-zinc-500 dark:text-slate-400 mb-4">Supports CSV, Excel (.xlsx, .xls)</p>
@@ -325,15 +325,15 @@ export default function Step5Contacts({ payload, updatePayload }) {
         <div className="rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-6 flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-zinc-700 dark:text-slate-300">Name</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">Name</label>
               <input type="text" className={inputCls} value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && addContact()} placeholder="John Doe" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-zinc-700 dark:text-slate-300">Phone</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">Phone</label>
               <input type="text" className={inputCls} value={newContact.phone} onChange={e => setNewContact({ ...newContact, phone: e.target.value })} onKeyDown={e => e.key === 'Enter' && addContact()} placeholder="+1234567890" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-zinc-700 dark:text-slate-300">Group / Tag</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">Group / Tag</label>
               <input type="text" className={inputCls} value={newContact.tag} onChange={e => setNewContact({ ...newContact, tag: e.target.value })} onKeyDown={e => e.key === 'Enter' && addContact()} placeholder="Lead" />
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
       {/* Contact table */}
       {payload.contacts.length > 0 && (
         <div className="mt-2">
-          <h4 className="font-semibold text-zinc-900 dark:text-slate-100 text-base mb-3">
+          <h4 className="font-semibold text-zinc-900 dark:text-slate-100 text-sm mb-3">
             Current Contacts <span className="text-zinc-400 dark:text-slate-500 font-normal text-sm">({payload.contacts.length})</span>
           </h4>
           <div className="border border-zinc-200 dark:border-slate-700 rounded-xl overflow-hidden">
@@ -363,9 +363,9 @@ export default function Step5Contacts({ payload, updatePayload }) {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700">
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Name</th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Tag</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Phone</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Tag</th>
                     <th className="px-5 py-3 w-10" />
                   </tr>
                 </thead>
@@ -388,7 +388,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
                         <input
                           value={c.phone}
                           onChange={e => editContact(i, 'phone', e.target.value)}
-                          className="w-full font-mono text-sm text-zinc-500 dark:text-slate-400 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-slate-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-slate-900 rounded-md px-2 py-1 outline-none transition-all"
+                          className="w-full text-sm text-zinc-500 dark:text-slate-400 bg-transparent border border-transparent hover:border-zinc-200 dark:hover:border-slate-700 focus:border-[#0d9488] focus:bg-white dark:focus:bg-slate-900 rounded-md px-2 py-1 outline-none transition-all"
                         />
                       </td>
                       <td className="px-5 py-2.5">

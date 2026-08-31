@@ -23,7 +23,7 @@ const STATUS_BADGE = {
 function StatusBadge({ status }) {
   const cls = STATUS_BADGE[status] || STATUS_BADGE.queued;
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize ${cls}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize ${cls}`}>
       {status}
     </span>
   );
@@ -62,30 +62,30 @@ function CampaignCostInsight({ campaign }) {
             style={{ width: `${pct}%`, background: pct === 100 ? '#10b981' : '#0d9488' }}
           />
         </div>
-        <span className="text-[11px] text-zinc-400 dark:text-slate-500 font-mono shrink-0">{contactsDone}/{totalContacts}</span>
+        <span className="text-xs text-zinc-400 dark:text-slate-500 shrink-0">{contactsDone}/{totalContacts}</span>
       </div>
       {/* Metric grid */}
       <div className="grid grid-cols-3 gap-x-3">
         {/* Spent — actual, real billable minutes */}
         <div>
-          <p className="text-[10px] text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none mb-0.5">Spent</p>
-          <p className="text-[13px] font-bold text-[#0d9488] leading-none">₹{costIncurred}</p>
+          <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none mb-0.5">Spent</p>
+          <p className="text-sm font-bold text-[#0d9488] leading-none">₹{costIncurred}</p>
         </div>
         {/* Left — estimated remaining */}
         <div>
           <div className="flex items-center gap-0.5 mb-0.5">
-            <p className="text-[10px] text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none">Left</p>
-            <span className="text-[9px] text-amber-400 font-semibold leading-none">~est</span>
+            <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none">Left</p>
+            <span className="text-xs text-amber-400 font-semibold leading-none">~est</span>
           </div>
-          <p className="text-[13px] font-bold text-amber-500 leading-none">~₹{remainingEstCost}</p>
+          <p className="text-sm font-bold text-amber-500 leading-none">~₹{remainingEstCost}</p>
         </div>
         {/* Total — estimated based on max duration */}
         <div>
           <div className="flex items-center gap-0.5 mb-0.5">
-            <p className="text-[10px] text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none">Total</p>
-            <span className="text-[9px] text-zinc-400 dark:text-slate-500 font-semibold leading-none">~est</span>
+            <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none">Total</p>
+            <span className="text-xs text-zinc-400 dark:text-slate-500 font-semibold leading-none">~est</span>
           </div>
-          <p className="text-[13px] font-semibold text-[#334155] dark:text-slate-400 leading-none">~₹{totalEstCost}</p>
+          <p className="text-sm font-semibold text-[#334155] dark:text-slate-400 leading-none">~₹{totalEstCost}</p>
         </div>
       </div>
     </div>
@@ -176,14 +176,13 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Dashboard</h1>
-          <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Real-time oversight of enterprise voice operations.</p>
+          <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Dashboard</h1>
+          <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Real-time oversight of enterprise voice operations.</p>
         </div>
         <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']}>
           <Link
             to="/create-campaign"
             className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-3 rounded text-sm transition-all shadow-md active:scale-95"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">campaign</span>
             New Campaign
@@ -199,9 +198,9 @@ const Dashboard = () => {
             <div className="w-12 h-12 rounded-lg bg-[#e2dfff] dark:bg-teal-900/30 flex items-center justify-center">
               <span className="material-symbols-outlined text-[#0d9488]">queue</span>
             </div>
-            <span className="text-xs text-[#0d9488] dark:text-teal-300 bg-[#e2dfff] dark:bg-teal-900/30 px-2 py-1 rounded" style={{fontFamily:'JetBrains Mono, monospace'}}>+12.5%</span>
+            <span className="text-xs text-[#0d9488] dark:text-teal-300 bg-[#e2dfff] dark:bg-teal-900/30 px-2 py-1 rounded">+12.5%</span>
           </div>
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Total Calls Queued</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Total Calls Queued</p>
           <h3 className="text-5xl font-bold text-[#0f172a] dark:text-slate-100" style={{letterSpacing:'-0.02em'}}>{loading ? '—' : stats.total.toLocaleString()}</h3>
         </div>
 
@@ -211,9 +210,9 @@ const Dashboard = () => {
             <div className="w-12 h-12 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
               <span className="material-symbols-outlined text-emerald-600">check_circle</span>
             </div>
-            <span className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded" style={{fontFamily:'JetBrains Mono, monospace'}}>On Track</span>
+            <span className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded">On Track</span>
           </div>
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Completed Calls</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Completed Calls</p>
           <h3 className="text-5xl font-bold text-[#0f172a] dark:text-slate-100" style={{letterSpacing:'-0.02em'}}>{loading ? '—' : stats.completed.toLocaleString()}</h3>
         </div>
 
@@ -223,9 +222,9 @@ const Dashboard = () => {
             <div className="w-12 h-12 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
               <span className="material-symbols-outlined text-amber-600">trending_up</span>
             </div>
-            <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded" style={{fontFamily:'JetBrains Mono, monospace'}}>Target 92%</span>
+            <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded">Target 92%</span>
           </div>
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Success Rate %</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Success Rate %</p>
           <h3 className="text-5xl font-bold text-[#0f172a] dark:text-slate-100" style={{letterSpacing:'-0.02em'}}>{loading ? '—' : `${successRate}%`}</h3>
         </div>
       </div>
@@ -237,7 +236,7 @@ const Dashboard = () => {
           const paginated = isFs ? filteredCampaigns : filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
           return (<>
         <div className="p-6 border-b border-zinc-100 dark:border-slate-700/50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <h4 className="text-xl font-semibold text-[#0f172a] dark:text-slate-100">Active Campaigns</h4>
+          <h4 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Active Campaigns</h4>
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] dark:text-slate-500 text-[18px]">filter_list</span>
@@ -259,12 +258,12 @@ const Dashboard = () => {
           <table className="w-full text-left">
             <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700 dark:border-slate-700/50">
               <tr>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign Name</th>
-                {isSuperAdmin && <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Workspace</th>}
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Status</th>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Contacts</th>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Cost Insight</th>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider text-right" style={{fontFamily:'JetBrains Mono, monospace'}}>Actions</th>
+                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Campaign Name</th>
+                {isSuperAdmin && <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Workspace</th>}
+                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Contacts</th>
+                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Cost Insight</th>
+                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
@@ -282,15 +281,15 @@ const Dashboard = () => {
                 <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-base font-semibold text-[#0f172a] dark:text-slate-100">{c.name}</span>
-                      <span className="text-xs text-[#64748b] dark:text-slate-500" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                      <span className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{c.name}</span>
+                      <span className="text-xs text-[#64748b] dark:text-slate-500">
                         Created {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—'}
                       </span>
                     </div>
                   </td>
                   {isSuperAdmin && (
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6fffa] dark:bg-teal-900/30 border border-[#e2e8f0] dark:border-teal-700 text-xs font-semibold text-[#0d9488]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6fffa] dark:bg-teal-900/30 border border-[#e2e8f0] dark:border-teal-700 text-xs font-semibold text-[#0d9488]">
                         <span className="material-symbols-outlined text-[12px]" style={{fontVariationSettings:"'FILL' 1"}}>corporate_fare</span>
                         {c.tenant?.name || '—'}
                       </span>
@@ -299,7 +298,7 @@ const Dashboard = () => {
                   <td className="px-6 py-4">
                     <StatusBadge status={c.status || 'queued'} />
                   </td>
-                  <td className="px-6 py-4 text-sm text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                  <td className="px-6 py-4 text-sm text-[#0f172a] dark:text-slate-100">
                     {c.campaignContacts?.length || 0}
                   </td>
                   <td className="px-6 py-4">
@@ -351,7 +350,7 @@ const Dashboard = () => {
         </div>
 
         <div className="px-6 py-3 bg-zinc-50 dark:bg-slate-900 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between">
-          <span className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <span className="text-xs text-[#334155] dark:text-slate-400">
             {isFs
               ? `${filteredCampaigns.length} campaign${filteredCampaigns.length !== 1 ? 's' : ''}`
               : `Showing ${Math.min((page - 1) * PER_PAGE + 1, filteredCampaigns.length)}–${Math.min(page * PER_PAGE, filteredCampaigns.length)} of ${filteredCampaigns.length} campaign${filteredCampaigns.length !== 1 ? 's' : ''}`
@@ -363,14 +362,12 @@ const Dashboard = () => {
                 onClick={() => setPage(p => Math.max(p - 1, 1))}
                 disabled={page === 1}
                 className="px-3 py-1 text-xs border border-zinc-200 dark:border-slate-700 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
-                style={{fontFamily:'JetBrains Mono, monospace'}}
               >Previous</button>
-              <span className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{page} / {totalPages}</span>
+              <span className="text-xs text-[#334155] dark:text-slate-400">{page} / {totalPages}</span>
               <button
                 onClick={() => setPage(p => Math.min(p + 1, totalPages))}
                 disabled={page === totalPages}
                 className="px-3 py-1 text-xs border border-zinc-200 dark:border-slate-700 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
-                style={{fontFamily:'JetBrains Mono, monospace'}}
               >Next</button>
             </div>
           )}

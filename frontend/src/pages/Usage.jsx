@@ -45,7 +45,7 @@ function StatCard({ icon, label, value, sub }) {
         <span className="material-symbols-outlined text-[#0d9488] text-[20px]">{icon}</span>
       </div>
       <div>
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{label}</p>
+        <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{label}</p>
         <p className="text-2xl font-bold text-[#0f172a] dark:text-slate-100 mt-0.5">{value}</p>
         {sub && <p className="text-xs text-zinc-400 mt-0.5">{sub}</p>}
       </div>
@@ -63,7 +63,7 @@ function CallRow({ call, campaignId }) {
       <td className="px-4 py-3 text-zinc-600 dark:text-slate-300 text-xs">{formatDate(call.createdAt)} {formatTime(call.createdAt)}</td>
       <td className="px-4 py-3">
         <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{call.contactName}</p>
-        <p className="text-xs text-zinc-400 font-mono">{call.contactPhone}</p>
+        <p className="text-xs text-zinc-400">{call.contactPhone}</p>
       </td>
       <td className="px-4 py-3">
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLE[call.status] || 'bg-zinc-100 text-zinc-500'}`}>
@@ -136,12 +136,12 @@ function CampaignRow({ campaign }) {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-zinc-100/60 dark:bg-slate-800/60">
-                    <th className="px-4 py-2 text-left text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Time</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Contact</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Duration</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Billed</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Cost</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Time</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Contact</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Duration</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Billed</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Cost</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 dark:divide-slate-800">
@@ -203,8 +203,8 @@ export default function Usage() {
     <div className="p-8 max-w-[1200px] mx-auto">
 
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Usage</h1>
-        <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Minute consumption breakdown by campaign and call.</p>
+        <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Usage</h1>
+        <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Minute consumption breakdown by campaign and call.</p>
       </div>
 
       {/* Summary stats */}
@@ -245,11 +245,11 @@ export default function Usage() {
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
               <tr>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Campaign</th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Type</th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Calls (done/total)</th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Minutes used</th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Cost</th>
+                <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Campaign</th>
+                <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Type</th>
+                <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Calls (done/total)</th>
+                <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Minutes used</th>
+                <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Cost</th>
               </tr>
             </thead>
             <tbody>

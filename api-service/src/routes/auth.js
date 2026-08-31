@@ -47,7 +47,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               name,
               googleId: profile.id,
               passwordHash: null,
-              role: 'VIEWER'
+              role: 'VIEWER',
+              invitedById: pendingInvite?.invitedById ?? null
             }
           });
 

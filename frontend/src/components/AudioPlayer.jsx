@@ -98,7 +98,7 @@ const AudioPlayer = ({ src }) => {
         
         {/* Progress Bar */}
         <div className="flex items-center gap-4 w-full">
-          <span className="text-xs font-mono text-zinc-500 w-10">{formatTime(currentTime)}</span>
+          <span className="text-xs text-zinc-500 w-10">{formatTime(currentTime)}</span>
           <input
             type="range"
             min="0"
@@ -107,7 +107,7 @@ const AudioPlayer = ({ src }) => {
             onChange={handleSeek}
             className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
           />
-          <span className="text-xs font-mono text-zinc-400 w-10">{formatTime(duration)}</span>
+          <span className="text-xs text-zinc-400 w-10">{formatTime(duration)}</span>
         </div>
 
         <div className="flex items-center justify-between">

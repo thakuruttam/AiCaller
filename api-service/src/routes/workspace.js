@@ -7,6 +7,7 @@ import {
   listMembers,
   addMember,
   updateMemberRole,
+  updateMemberStatus,
   removeMember,
   createInvite,
   listInvites,
@@ -34,6 +35,7 @@ router.patch('/:id', requireWorkspaceAdmin, updateWorkspace);
 router.get('/:id/members', requireWorkspaceMember, listMembers);
 router.post('/:id/members', requireWorkspaceAdmin, addMember);
 router.patch('/:id/members/:userId', requireWorkspaceAdmin, updateMemberRole);
+router.patch('/:id/members/:userId/status', requireWorkspaceAdmin, updateMemberStatus);
 router.delete('/:id/members/:userId', requireWorkspaceAdmin, removeMember);
 router.post('/:id/invites', requireWorkspaceAdmin, createInvite);
 router.get('/:id/invites', requireWorkspaceAdmin, listInvites);

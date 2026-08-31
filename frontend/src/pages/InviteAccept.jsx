@@ -72,7 +72,7 @@ export default function InviteAccept() {
           <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-red-500">error</span>
           </div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-slate-100 mb-2">Invalid Invite</h2>
+          <h2 className="text-[22px] font-extrabold tracking-tight text-zinc-900 dark:text-slate-100 mb-2">Invalid Invite</h2>
           <p className="text-zinc-500 dark:text-slate-400 text-sm mb-6">{error}</p>
           <button onClick={() => navigate('/login')}
             className="px-6 py-2.5 bg-[#0d9488] text-white rounded-xl text-sm font-semibold hover:bg-[#0f766e] transition-colors">
@@ -90,7 +90,7 @@ export default function InviteAccept() {
           <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-emerald-600">check_circle</span>
           </div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-slate-100 mb-2">You're in!</h2>
+          <h2 className="text-[22px] font-extrabold tracking-tight text-zinc-900 dark:text-slate-100 mb-2">You're in!</h2>
           <p className="text-zinc-500 dark:text-slate-400 text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
         </div>
       </div>
@@ -108,14 +108,14 @@ export default function InviteAccept() {
           <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-3">
             <span className="material-symbols-outlined text-white text-[24px]" style={{fontVariationSettings:"'FILL' 1"}}>corporate_fare</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Workspace Invitation</h1>
+          <h1 className="text-[22px] font-extrabold tracking-tight text-white">Workspace Invitation</h1>
           <p className="text-[#c7bfff] text-sm mt-1">You've been invited to collaborate</p>
         </div>
 
         <div className="px-8 py-6">
           {/* Invite details */}
           <div className="bg-zinc-50 dark:bg-slate-900 border border-zinc-100 dark:border-slate-700 rounded-xl p-4 mb-6">
-            <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider mb-3">Invite Details</p>
+            <p className="text-xs font-medium text-zinc-400 dark:text-slate-500 uppercase tracking-wider mb-3">Invite Details</p>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-500 dark:text-slate-400">Workspace</span>
@@ -123,11 +123,11 @@ export default function InviteAccept() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-500 dark:text-slate-400">Invited email</span>
-                <span className="text-sm font-mono text-zinc-700 dark:text-slate-300">{invite.email}</span>
+                <span className="text-sm text-zinc-700 dark:text-slate-300">{invite.email}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-500 dark:text-slate-400">Your role</span>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_COLOR[invite.role] || ROLE_COLOR.VIEWER}`}>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${ROLE_COLOR[invite.role] || ROLE_COLOR.VIEWER}`}>
                   {invite.role}
                 </span>
               </div>
@@ -139,7 +139,7 @@ export default function InviteAccept() {
           </div>
 
           {emailMismatch && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-700">
               <strong>Wrong account.</strong> You're signed in as <strong>{user.email}</strong> but this invite is for <strong>{invite.email}</strong>. Sign out and use the correct Google account.
             </div>
           )}

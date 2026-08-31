@@ -104,7 +104,7 @@ export default function CallReport() {
 
   if (error) return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+      <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Call
       </Link>
@@ -137,7 +137,6 @@ export default function CallReport() {
       <Link
         to={`/campaigns/${campaignId}/report`}
         className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
-        style={{fontFamily:'JetBrains Mono, monospace'}}
       >
         <span className="material-symbols-outlined">arrow_back</span>
         Back to Campaign Report
@@ -148,7 +147,7 @@ export default function CallReport() {
         <div className="mb-6 p-4 rounded-xl border border-[#ba1a1a]/30 dark:border-red-800 bg-[#ffdad6]/40 dark:bg-red-900/20 flex items-center gap-3">
           <span className="material-symbols-outlined text-[#ba1a1a] dark:text-red-300 text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>gpp_bad</span>
           <div>
-            <p className="text-sm font-semibold text-[#ba1a1a] dark:text-red-300" style={{fontFamily:'JetBrains Mono, monospace'}}>Identity Not Confirmed — Wrong Person</p>
+            <p className="text-sm font-semibold text-[#ba1a1a] dark:text-red-300">Identity Not Confirmed — Wrong Person</p>
             <p className="text-xs text-[#ba1a1a]/80 dark:text-red-300/70 mt-0.5">The person who answered denied being {report.contactName || 'the intended contact'}. The call was ended with an apology. No questions were collected.</p>
           </div>
         </div>
@@ -157,8 +156,8 @@ export default function CallReport() {
       {/* Summary Cards */}
       <section className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded-lg shadow-sm">
-          <p className="text-zinc-500 dark:text-slate-400 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Outcome</p>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${outcomeBadge}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs font-medium mb-4 uppercase tracking-wider">Outcome</p>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${outcomeBadge}`}>
             <span className="material-symbols-outlined text-[18px]">
               {report.outcome === 'COMPLETED' ? 'check_circle' : 'cancel'}
             </span>
@@ -170,21 +169,21 @@ export default function CallReport() {
         </div>
 
         <div className={`p-6 rounded-lg shadow-sm border ${identityConfirmed === false ? "bg-[#ffdad6]/40 dark:bg-red-900/20 border-[#ba1a1a]/30 dark:border-red-800" : identityConfirmed === true ? "bg-emerald-50/60 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700" : "bg-white dark:bg-slate-800 border-zinc-200 dark:border-slate-700"}`}>
-          <p className="text-zinc-500 dark:text-slate-400 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Identity Verified</p>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs font-medium mb-4 uppercase tracking-wider">Identity Verified</p>
           {identityConfirmed === true && (
-            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
               <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>verified_user</span>
               Confirmed
             </span>
           )}
           {identityConfirmed === false && (
-            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300">
               <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>gpp_bad</span>
               Wrong Person
             </span>
           )}
           {identityConfirmed === null || identityConfirmed === undefined ? (
-            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-zinc-100 text-zinc-500 dark:bg-slate-700 dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-zinc-100 text-zinc-500 dark:bg-slate-700 dark:text-slate-400">
               <span className="material-symbols-outlined text-[18px]">help</span>
               Unknown
             </span>
@@ -192,15 +191,15 @@ export default function CallReport() {
         </div>
 
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded-lg shadow-sm">
-          <p className="text-zinc-500 dark:text-slate-400 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment</p>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${sentimentBadge}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs font-medium mb-4 uppercase tracking-wider">Sentiment</p>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${sentimentBadge}`}>
             <span className="material-symbols-outlined text-[18px]">{sentimentIcon}</span>
             {report.sentiment ? report.sentiment.charAt(0).toUpperCase() + report.sentiment.slice(1) : '—'}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded-lg shadow-sm">
-          <p className="text-zinc-500 dark:text-slate-400 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>QA Score</p>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs font-medium mb-4 uppercase tracking-wider">QA Score</p>
           <div className="flex items-end gap-1">
             <span className="text-5xl font-bold text-[#0d9488] leading-none">{report.score ?? '—'}</span>
             <span className="text-zinc-400 dark:text-slate-500 text-2xl font-semibold pb-1">/100</span>
@@ -208,7 +207,7 @@ export default function CallReport() {
         </div>
 
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded-lg shadow-sm">
-          <p className="text-zinc-500 dark:text-slate-400 text-xs mb-4 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Completion</p>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs font-medium mb-4 uppercase tracking-wider">Completion</p>
           <div className="flex items-center gap-4">
             <span className="text-5xl font-bold text-[#0f172a] dark:text-slate-100 leading-none">
               {completionPercent != null ? `${completionPercent}%` : '—'}
@@ -229,9 +228,9 @@ export default function CallReport() {
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg shadow-sm p-8">
               <div className="flex items-center gap-2 mb-6">
                 <span className="material-symbols-outlined text-[#0d9488]" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
-                <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">AI Call Summary</h3>
+                <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">AI Call Summary</h3>
               </div>
-              <p className="text-lg text-[#334155] dark:text-slate-400 leading-relaxed">{report.reportSummary}</p>
+              <p className="text-sm text-[#334155] dark:text-slate-400 leading-relaxed">{report.reportSummary}</p>
             </div>
           </div>
         )}
@@ -242,35 +241,31 @@ export default function CallReport() {
             <FullscreenTable className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg shadow-sm overflow-hidden h-full">
               {({ toggle, isFs }) => (<>
               <div className="p-6 border-b border-zinc-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">Evaluation Breakdown</h3>
+                <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Evaluation Breakdown</h3>
 
                 <div className="flex items-center gap-2">
                 <div className="flex bg-zinc-100 dark:bg-slate-700 p-1 rounded-lg">
                   <button 
                     onClick={() => setFilterScore('all')}
                     className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'all' ? "bg-white dark:bg-slate-800 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100"}`}
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     All
                   </button>
                   <button 
                     onClick={() => setFilterScore('full')}
                     className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'full' ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 shadow-sm" : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"}`}
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     Full Score
                   </button>
                   <button 
                     onClick={() => setFilterScore('partial')}
                     className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'partial' ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 shadow-sm" : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"}`}
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     Partial
                   </button>
                   <button 
                     onClick={() => setFilterScore('failed')}
                     className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === 'failed' ? "bg-[#ffdad6] dark:bg-red-900/30 text-[#ba1a1a] dark:text-red-300 shadow-sm" : "text-[#ba1a1a] dark:text-red-400 hover:bg-[#ffdad6]/50 dark:hover:bg-red-900/20"}`}
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     Failed
                   </button>
@@ -288,7 +283,7 @@ export default function CallReport() {
                   <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                     <tr>
                       {BREAKDOWN_COLUMNS.map((c, i) => (
-                        <th key={c.key} className="relative px-6 py-4 text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider select-none" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                        <th key={c.key} className="relative px-6 py-4 text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider select-none">
                           <span className="truncate block pr-2">{c.label}</span>
                           {i < BREAKDOWN_COLUMNS.length - 1 && (
                             <span
@@ -365,7 +360,7 @@ export default function CallReport() {
                             className={`hover:bg-zinc-50/50 dark:hover:bg-slate-700/50 transition-colors ${hasSubfields ? 'cursor-pointer' : ''}`}
                             onClick={() => hasSubfields && setExpandedQuestions(p => ({ ...p, [qr.questionId]: !p[qr.questionId] }))}
                           >
-                            <td className="px-6 py-4 truncate font-medium text-[#0f172a] dark:text-slate-100" title={qr.questionText} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                            <td className="px-6 py-4 truncate font-medium text-[#0f172a] dark:text-slate-100" title={qr.questionText}>
                               <div className="flex items-center gap-2">
                                 {hasSubfields && (
                                   <span className="material-symbols-outlined text-[18px] text-zinc-400 dark:text-slate-500">
@@ -382,7 +377,7 @@ export default function CallReport() {
                                   ? (qr.answerExtracted || `${subRows.filter(r => r.reason === 'present').length}/${subRows.length} fields`)
                                   : (mainRow.fieldValue);
                                 return (
-                                  <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={String(displayVal || '—')}>
+                                  <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={String(displayVal || '—')}>
                                     {typeof displayVal === 'object' ? JSON.stringify(displayVal) : String(displayVal || '—')}
                                   </span>
                                 );
@@ -394,10 +389,10 @@ export default function CallReport() {
                                   <div className="w-12 bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full">
                                     <div className={`${conf.color} h-full rounded-full`} style={{width: conf.pct}} />
                                   </div>
-                                  <span className="text-zinc-500 dark:text-slate-400 text-xs" style={{fontFamily:"JetBrains Mono, monospace"}}>{confStr}</span>
+                                  <span className="text-zinc-500 dark:text-slate-400 text-xs">{confStr}</span>
                                 </div>
                               ) : (
-                                <span className="text-zinc-500 dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>—</span>
+                                <span className="text-zinc-500 dark:text-slate-400 text-xs">—</span>
                               )}
                             </td>
                             <td className="px-6 py-4 text-sm text-zinc-600 dark:text-slate-400 truncate" title={mainRow.rule}>
@@ -406,7 +401,7 @@ export default function CallReport() {
                             <td className="px-6 py-4 text-sm text-zinc-500 dark:text-slate-400 truncate" title={mainRow.explanation || ''}>
                               {mainRow.explanation || '—'}
                             </td>
-                            <td className={`px-6 py-4 font-medium whitespace-nowrap ${mainColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                            <td className={`px-6 py-4 font-medium whitespace-nowrap ${mainColorClass}`}>
                               +{qAwarded.toFixed(1)} / {qMax}
                             </td>
                           </tr>
@@ -419,11 +414,11 @@ export default function CallReport() {
                             
                             return (
                               <tr key={`${qr.questionId}-sub-${idx}`} className="bg-zinc-50/30 dark:bg-slate-900/30">
-                                <td className={`px-6 py-3 pl-14 truncate text-sm ${subColorClass}`} title={sub.field} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                <td className={`px-6 py-3 pl-14 truncate text-sm ${subColorClass}`} title={sub.field}>
                                   ↳ {sub.field}
                                 </td>
                                 <td className="px-6 py-3">
-                                  <span className="bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" style={{fontFamily:'JetBrains Mono, monospace'}} title={sub.fieldValue}>
+                                  <span className="bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={sub.fieldValue}>
                                     {typeof sub.fieldValue === 'object' ? JSON.stringify(sub.fieldValue) : String(sub.fieldValue || '—')}
                                   </span>
                                 </td>
@@ -433,17 +428,17 @@ export default function CallReport() {
                                       <div className="w-12 bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full">
                                         <div className={`${subConf.color} h-full rounded-full`} style={{width: subConf.pct}} />
                                       </div>
-                                      <span className="text-zinc-500 dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{subConfStr}</span>
+                                      <span className="text-zinc-500 dark:text-slate-400 text-xs">{subConfStr}</span>
                                     </div>
                                   ) : (
-                                    <span className="text-zinc-500 dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>—</span>
+                                    <span className="text-zinc-500 dark:text-slate-400 text-xs">—</span>
                                   )}
                                 </td>
                                 <td className="px-6 py-3 text-sm text-zinc-500 dark:text-slate-400 truncate" title={sub.rule}>
                                   {sub.rule || '—'}
                                 </td>
                                 <td className="px-6 py-3 text-sm text-zinc-400 dark:text-slate-500">—</td>
-                                <td className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${subColorClass}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                <td className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${subColorClass}`}>
                                   +{(sub.awarded ?? 0).toFixed(1)} / {sub.maxPoints ?? 0}
                                 </td>
                               </tr>
@@ -463,7 +458,7 @@ export default function CallReport() {
                   <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-lg flex items-start gap-3 w-fit">
                     <span className="material-symbols-outlined text-teal-600 dark:text-teal-400 mt-0.5">info</span>
                     <div>
-                      <p className="text-xs font-medium text-teal-900 dark:text-teal-300 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Compliance Notes</p>
+                      <p className="text-xs font-medium text-teal-900 dark:text-teal-300 mb-1">Compliance Notes</p>
                       <p className="text-xs text-teal-800 dark:text-teal-400">
                         Script adherence: {compliance.scriptAdherenceScore ?? '—'}% &middot;
                         Coverage: {compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '—'}
@@ -487,7 +482,7 @@ export default function CallReport() {
               </h3>
               <div className="flex flex-wrap gap-2">
                 {missingFields.map((f, i) => (
-                  <span key={i} className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700 px-3 py-1 rounded-lg text-xs font-medium" style={{fontFamily:'JetBrains Mono, monospace'}}>{f}</span>
+                  <span key={i} className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700 px-3 py-1 rounded-lg text-xs font-medium">{f}</span>
                 ))}
               </div>
             </div>
@@ -496,7 +491,7 @@ export default function CallReport() {
       </div>
 
       {/* Footer meta */}
-      <div className="mt-8 text-xs text-zinc-400 dark:text-slate-500 text-center" style={{fontFamily:'JetBrains Mono, monospace'}}>
+      <div className="mt-8 text-xs text-zinc-400 dark:text-slate-500 text-center">
         Model: {report.modelVersion || '—'} · Schema: {report.schemaVersion || '—'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '—'}
       </div>
     </div>

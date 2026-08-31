@@ -89,7 +89,14 @@ export async function listMembers(req, res) {
     const { id } = req.params;
     const members = await prisma.workspaceMember.findMany({
       where: { tenantId: id },
-      include: { user: { select: { id: true, email: true, name: true, role: true, status: true, createdAt: true } } }
+      include: {
+        user: {
+          select: {
+            id: true, email: true, name: true, role: true, status: true, createdAt: true,
+            invitedBy: { select: { name: true } }
+          }
+        }
+      }
     });
     return res.json(members.map(m => ({
       id: m.user.id,
@@ -98,7 +105,8 @@ export async function listMembers(req, res) {
       globalRole: m.user.role,
       workspaceRole: m.role,
       status: m.user.status,
-      joinedAt: m.createdAt
+      joinedAt: m.createdAt,
+      invitedByName: m.user.invitedBy?.name || null
     })));
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -111,7 +119,7 @@ export async function listMembers(req, res) {
 export async function createInvite(req, res) {
   try {
     const { id } = req.params;
-    const { email, role = 'VIEWER' } = req.body;
+    const { email, firstName, lastName, contact, role = 'VIEWER' } = req.body;
 
     // Validations
     if (!email || typeof email !== 'string') {
@@ -120,6 +128,12 @@ export async function createInvite(req, res) {
     const normalizedEmail = email.toLowerCase().trim();
     if (!EMAIL_RE.test(normalizedEmail)) {
       return res.status(400).json({ error: 'Invalid email address' });
+    }
+    if (!firstName?.trim()) {
+      return res.status(400).json({ error: 'First name is required' });
+    }
+    if (!lastName?.trim()) {
+      return res.status(400).json({ error: 'Last name is required' });
     }
     if (!VALID_INVITE_ROLES.includes(role)) {
       return res.status(400).json({ error: `Role must be one of: ${VALID_INVITE_ROLES.join(', ')}` });
@@ -144,7 +158,16 @@ export async function createInvite(req, res) {
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const invite = await prisma.invite.create({
-      data: { email: normalizedEmail, role, tenantId: id, expiresAt }
+      data: {
+        email: normalizedEmail,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: contact?.trim() || null,
+        role,
+        tenantId: id,
+        expiresAt,
+        invitedById: req.user.id
+      }
     });
 
     const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/invite/${invite.token}`;
@@ -179,6 +202,8 @@ export async function createInvite(req, res) {
       token: invite.token,
       inviteUrl,
       email: invite.email,
+      firstName: invite.firstName,
+      lastName: invite.lastName,
       role: invite.role,
       expiresAt: invite.expiresAt,
       emailSent: !emailWarning,
@@ -202,6 +227,9 @@ export async function listInvites(req, res) {
     return res.json(invites.map(inv => ({
       id: inv.id,
       email: inv.email,
+      firstName: inv.firstName,
+      lastName: inv.lastName,
+      phone: inv.phone,
       role: inv.role,
       expiresAt: inv.expiresAt,
       createdAt: inv.createdAt,
@@ -356,6 +384,50 @@ export async function updateMemberRole(req, res) {
     });
 
     return res.json({ userId, workspaceRole: membership.role });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+const VALID_MEMBER_STATUSES = ['ACTIVE', 'SUSPENDED'];
+
+/**
+ * PATCH /api/workspaces/:id/members/:userId/status — suspend/reactivate a member
+ */
+export async function updateMemberStatus(req, res) {
+  try {
+    const { id, userId } = req.params;
+    const { status } = req.body;
+
+    if (!VALID_MEMBER_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Status must be one of: ${VALID_MEMBER_STATUSES.join(', ')}` });
+    }
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'You cannot change your own status' });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.role === 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Cannot change status of a super admin' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { status }
+    });
+
+    createNotification({
+      userId,
+      tenantId: id,
+      type: 'MEMBER_STATUS_CHANGED',
+      title: status === 'SUSPENDED' ? 'Your account was suspended' : 'Your account was reactivated',
+      body: status === 'SUSPENDED'
+        ? 'Your account has been suspended and you will not be able to sign in.'
+        : 'Your account has been reactivated.',
+    });
+
+    return res.json({ userId, status: user.status });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

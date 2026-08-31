@@ -139,8 +139,8 @@ export default function Billing() {
       {/* Page Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Billing & Credits</h1>
-          <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Top up your minute balance to run campaigns.</p>
+          <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Billing & Credits</h1>
+          <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Top up your minute balance to run campaigns.</p>
         </div>
       </div>
 
@@ -151,8 +151,8 @@ export default function Billing() {
           <div>
             <p className="text-sm font-semibold text-amber-800">Payment gateway not configured</p>
             <p className="text-xs text-amber-700 mt-0.5">
-              Add your Razorpay API keys to <code className="font-mono bg-amber-100 px-1 rounded">.env</code> to enable top-ups.
-              Get your keys at <span className="font-mono">razorpay.com → Settings → API Keys</span>.
+              Add your Razorpay API keys to <code className="bg-amber-100 px-1 rounded">.env</code> to enable top-ups.
+              Get your keys at <span>razorpay.com → Settings → API Keys</span>.
             </p>
           </div>
         </div>
@@ -176,7 +176,7 @@ export default function Billing() {
 
         {/* Limits card */}
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-          <p className="text-xs font-semibold text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-4">Plan Limits</p>
+          <p className="text-xs font-medium text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-4">Plan Limits</p>
           <div className="space-y-3">
             {[
               { label: 'Team members', value: limits.teamMembers },
@@ -201,7 +201,7 @@ export default function Billing() {
 
         {/* Total spend card */}
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-          <p className="text-xs font-semibold text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-4">Account Summary</p>
+          <p className="text-xs font-medium text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-4">Account Summary</p>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-[#334155] dark:text-slate-400">Minutes purchased</span>
@@ -227,7 +227,7 @@ export default function Billing() {
 
       {/* Pack grid */}
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Top Up</h2>
+        <h2 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Top Up</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {packs.map((pack) => {
             const isCurrentTier = pack.tier === billingTier;
@@ -245,7 +245,7 @@ export default function Billing() {
               >
                 {isCurrentTier && (
                   <div className="absolute -top-3 right-3">
-                    <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                    <span className="bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                       CURRENT
                     </span>
                   </div>
@@ -259,7 +259,7 @@ export default function Billing() {
                 </div>
 
                 <div className="flex-1 pt-4">
-                  <p className="text-xs font-bold text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-1">{pack.label}</p>
+                  <p className="text-xs font-medium text-[#334155] dark:text-slate-400 uppercase tracking-wider mb-1">{pack.label}</p>
                   <p className={`text-2xl font-bold ${isSelected ? 'text-[#0d9488]' : 'text-[#0f172a] dark:text-slate-100'}`}>{pack.displayAmount}</p>
                   <p className="text-sm text-[#0d9488] font-semibold mt-1">{pack.minutes.toLocaleString('en-IN')} min</p>
                   <p className="text-xs text-zinc-400 mt-0.5">{pack.rateDisplay}</p>
@@ -295,7 +295,6 @@ export default function Billing() {
                   onClick={handleTopUp}
                   disabled={paying}
                   className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                  style={{ fontFamily: 'JetBrains Mono, monospace' }}
                 >
                   {paying
                     ? <><span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span> Processing…</>
@@ -310,7 +309,7 @@ export default function Billing() {
 
       {/* Transaction history */}
       <div>
-        <h2 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Transaction History</h2>
+        <h2 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Transaction History</h2>
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 gap-2">
@@ -321,12 +320,12 @@ export default function Billing() {
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
                 <tr>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Date</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Pack</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Minutes</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Tier Unlocked</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Status</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Date</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Pack</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Minutes</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Tier Unlocked</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50 dark:divide-slate-800">

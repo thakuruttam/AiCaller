@@ -117,7 +117,7 @@ export default function SandboxAgent({ campaign }) {
           <div className="bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl p-4 min-h-[200px] max-h-[300px] overflow-y-auto flex flex-col gap-3">
             {messages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <span className="text-[10px] uppercase font-bold text-zinc-400 dark:text-slate-500 mb-1">
+                <span className="text-xs uppercase font-medium text-zinc-400 dark:text-slate-500 mb-1">
                   {m.role === 'user' ? 'You (Microphone)' : 'AI Voice Agent'}
                 </span>
                 <div className={`p-3 rounded-xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm'}`}>
@@ -144,7 +144,7 @@ export default function SandboxAgent({ campaign }) {
             >
               {isListening ? <Mic size={28} /> : <MicOff size={24} />}
             </button>
-            <p className="text-xs text-zinc-400 dark:text-slate-500">Click to talk, click to stop.</p>
+            <p className="text-xs font-medium text-zinc-400 dark:text-slate-500">Click to talk, click to stop.</p>
           </div>
 
           <div className="flex justify-end">

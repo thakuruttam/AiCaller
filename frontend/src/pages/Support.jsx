@@ -100,18 +100,18 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh]">
         <div className="flex items-start justify-between p-6 border-b border-zinc-100 dark:border-slate-800 shrink-0">
           <div>
-            <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider capitalize mb-1">{ticket.category}</p>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-slate-100">{ticket.subject}</h3>
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider capitalize mb-1">{ticket.category}</p>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{ticket.subject}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${STATUS_BADGE[ticket.status]}`}>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_BADGE[ticket.status]}`}>
               {STATUS_LABEL[ticket.status]}
             </span>
             {ticket.status === 'CLOSED' ? (
               <button
                 onClick={() => changeStatus('OPEN')}
                 disabled={statusLoading}
-                className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#f0fdfa] disabled:opacity-50 transition-colors"
+                className="text-xs font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#f0fdfa] disabled:opacity-50 transition-colors"
               >
                 Reopen
               </button>
@@ -119,7 +119,7 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
               <button
                 onClick={() => changeStatus('CLOSED')}
                 disabled={statusLoading}
-                className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                className="text-xs font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
               >
                 Close
               </button>
@@ -139,8 +139,8 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <p className="text-xs font-semibold text-zinc-800 dark:text-slate-100">{ticket.user?.name}</p>
-                <p className="text-[10px] text-zinc-400 font-mono">{new Date(ticket.createdAt).toLocaleString()}</p>
+                <p className="text-xs font-medium text-zinc-800 dark:text-slate-100">{ticket.user?.name}</p>
+                <p className="text-xs text-zinc-400">{new Date(ticket.createdAt).toLocaleString()}</p>
               </div>
               <div className="bg-zinc-50 dark:bg-slate-900 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
                 {ticket.message}
@@ -157,9 +157,9 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
               </div>
               <div className="flex-1">
                 <div className={`flex items-center gap-2 mb-2 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-xs font-semibold text-zinc-800 dark:text-slate-100">{r.user?.name}</p>
-                  {r.isAdmin && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#f0fdfa] text-[#0d9488]">Support</span>}
-                  <p className="text-[10px] text-zinc-400 font-mono">{new Date(r.createdAt).toLocaleString()}</p>
+                  <p className="text-xs font-medium text-zinc-800 dark:text-slate-100">{r.user?.name}</p>
+                  {r.isAdmin && <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-[#f0fdfa] text-[#0d9488]">Support</span>}
+                  <p className="text-xs text-zinc-400">{new Date(r.createdAt).toLocaleString()}</p>
                 </div>
                 <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#f0fdfa] text-[#0d9488] dark:bg-[#0d9488]/20 dark:text-teal-300 rounded-tr-sm' : 'bg-zinc-50 dark:bg-slate-900 text-zinc-700 dark:text-slate-300 rounded-tl-sm'}`}>
                   {r.message}
@@ -171,7 +171,7 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
           {ticket.status === 'CLOSED' && (
             <div className="flex items-center gap-3 py-2">
               <div className="flex-1 h-px bg-zinc-200 dark:bg-slate-700" />
-              <span className="text-[11px] text-zinc-400 font-medium">Ticket closed</span>
+              <span className="text-xs text-zinc-400 font-medium">Ticket closed</span>
               <div className="flex-1 h-px bg-zinc-200 dark:bg-slate-700" />
             </div>
           )}
@@ -254,13 +254,12 @@ export default function Support() {
         {/* Page Header */}
         <div className="flex justify-between items-end mb-8">
           <div>
-            <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Support Center</h1>
-            <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Get help, browse common questions, or open a support ticket.</p>
+            <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Support Center</h1>
+            <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Get help, browse common questions, or open a support ticket.</p>
           </div>
           <a
             href="mailto:support@aicallerpro.com"
-            className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-3 rounded text-sm transition-all shadow-md active:scale-95"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
+            className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-3 rounded text-sm font-semibold transition-all shadow-md active:scale-95"
           >
             <span className="material-symbols-outlined text-[18px]">mail</span>
             Email Support
@@ -272,7 +271,7 @@ export default function Support() {
 
           {/* FAQ — left 7 cols */}
           <div className="lg:col-span-7">
-            <h2 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-5">Common Questions</h2>
+            <h2 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-5">Common Questions</h2>
             <div className="border-t border-zinc-200 dark:border-slate-800">
               {FAQS.map((f, i) => (
                 <FaqItem
@@ -289,11 +288,11 @@ export default function Support() {
           {/* Form — right 5 cols */}
           <div className="lg:col-span-5">
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm p-8">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-slate-100 mb-1">New Support Request</h2>
-              <p className="text-[11px] text-zinc-400 mb-6">Average response time: &lt; 2 hours</p>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-slate-100 mb-1">New Support Request</h2>
+              <p className="text-xs text-zinc-400 mb-6">Average response time: &lt; 2 hours</p>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Subject</label>
+                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Subject</label>
                   <input
                     value={form.subject}
                     onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
@@ -302,7 +301,7 @@ export default function Support() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Category</label>
+                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Category</label>
                   <select
                     value={form.category}
                     onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
@@ -312,7 +311,7 @@ export default function Support() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Details</label>
+                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Details</label>
                   <textarea
                     value={form.message}
                     onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
@@ -330,7 +329,7 @@ export default function Support() {
                     {submitting && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                     {submitting ? 'Creating…' : 'Create Ticket'}
                   </button>
-                  <p className="text-[10px] text-center mt-3 text-zinc-400">
+                  <p className="text-xs text-center mt-3 text-zinc-400">
                     Submitting as <span className="font-medium text-zinc-600 dark:text-slate-300">{user?.email}</span>
                   </p>
                 </div>
@@ -342,9 +341,9 @@ export default function Support() {
         {/* Recent Tickets */}
         <section>
           <div className="flex items-center gap-3 mb-5">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-slate-100">Recent Tickets</h2>
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Recent Tickets</h2>
             {tickets.length > 0 && (
-              <span className="text-[10px] bg-zinc-100 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-500 font-bold px-2 py-0.5 rounded">
+              <span className="text-xs bg-zinc-100 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-500 font-medium px-2 py-0.5 rounded">
                 {tickets.length} TOTAL
               </span>
             )}
@@ -362,10 +361,10 @@ export default function Support() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-800">
-                    <th className="px-6 py-4 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Ticket Details</th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-zinc-500 uppercase tracking-wider text-center">Activity</th>
+                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">Ticket Details</th>
+                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">Created</th>
+                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider text-center">Activity</th>
                     <th className="px-6 py-4"></th>
                   </tr>
                 </thead>
@@ -383,7 +382,7 @@ export default function Support() {
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${STATUS_BADGE[t.status]}`}>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_BADGE[t.status]}`}>
                           {STATUS_LABEL[t.status]}
                         </span>
                       </td>

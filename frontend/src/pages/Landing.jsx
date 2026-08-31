@@ -146,7 +146,7 @@ function Nav() {
         <ul className="hidden md:flex items-center gap-8">
           {NAV_LINKS.map(l => (
             <li key={l.href}>
-              <a href={l.href} className="text-[13.5px] font-medium text-slate-300 hover:text-white transition-colors">
+              <a href={l.href} className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
                 {l.label}
               </a>
             </li>
@@ -154,12 +154,12 @@ function Nav() {
         </ul>
 
         <div className="hidden md:flex items-center gap-3">
-          <Link to="/login" className="text-[13.5px] font-medium text-slate-300 hover:text-white transition-colors px-3 py-2 rounded-lg cursor-pointer">
+          <Link to="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-3 py-2 rounded-lg cursor-pointer">
             Sign in
           </Link>
           <Link
             to="/login"
-            className="text-[13.5px] font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-4 py-2.5 rounded-lg cursor-pointer"
+            className="text-sm font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-4 py-2.5 rounded-lg cursor-pointer"
           >
             Get started
           </Link>
@@ -184,16 +184,16 @@ function Nav() {
               key={l.href}
               href={l.href}
               onClick={() => setOpen(false)}
-              className="text-[14px] font-medium text-slate-300 hover:text-white py-2.5"
+              className="text-sm font-medium text-slate-300 hover:text-white py-2.5"
             >
               {l.label}
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-2">
-            <Link to="/login" className="text-center text-[14px] font-medium text-slate-300 hover:text-white py-2.5 rounded-lg border border-white/10 cursor-pointer">
+            <Link to="/login" className="text-center text-sm font-medium text-slate-300 hover:text-white py-2.5 rounded-lg border border-white/10 cursor-pointer">
               Sign in
             </Link>
-            <Link to="/login" className="text-center text-[14px] font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] py-2.5 rounded-lg cursor-pointer">
+            <Link to="/login" className="text-center text-sm font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] py-2.5 rounded-lg cursor-pointer">
               Get started
             </Link>
           </div>
@@ -279,21 +279,21 @@ function Hero() {
           <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-[1.12] tracking-tight">
             AI voice agents that call, qualify, and report — automatically.
           </h1>
-          <p className="mt-5 text-base md:text-lg text-slate-400 leading-relaxed max-w-lg">
+          <p className="mt-5 text-sm text-slate-400 leading-relaxed max-w-lg">
             Launch outbound calling campaigns, let an AI agent handle every conversation, and get every call scored, transcribed, and reported on in real time.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 text-[14px] font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-6 py-3.5 rounded-xl cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5eead4]"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-6 py-3.5 rounded-xl cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5eead4]"
             >
               Get started
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
             </Link>
             <a
               href="#how-it-works"
-              className="inline-flex items-center gap-2 text-[14px] font-semibold text-slate-200 hover:text-white border border-white/15 hover:border-white/30 transition-colors px-6 py-3.5 rounded-xl cursor-pointer"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-white border border-white/15 hover:border-white/30 transition-colors px-6 py-3.5 rounded-xl cursor-pointer"
             >
               See how it works
             </a>
@@ -301,7 +301,7 @@ function Hero() {
 
           <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-3 max-w-md">
             {PILLARS.map(p => (
-              <li key={p.label} className="flex items-center gap-2 text-[12.5px] text-slate-400">
+              <li key={p.label} className="flex items-center gap-2 text-xs font-medium text-slate-400">
                 <span className="material-symbols-outlined text-[16px] text-[#0d9488]" aria-hidden="true">{p.icon}</span>
                 {p.label}
               </li>
@@ -324,7 +324,7 @@ function Features() {
           <h2 className="text-3xl md:text-4xl font-extrabold text-[#0f172a] tracking-tight">
             Everything you need to run AI voice campaigns
           </h2>
-          <p className="mt-4 text-[15px] text-[#475569] leading-relaxed">
+          <p className="mt-4 text-sm text-[#475569] leading-relaxed">
             From dialing to scoring to reporting — one platform handles the whole outbound calling workflow.
           </p>
         </div>
@@ -335,8 +335,8 @@ function Features() {
               <div className="w-11 h-11 rounded-xl bg-[#f0fdfa] flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-[#0d9488] text-[22px]" aria-hidden="true">{f.icon}</span>
               </div>
-              <h3 className="text-[15px] font-bold text-[#0f172a] mb-2">{f.title}</h3>
-              <p className="text-[13.5px] text-[#64748b] leading-relaxed">{f.body}</p>
+              <h3 className="text-sm font-semibold text-[#0f172a] mb-2">{f.title}</h3>
+              <p className="text-sm text-[#64748b] leading-relaxed">{f.body}</p>
             </article>
           ))}
         </div>
@@ -365,8 +365,8 @@ function HowItWorks() {
                 </span>
                 <span className="material-symbols-outlined text-[#0d9488] text-[22px]" aria-hidden="true">{s.icon}</span>
               </div>
-              <h3 className="text-[14.5px] font-bold text-[#0f172a] mb-1.5">{s.title}</h3>
-              <p className="text-[13px] text-[#64748b] leading-relaxed">{s.body}</p>
+              <h3 className="text-sm font-semibold text-[#0f172a] mb-1.5">{s.title}</h3>
+              <p className="text-sm text-[#64748b] leading-relaxed">{s.body}</p>
             </li>
           ))}
         </ol>
@@ -384,7 +384,7 @@ function DemoVideo() {
           <h2 className="text-3xl md:text-4xl font-extrabold text-[#0f172a] tracking-tight">
             See it in action
           </h2>
-          <p className="mt-4 text-[15px] text-[#475569] leading-relaxed">
+          <p className="mt-4 text-sm text-[#475569] leading-relaxed">
             A one-minute walkthrough of a real campaign — from the questions and branching logic behind the scenes, to a fully scored call.
           </p>
         </div>
@@ -421,7 +421,7 @@ function Testimonials() {
               <span className="material-symbols-outlined text-[#0d9488]/25 text-[36px] leading-none" aria-hidden="true" style={{ fontVariationSettings: "'FILL' 1" }}>
                 format_quote
               </span>
-              <blockquote className="mt-3 text-[14.5px] text-[#334155] leading-relaxed">
+              <blockquote className="mt-3 text-sm text-[#334155] leading-relaxed">
                 "{t.quote}"
               </blockquote>
               <figcaption className="mt-5 flex items-center gap-3">
@@ -432,8 +432,8 @@ function Testimonials() {
                   {t.name.split(' ').map(n => n[0]).join('')}
                 </span>
                 <span>
-                  <span className="block text-[13.5px] font-bold text-[#0f172a]">{t.name}</span>
-                  <span className="block text-[12px] text-[#64748b]">{t.title}</span>
+                  <span className="block text-sm font-semibold text-[#0f172a]">{t.name}</span>
+                  <span className="block text-xs font-medium text-[#64748b]">{t.title}</span>
                 </span>
               </figcaption>
             </figure>
@@ -456,7 +456,7 @@ function FaqItem({ item, isOpen, onToggle, id }) {
           id={`${id}-button`}
           className="w-full flex items-center justify-between gap-4 py-5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] rounded-lg"
         >
-          <span className="text-[14.5px] font-semibold text-[#0f172a]">{item.q}</span>
+          <span className="text-sm font-semibold text-[#0f172a]">{item.q}</span>
           <span className={`material-symbols-outlined text-[#64748b] text-[20px] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">
             expand_more
           </span>
@@ -470,7 +470,7 @@ function FaqItem({ item, isOpen, onToggle, id }) {
         style={{ display: 'grid' }}
       >
         <div className="overflow-hidden">
-          <p className="text-[13.5px] text-[#64748b] leading-relaxed pr-8">{item.a}</p>
+          <p className="text-sm text-[#64748b] leading-relaxed pr-8">{item.a}</p>
         </div>
       </div>
     </div>
@@ -516,13 +516,13 @@ function FinalCta() {
         <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
           Ready to put outbound calling on autopilot?
         </h2>
-        <p className="mt-4 text-[15px] text-slate-400 max-w-xl mx-auto leading-relaxed">
+        <p className="mt-4 text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
           Sign in to launch your first AI voice campaign and see every call scored and reported in real time.
         </p>
         <div className="mt-8">
           <Link
             to="/login"
-            className="inline-flex items-center gap-2 text-[14px] font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-7 py-3.5 rounded-xl cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5eead4]"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-7 py-3.5 rounded-xl cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5eead4]"
           >
             Get started
             <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
@@ -544,15 +544,15 @@ function Footer() {
 
         <nav aria-label="Footer">
           <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <li><a href="#features" className="text-[12.5px] text-slate-400 hover:text-white transition-colors">Features</a></li>
-            <li><a href="#how-it-works" className="text-[12.5px] text-slate-400 hover:text-white transition-colors">How it works</a></li>
-            <li><a href="#faq" className="text-[12.5px] text-slate-400 hover:text-white transition-colors">FAQ</a></li>
-            <li><Link to="/support" className="text-[12.5px] text-slate-400 hover:text-white transition-colors">Support</Link></li>
-            <li><Link to="/login" className="text-[12.5px] text-slate-400 hover:text-white transition-colors">Sign in</Link></li>
+            <li><a href="#features" className="text-xs font-medium text-slate-400 hover:text-white transition-colors">Features</a></li>
+            <li><a href="#how-it-works" className="text-xs font-medium text-slate-400 hover:text-white transition-colors">How it works</a></li>
+            <li><a href="#faq" className="text-xs font-medium text-slate-400 hover:text-white transition-colors">FAQ</a></li>
+            <li><Link to="/support" className="text-xs font-medium text-slate-400 hover:text-white transition-colors">Support</Link></li>
+            <li><Link to="/login" className="text-xs font-medium text-slate-400 hover:text-white transition-colors">Sign in</Link></li>
           </ul>
         </nav>
 
-        <p className="text-[12px] text-slate-500">© {new Date().getFullYear()} AI Caller Pro. All rights reserved.</p>
+        <p className="text-xs font-medium text-slate-500">© {new Date().getFullYear()} AI Caller Pro. All rights reserved.</p>
       </div>
     </footer>
   );

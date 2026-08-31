@@ -60,6 +60,10 @@ model User {
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
 
+  invitedById  String?
+  invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id])
+  invitedUsers User[]     @relation("UserInvitedBy")
+
   workspaces      WorkspaceMember[]
   refreshTokens   RefreshToken[]
   campaigns       Campaign[]
@@ -68,6 +72,7 @@ model User {
   supportReplies  SupportTicketReply[]
 
   @@index([googleId])
+  @@index([invitedById])
 }
 
 model WorkspaceMember {
@@ -139,13 +144,17 @@ model Invite {
   id        String   @id @default(uuid()) @map("_id")
   token     String   @unique @default(uuid())
   email     String
-  name      String?
+  firstName String?
+  lastName  String?
+  phone     String?
   role      Role     @default(VIEWER)
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
+
+  invitedById String?
 
   @@index([email])
 }
@@ -236,6 +245,7 @@ enum NotificationType {
   MEMBER_INVITED
   MEMBER_JOINED
   MEMBER_ROLE_CHANGED
+  MEMBER_STATUS_CHANGED
   MEMBER_REMOVED
   SUPPORT_TICKET_SUBMITTED
   SUPPORT_TICKET_REPLIED
