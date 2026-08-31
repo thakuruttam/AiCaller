@@ -4,7 +4,7 @@ import { prisma } from './db.js';
 import { publishEvaluation } from './queues/ingestQueue.js';
 import { redis } from './redis.js';
 import { setupSTT } from './providers/stt.js';
-import { speakBackToPlivo, DeepgramTTSSocket } from './providers/tts.js';
+import { speakBackToPlivo } from './providers/tts.js';
 import { createNotification, notifyWorkspace } from './utils/notifications.js';
 import { hangupCall } from './hangupCall.js';
 import { startPlivoRecording } from './plivoRest.js';
@@ -28,7 +28,19 @@ export function setupPlivoStream() {
     let streamSid = null;   // Plivo's streamId
     let agent = null;
     let sttStream = null;
-    let ttsSocket = null;     // persistent Deepgram TTS WebSocket, opened on call start
+    // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
+    // in providers/tts.js) is no longer opened. It was meant to save the
+    // ~150-200ms per-turn reconnect cost of plain REST calls, but in
+    // practice Deepgram was closing it after nearly every single turn
+    // anyway (no persistence benefit left) while occasionally stalling a
+    // turn for the full 30s SPEAK_TIMEOUT_MS before recovering — real calls
+    // were hitting that stall on every turn in a row, worse than the REST
+    // path it was supposed to avoid. speakBackToPlivo() already falls back
+    // to the plain REST call whenever this is null, so leaving it null
+    // makes REST the only path — slightly higher steady-state latency per
+    // turn, but no multi-second stall risk. The class itself is left intact
+    // in providers/tts.js in case Deepgram's WS reliability improves later.
+    let ttsSocket = null;
     let isSpeaking = false;
     let callLogId = callLogIdQ;
     let callSid = null;      // Plivo's callId (real call_uuid)
@@ -534,10 +546,6 @@ export function setupPlivoStream() {
           if (campaign && callLog) {
             campaignLanguage = campaign.callSettings?.language || 'English';
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
-
-            if (campaignLanguage === 'English') {
-              ttsSocket = new DeepgramTTSSocket();
-            }
 
             if (sttStream) {
               sttStream.close();
