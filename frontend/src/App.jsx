@@ -275,6 +275,20 @@ const NavIcon = ({ children }) => (
   </span>
 );
 
+// Always mounted (never conditionally rendered) so the label fades and
+// collapses its own width in sync with the sidebar's width transition,
+// instead of popping in/out instantly — that instant swap was what made the
+// icon beside it look like it "jumped" and made the whole toggle feel choppy,
+// since one axis (label) changed in a single frame while the other (sidebar
+// width) was still 200ms into animating.
+const NavLabel = ({ collapsed, children }) => (
+  <span
+    className={`whitespace-nowrap overflow-hidden transition-all duration-200 ease-in-out ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]'}`}
+  >
+    {children}
+  </span>
+);
+
 function Sidebar({ collapsed, onToggleCollapse }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -309,7 +323,7 @@ function Sidebar({ collapsed, onToggleCollapse }) {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full bg-white dark:bg-[#0a0f1a] flex flex-col justify-between py-4 border-r border-[#e2e8f0] dark:border-white/5 shadow-sm z-50 transition-[width] duration-200 overflow-x-hidden overflow-y-auto scrollbar-none"
+      className="fixed left-0 top-0 h-full bg-white dark:bg-[#0a0f1a] flex flex-col justify-between py-4 border-r border-[#e2e8f0] dark:border-white/5 shadow-sm z-50 transition-[width] duration-200 ease-in-out overflow-x-hidden overflow-y-auto scrollbar-none"
       style={{ width: `${collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}px` }}
     >
       <div className="flex flex-col gap-4">
@@ -361,20 +375,20 @@ function Sidebar({ collapsed, onToggleCollapse }) {
           {navItems.map(({ to, end, icon, label }) => (
             <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={isAt(to) ? activeClass : inactiveClass}>
               <NavIcon>{icon}</NavIcon>
-              {!collapsed && <span>{label}</span>}
+              <NavLabel collapsed={collapsed}>{label}</NavLabel>
             </NavLink>
           ))}
 
           <RoleGate allow={['SUPER_ADMIN']}>
             <NavLink to="/admin" title={collapsed ? 'Admin Panel' : undefined} className={isAt('/admin') ? activeClass : inactiveClass}>
               <NavIcon>admin_panel_settings</NavIcon>
-              {!collapsed && <span>Admin Panel</span>}
+              <NavLabel collapsed={collapsed}>Admin Panel</NavLabel>
             </NavLink>
           </RoleGate>
           <RoleGate allow={['SUPER_ADMIN', 'ADMIN']}>
             <NavLink to="/docs" title={collapsed ? 'Docs' : undefined} className={isAt('/docs') ? activeClass : inactiveClass}>
               <NavIcon>menu_book</NavIcon>
-              {!collapsed && <span>Docs</span>}
+              <NavLabel collapsed={collapsed}>Docs</NavLabel>
             </NavLink>
           </RoleGate>
         </nav>
@@ -393,7 +407,7 @@ function Sidebar({ collapsed, onToggleCollapse }) {
             <span className="shrink-0 flex items-center justify-center" style={{ width: '44px' }}>
               <span className="material-symbols-outlined text-[18px]">campaign</span>
             </span>
-            {!collapsed && 'New Campaign'}
+            <NavLabel collapsed={collapsed}>New Campaign</NavLabel>
           </button>
         </div>
       </div>
@@ -407,7 +421,7 @@ function Sidebar({ collapsed, onToggleCollapse }) {
             className={({ isActive }) => `flex items-center py-2.5 transition-all text-left w-full text-sm rounded-lg ${isActive ? 'text-[#0d9488] dark:text-white bg-[#f0fdfa] dark:bg-zinc-800/70' : 'text-[#475569] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800/50'}`}
           >
             <NavIcon>contact_support</NavIcon>
-            {!collapsed && 'Support'}
+            <NavLabel collapsed={collapsed}>Support</NavLabel>
           </NavLink>
           {user && (
             <button
@@ -416,7 +430,7 @@ function Sidebar({ collapsed, onToggleCollapse }) {
               className="flex items-center py-2.5 text-[#64748b] dark:text-zinc-500 hover:text-[#334155] dark:hover:text-zinc-200 hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors text-left w-full text-sm"
             >
               <NavIcon>logout</NavIcon>
-              {!collapsed && 'Sign out'}
+              <NavLabel collapsed={collapsed}>Sign out</NavLabel>
             </button>
           )}
         </div>
@@ -434,7 +448,7 @@ function TopBar({ collapsed }) {
 
   return (
     <header
-      className="fixed top-0 right-0 bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm transition-[width] duration-200"
+      className="fixed top-0 right-0 bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm transition-[width] duration-200 ease-in-out"
       style={{ width: isDocsRoute ? '100%' : `calc(100% - ${sidebarWidth}px)` }}
     >
       <div className="flex items-center gap-4 flex-1">
@@ -485,7 +499,7 @@ function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc] dark:bg-slate-900">
       {!isDocsRoute && <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />}
-      <div className="flex-1 flex flex-col overflow-hidden transition-[margin] duration-200" style={{ marginLeft: `${contentMargin}px` }}>
+      <div className="flex-1 flex flex-col overflow-hidden transition-[margin] duration-200 ease-in-out" style={{ marginLeft: `${contentMargin}px` }}>
         <TopBar collapsed={collapsed} />
         <main className="flex-1 overflow-y-auto pt-16">
           <Routes>

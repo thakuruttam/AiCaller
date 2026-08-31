@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 
 export default function DebouncedSearch({
@@ -9,6 +9,20 @@ export default function DebouncedSearch({
 }) {
   const [value, setValue] = useState('');
 
+  // Callers commonly pass an inline arrow function (e.g. to close over a
+  // per-row id), which is a new reference every render. Keeping onSearch out
+  // of the effect's dependency array and reading it from a ref instead means
+  // a caller re-render never re-triggers this effect on its own — only a real
+  // change to `value`/`delay` does. Without this, an inline onSearch created
+  // a genuine infinite loop: effect fires -> calls onSearch -> parent state
+  // updates -> parent re-renders -> new onSearch reference -> effect fires
+  // again, forever (this was also stalling unrelated route navigations by
+  // starving React's render loop while it happened).
+  const onSearchRef = useRef(onSearch);
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  });
+
   // Every current usage of this component filters data that's already
   // loaded client-side (no API call), so there's nothing to debounce —
   // a nonzero delay only opens a window where the visible list doesn't
@@ -16,12 +30,12 @@ export default function DebouncedSearch({
   // ever wire this to a real server-side search can still pass `delay`.
   useEffect(() => {
     if (delay <= 0) {
-      onSearch(value);
+      onSearchRef.current(value);
       return;
     }
-    const t = setTimeout(() => onSearch(value), delay);
+    const t = setTimeout(() => onSearchRef.current(value), delay);
     return () => clearTimeout(t);
-  }, [value, onSearch, delay]);
+  }, [value, delay]);
 
   return (
     <div className={`relative flex items-center ${className}`}>
