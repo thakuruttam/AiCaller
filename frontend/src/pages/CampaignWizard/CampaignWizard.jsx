@@ -199,8 +199,8 @@ export default function CampaignWizard() {
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs uppercase tracking-widest text-zinc-500 dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Progress</span>
-            <span className="text-sm font-medium text-[#0d9488] dark:text-teal-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{progress}%</span>
+            <span className="text-xs font-medium uppercase tracking-widest text-zinc-500 dark:text-slate-400">Progress</span>
+            <span className="text-sm font-medium text-[#0d9488] dark:text-teal-400">{progress}%</span>
           </div>
           <div className="w-full bg-zinc-200 dark:bg-slate-700 h-1.5 rounded-full">
             <div
@@ -234,14 +234,14 @@ export default function CampaignWizard() {
                     : isComplete
                       ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                       : 'border border-zinc-300 dark:border-slate-600 text-zinc-500 dark:text-slate-400'
-                }`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                }`}>
                   {isComplete ? (
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   ) : stepNums[i]}
                 </div>
                 <span className={`text-sm ${
-                  isActive ? 'font-bold text-[#0d9488] dark:text-teal-400' : 'text-[#334155] dark:text-slate-400'
-                }`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                  isActive ? 'font-semibold text-[#0d9488] dark:text-teal-400' : 'text-[#334155] dark:text-slate-400'
+                }`}>
                   {s}
                 </span>
               </div>
@@ -252,7 +252,7 @@ export default function CampaignWizard() {
         {/* AI Logic Confidence Card */}
         <div className="p-6 border-t border-zinc-200 dark:border-slate-700">
           <div className="bg-teal-50 dark:bg-teal-500/10 p-4 rounded-lg border border-teal-100 dark:border-teal-800">
-            <h4 className="text-sm font-medium text-teal-900 dark:text-teal-300 mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Logic Confidence</h4>
+            <h4 className="text-sm font-semibold text-teal-900 dark:text-teal-300 mb-1">AI Logic Confidence</h4>
             <p className="text-xs text-teal-700 dark:text-teal-400 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
           </div>
         </div>
@@ -264,7 +264,7 @@ export default function CampaignWizard() {
         {/* Sticky step header */}
         <div className="shrink-0 border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 px-8 py-6">
           <div className="max-w-4xl mx-auto">
-            <h3 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 mb-1 tracking-tight">{steps[step - 1]}</h3>
+            <h3 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 mb-1 tracking-tight">{steps[step - 1]}</h3>
             <p className="text-[#334155] dark:text-slate-400 text-sm">
               {step === 1 && 'Configure the basics of your outbound campaign — name, type, and core script objectives.'}
               {step === 2 && 'Upload or manage the contacts list that will be included in this campaign.'}
@@ -287,8 +287,7 @@ export default function CampaignWizard() {
           <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
             <button
               onClick={handleSaveDraft}
-              className="px-6 py-2.5 border border-zinc-300 dark:border-slate-600 rounded text-sm text-zinc-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors"
-              style={{fontFamily:'JetBrains Mono, monospace'}}
+              className="px-6 py-2.5 border border-zinc-300 dark:border-slate-600 rounded text-sm font-semibold text-zinc-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors"
             >
               Save as Draft
             </button>
@@ -296,24 +295,21 @@ export default function CampaignWizard() {
               <button
                 onClick={prevStep}
                 disabled={step === 1}
-                className="px-8 py-2.5 bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded text-sm hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-30"
-                style={{fontFamily:'JetBrains Mono, monospace'}}
+                className="px-8 py-2.5 bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded text-sm font-semibold hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-30"
               >
                 Previous Step
               </button>
               {step < 5 ? (
                 <button
                   onClick={nextStep}
-                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
+                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm font-semibold hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
                 >
                   {nextLabels[step - 1]}
                 </button>
               ) : (
                 <button
                   onClick={handleLaunch}
-                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
+                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm font-semibold hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
                 >
                   {id ? 'Save Changes' : 'Launch Campaign'}
                 </button>

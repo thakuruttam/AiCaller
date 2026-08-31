@@ -159,23 +159,22 @@ const CallDetails = () => {
       <div className="flex justify-between items-end mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${statusColor}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${statusColor}`}>
               <span className="material-symbols-outlined text-[14px]" style={{fontVariationSettings:"'FILL' 1"}}>
                 {callLog.status === 'completed' ? 'check_circle' : callLog.status === 'failed' ? 'cancel' : 'radio_button_checked'}
               </span>
               {callLog.status ? callLog.status.charAt(0).toUpperCase() + callLog.status.slice(1) : 'Pending'}
             </span>
-            <span className="text-[#64748b] dark:text-slate-400 text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="text-[#64748b] dark:text-slate-400 text-xs">
               ID: {callLog.id?.substring(0, 12).toUpperCase() || '—'}
             </span>
           </div>
-          <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Call Details: {contactName}</h2>
+          <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Call Details: {contactName}</h2>
         </div>
         <div className="flex gap-3">
           <Link
             to={`/campaigns/${campaignId || callLog.campaignId}`}
             className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-all"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
             Back to Campaign
@@ -183,7 +182,6 @@ const CallDetails = () => {
           <Link
             to={`/campaign/${campaignId || callLog.campaignId}/calls/${id}/report`}
             className="flex items-center gap-2 px-4 py-2 bg-[#0d9488] text-white text-sm rounded hover:bg-[#0f766e] transition-all shadow-sm"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[20px]">analytics</span>
             View Report
@@ -194,23 +192,23 @@ const CallDetails = () => {
       {/* Info Strip */}
       <div className="grid grid-cols-4 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg p-6 mb-8">
         <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 pr-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Contact Info</p>
-          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{callLog.contact?.phone || '—'}</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">Contact Info</p>
+          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{callLog.contact?.phone || '—'}</p>
           <p className="text-sm text-zinc-600 dark:text-slate-400">{contactName}</p>
         </div>
         <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 px-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign</p>
-          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaignName}</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">Campaign</p>
+          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{campaignName}</p>
           <p className="text-sm text-zinc-600 dark:text-slate-400 capitalize">{callLog.status || '—'}</p>
         </div>
         <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 px-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Call Timing</p>
-          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{callDate}</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">Call Timing</p>
+          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{callDate}</p>
           <p className="text-sm text-zinc-600 dark:text-slate-400">Duration: {durationStr}</p>
         </div>
         <div className="space-y-1 pl-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Outcome</p>
-          <p className="text-sm font-bold text-[#0d9488]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">AI Outcome</p>
+          <p className="text-sm font-bold text-[#0d9488]">
             {callLog.status === 'completed' ? 'Call Completed' : callLog.status === 'failed' ? 'Call Failed' : 'In Progress'}
           </p>
           <p className="text-sm text-zinc-600 dark:text-slate-400">Status: {callLog.status || '—'}</p>
@@ -225,11 +223,11 @@ const CallDetails = () => {
           <div className="bg-[#18181b] text-white rounded-lg p-8 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#0d9488] to-[#5eead4]" />
             <div className="flex justify-between items-center mb-10">
-              <h3 className="text-sm font-medium flex items-center gap-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <h3 className="text-sm font-semibold flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#5eead4]">graphic_eq</span>
                 Call Recording
               </h3>
-              <span className="text-sm text-zinc-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{durationStr}</span>
+              <span className="text-sm text-zinc-400">{durationStr}</span>
             </div>
             <WaveformBars progress={0.45} />
             {callLog.recordingUrl ? (
@@ -248,7 +246,6 @@ const CallDetails = () => {
                     onClick={() => syncRecording()}
                     disabled={isRetrying}
                     className="px-4 py-2 border border-zinc-600 rounded text-sm text-zinc-300 hover:bg-zinc-800 transition-colors disabled:opacity-50"
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     Retry Sync
                   </button>
@@ -259,20 +256,20 @@ const CallDetails = () => {
 
           {/* Sentiment Card */}
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-[#0f172a] dark:text-slate-100 mb-4" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment &amp; Insights</h3>
+            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Sentiment &amp; Insights</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-600 dark:text-slate-400">Caller Sentiment</span>
-                <span className="text-xs font-medium text-emerald-600" style={{fontFamily:'JetBrains Mono, monospace'}}>Positive</span>
+                <span className="text-xs font-medium text-emerald-600">Positive</span>
               </div>
               <div className="w-full bg-zinc-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
                 <div className="bg-emerald-500 h-full w-[72%]" />
               </div>
               <div className="pt-2">
-                <p className="text-xs text-zinc-500 dark:text-slate-400 mb-2 uppercase tracking-tighter" style={{fontFamily:'JetBrains Mono, monospace'}}>Keywords Detected</p>
+                <p className="text-xs text-zinc-500 dark:text-slate-400 mb-2 uppercase tracking-tighter">Keywords Detected</p>
                 <div className="flex flex-wrap gap-2">
                   {['Call', 'Campaign', 'Outreach'].map(kw => (
-                    <span key={kw} className="bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 px-2 py-1 rounded text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{kw}</span>
+                    <span key={kw} className="bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 px-2 py-1 rounded text-xs">{kw}</span>
                   ))}
                 </div>
               </div>
@@ -287,14 +284,13 @@ const CallDetails = () => {
             <div className="p-4 border-b border-zinc-100 dark:border-slate-700 flex justify-between items-center bg-zinc-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500">description</span>
-                <h3 className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>Transcript</h3>
+                <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Transcript</h3>
               </div>
               {callLog.transcript && (
                 <div className="flex gap-2">
                   <button
                     onClick={handleCopyTranscript}
                     className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 rounded hover:bg-zinc-50 dark:hover:bg-slate-600 transition-all text-xs"
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     <span className="material-symbols-outlined text-[16px]">content_copy</span>
                     {copied ? 'Copied' : 'Copy'}
@@ -302,7 +298,6 @@ const CallDetails = () => {
                   <button
                     onClick={handleDownloadTranscript}
                     className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 rounded hover:bg-zinc-50 dark:hover:bg-slate-600 transition-all text-xs"
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     <span className="material-symbols-outlined text-[16px]">file_download</span>
                     Download
@@ -330,7 +325,7 @@ const CallDetails = () => {
                         </div>
                         <div className="space-y-1 max-w-[85%]">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{turn.speaker}</span>
+                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
                           </div>
                           <div className="bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed">
                             {turn.text}
@@ -346,7 +341,7 @@ const CallDetails = () => {
                       </div>
                       <div className="space-y-1 max-w-[85%] text-right">
                         <div className="flex items-center gap-2 justify-end">
-                          <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{turn.speaker}</span>
+                          <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
                         </div>
                         <div className="bg-zinc-800 text-white p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left">
                           {turn.text}

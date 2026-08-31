@@ -76,7 +76,7 @@ export default function NotificationDropdown() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs text-teal-600 dark:text-teal-400 hover:underline"
+                className="text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline"
               >
                 Mark all read
               </button>
@@ -105,7 +105,7 @@ export default function NotificationDropdown() {
                       {n.title}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-0.5">{n.body}</p>
-                    <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
                   </div>
                   {!n.isRead && (
                     <span className="mt-1.5 w-2 h-2 rounded-full bg-teal-500 flex-shrink-0" />

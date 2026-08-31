@@ -29,11 +29,6 @@ const MicrosoftIcon = () => (
     <rect x="13" y="13" width="11" height="11" rx="1.5" fill="#FFB900"/>
   </svg>
 );
-const CheckIcon = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
-  </svg>
-);
 const ArrowRightIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
@@ -81,9 +76,15 @@ const LogoIcon = ({ size = 16 }) => {
     </svg>
   );
 };
-const AlertIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+// Filled toast icons, shape matched to the MUI/notistack Snackbar icons on qa-app.biobrain.io/login
+const ToastErrorIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+  </svg>
+);
+const ToastSuccessIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
   </svg>
 );
 
@@ -97,17 +98,23 @@ export default function Login() {
   const [email, setEmail]          = useState('');
   const [password, setPassword]    = useState('');
   const [showPwd, setShowPwd]      = useState(false);
-  const [error, setError]          = useState(
-    searchParams.get('error') === 'google_failed' ? 'Google sign-in failed. Please try again.' : ''
-  );
   const [errorCode, setErrorCode]  = useState('');
   const [loading, setLoading]      = useState(false);
-  const [showToast, setShowToast]  = useState(false);
+  const [toast, setToast]          = useState(
+    searchParams.get('error') === 'google_failed'
+      ? { type: 'error', message: 'Google sign-in failed. Please try again.' }
+      : null
+  );
   const [mounted, setMounted]      = useState(false);
   const canSubmit = email.trim().length > 0 && password.length > 0;
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { document.title = 'Sign in — AI Caller Pro'; }, []);
+  useEffect(() => {
+    if (!toast || toast.type !== 'error') return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const handleGoogleLogin = () => {
     window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/google`;
@@ -115,15 +122,15 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setToast(null);
     setErrorCode('');
     setLoading(true);
     try {
       await login(email, password);
-      setShowToast(true);
+      setToast({ type: 'success', message: 'Login successful' });
       setTimeout(() => navigate(from, { replace: true }), 900);
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid email or password');
+      setToast({ type: 'error', message: err.response?.data?.error || 'Invalid Email or Password' });
       setErrorCode(err.response?.data?.code || '');
     } finally {
       setLoading(false);
@@ -131,7 +138,10 @@ export default function Login() {
   };
 
   // Already signed in — skip the login form and go straight to the app.
-  if (!isLoading && user) {
+  // (Skip this while the just-logged-in success toast is showing, so it
+  // stays on screen for its full duration instead of being unmounted the
+  // instant `user` is set — the setTimeout below handles that redirect.)
+  if (!isLoading && user && toast?.type !== 'success') {
     return <Navigate to={from} replace />;
   }
 
@@ -149,7 +159,7 @@ export default function Login() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes slide-in {
-          from { opacity: 0; transform: translateX(16px); }
+          from { opacity: 0; transform: translateX(-16px); }
           to   { opacity: 1; transform: translateX(0); }
         }
         @keyframes pulse-ring {
@@ -245,14 +255,6 @@ export default function Login() {
                 Please enter your email and password to continue.
               </p>
             </div>
-
-            {/* Error */}
-            {error && (
-              <div className="mb-4 p-3 rounded-[10px] flex items-start gap-2 bg-red-50 dark:bg-red-950/40" style={{ border: '1px solid #fecaca' }}>
-                <span className="text-red-500 flex-shrink-0 mt-0.5"><AlertIcon /></span>
-                <p className="text-sm text-red-700 dark:text-red-400 leading-snug">{error}</p>
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
 
@@ -359,18 +361,25 @@ export default function Login() {
           </div>
         </section>
 
-        {/* Toast */}
-        {showToast && (
-          <div className="fixed bottom-6 right-6 z-50 anim-toast text-white px-5 py-4 rounded-xl flex items-center gap-3.5"
-            style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[#0d9488] flex-shrink-0"
-              style={{ background: 'rgba(13,148,136,0.15)', border: '1px solid rgba(13,148,136,0.3)' }}>
-              <CheckIcon />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Signed in</p>
-              <p className="text-xs text-slate-500 mt-0.5">Redirecting to dashboard…</p>
-            </div>
+        {/* Toast — bottom-left, accent colors from qa-app.biobrain.io/login, card style matched to this page's own white/shadow/Poppins language */}
+        {toast && (
+          <div className="fixed z-50 anim-toast flex items-center gap-3 bg-white dark:bg-[#0f1420]"
+            style={{
+              left: '24px', bottom: '24px',
+              minWidth: '300px',
+              padding: '13px 20px 13px 16px',
+              borderRadius: '12px',
+              borderLeft: `3px solid ${toast.type === 'success' ? '#43a047' : '#d32f2f'}`,
+              boxShadow: '0 20px 44px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.06)',
+            }}>
+            <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full"
+              style={{
+                background: toast.type === 'success' ? 'rgba(67,160,71,0.12)' : 'rgba(211,47,47,0.12)',
+                color: toast.type === 'success' ? '#43a047' : '#d32f2f',
+              }}>
+              {toast.type === 'success' ? <ToastSuccessIcon size={17} /> : <ToastErrorIcon size={17} />}
+            </span>
+            <span className="text-sm font-medium leading-snug text-slate-700 dark:text-slate-200">{toast.message}</span>
           </div>
         )}
       </main>

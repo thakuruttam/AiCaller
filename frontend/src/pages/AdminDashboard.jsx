@@ -214,9 +214,9 @@ export default function AdminDashboard() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="material-symbols-outlined text-[#0d9488] text-3xl">shield</span>
-            <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Admin Dashboard</h2>
+            <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Admin Dashboard</h2>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-base">Real-time system oversight and campaign orchestration.</p>
+          <p className="text-[#334155] dark:text-slate-400 text-sm">Real-time system oversight and campaign orchestration.</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -230,12 +230,11 @@ export default function AdminDashboard() {
               }
             }}
             className="bg-[#ba1a1a] text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm hover:bg-red-700 transition-colors shadow-sm active:scale-95"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">skull</span>
             Kill All
           </button>
-          <button className="bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm border border-zinc-200 dark:border-slate-600 hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <button className="bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm border border-zinc-200 dark:border-slate-600 hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors">
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export Logs
           </button>
@@ -252,7 +251,6 @@ export default function AdminDashboard() {
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
             {tab.label}
@@ -283,30 +281,30 @@ export default function AdminDashboard() {
       {/* Metrics Bento */}
       <div className="grid grid-cols-12 gap-6 mb-6">
         <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Active Channels</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Active Channels</p>
           <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{totalChannels} / 2,000</h3>
           <div className="w-full bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full mt-3">
             <div className="bg-[#0d9488] h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
           </div>
         </div>
         <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls per Second</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Calls per Second</p>
           <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{totalCPS} CPS</h3>
-          <p className="text-emerald-600 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <p className="text-emerald-600 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
           </p>
         </div>
         <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>System Latency</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">System Latency</p>
           <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">142ms</h3>
-          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
           </p>
         </div>
         <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>Error Rate</p>
+          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Error Rate</p>
           <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">0.04%</h3>
-          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">info</span> Low impact
           </p>
         </div>
@@ -317,17 +315,17 @@ export default function AdminDashboard() {
         {({ toggle, isFs }) => (<>
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h4 className="text-base font-semibold text-[#0f172a] dark:text-slate-100">All Campaigns</h4>
-            <span className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-slate-500" style={{fontFamily:"JetBrains Mono, monospace"}}>              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h4 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">All Campaigns</h4>
+            <span className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-slate-500">              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 text-emerald-800" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 text-emerald-800">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
               {totalActive} Active
             </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 text-amber-800" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 text-amber-800">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
               {totalPaused} Paused
             </span>
@@ -343,7 +341,7 @@ export default function AdminDashboard() {
           {loading && (
             <div className="px-6 py-10 flex flex-col items-center gap-3">
               <Spinner size={28} className="text-[#0d9488]" />
-              <p className="text-sm text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Loading campaigns…</p>
+              <p className="text-sm text-[#64748b] dark:text-slate-400">Loading campaigns…</p>
             </div>
           )}
           {!loading && filtered.map(campaign => {
@@ -375,21 +373,21 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex-1 grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-3">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>ID: {campaign.id?.substring(0,12)}</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100">{campaign.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400">ID: {campaign.id?.substring(0,12)}</p>
                     </div>
                     <div className="col-span-3">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Workspace</p>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.tenant?.name || '—'}</p>
-                      <p className="text-[10px] text-zinc-400 dark:text-slate-500 truncate" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.createdBy?.email || '—'}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Workspace</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate">{campaign.tenant?.name || '—'}</p>
+                      <p className="text-xs text-zinc-400 dark:text-slate-500 truncate">{campaign.createdBy?.email || '—'}</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Calls</p>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{logs.length.toLocaleString()}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Calls</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100">{logs.length.toLocaleString()}</p>
                     </div>
                     <div className="col-span-1">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase" style={{fontFamily:'JetBrains Mono, monospace'}}>Type</p>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 capitalize" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'HR'}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Type</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 capitalize">{campaign.type || 'HR'}</p>
                     </div>
                     <div className="col-span-3 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
                       <button onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="View">
@@ -430,11 +428,11 @@ export default function AdminDashboard() {
                   <div className="bg-zinc-50/80 dark:bg-slate-900/50 px-14 border-t border-zinc-100 dark:border-slate-700">
                     <div className="py-6">
                       <div className="flex justify-between items-center mb-4">
-                        <h5 className="text-sm font-medium text-zinc-700 dark:text-slate-300" style={{fontFamily:'JetBrains Mono, monospace'}}>Live Call Stream</h5>
+                        <h5 className="text-sm font-semibold text-zinc-700 dark:text-slate-300">Live Call Stream</h5>
                         <div className="flex items-center gap-3">
                           <DebouncedSearch onSearch={(q) => handleCallSearch(campaign.id, q)} placeholder="Search call logs..." className="w-64" />
-                          <button onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Evaluate All</button>
-                          <button onClick={() => handleBulkRecall(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Re-call Failed</button>
+                          <button onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50">Evaluate All</button>
+                          <button onClick={() => handleBulkRecall(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50">Re-call Failed</button>
                         </div>
                       </div>
                       <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
@@ -442,7 +440,7 @@ export default function AdminDashboard() {
                           <thead className="bg-zinc-100 dark:bg-slate-700 border-b border-zinc-200 dark:border-slate-600">
                             <tr>
                               {['Contact','Phone','Status','Actions'].map(h => (
-                                <th key={h} className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-slate-300" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                                <th key={h} className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-slate-300">{h}</th>
                               ))}
                             </tr>
                           </thead>
@@ -477,16 +475,16 @@ export default function AdminDashboard() {
                                 return (
                                   <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50">
                                     <td className="px-4 py-3 font-medium text-zinc-900 dark:text-slate-100">{name}</td>
-                                    <td className="px-4 py-3 text-zinc-500 dark:text-slate-400" style={{fontFamily:"JetBrains Mono, monospace"}}>{cc?.contact?.phone}</td>
+                                    <td className="px-4 py-3 text-zinc-500 dark:text-slate-400">{cc?.contact?.phone}</td>
                                     <td className="px-4 py-3">
-                                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`}>
                                         {log.status}
                                       </span>
                                     </td>
                                     <td className="px-4 py-3">
                                       <div className="flex gap-2">
-                                        <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50" style={{fontFamily:'JetBrains Mono, monospace'}}>Eval</button>
-                                        <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-[11px] px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                        <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-xs px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50">Eval</button>
+                                        <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-xs px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1">
                                           <span className="material-symbols-outlined text-[12px]">history</span> Re-call
                                         </button>
                                       </div>
@@ -506,7 +504,7 @@ export default function AdminDashboard() {
           })}
 
           {!loading && filtered.length === 0 && (
-            <div className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>No campaigns found.</div>
+            <div className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">No campaigns found.</div>
           )}
         </div>
         </>)}
@@ -596,15 +594,15 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono mb-1">Open</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-1">Open</p>
           <p className="text-2xl font-bold text-blue-600">{openCount}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono mb-1">In Progress</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-1">In Progress</p>
           <p className="text-2xl font-bold text-amber-600">{ipCount}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono mb-1">Resolved</p>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-1">Resolved</p>
           <p className="text-2xl font-bold text-emerald-600">{resolveCount}</p>
         </div>
       </div>
@@ -618,8 +616,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${filter === f ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${filter === f ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
                 >
                   {f === 'all' ? 'All' : f.replace('_', ' ')}
                 </button>
@@ -650,18 +647,18 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate leading-tight">{t.subject}</p>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}>
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}>
                           {t.status.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-500 dark:text-slate-400 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
+                      <p className="text-xs text-zinc-500 dark:text-slate-400 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-zinc-400 dark:text-slate-500 capitalize font-mono">{t.category}</span>
-                        <span className="text-[10px] text-zinc-300 dark:text-slate-600">·</span>
-                        <span className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono">{new Date(t.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-zinc-400 dark:text-slate-500 capitalize">{t.category}</span>
+                        <span className="text-xs text-zinc-300 dark:text-slate-600">·</span>
+                        <span className="text-xs text-zinc-400 dark:text-slate-500">{new Date(t.createdAt).toLocaleDateString()}</span>
                         {t._count?.replies > 0 && <>
-                          <span className="text-[10px] text-zinc-300 dark:text-slate-600">·</span>
-                          <span className="text-[10px] text-zinc-400 dark:text-slate-500">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
+                          <span className="text-xs text-zinc-300 dark:text-slate-600">·</span>
+                          <span className="text-xs text-zinc-400 dark:text-slate-500">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
                         </>}
                       </div>
                     </div>
@@ -679,7 +676,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
             {/* Sender card */}
             <div className="w-[220px] shrink-0 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-100 dark:border-slate-700">
-                <p className="text-[10px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Submitted by</p>
+                <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Submitted by</p>
               </div>
               <div className="p-4 space-y-4">
                 {/* Avatar + name */}
@@ -687,16 +684,16 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                   <Avatar user={selectedTicket.user} size="lg" />
                   <div>
                     <p className="text-sm font-semibold text-zinc-900 dark:text-slate-100 leading-tight">{selectedTicket.user?.name}</p>
-                    <p className="text-[11px] text-zinc-400 dark:text-slate-500 mt-0.5 break-all">{selectedTicket.user?.email}</p>
+                    <p className="text-xs text-zinc-400 dark:text-slate-500 mt-0.5 break-all">{selectedTicket.user?.email}</p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-1">
                     {selectedTicket.user?.role && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.user.role.replace('_', ' ')}
                       </span>
                     )}
                     {selectedTicket.user?.status && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || "bg-zinc-100 text-zinc-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || "bg-zinc-100 text-zinc-500 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.user.status}
                       </span>
                     )}
@@ -707,33 +704,33 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 <div className="space-y-2.5 border-t border-zinc-100 dark:border-slate-700 pt-3">
                   {selectedTicket.tenant?.name && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Workspace</p>
+                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Workspace</p>
                       <p className="text-xs text-zinc-700 dark:text-slate-300 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceRole && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Workspace Role</p>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Workspace Role</p>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.submitterContext.workspaceRole}
                       </span>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceMemberSince && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Member Since</p>
+                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Member Since</p>
                       <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.user?.createdAt && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Account Created</p>
+                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Account Created</p>
                       <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.totalTickets != null && (
                     <div>
-                      <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Total Tickets</p>
+                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Total Tickets</p>
                       <p className="text-xs font-semibold text-zinc-700 dark:text-slate-300 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
                     </div>
                   )}
@@ -742,20 +739,20 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 {/* Ticket meta */}
                 <div className="space-y-2.5 border-t border-zinc-100 dark:border-slate-700 pt-3">
                   <div>
-                    <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Category</p>
+                    <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Category</p>
                     <p className="text-xs text-zinc-700 dark:text-slate-300 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Opened</p>
+                    <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Opened</p>
                     <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider font-mono">Status</p>
+                    <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Status</p>
                     <select
                       value={selectedTicket.status}
                       onChange={e => onUpdateStatus(selectedTicket.id, e.target.value)}
                       disabled={statusLoading}
-                      className="mt-0.5 w-full text-xs border border-zinc-200 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-700 dark:text-slate-100 font-mono outline-none focus:ring-2 focus:ring-[#0d9488]"
+                      className="mt-0.5 w-full text-xs border border-zinc-200 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-700 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#0d9488]"
                     >
                       {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
                         <option key={s} value={s}>{s.replace('_', ' ')}</option>
@@ -771,7 +768,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
               {/* Header */}
               <div className="px-5 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-start justify-between shrink-0">
                 <div className="min-w-0 pr-3">
-                  <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono uppercase tracking-wider capitalize">{selectedTicket.category.replace('_', ' ')}</p>
+                  <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wider capitalize">{selectedTicket.category.replace('_', ' ')}</p>
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -779,7 +776,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <button
                       onClick={() => onUpdateStatus(selectedTicket.id, 'OPEN')}
                       disabled={statusLoading}
-                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#ede9fe] dark:hover:bg-teal-900/30 disabled:opacity-50 transition-colors"
+                      className="text-xs font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#ede9fe] dark:hover:bg-teal-900/30 disabled:opacity-50 transition-colors"
                     >
                       Reopen
                     </button>
@@ -787,7 +784,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <button
                       onClick={() => onUpdateStatus(selectedTicket.id, 'CLOSED')}
                       disabled={statusLoading}
-                      className="text-[11px] font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-600 text-zinc-500 dark:text-slate-400 hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                      className="text-xs font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-600 text-zinc-500 dark:text-slate-400 hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
                     >
                       Close
                     </button>
@@ -806,10 +803,10 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1.5">
                       <p className="text-xs font-semibold text-zinc-800 dark:text-slate-200">{selectedTicket.user?.name}</p>
-                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                         {selectedTicket.user?.role?.replace('_', ' ')}
                       </span>
-                      <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                      <p className="text-xs text-zinc-400 dark:text-slate-500 ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                     </div>
                     <div className="bg-zinc-50 dark:bg-slate-900 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
                       {selectedTicket.message}
@@ -825,9 +822,9 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                       <div className={`flex items-center gap-2 mb-1.5 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
                         <p className="text-xs font-semibold text-zinc-800 dark:text-slate-200">{r.user?.name}</p>
                         {r.isAdmin && (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0d9488]/10 text-[#0d9488]">Support</span>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#0d9488]/10 text-[#0d9488]">Support</span>
                         )}
-                        <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono">{new Date(r.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-zinc-400 dark:text-slate-500">{new Date(r.createdAt).toLocaleString()}</p>
                       </div>
                       <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#ede9fe] dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-tr-sm' : 'bg-zinc-50 dark:bg-slate-900 text-zinc-700 dark:text-slate-300 rounded-tl-sm'}`}>
                         {r.message}

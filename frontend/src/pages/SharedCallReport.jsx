@@ -126,14 +126,14 @@ export default function SharedCallReport() {
         </div>
         <div>
           <h1 className="text-white font-bold text-base leading-tight">AI Caller Pro</h1>
-          <p className="text-zinc-400 text-[11px] uppercase tracking-widest font-mono">Shared Call Report</p>
+          <p className="text-zinc-400 text-xs font-medium uppercase tracking-widest">Shared Call Report</p>
         </div>
       </header>
 
       <main className="p-8 max-w-[1200px] mx-auto">
         <Link
           to={`/share/${token}`}
-          className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-all hover:-translate-x-1 font-bold mb-6 text-sm font-mono"
+          className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
         >
           <span className="material-symbols-outlined">arrow_back</span>
           Back to Campaign Report
@@ -141,11 +141,11 @@ export default function SharedCallReport() {
 
         <div className="flex items-start justify-between mb-6 gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-slate-100">{callLog?.contact?.name || report?.contactName || 'Unknown'}</h2>
-            <p className="text-zinc-500 dark:text-slate-400 text-sm mt-0.5 font-mono">{callLog?.contact?.phone} · {new Date(callLog?.createdAt || report?.createdAt).toLocaleString()}</p>
+            <h2 className="text-[22px] font-extrabold text-zinc-900 dark:text-slate-100 tracking-tight">{callLog?.contact?.name || report?.contactName || 'Unknown'}</h2>
+            <p className="text-zinc-500 dark:text-slate-400 text-sm mt-0.5">{callLog?.contact?.phone} · {new Date(callLog?.createdAt || report?.createdAt).toLocaleString()}</p>
           </div>
           {callLog?.durationMs && (
-            <span className="text-xs font-mono bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 px-3 py-1.5 rounded-full shrink-0">
+            <span className="text-xs bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 px-3 py-1.5 rounded-full shrink-0">
               {Math.round(callLog.durationMs / 1000)}s
             </span>
           )}
@@ -155,23 +155,23 @@ export default function SharedCallReport() {
         {report && (
           <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-              <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono uppercase tracking-wider mb-2">Outcome</p>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${OUTCOME_BADGE[report.outcome] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-2">Outcome</p>
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${OUTCOME_BADGE[report.outcome] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                 {(report.outcome || 'Unknown').replace('_', ' ')}
               </span>
             </div>
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-              <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono uppercase tracking-wider mb-2">QA Score</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-2">QA Score</p>
               <p className="text-3xl font-bold text-[#0d9488]">{report.score ?? '—'}<span className="text-zinc-400 dark:text-slate-500 text-base font-semibold">/100</span></p>
             </div>
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-              <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono uppercase tracking-wider mb-2">Sentiment</p>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${SENTIMENT_BADGE[report.sentiment] || "bg-zinc-100 text-zinc-700 dark:bg-slate-700 dark:text-slate-300"}`}>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-2">Sentiment</p>
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${SENTIMENT_BADGE[report.sentiment] || "bg-zinc-100 text-zinc-700 dark:bg-slate-700 dark:text-slate-300"}`}>
                 {report.sentiment ? report.sentiment.charAt(0).toUpperCase() + report.sentiment.slice(1) : '—'}
               </span>
             </div>
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-              <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono uppercase tracking-wider mb-2">Completion</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-2">Completion</p>
               <p className="text-3xl font-bold text-zinc-900 dark:text-slate-100">{completionPercent != null ? `${completionPercent}%` : '—'}</p>
             </div>
           </section>
@@ -182,7 +182,7 @@ export default function SharedCallReport() {
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm p-6 mb-6">
             <div className="flex items-center gap-2 mb-3">
               <span className="material-symbols-outlined text-[#0d9488]" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-slate-100">AI Summary</h3>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">AI Summary</h3>
             </div>
             <p className="text-zinc-700 dark:text-slate-300 leading-relaxed">{report.reportSummary}</p>
           </div>
@@ -194,7 +194,7 @@ export default function SharedCallReport() {
             <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="material-symbols-outlined text-[#0d9488]" style={{fontVariationSettings:"'FILL' 1"}}>mic</span>
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-slate-100">Recording</h3>
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Recording</h3>
               </div>
               <audio
                 controls
@@ -211,7 +211,7 @@ export default function SharedCallReport() {
           <div className={`bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm p-6 ${callLog?.hasRecording ? '' : 'xl:col-span-2'}`}>
             <div className="flex items-center gap-2 mb-4">
               <span className="material-symbols-outlined text-[#0d9488]" style={{fontVariationSettings:"'FILL' 1"}}>chat</span>
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-slate-100">Transcript</h3>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Transcript</h3>
             </div>
             {turns.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
@@ -237,14 +237,14 @@ export default function SharedCallReport() {
           <FullscreenTable className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
             {({ toggle, isFs }) => (<>
             <div className="p-6 border-b border-zinc-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-slate-100">Evaluation Breakdown</h3>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Evaluation Breakdown</h3>
               <div className="flex items-center gap-2">
               <div className="flex bg-zinc-100 dark:bg-slate-700 p-1 rounded-lg">
                 {[['all','All'],['full','Full Score'],['partial','Partial'],['failed','Failed']].map(([key, label]) => (
                   <button
                     key={key}
                     onClick={() => setFilterScore(key)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors font-mono ${filterScore === key ? "bg-white dark:bg-slate-800 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100"}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filterScore === key ? "bg-white dark:bg-slate-800 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100"}`}
                   >
                     {label}
                   </button>
@@ -258,7 +258,7 @@ export default function SharedCallReport() {
                 <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                   <tr>
                     {['Question', 'Answer', 'Scoring Rule', 'Points'].map(h => (
-                      <th key={h} className="px-6 py-3 text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono">{h}</th>
+                      <th key={h} className="px-6 py-3 text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -285,7 +285,7 @@ export default function SharedCallReport() {
                                   <div className="w-16 h-1 bg-zinc-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div className={`h-full ${conf.color} rounded-full`} style={{width: conf.pct}} />
                                   </div>
-                                  <span className="text-[10px] text-zinc-400 dark:text-slate-500 uppercase font-mono">{confStr}</span>
+                                  <span className="text-[10px] text-zinc-400 dark:text-slate-500 uppercase">{confStr}</span>
                                 </div>
                               )}
                             </div>
@@ -294,10 +294,10 @@ export default function SharedCallReport() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-xs text-zinc-500 dark:text-slate-400 font-mono">{mainRow.rule || '—'}</span>
-                          {mainRow.reason && <p className="text-[10px] text-zinc-400 dark:text-slate-500 mt-0.5">{mainRow.reason}</p>}
+                          <span className="text-xs text-zinc-500 dark:text-slate-400">{mainRow.rule || '—'}</span>
+                          {mainRow.reason && <p className="text-xs text-zinc-400 dark:text-slate-500 mt-0.5">{mainRow.reason}</p>}
                         </td>
-                        <td className={`px-6 py-4 font-bold text-sm font-mono ${color}`}>
+                        <td className={`px-6 py-4 font-bold text-sm ${color}`}>
                           {awarded}/{max}
                         </td>
                       </tr>

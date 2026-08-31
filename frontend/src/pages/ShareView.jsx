@@ -100,32 +100,32 @@ export default function ShareView() {
         </div>
         <div>
           <h1 className="text-white font-bold text-base leading-tight">AI Caller Pro</h1>
-          <p className="text-zinc-400 text-[11px] uppercase tracking-widest font-mono">Shared Campaign Report</p>
+          <p className="text-zinc-400 text-xs font-medium uppercase tracking-widest">Shared Campaign Report</p>
         </div>
         <div className="ml-auto text-right">
-          <p className="text-xs text-zinc-400 font-mono">Expires {new Date(expiresAt).toLocaleDateString()}</p>
+          <p className="text-xs text-zinc-400">Expires {new Date(expiresAt).toLocaleDateString()}</p>
         </div>
       </header>
 
       <main className="p-8 max-w-[1100px] mx-auto space-y-8">
         {/* Campaign title */}
         <div>
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">{campaign.name}</h2>
+          <h2 className="text-[22px] font-extrabold text-zinc-900 dark:text-slate-100 tracking-tight">{campaign.name}</h2>
           <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1 capitalize">{campaign.type?.toLowerCase().replace('_', ' ')} campaign · {total} calls</p>
         </div>
 
         {/* KPI row */}
         <div className="grid grid-cols-3 gap-5">
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-            <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono mb-1">Total Calls</p>
+            <p className="text-xs text-zinc-500 dark:text-slate-400 mb-1">Total Calls</p>
             <p className="text-2xl font-bold text-zinc-900 dark:text-slate-100">{total}</p>
           </div>
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-            <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono mb-1">Completed</p>
+            <p className="text-xs text-zinc-500 dark:text-slate-400 mb-1">Completed</p>
             <p className="text-2xl font-bold text-emerald-600">{completed}</p>
           </div>
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-5 rounded-xl shadow-sm">
-            <p className="text-xs text-zinc-500 dark:text-slate-400 font-mono mb-1">Avg Score</p>
+            <p className="text-xs text-zinc-500 dark:text-slate-400 mb-1">Avg Score</p>
             <p className="text-2xl font-bold text-[#0d9488]">{avgScore != null ? `${avgScore}%` : '—'}</p>
           </div>
         </div>
@@ -147,11 +147,11 @@ export default function ShareView() {
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                 <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono">Contact</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono">Outcome</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono">Score</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono">Sentiment</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider font-mono">Date</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Contact</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Outcome</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Score</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Sentiment</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
                   <th className="px-5 py-3"></th>
                 </tr>
               </thead>
@@ -166,7 +166,7 @@ export default function ShareView() {
                     </td>
                     <td className="px-5 py-4">
                       {c.outcome ? (
-                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${OUTCOME_BADGE[c.outcome] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${OUTCOME_BADGE[c.outcome] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
                           {c.outcome.replace('_', ' ')}
                         </span>
                       ) : (
@@ -181,7 +181,7 @@ export default function ShareView() {
                         </span>
                       ) : <span className="text-xs text-zinc-400 dark:text-slate-500">—</span>}
                     </td>
-                    <td className="px-5 py-4 text-xs text-zinc-500 dark:text-slate-400 font-mono">
+                    <td className="px-5 py-4 text-xs text-zinc-500 dark:text-slate-400">
                       {new Date(c.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-5 py-4 text-right">

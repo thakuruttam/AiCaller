@@ -37,7 +37,7 @@ function ShareModal({ campaignId, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-500 dark:text-slate-400 transition-colors">
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -46,7 +46,7 @@ function ShareModal({ campaignId, onClose }) {
           <>
             <p className="text-sm text-zinc-500 dark:text-slate-400 mb-5">Generate a public link to share all call reports for this campaign. No login required.</p>
             <div className="mb-5">
-              <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-300 uppercase tracking-wider mb-2">Link Valid For</label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-slate-300 uppercase tracking-wider mb-2">Link Valid For</label>
               <div className="flex gap-2">
                 {[3, 7, 14, 30].map(d => (
                   <button key={d} onClick={() => setDays(d)}
@@ -65,7 +65,7 @@ function ShareModal({ campaignId, onClose }) {
           <>
             <p className="text-xs text-zinc-500 dark:text-slate-400 mb-3">Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong></p>
             <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 mb-4">
-              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all font-mono">{link.url}</span>
+              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all">{link.url}</span>
               <button onClick={copy} className="shrink-0 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors text-zinc-500 dark:text-slate-400">
                 <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
               </button>
@@ -180,7 +180,7 @@ export default function CampaignDetails() {
     <div className="p-8 max-w-[1440px] mx-auto bg-[#f0fdfa] dark:bg-slate-900 min-h-full">
       {/* Breadcrumb */}
       <div className="mb-6">
-        <Link to="/" className="flex items-center gap-1 text-[#0d9488] hover:underline transition-all text-sm" style={{fontFamily:'JetBrains Mono, monospace'}}>
+        <Link to="/" className="flex items-center gap-1 text-[#0d9488] hover:underline transition-all text-sm">
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
           Back to Dashboard
         </Link>
@@ -189,12 +189,12 @@ export default function CampaignDetails() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-widest text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Campaign Details</p>
+          <p className="text-xs uppercase tracking-widest text-[#64748b] dark:text-slate-400">Campaign Details</p>
           <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">{campaign.name}</h2>
-            <span className="px-2.5 py-0.5 bg-[#e2dfff]/50 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 border border-[#0d9488]/20 dark:border-teal-700 rounded text-xs" style={{fontFamily:'JetBrains Mono, monospace'}}>{campaign.type || 'Campaign'}</span>
+            <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">{campaign.name}</h2>
+            <span className="px-2.5 py-0.5 bg-[#e2dfff]/50 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 border border-[#0d9488]/20 dark:border-teal-700 rounded text-xs">{campaign.type || 'Campaign'}</span>
           </div>
-          <p className="text-base text-[#334155] dark:text-slate-400 max-w-2xl">
+          <p className="text-sm text-[#334155] dark:text-slate-400 max-w-2xl">
             {campaign.callModule?.callIntro || 'Automated outreach campaign.'}
           </p>
         </div>
@@ -202,7 +202,6 @@ export default function CampaignDetails() {
           <button
             onClick={() => setShowShare(true)}
             className="px-4 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 text-sm rounded shadow-sm hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">share</span>
             Share
@@ -210,7 +209,6 @@ export default function CampaignDetails() {
           <Link
             to={`/campaigns/${id}/report`}
             className="px-4 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 text-sm rounded shadow-sm hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">analytics</span>
             Report
@@ -218,7 +216,6 @@ export default function CampaignDetails() {
           <button
             onClick={() => setIsSandboxOpen(true)}
             className="px-4 py-2 bg-[#0d9488] text-white text-sm rounded shadow-sm hover:bg-[#0f766e] transition-all flex items-center gap-2"
-            style={{fontFamily:'JetBrains Mono, monospace'}}
           >
             <span className="material-symbols-outlined text-[18px]">science</span>
             AI Sandbox
@@ -235,7 +232,7 @@ export default function CampaignDetails() {
           { label:'Success Rate', value: `${successRate}%`, barColor:'bg-teal-500', barW:`${successRate}%` },
         ].map(s => (
           <div key={s.label} className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded shadow-sm">
-            <p className="text-xs text-[#334155] dark:text-slate-400 mb-2" style={{fontFamily:'JetBrains Mono, monospace'}}>{s.label}</p>
+            <p className="text-xs text-[#334155] dark:text-slate-400 mb-2">{s.label}</p>
             <p className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{s.value}</p>
             <div className="mt-2 h-1 w-full bg-zinc-100 dark:bg-slate-700 rounded">
               <div className={`h-1 ${s.barColor} rounded`} style={{width:s.barW}}></div>
@@ -250,7 +247,7 @@ export default function CampaignDetails() {
           const paginated = isFs ? filteredRows : filteredRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
           return (<>
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-center justify-between bg-zinc-50/50 dark:bg-slate-900/50">
-          <h3 className="text-lg font-semibold text-[#0f172a] dark:text-slate-100">Contact Call Status</h3>
+          <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Contact Call Status</h3>
           <div className="flex items-center gap-2">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#334155] dark:text-slate-400 text-[18px]">filter_list</span>
@@ -273,7 +270,7 @@ export default function CampaignDetails() {
             <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
               <tr>
                 {['Name','Phone','Tags / Overrides','Called At','Status','Duration','Call Details'].map(h => (
-                  <th key={h} className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider" style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                  <th key={h} className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -294,48 +291,47 @@ export default function CampaignDetails() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-xs ${colorClass}`}>{initials}</div>
-                        <span className="text-base font-medium text-[#0f172a] dark:text-slate-100">{name}</span>
+                        <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400">
                       {contact?.phone || '—'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-2">
                         {cc.overrides?.tag && (
-                          <span className="px-2 py-0.5 bg-[#e2dfff]/60 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-full text-[10px] border border-[#5eead4] dark:border-teal-700" style={{fontFamily:'JetBrains Mono, monospace'}}>{cc.overrides.tag}</span>
+                          <span className="px-2 py-0.5 bg-[#e2dfff]/60 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-full text-xs border border-[#5eead4] dark:border-teal-700">{cc.overrides.tag}</span>
                         )}
                         {cc.overrides?.goals && (
-                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-[10px] border border-zinc-200 dark:border-slate-600" style={{fontFamily:'JetBrains Mono, monospace'}}>Script Override</span>
+                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-xs border border-zinc-200 dark:border-slate-600">Script Override</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400">
                       {log?.createdAt ? new Date(log.createdAt).toLocaleString() : '—'}
                     </td>
                     <td className="px-6 py-4">
                       {status ? (
-                        <span className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit ${STATUS_BADGE[status] || STATUS_BADGE.queued}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                        <span className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit ${STATUS_BADGE[status] || STATUS_BADGE.queued}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-zinc-400'}`}></span>
                           {status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
                         </span>
                       ) : (
-                        <span className="text-xs text-[#64748b] dark:text-slate-400 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>No call</span>
+                        <span className="text-xs text-[#64748b] dark:text-slate-400 italic">No call</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>{durationStr}</td>
+                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400">{durationStr}</td>
                     <td className="px-6 py-4">
                       {log ? (
                         <Link
                           to={`/campaign/${id}/calls/${log.id}`}
                           className="flex items-center gap-1.5 text-[#0d9488] hover:text-[#0f766e] transition-colors"
-                          style={{fontFamily:'JetBrains Mono, monospace'}}
                         >
                           <span className="material-symbols-outlined text-[18px]">article</span>
                           <span className="text-sm">View Call</span>
                         </Link>
                       ) : (
-                        <span className="text-xs text-zinc-300 dark:text-slate-600 italic" style={{fontFamily:'JetBrains Mono, monospace'}}>N/A</span>
+                        <span className="text-xs text-zinc-300 dark:text-slate-600 italic">N/A</span>
                       )}
                     </td>
                   </tr>
@@ -353,7 +349,7 @@ export default function CampaignDetails() {
         </div>
 
         <div className="px-6 py-4 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between">
-          <span className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+          <span className="text-xs text-[#334155] dark:text-slate-400">
             {isFs ? `${filteredRows.length} entries` : `Showing ${paginated.length} of ${filteredRows.length} entries`}
           </span>
           {!isFs && (
@@ -362,11 +358,11 @@ export default function CampaignDetails() {
                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
               </button>
               {[...Array(Math.min(3, totalPages))].map((_, i) => (
-                <button key={i+1} onClick={() => setPage(i+1)} className={`px-3 py-1 rounded text-xs ${page===i+1 ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{i+1}</button>
+                <button key={i+1} onClick={() => setPage(i+1)} className={`px-3 py-1 rounded text-xs ${page===i+1 ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`}>{i+1}</button>
               ))}
               {totalPages > 3 && <span className="px-2 text-zinc-400 dark:text-slate-500">...</span>}
               {totalPages > 3 && (
-                <button onClick={() => setPage(totalPages)} className={`px-3 py-1 rounded text-xs ${page===totalPages ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{totalPages}</button>
+                <button onClick={() => setPage(totalPages)} className={`px-3 py-1 rounded text-xs ${page===totalPages ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`}>{totalPages}</button>
               )}
               <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-700 rounded disabled:opacity-30">
                 <span className="material-symbols-outlined text-[20px]">chevron_right</span>

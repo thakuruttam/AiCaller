@@ -70,12 +70,12 @@ export default function Docs() {
       <aside className="w-56 shrink-0 border-r border-[#e2e8f0] dark:border-slate-700 px-3 py-6">
         <button
           onClick={() => navigate('/')}
-          className="w-full flex items-center gap-2.5 px-3 py-2 mb-5 rounded-lg text-[13px] font-medium text-left transition-colors cursor-pointer border border-[#e2e8f0] dark:border-slate-700 text-[#64748b] dark:text-slate-400 hover:bg-[#f8fafc] dark:hover:bg-slate-800/50 hover:text-[#0f172a] dark:hover:text-slate-200"
+          className="w-full flex items-center gap-2.5 px-3 py-2 mb-5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer border border-[#e2e8f0] dark:border-slate-700 text-[#64748b] dark:text-slate-400 hover:bg-[#f8fafc] dark:hover:bg-slate-800/50 hover:text-[#0f172a] dark:hover:text-slate-200"
         >
           <span className="material-symbols-outlined text-[18px]">home</span>
           Home
         </button>
-        <p className="px-3 pb-3 text-[10px] font-semibold text-[#94a3b8] dark:text-slate-500 uppercase tracking-widest" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+        <p className="px-3 pb-3 text-xs font-medium text-[#94a3b8] dark:text-slate-500 uppercase tracking-widest">
           Documentation
         </p>
         <nav className="flex flex-col gap-0.5">
@@ -83,7 +83,7 @@ export default function Docs() {
             <button
               key={d.slug}
               onClick={() => navigate(`/docs/${d.slug}`)}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-left transition-colors cursor-pointer ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
                 d.slug === active.slug
                   ? 'bg-[#f0fdfa] dark:bg-slate-800 text-[#0d9488] dark:text-teal-400'
                   : 'text-[#64748b] dark:text-slate-400 hover:bg-[#f8fafc] dark:hover:bg-slate-800/50 hover:text-[#0f172a] dark:hover:text-slate-200'

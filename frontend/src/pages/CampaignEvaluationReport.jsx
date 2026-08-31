@@ -70,7 +70,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
     <FullscreenTable className="rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
       {({ toggle, isFs }) => (<>
       <div className="border-b border-zinc-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
-        <h3 className="font-semibold text-base text-zinc-900 dark:text-slate-100 flex items-center gap-2">
+        <h3 className="font-semibold text-sm text-zinc-900 dark:text-slate-100 flex items-center gap-2">
           <Activity size={16} className="text-teal-600" /> Evaluation Analytics
         </h3>
         <div className="flex items-center gap-2">
@@ -87,32 +87,32 @@ export default function CampaignEvaluationReport({ campaignId }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-zinc-100 dark:divide-slate-700">
         <div className="p-4 flex flex-col gap-1 hover:bg-zinc-50/50 dark:hover:bg-slate-800 transition-colors">
-          <div className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Total Evaluated</div>
+          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Total Evaluated</div>
           <div className="text-2xl font-bold text-zinc-900 dark:text-slate-100">{report.totalCalls}</div>
-          <div className="text-[10px] text-zinc-400 dark:text-slate-500">Calls processed by AI</div>
+          <div className="text-xs text-zinc-400 dark:text-slate-500">Calls processed by AI</div>
         </div>
 
         <div className="p-4 flex flex-col gap-1 hover:bg-zinc-50/50 dark:hover:bg-slate-800 transition-colors">
-          <div className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Target size={11} className="text-blue-500" /> Completion Rate
           </div>
           <div className="text-2xl font-bold text-blue-600">{completionPercent}%</div>
-          <div className="text-[10px] text-zinc-400 dark:text-slate-500">Reached end of script</div>
+          <div className="text-xs text-zinc-400 dark:text-slate-500">Reached end of script</div>
         </div>
 
         <div className="p-4 flex flex-col gap-1 hover:bg-zinc-50/50 dark:hover:bg-slate-800 transition-colors">
-          <div className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <TrendingUp size={11} className="text-emerald-500" /> Average AI Score
           </div>
           <div className="text-2xl font-bold text-emerald-600">{report.score?.avg ?? '-'}</div>
-          <div className="text-[10px] text-zinc-400 dark:text-slate-500 flex items-center gap-2">
+          <div className="text-xs text-zinc-400 dark:text-slate-500 flex items-center gap-2">
             <span>High: <strong className="text-zinc-700 dark:text-slate-300">{report.score?.max ?? '-'}</strong></span>
             <span>Low: <strong className="text-zinc-700 dark:text-slate-300">{report.score?.min ?? '-'}</strong></span>
           </div>
         </div>
 
         <div className="p-4 flex flex-col gap-1 hover:bg-zinc-50/50 dark:hover:bg-slate-800 transition-colors">
-          <div className="text-[10px] font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Sentiment</div>
+          <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Sentiment</div>
           <div className="flex flex-col gap-1 mt-1">
             {Object.entries(report.sentimentBreakdown || {}).length > 0 ? (
               Object.entries(report.sentimentBreakdown).slice(0, 3).map(([sentiment, count]) => {
@@ -124,14 +124,14 @@ export default function CampaignEvaluationReport({ campaignId }) {
                     ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700'
                     : 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
                 return (
-                  <div key={sentiment} className="flex items-center justify-between text-[11px] leading-tight">
-                    <span className={`px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase ${color}`}>{sentiment}</span>
+                  <div key={sentiment} className="flex items-center justify-between text-xs leading-tight">
+                    <span className={`px-1.5 py-0.5 rounded border text-xs font-medium uppercase ${color}`}>{sentiment}</span>
                     <span className="font-bold text-zinc-900 dark:text-slate-100">{count}</span>
                   </div>
                 );
               })
             ) : (
-              <span className="text-[11px] text-zinc-400 dark:text-slate-500 italic">No sentiment data</span>
+              <span className="text-xs text-zinc-400 dark:text-slate-500 italic">No sentiment data</span>
             )}
           </div>
         </div>
@@ -140,10 +140,10 @@ export default function CampaignEvaluationReport({ campaignId }) {
       {contacts.length > 0 && (
         <div className="border-t border-zinc-200 dark:border-slate-700">
           <div className="px-5 py-3 bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-700 flex justify-between items-center">
-            <h4 className="font-semibold text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="font-medium text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Activity size={11} /> Recent Evaluated Calls
             </h4>
-            <span className="text-[10px] font-medium text-zinc-500 dark:text-slate-400 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-zinc-200 dark:border-slate-600 shadow-sm">
+            <span className="text-xs font-medium text-zinc-500 dark:text-slate-400 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-zinc-200 dark:border-slate-600 shadow-sm">
               {contacts.length} / {contactsTotal}
             </span>
           </div>
@@ -152,7 +152,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
                   {['Contact', 'Outcome', 'Sentiment', 'Score', 'Extracted Data', 'Summary'].map(h => (
-                    <th key={h} className="px-5 py-3 text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-5 py-3 text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -163,7 +163,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
                     <tr key={c.callLogId} className="hover:bg-zinc-50/70 dark:hover:bg-slate-700/50 transition-colors">
                       <td className="px-5 py-4 font-semibold text-zinc-900 dark:text-slate-100 whitespace-nowrap">{c.contactName || 'Unknown'}</td>
                       <td className="px-5 py-4">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                           c.outcome === 'COMPLETED'
                             ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-700'
                             : 'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-700'
@@ -177,7 +177,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
                         {extractedEntries.length > 0 ? (
                           <div className="flex flex-wrap gap-1 max-w-[200px]">
                             {extractedEntries.map(([key, val]) => (
-                              <span key={key} className="bg-zinc-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-zinc-600 dark:text-slate-400 border border-zinc-200 dark:border-slate-600 text-[10px]">
+                              <span key={key} className="bg-zinc-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-zinc-600 dark:text-slate-400 border border-zinc-200 dark:border-slate-600 text-xs">
                                 <strong>{key}:</strong> {typeof val.value === 'object' ? '...' : val.value}
                               </span>
                             ))}

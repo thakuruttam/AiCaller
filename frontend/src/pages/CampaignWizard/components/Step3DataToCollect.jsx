@@ -19,7 +19,7 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
             : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
           } ${className}`}
       />
-      <div className={`absolute bottom-2 right-6 text-[10px] pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
+      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
         {count} / {limit} words{over ? ' — over limit' : ''}
       </div>
     </div>
@@ -215,9 +215,9 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         <div className="flex items-center gap-2">
           <AlertCircle size={15} className="text-red-600" />
           <h4 className="text-sm font-semibold text-red-700">End Call If</h4>
-          <span className="text-xs text-red-500">(max 500 words)</span>
+          <span className="text-xs font-medium text-red-500">(max 500 words)</span>
         </div>
-        <p className="text-xs text-red-600/80 leading-relaxed">
+        <p className="text-xs font-medium text-red-600/80 leading-relaxed">
           Describe any condition(s) under which the bot should immediately end the call. For example: <em>"If the contact says they are not interested at any point, immediately end the call."</em>
         </p>
         <WordLimitTextarea
@@ -235,7 +235,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
           <CheckCircle2 size={15} className="text-emerald-600" />
           <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Success Score Threshold</h4>
         </div>
-        <p className="text-xs text-zinc-500 dark:text-slate-400 leading-relaxed">
+        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 leading-relaxed">
           Calls whose final score falls below this threshold will be marked as <strong>Failed</strong> in reports.
         </p>
         <div className="flex flex-col gap-2 mt-1">
@@ -256,7 +256,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
               style={{ width: `${payload.rules?.successScore ?? 50}%` }}
             />
           </div>
-          <p className="text-[11px] text-zinc-500 dark:text-slate-400">
+          <p className="text-xs font-medium text-zinc-500 dark:text-slate-400">
             Current threshold: <strong className="text-zinc-700 dark:text-slate-300">{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
           </p>
         </div>

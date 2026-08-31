@@ -179,7 +179,7 @@ export default function QuestionCard({
                   : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
               }`} />
             {item.itemType === 'question' && !item.text?.trim() && (
-              <p className="text-xs text-red-500 mt-0.5">Question text is required — the bot will skip this item.</p>
+              <p className="text-xs font-medium text-red-500 mt-0.5">Question text is required — the bot will skip this item.</p>
             )}
           </div>
 
@@ -223,7 +223,7 @@ export default function QuestionCard({
                       placeholder={"Describe what a good answer looks like in plain English.\n\ne.g. Should have an engineering degree and Node.js experience. Give 0 if no experience, proportional marks for 1–4 years, full marks for 5+ years."}
                       className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-y"
                     />
-                    <p className="text-xs text-zinc-400 dark:text-slate-500">
+                    <p className="text-xs font-medium text-zinc-400 dark:text-slate-500">
                       AI uses this to score the answer in reports. Describe criteria and scoring thresholds in plain English. This tab must stay selected for it to govern scoring — switching back to Condition uses that rule instead, even if this is filled in.
                     </p>
                   </div>
@@ -293,7 +293,7 @@ export default function QuestionCard({
                             : 'e.g. If user has less than 2 years of experience'}
                           className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-y"
                         />
-                        <p className="text-xs text-zinc-400 dark:text-slate-500">
+                        <p className="text-xs font-medium text-zinc-400 dark:text-slate-500">
                           AI evaluates this live during the call against the user's answer.
                         </p>
                       </div>
@@ -327,7 +327,7 @@ export default function QuestionCard({
                     <span className="text-xs font-medium text-zinc-700 dark:text-slate-300 flex items-center gap-1.5">
                       <Database size={12} className="text-teal-600" /> Fields to Extract
                     </span>
-                    <span className="text-xs text-zinc-400 dark:text-slate-500">
+                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">
                       {hasSubFields
                         ? 'Each sub-field weight counts toward the call score when that value is extracted'
                         : 'Default: extracts the full answer. Add specific fields for per-field weight scoring.'}
@@ -380,7 +380,7 @@ export default function QuestionCard({
                             })}
                             className="w-12 h-7 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-1 text-xs text-center tabular-nums text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500/30"
                           />
-                          <span className="text-xs text-zinc-400 dark:text-slate-500">%</span>
+                          <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">%</span>
                         </div>
                         <button
                           type="button"
@@ -400,7 +400,7 @@ export default function QuestionCard({
                 <div className="flex items-center justify-between flex-1 min-w-[200px]">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-medium text-zinc-700 dark:text-slate-300">Mandatory</span>
-                    <span className="text-xs text-zinc-400 dark:text-slate-500">Bot retries if no valid answer received</span>
+                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">Bot retries if no valid answer received</span>
                   </div>
                   <button type="button" role="switch" aria-checked={item.is_mandatory}
                     onClick={() => update({ is_mandatory: !item.is_mandatory })}
@@ -412,7 +412,7 @@ export default function QuestionCard({
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-medium text-zinc-700 dark:text-slate-300 text-right">Call Score Weight</span>
-                    <span className="text-xs text-zinc-400 dark:text-slate-500">
+                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">
                       {hasSubFields ? 'Sub-fields split this equally' : 'Contribution to success score'}
                     </span>
                   </div>
@@ -424,7 +424,7 @@ export default function QuestionCard({
                         fieldsToExtract: (item.fieldsToExtract || []).map(sf => ({ ...sf, isWeightManuallySet: false }))
                       })}
                       className="w-16 h-8 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-sm text-center tabular-nums text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
-                    <span className="text-xs text-zinc-400 dark:text-slate-500 font-medium">%</span>
+                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500 font-medium">%</span>
                   </div>
                 </div>
               </div>

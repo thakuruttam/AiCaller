@@ -24,7 +24,7 @@ function SectionHeader({ icon: Icon, title, count }) {
 function ReviewField({ label, value }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{label}</div>
+      <div className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">{label}</div>
       <div className="text-sm font-medium text-zinc-900 dark:text-slate-100">{value || '-'}</div>
     </div>
   );
@@ -66,21 +66,21 @@ export default function Step7Review({ payload, onLaunch }) {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Contacts</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Contacts</p>
               <p className="text-xl font-bold text-zinc-900 dark:text-slate-100 mt-0.5">{(contacts || []).length}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Max / call</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Max / call</p>
               <p className="text-xl font-bold text-zinc-900 dark:text-slate-100 mt-0.5">{maxDurationMin} min</p>
             </div>
             <div>
-              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Est. minutes</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Est. minutes</p>
               <p className="text-xl font-bold text-zinc-900 dark:text-slate-100 mt-0.5">{estimatedMinutes.toLocaleString('en-IN')}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Est. cost</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Est. cost</p>
               <p className="text-xl font-bold text-teal-700 dark:text-teal-400 mt-0.5">₹{estimatedCost.toLocaleString('en-IN')}</p>
-              <p className="text-[10px] text-zinc-400 mt-0.5">at ₹5/min</p>
+              <p className="text-xs font-medium text-zinc-400 mt-0.5">at ₹5/min</p>
             </div>
           </div>
         </div>
@@ -141,14 +141,14 @@ export default function Step7Review({ payload, onLaunch }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${q.itemType === 'question' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
+                          <span className={`text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border ${q.itemType === 'question' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
                             {q.itemType}
                           </span>
                           {q.is_mandatory && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">Mandatory</span>
+                            <span className="text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">Mandatory</span>
                           )}
                           {q.itemType === 'question' && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-slate-500">
+                            <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 dark:text-slate-500">
                               Weight: {effectiveWeight}%
                             </span>
                           )}
@@ -226,12 +226,12 @@ export default function Step7Review({ payload, onLaunch }) {
 
                             {hasSubFields && (
                               <div className="flex flex-col gap-1 mt-1">
-                                <span className="text-[10px] uppercase font-bold text-zinc-400 dark:text-slate-500 flex items-center gap-1">
+                                <span className="text-xs uppercase font-medium text-zinc-400 dark:text-slate-500 flex items-center gap-1">
                                   <Database size={9} /> Extract {sfs.length} field{sfs.length !== 1 ? 's' : ''}
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {sfs.map((sf, si) => (
-                                    <span key={si} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5 text-[11px] font-medium">
+                                    <span key={si} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium">
                                       {sf.field} <span className="opacity-60">({sf.type})</span> <span className="font-bold">{sf.weight}%</span>
                                     </span>
                                   ))}
@@ -247,7 +247,7 @@ export default function Step7Review({ payload, onLaunch }) {
               </div>
 
               {/* Weight total */}
-              <div className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-zinc-200 dark:border-slate-700 text-xs text-zinc-500 dark:text-slate-400">
+              <div className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-zinc-200 dark:border-slate-700 text-xs font-medium text-zinc-500 dark:text-slate-400">
                 <CheckCircle2 size={13} className={totalWeight === 100 ? 'text-emerald-500' : 'text-zinc-400'} />
                 Total Call Score Weight: <strong className="text-zinc-700 dark:text-slate-300">{totalWeight}%</strong>
                 {totalWeight !== 100 && <span className="text-red-500 font-medium ml-1">(Weight does not sum to 100%)</span>}
@@ -255,7 +255,7 @@ export default function Step7Review({ payload, onLaunch }) {
 
               {endCallIf && (
                 <div className="p-4 rounded-xl border border-red-200 bg-red-50">
-                  <div className="text-xs font-semibold text-red-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <div className="text-xs font-medium text-red-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                     <AlertCircle size={11} /> Global "End Call If" Condition
                   </div>
                   <p className="text-sm text-red-800 italic">{endCallIf}</p>
@@ -277,7 +277,7 @@ export default function Step7Review({ payload, onLaunch }) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{contacts?.length} Contacts Queued</p>
-                <p className="text-xs text-zinc-500 dark:text-slate-400">The bot will dial these numbers sequentially.</p>
+                <p className="text-xs font-medium text-zinc-500 dark:text-slate-400">The bot will dial these numbers sequentially.</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -286,7 +286,7 @@ export default function Step7Review({ payload, onLaunch }) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{overrideCount} Overrides Set</p>
-                <p className="text-xs text-zinc-500 dark:text-slate-400">Contacts with personalized call logic.</p>
+                <p className="text-xs font-medium text-zinc-500 dark:text-slate-400">Contacts with personalized call logic.</p>
               </div>
             </div>
           </div>

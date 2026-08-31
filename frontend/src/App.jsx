@@ -209,34 +209,34 @@ function BalanceWidget() {
   const isLow = balance.minuteBalance <= 30;
   const isDepleted = balance.minuteBalance === 0;
 
-  const borderColor = isDepleted ? 'border-red-700/40' : isLow ? 'border-amber-700/40' : 'border-zinc-700/40';
-  const bgColor     = isDepleted ? 'bg-red-900/30'     : isLow ? 'bg-amber-900/30'     : 'bg-zinc-800/60';
-  const numColor    = isDepleted ? 'text-red-400'       : isLow ? 'text-amber-400'       : 'text-white';
+  const borderColor = isDepleted ? 'border-red-300 dark:border-red-700/40' : isLow ? 'border-amber-300 dark:border-amber-700/40' : 'border-[#e2e8f0] dark:border-zinc-700/40';
+  const bgColor     = isDepleted ? 'bg-red-50 dark:bg-red-900/30'          : isLow ? 'bg-amber-50 dark:bg-amber-900/30'          : 'bg-[#f8fafc] dark:bg-zinc-800/60';
+  const numColor    = isDepleted ? 'text-red-600 dark:text-red-400'        : isLow ? 'text-amber-600 dark:text-amber-400'        : 'text-[#0f172a] dark:text-white';
 
   return (
     <div className={`mx-3 mb-2 rounded-lg border overflow-hidden ${bgColor} ${borderColor}`}>
       {/* Balance row → goes to /billing */}
-      <NavLink to="/billing" className="block px-3 pt-2.5 pb-2 hover:bg-white/5 transition-colors">
+      <NavLink to="/billing" className="block px-3 pt-2.5 pb-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Balance</span>
-          {isDepleted && <span className="text-[10px] font-bold text-red-400">TOP UP</span>}
-          {isLow && !isDepleted && <span className="text-[10px] font-bold text-amber-400">LOW</span>}
+          <span className="text-[10px] font-semibold text-[#64748b] dark:text-zinc-400 uppercase tracking-wider">Balance</span>
+          {isDepleted && <span className="text-[10px] font-bold text-red-600 dark:text-red-400">TOP UP</span>}
+          {isLow && !isDepleted && <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">LOW</span>}
         </div>
         <div className="flex items-end gap-1.5">
           <span className={`text-lg font-bold leading-none ${numColor}`}>
             {balance.minuteBalance.toLocaleString('en-IN')}
           </span>
-          <span className="text-xs text-zinc-500 mb-0.5">min</span>
+          <span className="text-xs text-[#64748b] dark:text-zinc-500 mb-0.5">min</span>
         </div>
       </NavLink>
 
       {/* Usage row → goes to /usage */}
       <NavLink
         to="/usage"
-        className="flex items-center justify-between px-3 py-1.5 border-t border-white/10 hover:bg-white/5 transition-colors"
+        className="flex items-center justify-between px-3 py-1.5 border-t border-[#e2e8f0] dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
       >
-        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Usage</span>
-        <span className="material-symbols-outlined text-[14px] text-zinc-500">arrow_forward</span>
+        <span className="text-[10px] font-semibold text-[#64748b] dark:text-zinc-400 uppercase tracking-wider">Usage</span>
+        <span className="material-symbols-outlined text-[14px] text-[#94a3b8] dark:text-zinc-500">arrow_forward</span>
       </NavLink>
     </div>
   );
@@ -257,7 +257,25 @@ function ThemeToggle() {
   );
 }
 
-function Sidebar() {
+export const SIDEBAR_WIDTH = 280;
+export const SIDEBAR_WIDTH_COLLAPSED = 76;
+
+// Icon sits centered in a fixed-width slot (matching the collapsed rail width,
+// minus the 4px border-l-4 every nav item carries for its active-state accent)
+// so it's always in the same spot whether the sidebar is collapsed or
+// expanded — the label just appears to the right of that slot, so the icon
+// itself never moves during the collapse/expand transition. Sized to the
+// border-reduced width (not the full rail width) so it doesn't overflow past
+// the item's own edge, which would off-center it relative to the header's
+// hamburger/chevron toggle (whose wrapper carries a matching transparent
+// border-l-4 so both land on the same center).
+const NavIcon = ({ children }) => (
+  <span className="shrink-0 flex items-center justify-center" style={{ width: `${SIDEBAR_WIDTH_COLLAPSED - 4}px` }}>
+    <span className="material-symbols-outlined [--icon-size:16px]">{children}</span>
+  </span>
+);
+
+function Sidebar({ collapsed, onToggleCollapse }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -267,86 +285,138 @@ function Sidebar() {
     navigate('/login');
   };
 
-  const navItemBase = 'flex items-center gap-3 px-4 py-3 transition-all text-sm font-mono';
-  const activeClass = `${navItemBase} text-white bg-zinc-800 border-l-4 border-[#0d9488]`;
-  const inactiveClass = `${navItemBase} text-zinc-400 hover:text-white hover:bg-zinc-800/50 border-l-4 border-transparent`;
+  const navItemBase = `flex items-center py-2.5 transition-all text-sm`;
+  const activeClass = `${navItemBase} text-[#0d9488] dark:text-white bg-[#e6fffa] dark:bg-zinc-800 border-l-4 border-[#0d9488]`;
+  const inactiveClass = `${navItemBase} text-[#475569] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800/50 border-l-4 border-transparent`;
 
   const isAt = (path) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
+  const navItems = [
+    { to: '/', end: true, icon: 'dashboard', label: 'Dashboard' },
+    { to: '/team', icon: 'group', label: 'My Team' },
+    { to: '/billing', icon: 'payments', label: 'Billing' },
+    { to: '/settings/workspace', icon: 'settings', label: 'Settings' },
+  ];
+
+  const logoBadge = (
+    <div className="w-10 h-10 bg-[#0f766e] rounded flex items-center justify-center shrink-0">
+      <span className="material-symbols-outlined text-white" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
+    </div>
+  );
+
   return (
-    <aside className="fixed left-0 top-0 h-full w-[280px] bg-[#0a0f1a] flex flex-col justify-between py-6 border-r border-white/5 shadow-sm z-50">
-      <div className="flex flex-col gap-8">
-        <div className="px-6 flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#0f766e] rounded flex items-center justify-center">
-            <span className="material-symbols-outlined text-white" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
-          </div>
-          <div>
-            <h1 className="font-bold text-white text-base leading-tight">AI Caller Pro</h1>
-            <p className="text-zinc-400 text-[11px] uppercase tracking-widest" style={{fontFamily:'JetBrains Mono, monospace'}}>Enterprise Operations</p>
-          </div>
+    <aside
+      className="fixed left-0 top-0 h-full bg-white dark:bg-[#0a0f1a] flex flex-col justify-between py-4 border-r border-[#e2e8f0] dark:border-white/5 shadow-sm z-50 transition-[width] duration-200 overflow-x-hidden overflow-y-auto scrollbar-none"
+      style={{ width: `${collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}px` }}
+    >
+      <div className="flex flex-col gap-4">
+        {/* Fixed-height header so the nav list below always starts at the same
+            Y position whether collapsed or expanded — otherwise the differing
+            header heights make the nav icons jump during the toggle. Both
+            states share the same structure now: logo block, then the toggle
+            on its own row, then nav — matching the reference. */}
+        <div className="h-[92px] flex flex-col justify-center">
+          {collapsed ? (
+            // border-l-4 (transparent) matches the nav items' active-state accent
+            // border below, so both center within the same reduced content width
+            // and the hamburger lines up exactly with the nav icons under it.
+            <div className="flex flex-col items-center gap-3 border-l-4 border-transparent">
+              {logoBadge}
+              <button
+                onClick={onToggleCollapse}
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[#64748b] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488]/40"
+              >
+                <span className="material-symbols-outlined text-[22px]">menu</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 min-w-0 px-4">
+                {logoBadge}
+                <div className="min-w-0">
+                  <h1 className="font-bold text-[#0f172a] dark:text-white text-base leading-tight truncate">AI Caller Pro</h1>
+                  <p className="text-[#64748b] dark:text-zinc-400 text-[11px] uppercase tracking-widest truncate">Enterprise Operations</p>
+                </div>
+              </div>
+              <div className="flex justify-end px-4">
+                <button
+                  onClick={onToggleCollapse}
+                  aria-label="Collapse sidebar"
+                  title="Collapse sidebar"
+                  className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[#64748b] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488]/40"
+                >
+                  <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <nav className="flex flex-col">
-          <NavLink to="/" end className={isAt('/') ? activeClass : inactiveClass}>
-            <span className="material-symbols-outlined text-[20px]">dashboard</span>
-            <span>Dashboard</span>
-          </NavLink>
+        <nav className="flex flex-col gap-1">
+          {navItems.map(({ to, end, icon, label }) => (
+            <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={isAt(to) ? activeClass : inactiveClass}>
+              <NavIcon>{icon}</NavIcon>
+              {!collapsed && <span>{label}</span>}
+            </NavLink>
+          ))}
 
           <RoleGate allow={['SUPER_ADMIN']}>
-            <NavLink to="/admin" className={isAt('/admin') ? activeClass : inactiveClass}>
-              <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
-              <span>Admin Panel</span>
+            <NavLink to="/admin" title={collapsed ? 'Admin Panel' : undefined} className={isAt('/admin') ? activeClass : inactiveClass}>
+              <NavIcon>admin_panel_settings</NavIcon>
+              {!collapsed && <span>Admin Panel</span>}
             </NavLink>
           </RoleGate>
           <RoleGate allow={['SUPER_ADMIN', 'ADMIN']}>
-            <NavLink to="/docs" className={isAt('/docs') ? activeClass : inactiveClass}>
-              <span className="material-symbols-outlined text-[20px]">menu_book</span>
-              <span>Docs</span>
+            <NavLink to="/docs" title={collapsed ? 'Docs' : undefined} className={isAt('/docs') ? activeClass : inactiveClass}>
+              <NavIcon>menu_book</NavIcon>
+              {!collapsed && <span>Docs</span>}
             </NavLink>
           </RoleGate>
-          <NavLink to="/team" className={isAt('/team') ? activeClass : inactiveClass}>
-            <span className="material-symbols-outlined text-[20px]">group</span>
-            <span>My Team</span>
-          </NavLink>
-          <NavLink to="/billing" className={isAt('/billing') ? activeClass : inactiveClass}>
-            <span className="material-symbols-outlined text-[20px]">payments</span>
-            <span>Billing</span>
-          </NavLink>
-          <NavLink to="/settings/workspace" className={isAt('/settings') ? activeClass : inactiveClass}>
-            <span className="material-symbols-outlined text-[20px]">settings</span>
-            <span>Settings</span>
-          </NavLink>
         </nav>
 
         <div className="px-4">
-          <button onClick={() => navigate('/create-campaign')} className="w-full bg-[#0d9488] hover:bg-[#0f766e] text-white py-3 rounded-lg text-sm flex items-center justify-center gap-2 transition-all active:scale-95" style={{fontFamily:'JetBrains Mono, monospace'}}>
-            <span className="material-symbols-outlined text-[18px]">campaign</span>
-            New Campaign
+          <button
+            onClick={() => navigate('/create-campaign')}
+            title={collapsed ? 'New Campaign' : undefined}
+            className="w-full bg-[#0d9488] hover:bg-[#0f766e] text-white py-3 rounded-lg text-sm flex items-center transition-all active:scale-95"
+          >
+            {/* Icon slot is fixed to the collapsed button's own content width
+                (76px rail - 16px*2 wrapper padding = 44px), so it's centered
+                in the collapsed square AND sits at that exact same X once
+                expanded — the label just appears after the slot, so the icon
+                never moves between states. */}
+            <span className="shrink-0 flex items-center justify-center" style={{ width: '44px' }}>
+              <span className="material-symbols-outlined text-[18px]">campaign</span>
+            </span>
+            {!collapsed && 'New Campaign'}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 pt-4">
-        <BalanceWidget />
-        <div className="border-t border-zinc-800 pt-3 flex flex-col">
+      <div className="flex flex-col gap-1 pt-2">
+        {!collapsed && <BalanceWidget />}
+        <div className="border-t border-[#e2e8f0] dark:border-zinc-800 pt-2 flex flex-col gap-1">
           <NavLink
             to="/support"
-            className={({ isActive }) => isActive
-              ? 'flex items-center gap-3 px-4 py-3 text-white bg-zinc-800/70 rounded-lg text-sm'
-              : 'flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-all text-left w-full text-sm rounded-lg'
-            }
-            style={{fontFamily:'JetBrains Mono, monospace'}}
+            title={collapsed ? 'Support' : undefined}
+            className={({ isActive }) => `flex items-center py-2.5 transition-all text-left w-full text-sm rounded-lg ${isActive ? 'text-[#0d9488] dark:text-white bg-[#f0fdfa] dark:bg-zinc-800/70' : 'text-[#475569] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800/50'}`}
           >
-            <span className="material-symbols-outlined text-[20px]">contact_support</span>
-            Support
+            <NavIcon>contact_support</NavIcon>
+            {!collapsed && 'Support'}
           </NavLink>
           {user && (
-            <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors text-left w-full text-sm" style={{fontFamily:'JetBrains Mono, monospace'}}>
-              <span className="material-symbols-outlined text-[20px]">logout</span>
-              Sign out
+            <button
+              onClick={handleLogout}
+              title={collapsed ? 'Sign out' : undefined}
+              className="flex items-center py-2.5 text-[#64748b] dark:text-zinc-500 hover:text-[#334155] dark:hover:text-zinc-200 hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors text-left w-full text-sm"
+            >
+              <NavIcon>logout</NavIcon>
+              {!collapsed && 'Sign out'}
             </button>
           )}
         </div>
@@ -355,14 +425,18 @@ function Sidebar() {
   );
 }
 
-function TopBar() {
+function TopBar({ collapsed }) {
   const { user } = useAuth();
   const location = useLocation();
   const isDocsRoute = location.pathname.startsWith('/docs');
   const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
+  const sidebarWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
 
   return (
-    <header className={`fixed top-0 right-0 ${isDocsRoute ? 'w-full' : 'w-[calc(100%-280px)]'} bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm`}>
+    <header
+      className="fixed top-0 right-0 bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm transition-[width] duration-200"
+      style={{ width: isDocsRoute ? '100%' : `calc(100% - ${sidebarWidth}px)` }}
+    >
       <div className="flex items-center gap-4 flex-1">
         <div className="relative w-full max-w-md">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] dark:text-slate-400 text-[18px]">search</span>
@@ -376,7 +450,7 @@ function TopBar() {
         <div className="h-8 w-px bg-[#cbd5e1] dark:bg-slate-700 mx-2"></div>
         <div className="flex items-center gap-3">
           <div className="text-right hidden lg:block">
-            <p className="text-sm text-[#0f172a] dark:text-slate-100 font-medium leading-tight" style={{fontFamily:'JetBrains Mono, monospace'}}>{user?.name || 'User'}</p>
+            <p className="text-sm text-[#0f172a] dark:text-slate-100 font-medium leading-tight">{user?.name || 'User'}</p>
             <p className="text-[10px] text-[#64748b] dark:text-slate-400 uppercase tracking-wider">{user?.workspaceRole || user?.role}</p>
           </div>
           <div className="w-9 h-9 rounded-full bg-[#0f766e] flex items-center justify-center text-white text-sm font-bold border border-[#cbd5e1] dark:border-slate-600 overflow-hidden shrink-0">
@@ -393,12 +467,26 @@ function TopBar() {
 function AppLayout() {
   const location = useLocation();
   const isDocsRoute = location.pathname.startsWith('/docs');
+  const [collapsed, setCollapsed] = useState(() => {
+    const stored = localStorage.getItem('sidebarCollapsed');
+    return stored === null ? true : stored === '1';
+  });
+
+  const toggleCollapse = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebarCollapsed', next ? '1' : '0');
+      return next;
+    });
+  };
+
+  const contentMargin = isDocsRoute ? 0 : (collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc] dark:bg-slate-900">
-      {!isDocsRoute && <Sidebar />}
-      <div className={`${isDocsRoute ? '' : 'ml-[280px]'} flex-1 flex flex-col overflow-hidden`}>
-        <TopBar />
+      {!isDocsRoute && <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />}
+      <div className="flex-1 flex flex-col overflow-hidden transition-[margin] duration-200" style={{ marginLeft: `${contentMargin}px` }}>
+        <TopBar collapsed={collapsed} />
         <main className="flex-1 overflow-y-auto pt-16">
           <Routes>
             <Route path="/" element={<Dashboard />} />

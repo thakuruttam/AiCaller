@@ -57,12 +57,17 @@ model User {
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
 
+  invitedById  String?
+  invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id])
+  invitedUsers User[]     @relation("UserInvitedBy")
+
   workspaces     WorkspaceMember[]
   refreshTokens  RefreshToken[]
   campaigns      Campaign[]
   notifications  Notification[]
 
   @@index([googleId])
+  @@index([invitedById])
 }
 
 model WorkspaceMember {

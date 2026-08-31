@@ -104,7 +104,7 @@ export default function WorkspaceSettings() {
 
   const Field = ({ label, children }) => (
     <div>
-      <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">{label}</label>
+      <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">{label}</label>
       {children}
     </div>
   );
@@ -113,8 +113,8 @@ export default function WorkspaceSettings() {
     <div className="p-8 max-w-[1440px] mx-auto">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight">Settings</h1>
-          <p className="text-base text-[#334155] dark:text-slate-400 mt-1">Manage your profile and workspace configuration.</p>
+          <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Settings</h1>
+          <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Manage your profile and workspace configuration.</p>
         </div>
       </div>
 
@@ -146,28 +146,28 @@ export default function WorkspaceSettings() {
               <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
             <div>
-              <p className="text-base font-semibold text-[#0f172a] dark:text-slate-100">{user?.name}</p>
+              <p className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{user?.name}</p>
               <p className="text-sm text-[#334155] dark:text-slate-400 mt-0.5">{user?.email}</p>
             </div>
             <div className="flex flex-col items-center gap-2 w-full">
               <button
                 onClick={() => avatarRef.current?.click()}
-                className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-medium text-[#0d9488] hover:bg-[#e6fffa] transition-colors"
+                className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-[#0d9488] hover:bg-[#e6fffa] transition-colors"
               >
                 Change photo
               </button>
               {avatarPreview && avatarPreview !== (user?.avatarUrl || null) && (
                 <button
                   onClick={() => { setAvatarPreview(user?.avatarUrl || null); setAvatarData(null); }}
-                  className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-medium text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                 >
                   Remove photo
                 </button>
               )}
             </div>
             <div className="w-full pt-4 border-t border-zinc-100 dark:border-slate-800">
-              <p className="text-[10px] font-semibold text-[#334155] uppercase tracking-wider mb-2">Workspace Role</p>
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
+              <p className="text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Workspace Role</p>
+              <span className={`text-xs font-medium px-3 py-1.5 rounded-full border ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
                 {user?.workspaceRole || user?.role}
               </span>
             </div>
@@ -175,7 +175,7 @@ export default function WorkspaceSettings() {
 
           {/* Right: Edit form */}
           <div className="lg:col-span-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Personal Information</h3>
+            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Personal Information</h3>
             <div className="space-y-5 max-w-lg">
               <Field label="Display Name">
                 <input
@@ -197,7 +197,6 @@ export default function WorkspaceSettings() {
                 onClick={saveProfile}
                 disabled={savingProfile}
                 className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                style={{fontFamily:'JetBrains Mono, monospace'}}
               >
                 {savingProfile
                   ? <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span> Saving…</>
@@ -213,10 +212,10 @@ export default function WorkspaceSettings() {
       {tab === 'general' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Workspace Information</h3>
+            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Workspace Information</h3>
             <div className="space-y-5 max-w-lg">
               <div>
-                <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">Workspace Name</label>
+                <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Workspace Name</label>
                 <div className="flex gap-3">
                   <input
                     value={workspaceName}
@@ -229,7 +228,6 @@ export default function WorkspaceSettings() {
                       onClick={saveName}
                       disabled={savingName || workspaceName === currentWorkspace?.name}
                       className="px-5 h-10 bg-[#0d9488] text-white rounded-lg text-sm font-semibold hover:bg-[#0f766e] disabled:opacity-40 transition-colors"
-                      style={{fontFamily:'JetBrains Mono, monospace'}}
                     >
                       {savingName ? 'Saving…' : 'Save'}
                     </button>
@@ -237,14 +235,14 @@ export default function WorkspaceSettings() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">Workspace ID</label>
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-xs text-[#334155] font-mono select-all">
+                <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Workspace ID</label>
+                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-xs text-[#334155] select-all">
                   {workspaceId}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#334155] uppercase tracking-wider mb-2">Slug</label>
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm text-[#334155] font-mono">
+                <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Slug</label>
+                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm text-[#334155]">
                   {currentWorkspace?.slug || '—'}
                 </div>
               </div>
@@ -252,9 +250,9 @@ export default function WorkspaceSettings() {
           </div>
 
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col gap-3">
-            <h3 className="text-base font-semibold text-[#0f172a] dark:text-slate-100 mb-1">Your Access</h3>
+            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-1">Your Access</h3>
             <p className="text-sm text-[#334155] dark:text-slate-400">Your role determines what you can do in this workspace.</p>
-            <span className={`self-start text-xs font-bold px-3 py-1.5 rounded-full border mt-2 ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
+            <span className={`self-start text-xs font-medium px-3 py-1.5 rounded-full border mt-2 ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
               {user?.workspaceRole || user?.role}
             </span>
           </div>

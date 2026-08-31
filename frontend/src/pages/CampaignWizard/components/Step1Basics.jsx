@@ -54,7 +54,7 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, minHeight = '6
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
       />
-      <div className={`absolute bottom-2 right-6 text-[10px] pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
+      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
         {count} / {limit} words{over ? ' — over limit' : ''}
       </div>
     </div>
@@ -67,7 +67,7 @@ function SuggestionPills({ items, onSelect }) {
       {items.map((s, i) => (
         <button
           key={i} type="button" onClick={() => onSelect(s)}
-          className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 dark:border-slate-600 bg-zinc-50 dark:bg-slate-800/50 px-2.5 py-0.5 text-[11px] text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 dark:border-slate-600 bg-zinc-50 dark:bg-slate-800/50 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
         >
           <Lightbulb size={10} />
           {s.length > 50 ? s.slice(0, 47) + '…' : s}
@@ -99,7 +99,7 @@ export default function Step1Basics({ payload, updatePayload }) {
 
       {/* Campaign name */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-zinc-700 dark:text-slate-300">
+        <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">
           Campaign Name <span className="text-red-500">*</span>
         </label>
         <input
@@ -113,7 +113,7 @@ export default function Step1Basics({ payload, updatePayload }) {
 
       {/* Campaign type */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-zinc-700 dark:text-slate-300">
+        <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">
           Campaign Type <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
@@ -128,8 +128,8 @@ export default function Step1Basics({ payload, updatePayload }) {
                   : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
                 }`}
             >
-              <span className="text-[13px] font-semibold">{label}</span>
-              <span className="text-[10px] text-zinc-400 dark:text-slate-500 leading-snug">{desc}</span>
+              <span className="text-xs font-medium">{label}</span>
+              <span className="text-xs text-zinc-400 dark:text-slate-500 leading-snug">{desc}</span>
             </button>
           ))}
         </div>
@@ -139,11 +139,11 @@ export default function Step1Basics({ payload, updatePayload }) {
       <div className="flex flex-col gap-1.5 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
         <div className="flex items-center gap-1.5">
           <Timer size={13} className="text-teal-600" />
-          <label className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">
+          <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">
             Max Call Duration <span className="text-red-500">*</span>
           </label>
         </div>
-        <p className="text-xs text-zinc-500 dark:text-slate-400 -mt-0.5">
+        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
           The call will automatically end 4 seconds before this limit. Can be overridden per contact.
         </p>
         <div className="flex items-center gap-3 mt-1">
@@ -162,7 +162,7 @@ export default function Step1Basics({ payload, updatePayload }) {
           </div>
           <span className="text-sm text-zinc-500">minutes per call</span>
           {payload.callSettings?.maxDuration && (
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">
               ≈ ₹{payload.callSettings.maxDuration * 5} estimated per call
             </span>
           )}
@@ -174,7 +174,7 @@ export default function Step1Basics({ payload, updatePayload }) {
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <Lightbulb size={13} className="text-teal-600" />
-            <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">Primary Goal</h4>
+            <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Primary Goal</h4>
           </div>
           <WordLimitTextarea
             value={goals.goal} onChange={v => setGoal('goal', v)} limit={100}
@@ -188,7 +188,7 @@ export default function Step1Basics({ payload, updatePayload }) {
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <PhoneIncoming size={13} className="text-teal-600" />
-            <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">Introduction</h4>
+            <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Introduction</h4>
           </div>
           <WordLimitTextarea
             value={goals.callIntro} onChange={v => setGoal('callIntro', v)} limit={300}
@@ -202,7 +202,7 @@ export default function Step1Basics({ payload, updatePayload }) {
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <PhoneOff size={13} className="text-teal-600" />
-            <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-slate-200">Sign-off</h4>
+            <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Sign-off</h4>
           </div>
           <WordLimitTextarea
             value={goals.callSignOff} onChange={v => setGoal('callSignOff', v)} limit={300}

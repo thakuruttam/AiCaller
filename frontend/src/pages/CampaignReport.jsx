@@ -56,7 +56,7 @@ function ShareModal({ campaignId, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-500 transition-colors">
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -68,7 +68,7 @@ function ShareModal({ campaignId, onClose }) {
               Generate a public link to share all call reports for this campaign. No login required.
             </p>
             <div className="mb-5">
-              <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-400 uppercase tracking-wider mb-2">Link Valid For</label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-slate-400 uppercase tracking-wider mb-2">Link Valid For</label>
               <div className="flex gap-2">
                 {[3, 7, 14, 30].map(d => (
                   <button
@@ -95,7 +95,7 @@ function ShareModal({ campaignId, onClose }) {
               Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong>
             </p>
             <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-200 dark:border-slate-600 bg-zinc-50 dark:bg-slate-900 mb-4">
-              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all font-mono">{link.url}</span>
+              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all">{link.url}</span>
               <button onClick={copy} className="shrink-0 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-700 transition-colors text-zinc-500">
                 <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
               </button>
@@ -253,7 +253,7 @@ export default function CampaignReport() {
 
   if (error) return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Campaign Details
       </Link>
@@ -266,7 +266,7 @@ export default function CampaignReport() {
 
   if (!metrics || metrics.totalCalls === 0) return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6" style={{fontFamily:'JetBrains Mono, monospace'}}>
+      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Campaign Details
       </Link>
@@ -309,18 +309,17 @@ export default function CampaignReport() {
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <Link to="/" className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-3" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <Link to="/" className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-3">
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Active Campaigns
             </Link>
-            <h2 className="text-3xl font-semibold text-[#0f172a] dark:text-slate-100 tracking-tight mb-1">Campaign Performance Report</h2>
+            <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight mb-1">Campaign Performance Report</h2>
             <p className="text-[#334155] dark:text-slate-400">AI evaluation analytics &amp; extracted data</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all"
-              style={{fontFamily:'JetBrains Mono, monospace'}}
             >
               <span className="material-symbols-outlined text-[18px]">share</span>
               Share
@@ -329,7 +328,6 @@ export default function CampaignReport() {
               href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`}
               download
               className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all"
-              style={{fontFamily:'JetBrains Mono, monospace'}}
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
               Export CSV
@@ -337,8 +335,8 @@ export default function CampaignReport() {
             {progress && progress.total > 0 && (
               <div className="bg-[#e2e8f0] dark:bg-slate-800 p-4 rounded-xl min-w-[280px]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>AI Evaluation Progress</span>
-                  <span className="text-xs text-[#0d9488] dark:text-teal-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                  <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">AI Evaluation Progress</span>
+                  <span className="text-xs text-[#0d9488] dark:text-teal-400">
                     {progress.completed + progress.failed} / {progress.total} Evaluated
                   </span>
                 </div>
@@ -362,7 +360,7 @@ export default function CampaignReport() {
               <span className="material-symbols-outlined">task_alt</span>
             </span>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Total Evaluated</p>
+          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1">Total Evaluated</p>
           <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{total.toLocaleString()}</h3>
         </div>
 
@@ -372,7 +370,7 @@ export default function CampaignReport() {
               <span className="material-symbols-outlined">percent</span>
             </span>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Completion Rate</p>
+          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1">Completion Rate</p>
           <h3 className="text-2xl font-semibold text-[#0d9488] dark:text-teal-400">{completionPercent}%</h3>
         </div>
 
@@ -382,27 +380,27 @@ export default function CampaignReport() {
               <span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>star</span>
             </span>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1" style={{fontFamily:'JetBrains Mono, monospace'}}>Avg Score</p>
+          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1">Avg Score</p>
           <h3 className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{avgScore} / 100</h3>
         </div>
 
         <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-4" style={{fontFamily:'JetBrains Mono, monospace'}}>Sentiment Breakdown</p>
+          <p className="text-[#334155] dark:text-slate-400 text-sm mb-4">Sentiment Breakdown</p>
           <div className="flex flex-wrap gap-2">
             {posCount > 0 && (
-              <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full text-xs flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full text-xs flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-700 dark:bg-emerald-400 rounded-full" />
                 {Math.round((posCount / total) * 100)}% Pos
               </span>
             )}
             {neuCount > 0 && (
-              <span className="px-3 py-1 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-xs flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="px-3 py-1 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-xs flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-zinc-500 dark:bg-slate-400 rounded-full" />
                 {Math.round((neuCount / total) * 100)}% Neu
               </span>
             )}
             {negCount > 0 && (
-              <span className="px-3 py-1 bg-[#ffdad6] dark:bg-red-500/10 text-[#ba1a1a] dark:text-red-400 rounded-full text-xs flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+              <span className="px-3 py-1 bg-[#ffdad6] dark:bg-red-500/10 text-[#ba1a1a] dark:text-red-400 rounded-full text-xs flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-[#ba1a1a] dark:bg-red-400 rounded-full" />
                 {Math.round((negCount / total) * 100)}% Neg
               </span>
@@ -431,14 +429,12 @@ export default function CampaignReport() {
                 <button
                   onClick={() => setViewMode('contact')}
                   className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === 'contact' ? 'bg-white dark:bg-slate-800 text-[#0d9488] dark:text-teal-400 shadow-sm' : 'text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100'}`}
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >
                   By Contact
                 </button>
                 <button
                   onClick={() => setViewMode('question')}
                   className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === 'question' ? 'bg-white dark:bg-slate-800 text-[#0d9488] dark:text-teal-400 shadow-sm' : 'text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100'}`}
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >
                   By Question
                 </button>
@@ -458,7 +454,6 @@ export default function CampaignReport() {
                     <button
                       onClick={() => downloadQuestionView('csv')}
                       className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 rounded-lg text-xs text-[#334155] dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors"
-                      style={{fontFamily:'JetBrains Mono, monospace'}}
                       title="Download as CSV"
                     >
                       <span className="material-symbols-outlined text-[16px]">download</span>
@@ -467,7 +462,6 @@ export default function CampaignReport() {
                     <button
                       onClick={() => downloadQuestionView('excel')}
                       className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 rounded-lg text-xs text-[#334155] dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors"
-                      style={{fontFamily:'JetBrains Mono, monospace'}}
                       title="Download as Excel"
                     >
                       <span className="material-symbols-outlined text-[16px]">table_view</span>
@@ -485,7 +479,6 @@ export default function CampaignReport() {
                 <button
                   onClick={() => { setActiveFilter('All'); setPage(1); }}
                   className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all active:scale-95 ${activeFilter === 'All' ? 'bg-[#0d9488] text-white' : 'bg-[#e2e8f0] dark:bg-slate-700 text-[#0f172a] dark:text-slate-200 hover:bg-[#cbd5e1]/50 dark:hover:bg-slate-600'}`}
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >
                   All Results <span className={`px-1.5 rounded text-[10px] ${activeFilter === 'All' ? 'bg-white/20' : 'bg-[#0d9488]/10 dark:bg-teal-500/10 text-[#0d9488] dark:text-teal-400'}`}>{contacts.length}</span>
                 </button>
@@ -494,7 +487,6 @@ export default function CampaignReport() {
                     key={outcome}
                     onClick={() => { setActiveFilter(outcome); setPage(1); }}
                     className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${activeFilter === outcome ? 'bg-[#0d9488] text-white' : 'bg-[#e2e8f0] dark:bg-slate-700 text-[#0f172a] dark:text-slate-200 hover:bg-[#cbd5e1]/50 dark:hover:bg-slate-600'}`}
-                    style={{fontFamily:'JetBrains Mono, monospace'}}
                   >
                     {outcome.replace('_', ' ')}
                     <span className={`px-1.5 rounded text-[10px] ${activeFilter === outcome ? 'bg-white/20' : 'bg-zinc-200 dark:bg-slate-600 text-zinc-600 dark:text-slate-300'}`}>{count}</span>
@@ -507,14 +499,13 @@ export default function CampaignReport() {
             {viewMode === 'question' && allQuestions.length > 0 && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <p className="text-xs text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Select questions to display as columns:</p>
+                  <p className="text-xs text-[#64748b] dark:text-slate-400">Select questions to display as columns:</p>
                   <div className="flex items-center gap-1 bg-[#e2e8f0] dark:bg-slate-700 p-0.5 rounded-lg">
                     {[['text', 'Text'], ['score', 'Score'], ['both', 'Both']].map(([val, label]) => (
                       <button
                         key={val}
                         onClick={() => setCellDisplay(val)}
                         className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${cellDisplay === val ? 'bg-white dark:bg-slate-800 text-[#0d9488] dark:text-teal-400 shadow-sm' : 'text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100'}`}
-                        style={{fontFamily:'JetBrains Mono, monospace'}}
                       >{label}</button>
                     ))}
                   </div>
@@ -529,7 +520,6 @@ export default function CampaignReport() {
                         onClick={() => toggleQuestion(q)}
                         title={q}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${active ? 'bg-[#0d9488] text-white border-[#0d9488]' : 'bg-white dark:bg-slate-800 text-[#334155] dark:text-slate-300 border-zinc-200 dark:border-slate-600 hover:border-[#0d9488]/50'}`}
-                        style={{fontFamily:'JetBrains Mono, monospace'}}
                       >
                         <span className="max-w-[180px] truncate">{q.length > 40 ? q.slice(0, 40) + '…' : q}</span>
                         {avg != null && (
@@ -544,7 +534,7 @@ export default function CampaignReport() {
               </div>
             )}
             {viewMode === 'question' && allQuestions.length === 0 && (
-              <p className="text-sm text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>No extracted fields found. Make sure evaluation has run for at least one call.</p>
+              <p className="text-sm text-[#64748b] dark:text-slate-400">No extracted fields found. Make sure evaluation has run for at least one call.</p>
             )}
           </div>
         </section>
@@ -557,7 +547,7 @@ export default function CampaignReport() {
               <thead>
                 <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
                   {['Contact / Phone', 'Outcome', 'Sentiment', 'AI Score', 'Action'].map((h, i) => (
-                    <th key={h} className={`px-6 py-4 text-sm text-zinc-600 dark:text-slate-400 ${i === 4 ? 'text-right' : ''}`} style={{fontFamily:'JetBrains Mono, monospace'}}>{h}</th>
+                    <th key={h} className={`px-6 py-4 text-xs font-medium text-zinc-600 dark:text-slate-400 ${i === 4 ? 'text-right' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -573,7 +563,7 @@ export default function CampaignReport() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-medium text-[#0f172a] dark:text-slate-100">{c.contactName || 'Unknown'}</span>
-                          <span className="text-xs text-zinc-400 dark:text-slate-500" style={{fontFamily:'JetBrains Mono, monospace'}}>{c.contactPhone || '—'}</span>
+                          <span className="text-xs text-zinc-400 dark:text-slate-500">{c.contactPhone || '—'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -597,7 +587,7 @@ export default function CampaignReport() {
                             <div className="w-16 bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                               <div className="bg-emerald-500 h-full" style={{width: scoreW}} />
                             </div>
-                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100" style={{fontFamily:'JetBrains Mono, monospace'}}>{score}</span>
+                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{score}</span>
                           </div>
                         ) : (
                           <span className="text-sm text-zinc-400 dark:text-slate-500">—</span>
@@ -608,12 +598,11 @@ export default function CampaignReport() {
                           <Link
                             to={`/campaign/${id}/calls/${c.callLogId}/report`}
                             className="text-[#0d9488] dark:text-teal-400 text-sm hover:underline inline-flex items-center gap-1"
-                            style={{fontFamily:'JetBrains Mono, monospace'}}
                           >
                             View Report <span className="material-symbols-outlined text-[16px]">open_in_new</span>
                           </Link>
                         ) : (
-                          <span className="text-[#0d9488]/40 dark:text-teal-400/40 text-sm inline-flex items-center gap-1" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                          <span className="text-[#0d9488]/40 dark:text-teal-400/40 text-sm inline-flex items-center gap-1">
                             View Report <span className="material-symbols-outlined text-[16px]">lock</span>
                           </span>
                         )}
@@ -632,7 +621,7 @@ export default function CampaignReport() {
             </table>
           </div>
           <div className="px-6 py-4 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center border-t border-zinc-100 dark:border-slate-700">
-            <p className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <p className="text-xs text-[#334155] dark:text-slate-400">
               {isFs ? `${filteredContacts.length} evaluated calls` : `Showing ${paginated.length} of ${filteredContacts.length} evaluated calls`}
             </p>
             {!isFs && (
@@ -641,13 +630,11 @@ export default function CampaignReport() {
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
                   className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >Previous</button>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                   className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >Next</button>
               </div>
             )}
@@ -662,11 +649,11 @@ export default function CampaignReport() {
             <table className="w-full text-left border-collapse min-w-max">
               <thead>
                 <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
-                  <th className="px-6 py-4 text-sm text-zinc-600 dark:text-slate-400 sticky left-0 bg-zinc-50 dark:bg-slate-900 z-10 min-w-[180px]" style={{fontFamily:'JetBrains Mono, monospace'}}>Contact</th>
+                  <th className="px-6 py-4 text-xs font-medium text-zinc-600 dark:text-slate-400 sticky left-0 bg-zinc-50 dark:bg-slate-900 z-10 min-w-[180px]">Contact</th>
                   {selectedQuestions.map(q => {
                     const avg = questionAvgScores[q];
                     return (
-                      <th key={q} className="px-4 py-4 text-sm text-zinc-600 dark:text-slate-400 min-w-[200px] max-w-[240px]" style={{fontFamily:'JetBrains Mono, monospace'}}>
+                      <th key={q} className="px-4 py-4 text-xs font-medium text-zinc-600 dark:text-slate-400 min-w-[200px] max-w-[240px]">
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-[#0f172a] dark:text-slate-100 leading-snug line-clamp-2" title={q}>
                             {q.length > 55 ? q.slice(0, 55) + '…' : q}
@@ -689,7 +676,7 @@ export default function CampaignReport() {
                     <td className="px-6 py-4 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-zinc-50/50 dark:group-hover:bg-slate-700/50 z-10">
                       <div className="flex flex-col">
                         <span className="font-medium text-[#0f172a] dark:text-slate-100 text-sm">{c.contactName || 'Unknown'}</span>
-                        <span className="text-xs text-zinc-400 dark:text-slate-500" style={{fontFamily:'JetBrains Mono, monospace'}}>{c.contactPhone || '—'}</span>
+                        <span className="text-xs text-zinc-400 dark:text-slate-500">{c.contactPhone || '—'}</span>
                       </div>
                     </td>
                     {selectedQuestions.map(q => {
@@ -707,7 +694,7 @@ export default function CampaignReport() {
                               {(cellDisplay === 'score' || cellDisplay === 'both') && pct != null && (
                                 <div className="flex items-center gap-1.5">
                                   <span className={`w-2 h-2 rounded-full shrink-0 ${qScoreDot(pct)}`} />
-                                  <span className={`text-[11px] font-semibold ${pct >= 70 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`} style={{fontFamily:'JetBrains Mono, monospace'}}>
+                                  <span className={`text-[11px] font-semibold ${pct >= 70 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
                                     {pct}%
                                   </span>
                                   {cellDisplay !== 'score' && sbEntry?.reason && (
@@ -735,7 +722,7 @@ export default function CampaignReport() {
             </table>
           </div>
           <div className="px-6 py-4 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center border-t border-zinc-100 dark:border-slate-700">
-            <p className="text-xs text-[#334155] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>
+            <p className="text-xs text-[#334155] dark:text-slate-400">
               {isFs ? `${qContacts.length} contacts` : `Showing ${qPaginated.length} of ${qContacts.length} contacts`}
             </p>
             {!isFs && (
@@ -744,13 +731,11 @@ export default function CampaignReport() {
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
                   className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >Previous</button>
                 <button
                   onClick={() => setPage(p => Math.min(qTotalPages, p + 1))}
                   disabled={page >= qTotalPages}
                   className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                  style={{fontFamily:'JetBrains Mono, monospace'}}
                 >Next</button>
               </div>
             )}

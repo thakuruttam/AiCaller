@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }) {
           <span className="material-symbols-outlined text-white text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
         </div>
         <Spinner size={28} className="text-[#0d9488]" />
-        <p className="text-sm text-[#64748b] dark:text-slate-400" style={{fontFamily:'JetBrains Mono, monospace'}}>Loading…</p>
+        <p className="text-sm text-[#64748b] dark:text-slate-400">Loading…</p>
       </div>
     );
   }
