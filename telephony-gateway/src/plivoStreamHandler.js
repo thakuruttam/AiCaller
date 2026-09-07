@@ -64,17 +64,23 @@ export function setupPlivoStream() {
     // pre-empts this timer and flushes immediately the moment the real
     // signal fires, regardless of this value. Deepgram's own endpointing
     // (the setting that produces each individual final) is 500ms, and its
-    // authoritative UtteranceEnd only fires after utterance_end_ms=2000 of
-    // true silence — so a value here anywhere near or below 500ms can never
-    // actually merge anything: it fires and dispatches the FIRST fragment
-    // as a complete turn before a same-thought continuation (a normal
-    // clause pause) has any chance to arrive, which reads as the bot
-    // ignoring the answer and repeating the question. Kept comfortably
-    // above Deepgram's utterance_end_ms so the real signal, not this
-    // fallback, decides when a turn is actually over.
+    // authoritative UtteranceEnd is supposed to fire after utterance_end_ms
+    // =2000 of true silence — but a real call showed this fallback firing
+    // first on a normal continuation ("Yeah. I work as a" / "QA engineer,
+    // and I take a stand up call...") with NO UtteranceEnd logged for that
+    // gap at all. The caller wasn't necessarily silent that whole time —
+    // the wall-clock gap this timer measures is between when WE RECEIVED
+    // each finalized transcript, and Deepgram's own transcription latency
+    // for a longer/more complex phrase adds to that on top of any real
+    // pause. A value only barely above 2000ms isn't enough margin against
+    // that combined delay — it just moves the race to a slightly longer
+    // gap instead of eliminating it. Set well clear of both Deepgram's
+    // stated threshold and realistic processing latency, while staying
+    // safely under the 10s no-answer timer (NO_ANSWER_SECONDS) so it can't
+    // race that instead.
     let transcriptAccumulator = '';
     let transcriptTimer = null;
-    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '2200', 10);
+    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '6000', 10);
 
     // Buffer for user speech that arrives WHILE the bot is speaking (isSpeaking=true).
     // Rather than dropping it, we accumulate it and replay once TTS ends.
