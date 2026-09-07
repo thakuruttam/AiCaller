@@ -67,8 +67,8 @@ describe('OpenAI Realtime provider', () => {
     const update = socket.sent.find(m => m.type === 'session.update');
     expect(update).toBeTruthy();
     expect(update.session.instructions).toBe('be a helpful agent');
-    expect(update.session.audio.input.format).toBe('g711_ulaw');
-    expect(update.session.audio.output.format).toBe('g711_ulaw');
+    expect(update.session.audio.input.format).toEqual({ type: 'g711_ulaw' });
+    expect(update.session.audio.output.format).toEqual({ type: 'g711_ulaw' });
     expect(update.session.audio.input.turn_detection.type).toBe('semantic_vad');
   });
 

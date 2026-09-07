@@ -16,14 +16,13 @@ import { WebSocket } from 'ws';
 // old pipeline's PCM16 conversion in providers/stt.js.
 //
 // NOTE ON WIRE FORMAT: OpenAI's Realtime API has changed its session-config
-// shape multiple times between beta and GA (flat input_audio_format/
-// output_audio_format fields → nested session.audio.input/output objects).
-// The shape below is our best-verified understanding as of this writing.
-// If the first live test call logs a `session.update` error or the
-// connection never reaches 'ready', check this against the current
-// official reference (developers.openai.com/api/reference/resources/
-// realtime) — the error event's `error.message` from OpenAI itself is more
-// authoritative than any scraped documentation.
+// shape multiple times between beta and GA. `audio.input.format` /
+// `audio.output.format` must be an OBJECT ({ type: 'g711_ulaw' }), not a
+// bare string — confirmed directly against the live API's own rejection:
+// "Invalid type for 'session.audio.input.format': expected an object, but
+// got a string instead." If a future session.update error shows up here
+// again, trust that error message over any scraped documentation — this is
+// a fast-moving API and docs lag behind it.
 
 /**
  * @param {string} instructions - System prompt equivalent (goal, contact name,
@@ -66,14 +65,14 @@ export function setupRealtime(instructions, handlers) {
         instructions,
         audio: {
           input: {
-            format: 'g711_ulaw',
+            format: { type: 'g711_ulaw' },
             turn_detection: {
               type: 'semantic_vad',
               eagerness
             }
           },
           output: {
-            format: 'g711_ulaw',
+            format: { type: 'g711_ulaw' },
             voice
           }
         }
