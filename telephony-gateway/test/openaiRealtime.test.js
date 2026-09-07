@@ -198,6 +198,38 @@ describe('OpenAI Realtime provider', () => {
     expect(() => session.sendAudio(Buffer.from([1]))).not.toThrow();
   });
 
+  it('queues a speak() called before the socket is ready and sends it once open, instead of silently dropping it', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    // Deliberately do NOT open the socket first — this is the exact race a
+    // real call hit: the greeting's own OpenAI chat-completion call
+    // resolved before the Realtime WebSocket handshake finished, and the
+    // old code just silently dropped the speak() call with no log line.
+    session.speak('Hi, this is an automated call. Am I speaking with Uttam?');
+    expect(socket.sent.find(m => m.type === 'conversation.item.create')).toBeUndefined();
+
+    socket._open(); // handshake completes late
+    const create = socket.sent.find(m => m.type === 'conversation.item.create');
+    expect(create).toBeTruthy();
+    expect(create.item.content[0].text).toContain('Am I speaking with Uttam?');
+    expect(socket.sent.some(m => m.type === 'response.create')).toBe(true);
+  });
+
+  it('only flushes the LATEST queued speak() if called more than once before ready', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+
+    session.speak('first draft');
+    session.speak('final version');
+    socket._open();
+
+    const creates = socket.sent.filter(m => m.type === 'conversation.item.create');
+    expect(creates).toHaveLength(1);
+    expect(creates[0].item.content[0].text).toContain('final version');
+  });
+
   it('surfaces a server error event through onError', () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);

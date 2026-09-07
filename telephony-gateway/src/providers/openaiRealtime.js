@@ -51,6 +51,14 @@ export function setupRealtime(instructions, handlers) {
   });
 
   let ready = false;
+  // A call to speak() before the WS handshake finishes (a real race: the
+  // greeting's own OpenAI chat-completion call can resolve faster than the
+  // Realtime WebSocket connects) used to be silently dropped — speak()
+  // just no-op'd with no log line, so the very first turn of a real call
+  // was never sent at all and nothing spoke, with nothing in the logs to
+  // explain why. Queue at most the latest pending greeting/reply and flush
+  // it the moment the socket actually opens, instead of losing it.
+  let pendingSpeakText = null;
   // Counts audio chunks per response — logged on response.done so a silent
   // failure (event names drifting again, audio generated but never
   // forwarded) shows up immediately in the logs as "0 chunks" instead of
@@ -61,6 +69,19 @@ export function setupRealtime(instructions, handlers) {
   // to distinguish a real barge-in (caller interrupting OUR speech) from
   // ordinary speech-start detection on their own turn.
   let botSpeaking = false;
+
+  function sendSpeak(text) {
+    botSpeaking = true;
+    ws.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: `(System: Say this exact text verbatim, word for word, nothing else: "${text}")` }]
+      }
+    }));
+    ws.send(JSON.stringify({ type: 'response.create' }));
+  }
 
   ws.on('open', () => {
     ready = true;
@@ -96,6 +117,13 @@ export function setupRealtime(instructions, handlers) {
       }
     }));
     console.log(`[Realtime] Session opened — model=${model}, turn_detection=semantic_vad(eagerness=${eagerness})`);
+
+    if (pendingSpeakText) {
+      console.log('[Realtime] Flushing speak() that arrived before the socket was ready');
+      const text = pendingSpeakText;
+      pendingSpeakText = null;
+      sendSpeak(text);
+    }
   });
 
   ws.on('message', (data) => {
@@ -185,17 +213,12 @@ export function setupRealtime(instructions, handlers) {
      * as today's non-realtime path.
      */
     speak(text) {
-      if (!ready || ws.readyState !== WebSocket.OPEN) return;
-      botSpeaking = true;
-      ws.send(JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: `(System: Say this exact text verbatim, word for word, nothing else: "${text}")` }]
-        }
-      }));
-      ws.send(JSON.stringify({ type: 'response.create' }));
+      if (!ready || ws.readyState !== WebSocket.OPEN) {
+        console.log('[Realtime] speak() called before the socket was ready — queuing until it opens');
+        pendingSpeakText = text;
+        return;
+      }
+      sendSpeak(text);
     },
 
     close() {
