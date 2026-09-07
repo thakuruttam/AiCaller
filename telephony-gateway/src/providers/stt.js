@@ -285,11 +285,28 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
   let speechStartFired = false; // onSpeechStart (barge-in trigger) already fired for this utterance
   let bargeInFrames = 0;      // consecutive frames at/above BARGE_IN_ENERGY_THRESHOLD
 
+  // ── Diagnostics for "answer got cut off with no audible pause" reports ──
+  // Plivo's <Stream> media WS and its separate call recording are two
+  // independent capture paths — a transcript truncated mid-sentence with no
+  // matching gap in the recording could mean the WS stream lost/delayed
+  // packets that never reached this pipeline at all, which no VAD threshold
+  // tuning can fix. Plivo sends one 160-byte mulaw frame every ~20ms, so any
+  // materially larger gap between sendAudio() calls is a direct signal of
+  // that, independent of audio content. Track it and surface it right next
+  // to the existing "End of speech" log so a real gap vs. a threshold
+  // problem is obvious from the logs alone on the next occurrence.
+  let lastPacketAt = null;          // wall-clock ms of the previous sendAudio() call
+  let maxGapThisUtterance = 0;      // largest inter-packet gap seen since hasSpeech went true
+  let maxSilentEnergyThisRun = 0;   // loudest frame counted as "silence" in the current silenceFrames run
+  const PACKET_GAP_WARN_MS = parseInt(process.env.SARVAM_PACKET_GAP_WARN_MS || '100', 10);
+
   function resetSpeechState() {
     hasSpeech = false;
     silenceFrames = 0;
     speechStartFired = false;
     bargeInFrames = 0;
+    maxGapThisUtterance = 0;
+    maxSilentEnergyThisRun = 0;
   }
 
   function rms(buf) {
@@ -310,6 +327,8 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
    *   same ongoing turn instead of ending it.
    */
   function flushSpeech(isFinal = true) {
+    const maxGap = maxGapThisUtterance; // read before resetSpeechState() zeroes it
+
     if (transcribing) {
       // Previous API call still running — drop this segment to stay in sync.
       audioChunks = [];
@@ -330,6 +349,9 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
 
     const pcm = Buffer.concat(chunks);
     const durationMs = (pcm.length / 2 / 8000 * 1000).toFixed(0);
+    if (maxGap > PACKET_GAP_WARN_MS) {
+      console.warn(`[STT/Sarvam REST] This segment's largest inter-packet gap was ${maxGap}ms — if the transcript looks cut short, this is likely why`);
+    }
     console.log(`[STT/Sarvam REST] Transcribing ${durationMs}ms of speech${isFinal ? '' : ' (mid-utterance split — still speaking)'}...`);
 
     const wav = pcmToWav(pcm, 8000);
@@ -355,6 +377,16 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
 
   return {
     sendAudio(rawBuffer) {
+      const now = Date.now();
+      if (lastPacketAt !== null) {
+        const gap = now - lastPacketAt;
+        if (hasSpeech && gap > maxGapThisUtterance) maxGapThisUtterance = gap;
+        if (gap > PACKET_GAP_WARN_MS) {
+          console.warn(`[STT/Sarvam REST] Audio packet gap: ${gap}ms since previous packet (expected ~20ms)${hasSpeech ? ' — DURING an active utterance, could look like silence with no real pause' : ''}`);
+        }
+      }
+      lastPacketAt = now;
+
       const pcm     = encoding === 'pcm16' ? rawBuffer : mulawToPCM16(rawBuffer);
       const energy  = rms(pcm);
 
@@ -365,6 +397,7 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
           console.log('[STT/Sarvam REST] Speech started (buffering)');
         }
         silenceFrames = 0;
+        maxSilentEnergyThisRun = 0;
         audioChunks.push(pcm);
         // Only signal barge-in once LOUD speech has been sustained for
         // BARGE_IN_MIN_FRAMES — see the constants above for why this needs to
@@ -382,12 +415,18 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
       } else if (hasSpeech) {
         // Silence during an active utterance — keep buffering (natural mid-sentence pauses)
         silenceFrames++;
+        if (energy > maxSilentEnergyThisRun) maxSilentEnergyThisRun = energy;
         audioChunks.push(pcm);
         if (audioChunks.length >= MAX_BUFFER_FRAMES) {
           console.log('[STT/Sarvam REST] Max buffer duration reached — splitting long utterance');
           flushSpeech(false);
         } else if (silenceFrames >= SILENCE_FRAMES_TO_FLUSH) {
-          console.log('[STT/Sarvam REST] End of speech — flushing buffer');
+          // Distinguishes true silence/dropped audio (energy near 0) from
+          // quiet-but-present speech that never quite cleared SPEECH_THRESHOLD
+          // (energy close to it) — the latter means the threshold itself is
+          // too strict for this call, not that the person actually paused.
+          console.log(`[STT/Sarvam REST] End of speech — flushing buffer (loudest "silent" frame in this gap: ${maxSilentEnergyThisRun.toFixed(0)} RMS, threshold ${SPEECH_THRESHOLD})`);
+          maxSilentEnergyThisRun = 0;
           flushSpeech(true);
         }
       }
