@@ -248,9 +248,13 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
 
   // Plivo sends 160-byte mulaw packets every 20 ms (8 kHz, 20 ms/frame).
   const SPEECH_THRESHOLD       = 500;   // RMS above this → speech (vs background noise)
-  const SILENCE_FRAMES_TO_FLUSH = 90;   // 90 × 20 ms = 1800 ms silence → end of turn
-  // 1.8 s: covers opening-word pauses ("Hello... [thinking]") and mid-sentence
-  // pauses without cutting the user off. Total bot response time ~2.7 s.
+  // 2 s of silence before treating the turn as over. Real call transcripts
+  // showed answers getting cut mid-sentence ("Sure, my current role, I am
+  // working as a" / "Uh, yes, I'm working as a lead Q.") at the previous
+  // 1.8s threshold — someone composing an answer on the spot pauses mid-
+  // clause more than that. Env-overridable for further tuning without a
+  // redeploy if it still cuts people off.
+  const SILENCE_FRAMES_TO_FLUSH = parseInt(process.env.SARVAM_SILENCE_FRAMES_TO_FLUSH || '100', 10); // 100 × 20 ms = 2000 ms
   const MIN_SPEECH_FRAMES       = 5;    // < 100 ms = noise burst, skip
   // Sarvam's real-time REST endpoint hard-rejects audio over 30s (400 error).
   // If someone talks continuously with no pause, waiting for silence would

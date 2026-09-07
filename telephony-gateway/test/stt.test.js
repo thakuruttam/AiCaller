@@ -113,8 +113,8 @@ describe('Sarvam STT — barge-in debounce', () => {
     for (let i = 0; i < 15; i++) stt.sendAudio(loudFrame());
     expect(onSpeechStart).toHaveBeenCalledTimes(1);
 
-    // 90 silent frames (SILENCE_FRAMES_TO_FLUSH) ends the utterance and resets state
-    for (let i = 0; i < 90; i++) stt.sendAudio(silentFrame());
+    // 100 silent frames (SILENCE_FRAMES_TO_FLUSH) ends the utterance and resets state
+    for (let i = 0; i < 100; i++) stt.sendAudio(silentFrame());
 
     for (let i = 0; i < 15; i++) stt.sendAudio(loudFrame());
     expect(onSpeechStart).toHaveBeenCalledTimes(2);
