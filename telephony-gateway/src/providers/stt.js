@@ -24,9 +24,19 @@ try {
  * @param {Object} handlers - { onTranscript: (text) => void, onError: (err) => void, onClose: () => void }
  */
 export function setupSTT(language, handlers, encoding = 'mulaw') {
-  // Sarvam AI is preferred for all Indian languages when the key is present —
-  // it's purpose-built for Indian phone-call audio and handles accents + code-mixing.
-  if (process.env.SARVAM_API_KEY) {
+  // English calls use Deepgram: its native streaming has two independent
+  // silence thresholds (a fast partial-final endpoint plus a separate,
+  // slower UtteranceEnd) that correctly tell a mid-sentence pause apart
+  // from the user actually finishing. Sarvam's REST/VAD integration only
+  // has one threshold doing both jobs, which caused real production calls
+  // to get interrupted with "Are you still there?" mid-answer and have a
+  // single long answer split into two turns (repeating the question) —
+  // see git history on providers/stt.js for the incident.
+  //
+  // Sarvam is kept for Hindi/Hinglish, where it was adopted specifically
+  // for its phone-call-tuned accuracy on Indian accents and code-mixing —
+  // a trade-off worth keeping despite the turn-taking gap above.
+  if (language !== 'English' && process.env.SARVAM_API_KEY) {
     console.log(`[STT] Initializing Sarvam AI (REST) for language: ${language}`);
     return setupSarvamRest(language, handlers, encoding);
   }
@@ -72,8 +82,14 @@ function setupDeepgram(language, handlers, encoding = 'mulaw') {
 
     if (data.type === 'Results') {
       const transcript = data.channel?.alternatives?.[0]?.transcript;
-      if (transcript && data.is_final) {
-        handlers.onTranscript(transcript);
+      if (transcript) {
+        // Interim or final — either way it's real speech, so reset the
+        // caller's "no answer" timer. Deepgram's fast endpointing already
+        // makes this rare to need, but a fluent answer with no natural
+        // sub-500ms pause could otherwise still hit the flat no-answer
+        // timeout mid-sentence.
+        handlers.onSpeechActivity?.();
+        if (data.is_final) handlers.onTranscript(transcript);
       }
     }
 
@@ -137,6 +153,7 @@ function setupGoogle(language, handlers, encoding = 'mulaw') {
     })
     .on('data', (data) => {
       if (data.results[0] && data.results[0].alternatives[0]) {
+        handlers.onSpeechActivity?.();
         const isFinal = data.results[0].isFinal;
         if (isFinal) {
           const transcript = data.results[0].alternatives[0].transcript;
@@ -300,6 +317,39 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
   let maxSilentEnergyThisRun = 0;   // loudest frame counted as "silence" in the current silenceFrames run
   const PACKET_GAP_WARN_MS = parseInt(process.env.SARVAM_PACKET_GAP_WARN_MS || '100', 10);
 
+  // ── Same-breath continuation merge ───────────────────────────────────
+  // Sarvam has only ONE silence threshold (SILENCE_FRAMES_TO_FLUSH) that
+  // does double duty as both "flush this chunk for transcription" and
+  // "the user's turn is over" — unlike Deepgram, which has a fast endpoint
+  // threshold for partial finals plus a much slower, independent
+  // utterance_end_ms as the real turn-over signal. Without that second
+  // tier, a single natural mid-sentence pause (a real call showed "So I
+  // have not worked" <pause> "on any of these" — one answer) gets treated
+  // as two separate, complete turns: the first gets judged incomplete and
+  // the question gets re-asked mid-answer, which is what actually reads to
+  // a caller as "the bot interrupts me and repeats itself." Hold a final
+  // segment briefly — if a new speech segment starts and flushes within
+  // the grace window, merge its text into the same turn instead of
+  // delivering onUtteranceEnd early.
+  let mergedText = null;
+  let mergeGraceTimer = null;
+  const MERGE_GRACE_MS = parseInt(process.env.SARVAM_MERGE_GRACE_MS || '1000', 10);
+
+  function armMergeGrace() {
+    if (mergeGraceTimer) clearTimeout(mergeGraceTimer);
+    mergeGraceTimer = setTimeout(deliverMergedTranscript, MERGE_GRACE_MS);
+  }
+
+  function deliverMergedTranscript() {
+    const text = mergedText;
+    mergedText = null;
+    mergeGraceTimer = null;
+    if (text) {
+      handlers.onTranscript(text);
+      handlers.onUtteranceEnd?.();
+    }
+  }
+
   function resetSpeechState() {
     hasSpeech = false;
     silenceFrames = 0;
@@ -332,13 +382,22 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
     if (transcribing) {
       // Previous API call still running — drop this segment to stay in sync.
       audioChunks = [];
-      if (isFinal) resetSpeechState();
+      if (isFinal) {
+        resetSpeechState();
+        // A merge was pending on an earlier segment and this attempt to
+        // extend it produced nothing usable — don't strand it, make sure
+        // it still gets delivered.
+        if (mergedText !== null) armMergeGrace();
+      }
       return;
     }
 
     if (audioChunks.length < MIN_SPEECH_FRAMES) {
       audioChunks = [];
-      if (isFinal) resetSpeechState();
+      if (isFinal) {
+        resetSpeechState();
+        if (mergedText !== null) armMergeGrace();
+      }
       return;
     }
 
@@ -360,18 +419,30 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
         transcribing = false;
         if (text?.trim()) {
           console.log(`[STT/Sarvam REST] Transcript: "${text}"`);
-          // Fire transcript first so the stream handler accumulates it, then
-          // immediately fire utteranceEnd to flush — this prevents the 200ms
-          // fallback timer from acting on a partial sentence. Mid-utterance
-          // splits withhold onUtteranceEnd since the user hasn't finished.
-          handlers.onTranscript(text);
-          if (isFinal) handlers.onUtteranceEnd?.();
+          if (isFinal) {
+            // Hold this segment briefly instead of delivering it right away —
+            // if the caller resumes speaking within MERGE_GRACE_MS (a
+            // mid-sentence pause rather than the end of their turn), the next
+            // segment's text gets appended here and delivered as ONE turn.
+            // See the merge-state comment above for why this is needed.
+            mergedText = mergedText ? `${mergedText} ${text}` : text;
+            armMergeGrace();
+          } else {
+            // Mid-utterance split (still speaking) — deliver immediately,
+            // no merge needed since the turn is known to be ongoing.
+            handlers.onTranscript(text);
+          }
+        } else if (isFinal && mergedText !== null) {
+          // This segment transcribed to nothing, but a merge was pending —
+          // don't strand it.
+          armMergeGrace();
         }
       })
       .catch(err => {
         transcribing = false;
         console.error('[STT/Sarvam REST] Error:', err.message);
         handlers.onError?.(err);
+        if (isFinal && mergedText !== null) armMergeGrace();
       });
   }
 
@@ -391,10 +462,20 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
       const energy  = rms(pcm);
 
       if (energy >= SPEECH_THRESHOLD) {
+        // Real speech energy, independent of whether it's ever produced a
+        // transcript yet — resets the caller's "no answer" timer so a long
+        // answer (or one with normal pauses) can't get interrupted with
+        // "Are you still there?" just because Sarvam hasn't flushed a
+        // completed segment within that window yet.
+        handlers.onSpeechActivity?.();
         if (!hasSpeech) {
           hasSpeech     = true;
           silenceFrames = 0;
           console.log('[STT/Sarvam REST] Speech started (buffering)');
+          // The caller resumed talking — pause delivery of any pending
+          // merged segment until we see whether this is more of the same
+          // answer (handled by the merge logic in flushSpeech) or not.
+          if (mergeGraceTimer) { clearTimeout(mergeGraceTimer); mergeGraceTimer = null; }
         }
         silenceFrames = 0;
         maxSilentEnergyThisRun = 0;
@@ -434,6 +515,8 @@ function setupSarvamRest(language, handlers, encoding = 'mulaw') {
     close() {
       audioChunks  = [];
       transcribing = false;
+      if (mergeGraceTimer) { clearTimeout(mergeGraceTimer); mergeGraceTimer = null; }
+      mergedText = null;
     }
   };
 }

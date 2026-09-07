@@ -16,6 +16,11 @@ import { setupSTT } from '../src/providers/stt.js';
 // Uses encoding: 'pcm16' so tests can hand sendAudio() raw, controllable PCM16
 // samples directly — no need to reverse-engineer mulaw byte encoding to hit a
 // target RMS energy level.
+//
+// Uses language 'Hindi' to reach the Sarvam path: setupSTT() routes English
+// calls to Deepgram regardless of SARVAM_API_KEY (see providers/stt.js) and
+// only uses Sarvam for Hindi/Hinglish, so 'English' here would silently hit
+// the Deepgram branch instead of the Sarvam code under test.
 
 function frame(samples = 160, amplitude = 0) {
   const buf = Buffer.alloc(samples * 2);
@@ -54,7 +59,7 @@ describe('Sarvam STT — barge-in debounce', () => {
   });
 
   function makeStt(onSpeechStart) {
-    return setupSTT('English', {
+    return setupSTT('Hindi', {
       onTranscript: vi.fn(),
       onUtteranceEnd: vi.fn(),
       onSpeechStart,
@@ -118,5 +123,94 @@ describe('Sarvam STT — barge-in debounce', () => {
 
     for (let i = 0; i < 15; i++) stt.sendAudio(loudFrame());
     expect(onSpeechStart).toHaveBeenCalledTimes(2);
+  });
+});
+
+// Covers two real-call bugs traced from production logs (a call that got
+// "Are you still there?" interrupted mid-answer, then had one long answer
+// split into two turns and the question repeated):
+//
+// 1. onSpeechActivity must fire on raw speech energy, independent of
+//    whether a transcript has been produced yet — the no-answer timer uses
+//    this to avoid interrupting a caller who is still mid-answer.
+// 2. A final Sarvam segment must not be delivered immediately — it needs a
+//    brief grace window so a same-breath continuation (a natural mid-
+//    sentence pause) gets merged into one turn instead of firing
+//    onUtteranceEnd twice for what was really one answer.
+describe('Sarvam STT — no-answer activity signal and same-breath merge', () => {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  beforeEach(() => {
+    process.env.SARVAM_API_KEY = 'test-key';
+    process.env.SARVAM_MERGE_GRACE_MS = '80';
+  });
+  afterEach(() => {
+    delete process.env.SARVAM_API_KEY;
+    delete process.env.SARVAM_MERGE_GRACE_MS;
+    vi.unstubAllGlobals();
+  });
+
+  it('fires onSpeechActivity on real speech energy before any transcript exists', () => {
+    const onSpeechActivity = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transcript: '' }) }));
+    const stt = setupSTT('Hindi', {
+      onTranscript: vi.fn(), onUtteranceEnd: vi.fn(), onSpeechStart: vi.fn(), onSpeechActivity, onError: vi.fn(),
+    }, 'pcm16');
+
+    stt.sendAudio(loudFrame());
+    expect(onSpeechActivity).toHaveBeenCalled();
+  });
+
+  it('merges a same-breath continuation into one turn instead of repeating it as two', async () => {
+    const onTranscript = vi.fn();
+    const onUtteranceEnd = vi.fn();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ transcript: 'So I have not worked' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ transcript: 'on any of these.' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const stt = setupSTT('Hindi', {
+      onTranscript, onUtteranceEnd, onSpeechStart: vi.fn(), onSpeechActivity: vi.fn(), onError: vi.fn(),
+    }, 'pcm16');
+
+    // First fragment of the answer, then a natural pause long enough to
+    // trigger Sarvam's silence flush (SILENCE_FRAMES_TO_FLUSH = 100 frames).
+    for (let i = 0; i < 15; i++) stt.sendAudio(loudFrame());
+    for (let i = 0; i < 100; i++) stt.sendAudio(silentFrame());
+    await wait(20); // let the mocked transcribe call resolve and arm the merge-grace timer
+
+    // Caller resumes almost immediately with the rest of the same answer —
+    // must cancel the pending delivery and merge instead of flushing twice.
+    for (let i = 0; i < 15; i++) stt.sendAudio(loudFrame());
+    for (let i = 0; i < 100; i++) stt.sendAudio(silentFrame());
+    await wait(20);
+
+    expect(onTranscript).not.toHaveBeenCalled(); // still held — grace window hasn't elapsed
+    expect(onUtteranceEnd).not.toHaveBeenCalled();
+
+    await wait(100); // past SARVAM_MERGE_GRACE_MS with no further speech
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onTranscript).toHaveBeenCalledTimes(1);
+    expect(onTranscript).toHaveBeenCalledWith('So I have not worked on any of these.');
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('delivers a single final segment after the grace window when the caller does not resume', async () => {
+    const onTranscript = vi.fn();
+    const onUtteranceEnd = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ transcript: 'Yes.' }) }));
+
+    const stt = setupSTT('Hindi', {
+      onTranscript, onUtteranceEnd, onSpeechStart: vi.fn(), onSpeechActivity: vi.fn(), onError: vi.fn(),
+    }, 'pcm16');
+
+    for (let i = 0; i < 15; i++) stt.sendAudio(loudFrame());
+    for (let i = 0; i < 100; i++) stt.sendAudio(silentFrame());
+    await wait(120); // past the mocked transcribe + SARVAM_MERGE_GRACE_MS
+
+    expect(onTranscript).toHaveBeenCalledTimes(1);
+    expect(onTranscript).toHaveBeenCalledWith('Yes.');
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
   });
 });

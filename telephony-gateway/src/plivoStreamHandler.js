@@ -356,6 +356,16 @@ export function setupPlivoStream() {
       clearNoAnswerTimer();
     };
 
+    // Fires on any detected speech energy from the STT provider, independent
+    // of whether it's produced a transcript yet. Without this, the no-answer
+    // timer only resets on a COMPLETED transcript — for Sarvam's REST/VAD
+    // pipeline that can be 10s+ into a long answer, so a real call got
+    // interrupted with "Are you still there?" while the caller was still
+    // mid-sentence answering the question that was just asked.
+    const handleSpeechActivity = () => {
+      if (!isSpeaking) clearNoAnswerTimer();
+    };
+
     let campaignLanguage = 'English'; // will be updated when campaign loads
 
     const flushTranscript = async () => {
@@ -551,9 +561,10 @@ export function setupPlivoStream() {
               sttStream.close();
             }
             sttStream = setupSTT(campaignLanguage, {
-              onTranscript:    handleTranscript,
-              onUtteranceEnd:  handleUtteranceEnd,
-              onSpeechStart:   handleSpeechStart,
+              onTranscript:     handleTranscript,
+              onUtteranceEnd:   handleUtteranceEnd,
+              onSpeechStart:    handleSpeechStart,
+              onSpeechActivity: handleSpeechActivity,
               onError: (err) => console.error('[STT] Error:', err),
               onClose: () => console.log('[STT] Closed')
             });
