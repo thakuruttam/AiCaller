@@ -107,7 +107,18 @@ export function setupRealtime(instructions, handlers) {
               // auto-response's own end apparently re-triggered another.
               create_response: false,
               interrupt_response: false
-            }
+            },
+            // Transcription of the CALLER's own speech is a separate opt-in
+            // from turn_detection — without this, the model still
+            // "understands" the audio well enough to decide when a turn
+            // ends, but never emits a
+            // conversation.item.input_audio_transcription.completed event
+            // at all, regardless of what's said. A live call showed exactly
+            // that: the greeting played fine (that's OUR speak(), unrelated
+            // to this), but saying "Yes" or "Who is this?" produced total
+            // silence with zero transcript and zero errors, on every call,
+            // because nothing was ever configured to transcribe the input.
+            transcription: { model: 'gpt-4o-mini-transcribe' }
           },
           output: {
             format: { type: 'audio/pcmu' },

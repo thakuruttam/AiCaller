@@ -83,6 +83,17 @@ describe('OpenAI Realtime provider', () => {
     expect(update.session.audio.input.turn_detection.interrupt_response).toBe(false);
   });
 
+  it('explicitly enables input audio transcription — a real call showed this is opt-in, not automatic', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    const update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.input.transcription).toBeTruthy();
+    expect(update.session.audio.input.transcription.model).toBe('gpt-4o-mini-transcribe');
+  });
+
   it('defaults turn-detection eagerness to low, and respects an override', () => {
     process.env.OPENAI_REALTIME_EAGERNESS = 'high';
     const handlers = makeHandlers();
