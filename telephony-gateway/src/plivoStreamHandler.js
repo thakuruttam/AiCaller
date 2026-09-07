@@ -428,7 +428,21 @@ export function setupPlivoStream() {
     // silence-timer-based STT.
     let realtimeBusy = false;
 
-    const handleRealtimeTranscript = async (transcript) => {
+    // semantic_vad decides per-segment when a pause is "long enough" to be a
+    // turn boundary — but a real call showed it still occasionally split one
+    // continuous answer across a pause, with the second half misattributed
+    // as the answer to whatever question came next (since create_response
+    // is off, WE decide when a transcript is final enough to act on, so we
+    // can hold it briefly instead of dispatching instantly). Mirrors the
+    // same merge-grace fix already applied to the Sarvam REST path earlier
+    // today — same trade-off: reduces, does not eliminate, the split; adds
+    // this delay to every turn's response time, not just the ones that
+    // would have split.
+    let realtimeMergeBuffer = '';
+    let realtimeMergeTimer = null;
+    const REALTIME_MERGE_GRACE_MS = parseInt(process.env.REALTIME_MERGE_GRACE_MS || '1200', 10);
+
+    const handleRealtimeTranscript = (transcript) => {
       // Was missing entirely on this path — the call-level 60s silence
       // timeout (VOICE_TIMEOUT_SECONDS) is only ever reset by the OLD STT
       // path's handleTranscript(). Without this, a live call hung up
@@ -436,13 +450,39 @@ export function setupPlivoStream() {
       // healthy conversation was happening, because nothing on the
       // realtime path ever told it "something just happened."
       resetSilenceTimeout();
-      if (!agent || isCallEnding || realtimeBusy) return;
+      if (!agent || isCallEnding) return;
+
+      realtimeMergeBuffer = realtimeMergeBuffer ? `${realtimeMergeBuffer} ${transcript}` : transcript;
+      if (realtimeMergeTimer) clearTimeout(realtimeMergeTimer);
+      realtimeMergeTimer = setTimeout(dispatchRealtimeTurn, REALTIME_MERGE_GRACE_MS);
+    };
+
+    const dispatchRealtimeTurn = async () => {
+      const fullTranscript = realtimeMergeBuffer.trim();
+      if (!fullTranscript || !agent || isCallEnding) {
+        realtimeMergeBuffer = '';
+        realtimeMergeTimer = null;
+        return;
+      }
+
+      if (realtimeBusy) {
+        // Previous turn's agent.processInput() is still in flight — do NOT
+        // drop this, it's usually the tail end of what the caller was
+        // saying. Leave it in the buffer and retry shortly instead of
+        // discarding it (the exact bug already fixed once today for the
+        // old STT path's isFlushingTranscript case).
+        realtimeMergeTimer = setTimeout(dispatchRealtimeTurn, 300);
+        return;
+      }
+
+      realtimeMergeBuffer = '';
+      realtimeMergeTimer = null;
       realtimeBusy = true;
-      console.log(`[Realtime] Processing turn: "${transcript}"`);
+      console.log(`[Realtime] Processing turn: "${fullTranscript}"`);
 
       let reply;
       try {
-        reply = await agent.processInput(transcript);
+        reply = await agent.processInput(fullTranscript);
       } catch (e) {
         console.error('[Realtime] Uncaught error from agent.processInput:', e.message);
         realtimeBusy = false;
