@@ -440,7 +440,11 @@ export function setupPlivoStream() {
     // would have split.
     let realtimeMergeBuffer = '';
     let realtimeMergeTimer = null;
-    const REALTIME_MERGE_GRACE_MS = parseInt(process.env.REALTIME_MERGE_GRACE_MS || '1200', 10);
+    // 1200ms wasn't enough — multiple live calls kept splitting on this same
+    // caller's pauses ("...with my team lead to" cut off mid-sentence, still
+    // happened at 1200ms). Raised to 2500ms; still won't catch every pause
+    // (no fixed value can), but should catch meaningfully more of them.
+    const REALTIME_MERGE_GRACE_MS = parseInt(process.env.REALTIME_MERGE_GRACE_MS || '2500', 10);
 
     const handleRealtimeTranscript = (transcript) => {
       // Was missing entirely on this path — the call-level 60s silence
