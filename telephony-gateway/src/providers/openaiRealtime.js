@@ -74,7 +74,18 @@ export function setupRealtime(instructions, handlers) {
             format: { type: 'audio/pcmu' },
             turn_detection: {
               type: 'semantic_vad',
-              eagerness
+              eagerness,
+              // The API defaults to autonomously generating (and speaking)
+              // its own response every time it decides a turn ended — built
+              // for a fully autonomous agent. We don't want that: VoiceAgent
+              // is the sole decision-maker for what gets said, driven by
+              // onTranscript -> agent.processInput() -> speak(). Without
+              // this, a live test call showed the session auto-responding
+              // to itself in an uncontrolled loop (8 unsolicited responses
+              // in ~2 minutes, zero real transcripts in between) — each
+              // auto-response's own end apparently re-triggered another.
+              create_response: false,
+              interrupt_response: false
             }
           },
           output: {

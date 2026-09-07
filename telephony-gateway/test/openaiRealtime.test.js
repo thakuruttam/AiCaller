@@ -72,6 +72,17 @@ describe('OpenAI Realtime provider', () => {
     expect(update.session.audio.input.turn_detection.type).toBe('semantic_vad');
   });
 
+  it('disables the API\'s autonomous auto-response — VoiceAgent must be the sole decision-maker for what gets said', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    const update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.input.turn_detection.create_response).toBe(false);
+    expect(update.session.audio.input.turn_detection.interrupt_response).toBe(false);
+  });
+
   it('defaults turn-detection eagerness to low, and respects an override', () => {
     process.env.OPENAI_REALTIME_EAGERNESS = 'high';
     const handlers = makeHandlers();
