@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
-import DebouncedSearch from '../components/DebouncedSearch';
 import ToggleSwitch from '../components/ToggleSwitch';
 import Pagination from '../components/Pagination';
 import api from '../api/axios';
@@ -15,6 +15,90 @@ const ROLE_BADGE = {
 };
 
 const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'];
+
+const ROLE_LABEL = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', EDITOR: 'Editor', VIEWER: 'Viewer' };
+const ROLE_TEXT = {
+  SUPER_ADMIN: 'text-teal-700 dark:text-teal-300',
+  ADMIN:       'text-[#0d9488] dark:text-teal-300',
+  EDITOR:      'text-amber-700 dark:text-amber-300',
+  VIEWER:      'text-zinc-600 dark:text-slate-400',
+};
+
+function FilterHeader({ label, type = 'text', options, value, isOpen, onToggle, onChange, onClear }) {
+  const active = !!value;
+  const thRef = useRef(null);
+  const [pos, setPos] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const reposition = () => {
+      const r = thRef.current?.getBoundingClientRect();
+      if (r) setPos({ left: r.left, bottom: window.innerHeight - r.top + 4 });
+    };
+    reposition();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [isOpen]);
+
+  return (
+    <th ref={thRef} data-filter-popover className="relative px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-r border-zinc-100 dark:border-slate-800 last:border-r-0">
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        <button
+          onClick={onToggle}
+          title={`Filter ${label}`}
+          className={`p-0.5 rounded hover:text-zinc-600 dark:hover:text-slate-300 ${active ? 'text-[#0d9488]' : 'text-zinc-300 dark:text-slate-600'}`}
+        >
+          <span className="material-symbols-outlined [--icon-size:14px]">filter_alt</span>
+        </button>
+      </div>
+      {isOpen && pos && createPortal(
+        <div
+          data-filter-popover
+          style={{ position: 'fixed', left: pos.left, bottom: pos.bottom }}
+          className="z-50 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg shadow-lg p-3 w-64 normal-case font-normal"
+        >
+          {type === 'select' ? (
+            <select
+              autoFocus
+              value={value}
+              onChange={e => onChange(e.target.value)}
+              className="w-full text-xs border border-zinc-200 dark:border-slate-700 rounded-md px-3 py-2 bg-white dark:bg-slate-900 text-zinc-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
+            >
+              <option value="">All</option>
+              {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ) : (
+            <div className="relative flex items-center">
+              <input
+                autoFocus
+                type="text"
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') onToggle(); }}
+                placeholder={`Filter ${label}…`}
+                className="w-full text-sm border-0 border-b-[1.5px] border-zinc-200 dark:border-slate-700 bg-transparent px-1 pr-5 pb-1.5 focus:outline-none focus:border-[#0d9488] transition-colors"
+              />
+              {active && (
+                <button
+                  onClick={onClear}
+                  className="absolute right-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-slate-300 transition-colors"
+                >
+                  <span className="material-symbols-outlined [--icon-size:14px] block">close</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+    </th>
+  );
+}
 
 function InviteModal({ workspaceId, onClose, prefill }) {
   const { addToast } = useToast();
@@ -168,12 +252,36 @@ export default function MyTeam() {
   const [revokingId, setRevokingId] = useState(null);
   const [resendPrefill, setResendPrefill] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const searchInputRef = useRef(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusChanging, setStatusChanging] = useState({});
+  const [columnFilters, setColumnFilters] = useState({ id: '', name: '', email: '', role: '', createdBy: '', createdDate: '', status: '' });
+  const [openFilter, setOpenFilter] = useState(null);
 
   const workspaceId = user?.workspaceId;
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.workspaceRole === 'ADMIN';
+
+  useEffect(() => {
+    if (showSearch) searchInputRef.current?.focus();
+  }, [showSearch]);
+
+  useEffect(() => {
+    if (!openFilter) return;
+    const handler = (e) => { if (!e.target.closest('[data-filter-popover]')) setOpenFilter(null); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openFilter]);
+
+  const setColFilter = (key, value) => { setColumnFilters(f => ({ ...f, [key]: value })); setPage(1); };
+  const toggleFilter = (key) => setOpenFilter(k => k === key ? null : key);
+
+  const closeSearch = () => {
+    setSearchQuery('');
+    setPage(1);
+    setShowSearch(false);
+  };
 
   useEffect(() => {
     if (workspaceId) {
@@ -262,9 +370,20 @@ export default function MyTeam() {
     <div className="p-8 text-zinc-400 text-sm">No workspace found.</div>
   );
 
+  const memberDisplayId = new Map(members.map((m, i) => [m.id, i + 1]));
+
   const filteredMembers = members.filter(m => {
     const q = searchQuery.toLowerCase();
-    return !q || m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q);
+    if (q && !(m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q))) return false;
+    const f = columnFilters;
+    if (f.id && !String(memberDisplayId.get(m.id)).includes(f.id)) return false;
+    if (f.name && !m.name?.toLowerCase().includes(f.name.toLowerCase())) return false;
+    if (f.email && !m.email?.toLowerCase().includes(f.email.toLowerCase())) return false;
+    if (f.role && m.workspaceRole !== f.role) return false;
+    if (f.createdBy && !(m.invitedByName || '').toLowerCase().includes(f.createdBy.toLowerCase())) return false;
+    if (f.createdDate && !new Date(m.joinedAt).toLocaleDateString().includes(f.createdDate)) return false;
+    if (f.status && m.status !== f.status) return false;
+    return true;
   });
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -283,31 +402,53 @@ export default function MyTeam() {
         {({ toggle, isFs }) => (
           <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
             {/* Toolbar */}
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-zinc-100 dark:border-slate-800">
-              <DebouncedSearch
-                onSearch={(q) => { setSearchQuery(q); setPage(1); }}
-                placeholder="Search members..."
-                className="w-72"
-              />
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={loadMembers}
-                  title="Refresh"
-                  className="p-2 rounded-lg text-zinc-400 dark:text-slate-500 hover:bg-zinc-100 dark:hover:bg-slate-700 hover:text-zinc-700 dark:hover:text-slate-200 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px] block">refresh</span>
-                </button>
-                <FullscreenButton toggle={toggle} isFs={isFs} />
-                {isAdmin && (
+            <div className="flex items-center justify-end gap-1.5 px-5 py-3 border-b border-zinc-100 dark:border-slate-800">
+              {showSearch ? (
+                <div className="relative flex items-center">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+                    onKeyDown={e => { if (e.key === 'Escape') closeSearch(); }}
+                    onBlur={() => { if (!searchQuery) setShowSearch(false); }}
+                    placeholder="Search members..."
+                    className="h-7 w-56 pl-1 pr-5 pb-1 bg-transparent border-0 border-b-[1.5px] border-[#e2e8f0] dark:border-white/[0.14] rounded-none text-[0.9rem] leading-none text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-[#0d9488] transition-colors"
+                  />
                   <button
-                    onClick={() => setShowInvite(true)}
-                    className="flex items-center gap-1.5 bg-[#0d9488] hover:bg-[#0f766e] text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors shadow-sm active:scale-95 ml-1"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={closeSearch}
+                    className="absolute right-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-slate-300"
                   >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                    Team
+                    <span className="material-symbols-outlined [--icon-size:14px] block">close</span>
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowSearch(true)}
+                  title="Search members"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 dark:text-slate-500 hover:bg-zinc-100 dark:hover:bg-slate-700 hover:text-zinc-700 dark:hover:text-slate-200 transition-colors"
+                >
+                  <span className="material-symbols-outlined [--icon-size:20px]">search</span>
+                </button>
+              )}
+              <button
+                onClick={loadMembers}
+                title="Refresh"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 dark:text-slate-500 hover:bg-zinc-100 dark:hover:bg-slate-700 hover:text-zinc-700 dark:hover:text-slate-200 transition-colors"
+              >
+                <span className="material-symbols-outlined [--icon-size:20px]">refresh</span>
+              </button>
+              <FullscreenButton toggle={toggle} isFs={isFs} size={20} />
+              {isAdmin && (
+                <button
+                  onClick={() => setShowInvite(true)}
+                  className="flex items-center gap-1 bg-[#0d9488] hover:bg-[#0f766e] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm active:scale-95 ml-1"
+                >
+                  <span className="material-symbols-outlined [--icon-size:14px]">add</span>
+                  Team
+                </button>
+              )}
             </div>
 
             {loading ? (
@@ -317,27 +458,38 @@ export default function MyTeam() {
                 <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[48px]">group</span>
                 <p className="text-zinc-400 text-sm">No members yet. Invite someone to get started.</p>
               </div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 gap-3">
-                <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[48px]">search_off</span>
-                <p className="text-zinc-400 text-sm">No members match your search.</p>
-              </div>
             ) : (<>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
                     <tr>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Email</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Role</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Created By</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Created Date</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+                      <FilterHeader label="ID" value={columnFilters.id} isOpen={openFilter === 'id'} onToggle={() => toggleFilter('id')} onChange={v => setColFilter('id', v)} onClear={() => setColFilter('id', '')} />
+                      <FilterHeader label="Name" value={columnFilters.name} isOpen={openFilter === 'name'} onToggle={() => toggleFilter('name')} onChange={v => setColFilter('name', v)} onClear={() => setColFilter('name', '')} />
+                      <FilterHeader label="Email" value={columnFilters.email} isOpen={openFilter === 'email'} onToggle={() => toggleFilter('email')} onChange={v => setColFilter('email', v)} onClear={() => setColFilter('email', '')} />
+                      <FilterHeader
+                        label="Role" type="select" options={ROLES.map(r => ({ value: r, label: ROLE_LABEL[r] }))}
+                        value={columnFilters.role} isOpen={openFilter === 'role'} onToggle={() => toggleFilter('role')} onChange={v => setColFilter('role', v)} onClear={() => setColFilter('role', '')}
+                      />
+                      <FilterHeader label="Created By" value={columnFilters.createdBy} isOpen={openFilter === 'createdBy'} onToggle={() => toggleFilter('createdBy')} onChange={v => setColFilter('createdBy', v)} onClear={() => setColFilter('createdBy', '')} />
+                      <FilterHeader label="Created Date" value={columnFilters.createdDate} isOpen={openFilter === 'createdDate'} onToggle={() => toggleFilter('createdDate')} onChange={v => setColFilter('createdDate', v)} onClear={() => setColFilter('createdDate', '')} />
+                      <FilterHeader
+                        label="Status" type="select" options={[{ value: 'ACTIVE', label: 'Active' }, { value: 'SUSPENDED', label: 'Suspended' }]}
+                        value={columnFilters.status} isOpen={openFilter === 'status'} onToggle={() => toggleFilter('status')} onChange={v => setColFilter('status', v)} onClear={() => setColFilter('status', '')}
+                      />
                       {isAdmin && <th className="px-5 py-3.5" />}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50 dark:divide-slate-800">
-                    {paginatedMembers.map(m => {
+                    {filteredMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={isAdmin ? 8 : 7} className="px-5 py-12">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[48px]">search_off</span>
+                            <p className="text-zinc-400 text-sm">No members match your search or filters.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : paginatedMembers.map(m => {
                       const isSelf = m.id === user?.id;
                       const isSuperAdminTarget = m.globalRole === 'SUPER_ADMIN';
                       const toggleDisabled = !isAdmin || isSelf || isSuperAdminTarget || !!statusChanging[m.id];
@@ -347,19 +499,12 @@ export default function MyTeam() {
                           ? "Can't change a super admin's status"
                           : undefined;
                       return (
-                        <tr key={m.id} className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors">
+                        <tr key={m.id} className="divide-x divide-zinc-100 dark:divide-slate-800/60 hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors">
+                          <td className="px-5 py-4 font-semibold text-[#0d9488] dark:text-teal-300" title={m.id}>
+                            {memberDisplayId.get(m.id)}
+                          </td>
                           <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-[#0f766e] flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
-                                {m.avatarUrl
-                                  ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                  : m.name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
-                              <p className="font-semibold text-zinc-900 dark:text-slate-100">
-                                {m.name}
-                                {isSelf && <span className="ml-2 text-xs text-zinc-400 font-normal">(you)</span>}
-                              </p>
-                            </div>
+                            <p className="font-semibold text-[#0d9488] dark:text-teal-300">{m.name}</p>
                           </td>
                           <td className="px-5 py-4 text-zinc-500 dark:text-slate-400">{m.email}</td>
                           <td className="px-5 py-4">
@@ -373,8 +518,8 @@ export default function MyTeam() {
                                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                               </select>
                             ) : (
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_BADGE[m.workspaceRole] || ROLE_BADGE.VIEWER}`}>
-                                {m.workspaceRole}
+                              <span className={`text-xs font-semibold ${ROLE_TEXT[m.workspaceRole] || ROLE_TEXT.VIEWER}`}>
+                                {ROLE_LABEL[m.workspaceRole] || m.workspaceRole}
                               </span>
                             )}
                           </td>
@@ -395,7 +540,7 @@ export default function MyTeam() {
                                   onClick={() => removeMember(m.id, m.name)}
                                   className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                 >
-                                  <span className="material-symbols-outlined text-[18px]">person_remove</span>
+                                  <span className="material-symbols-outlined [--icon-size:16px]">person_remove</span>
                                 </button>
                               )}
                             </td>
@@ -454,14 +599,14 @@ export default function MyTeam() {
                             title="Copy invite link"
                             className="p-1.5 text-zinc-400 hover:text-[#0d9488] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
                           >
-                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                            <span className="material-symbols-outlined [--icon-size:16px]">content_copy</span>
                           </button>
                           <button
                             onClick={() => resendInvite(inv)}
                             title="Resend invite"
                             className="p-1.5 text-zinc-400 hover:text-[#0d9488] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
                           >
-                            <span className="material-symbols-outlined text-[18px]">send</span>
+                            <span className="material-symbols-outlined [--icon-size:16px]">send</span>
                           </button>
                           <button
                             onClick={() => revokeInvite(inv.id)}
@@ -469,7 +614,7 @@ export default function MyTeam() {
                             title="Revoke invite"
                             className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                           >
-                            <span className="material-symbols-outlined text-[18px]">cancel</span>
+                            <span className="material-symbols-outlined [--icon-size:16px]">cancel</span>
                           </button>
                         </div>
                       </td>

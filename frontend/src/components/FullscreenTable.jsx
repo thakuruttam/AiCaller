@@ -1,13 +1,13 @@
 import { useRef, useState, useEffect } from 'react';
 
-export function FullscreenButton({ toggle, isFs }) {
+export function FullscreenButton({ toggle, isFs, size = 18 }) {
   return (
     <button
       onClick={toggle}
       title={isFs ? 'Exit fullscreen' : 'Fullscreen'}
-      className="p-1.5 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 hover:text-zinc-800 dark:hover:text-slate-200 transition-colors"
+      className="p-1.5 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 hover:text-zinc-800 dark:hover:text-slate-200 transition-colors"
     >
-      <span className="material-symbols-outlined text-[18px]">
+      <span className="material-symbols-outlined" style={{ '--icon-size': `${size}px` }}>
         {isFs ? 'fullscreen_exit' : 'fullscreen'}
       </span>
     </button>
