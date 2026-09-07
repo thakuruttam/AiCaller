@@ -429,6 +429,13 @@ export function setupPlivoStream() {
     let realtimeBusy = false;
 
     const handleRealtimeTranscript = async (transcript) => {
+      // Was missing entirely on this path — the call-level 60s silence
+      // timeout (VOICE_TIMEOUT_SECONDS) is only ever reset by the OLD STT
+      // path's handleTranscript(). Without this, a live call hung up
+      // exactly 60s after it started regardless of how much active,
+      // healthy conversation was happening, because nothing on the
+      // realtime path ever told it "something just happened."
+      resetSilenceTimeout();
       if (!agent || isCallEnding || realtimeBusy) return;
       realtimeBusy = true;
       console.log(`[Realtime] Processing turn: "${transcript}"`);
@@ -724,6 +731,7 @@ export function setupPlivoStream() {
                   }
                 },
                 onTranscript: handleRealtimeTranscript,
+                onSpeechActivity: () => resetSilenceTimeout(),
                 onSpeechStart: () => {
                   console.log('[Stream] Realtime barge-in — sending clearAudio');
                   if (ws.readyState === ws.OPEN && streamSid) {

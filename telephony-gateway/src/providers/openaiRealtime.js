@@ -33,6 +33,7 @@ import { WebSocket } from 'ws';
  *   onTranscript: (text) => void,      // fires once semantic_vad decides a turn is complete
  *   onAudio: (chunk: Buffer) => void,  // raw g711_ulaw audio chunk to forward to Plivo's playAudio
  *   onSpeechStart: () => void,         // caller started talking WHILE we're still speaking (barge-in)
+ *   onSpeechActivity: () => void,      // caller started talking at all — use to reset a silence/idle timeout
  *   onResponseDone: () => void,        // the bot's current spoken reply has fully finished playing
  *   onError: (err) => void,
  *   onClose: () => void
@@ -169,6 +170,12 @@ export function setupRealtime(instructions, handlers) {
         break;
 
       case 'input_audio_buffer.speech_started':
+        // Fires on ANY detected speech, independent of whether it's a real
+        // barge-in — used to reset the call-level silence timeout so a
+        // caller mid-answer never gets timed out just because their
+        // transcript hasn't come back yet (semantic_vad can legitimately
+        // take a while on a long, natural answer).
+        handlers.onSpeechActivity?.();
         // Only a real interruption if we were the one talking — otherwise
         // this is just the normal start of the caller's own turn.
         if (botSpeaking) {

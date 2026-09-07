@@ -52,6 +52,7 @@ describe('OpenAI Realtime provider', () => {
       onTranscript: vi.fn(),
       onAudio: vi.fn(),
       onSpeechStart: vi.fn(),
+      onSpeechActivity: vi.fn(),
       onResponseDone: vi.fn(),
       onError: vi.fn(),
       onClose: vi.fn(),
@@ -150,6 +151,22 @@ describe('OpenAI Realtime provider', () => {
     session.speak('Can you tell me more?');
     socket._message({ type: 'input_audio_buffer.speech_started' });
     expect(handlers.onSpeechStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onSpeechActivity on ANY speech start, unlike onSpeechStart which is barge-in-only', () => {
+    // A real call hung up exactly 60s in regardless of active conversation
+    // because nothing on this path ever reset the call-level silence
+    // timer — onSpeechActivity exists specifically to drive that reset.
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    // Bot isn't speaking — this is just the normal start of the caller's
+    // own turn, not a barge-in, but it's still real activity.
+    socket._message({ type: 'input_audio_buffer.speech_started' });
+    expect(handlers.onSpeechStart).not.toHaveBeenCalled();
+    expect(handlers.onSpeechActivity).toHaveBeenCalledTimes(1);
   });
 
   it('fires onResponseDone when the bot finishes speaking', () => {
