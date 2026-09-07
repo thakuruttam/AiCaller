@@ -58,9 +58,23 @@ export function setupPlivoStream() {
     // within TRANSCRIPT_BUFFER_MS of each other into one coherent user turn before
     // the agent processes it. Prevents mid-sentence STT cuts from being treated as
     // complete answers and assigning speech to the wrong question.
+    //
+    // This is only meant as a SAFETY NET for when the provider's own
+    // UtteranceEnd never arrives — handleUtteranceEnd() below always
+    // pre-empts this timer and flushes immediately the moment the real
+    // signal fires, regardless of this value. Deepgram's own endpointing
+    // (the setting that produces each individual final) is 500ms, and its
+    // authoritative UtteranceEnd only fires after utterance_end_ms=2000 of
+    // true silence — so a value here anywhere near or below 500ms can never
+    // actually merge anything: it fires and dispatches the FIRST fragment
+    // as a complete turn before a same-thought continuation (a normal
+    // clause pause) has any chance to arrive, which reads as the bot
+    // ignoring the answer and repeating the question. Kept comfortably
+    // above Deepgram's utterance_end_ms so the real signal, not this
+    // fallback, decides when a turn is actually over.
     let transcriptAccumulator = '';
     let transcriptTimer = null;
-    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '200', 10);
+    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '2200', 10);
 
     // Buffer for user speech that arrives WHILE the bot is speaking (isSpeaking=true).
     // Rather than dropping it, we accumulate it and replay once TTS ends.
