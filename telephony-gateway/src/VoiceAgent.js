@@ -83,9 +83,25 @@ export class VoiceAgent {
       .trim();
 
     const compact = str => norm(str).replace(/[\s.]/g, '');
+
+    // "contains"/"does not contain" values are commonly authored as a
+    // comma-separated list of ACCEPTABLE (or unacceptable) alternatives —
+    // e.g. "manual, automation, performance, security, API" on a testing-
+    // types question means "mentions ANY ONE of these", not "contains this
+    // entire joined phrase verbatim". Treating it as one literal string
+    // meant a real caller could never pass by naming even a single listed
+    // item — "API." was always rejected against that exact value in
+    // production. Split on commas and match/exclude on ANY item instead;
+    // a value with no comma behaves exactly as before (single-item list).
+    const matchesAny = (value) => value.split(',').some(item => {
+      const it = item.trim();
+      if (!it) return false;
+      return norm(a).includes(norm(it)) || compact(a).includes(compact(it));
+    });
+
     switch (condition) {
-      case 'contains':         return norm(a).includes(norm(v)) || compact(a).includes(compact(v));
-      case 'does not contain': return !norm(a).includes(norm(v)) && !compact(a).includes(compact(v));
+      case 'contains':         return matchesAny(v);
+      case 'does not contain': return !matchesAny(v);
       case 'equals':           return norm(a) === norm(v);
       case 'starts with':      return norm(a).startsWith(norm(v));
       case 'ends with':        return norm(a).endsWith(norm(v));

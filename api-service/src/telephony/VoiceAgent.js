@@ -69,9 +69,20 @@ export class VoiceAgent {
     if (!condition || !userAnswer) return false;
     const a = userAnswer.toLowerCase().trim();
     const v = (conditionValue || '').toLowerCase().trim();
+
+    // "contains"/"does not contain" values are commonly authored as a
+    // comma-separated list of ACCEPTABLE (or unacceptable) alternatives —
+    // e.g. "manual, automation, performance, security, API" means
+    // "mentions ANY ONE of these", not "contains this entire joined phrase
+    // verbatim". A value with no comma behaves exactly as before.
+    const matchesAny = (value) => value.split(',').some(item => {
+      const it = item.trim();
+      return it.length > 0 && a.includes(it);
+    });
+
     switch (condition) {
-      case 'contains':      return a.includes(v);
-      case 'does not contain': return !a.includes(v);
+      case 'contains':      return matchesAny(v);
+      case 'does not contain': return !matchesAny(v);
       case 'equals':        return a === v;
       case 'starts with':   return a.startsWith(v);
       case 'ends with':     return a.endsWith(v);
