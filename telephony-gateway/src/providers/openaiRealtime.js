@@ -11,18 +11,19 @@ import { WebSocket } from 'ws';
 // answer just because it happened to pause for N seconds.
 //
 // Plivo's <Stream> media is mulaw-encoded, 8kHz, base64, in 20ms frames —
-// the Realtime API's g711_ulaw format is the exact same encoding, so audio
-// passes through in both directions with NO decode/encode step, unlike the
-// old pipeline's PCM16 conversion in providers/stt.js.
+// the Realtime API's 'audio/pcmu' format (PCMU = G.711 mu-law) is the exact
+// same encoding, so audio passes through in both directions with NO
+// decode/encode step, unlike the old pipeline's PCM16 conversion in
+// providers/stt.js.
 //
-// NOTE ON WIRE FORMAT: OpenAI's Realtime API has changed its session-config
-// shape multiple times between beta and GA. `audio.input.format` /
-// `audio.output.format` must be an OBJECT ({ type: 'g711_ulaw' }), not a
-// bare string — confirmed directly against the live API's own rejection:
-// "Invalid type for 'session.audio.input.format': expected an object, but
-// got a string instead." If a future session.update error shows up here
-// again, trust that error message over any scraped documentation — this is
-// a fast-moving API and docs lag behind it.
+// NOTE ON WIRE FORMAT: confirmed directly against the live API across two
+// real rejections, in order: (1) `audio.input.format` / `audio.output.format`
+// must be an OBJECT ({ type: ... }), not a bare string; (2) the only type
+// values it accepts are 'audio/pcm', 'audio/pcmu', 'audio/pcma' — NOT the
+// 'g711_ulaw' name used in older/beta docs and examples elsewhere. If a
+// future session.update error shows up here again, trust that error message
+// over any scraped documentation — this is a fast-moving API and docs lag
+// behind it.
 
 /**
  * @param {string} instructions - System prompt equivalent (goal, contact name,
@@ -65,14 +66,14 @@ export function setupRealtime(instructions, handlers) {
         instructions,
         audio: {
           input: {
-            format: { type: 'g711_ulaw' },
+            format: { type: 'audio/pcmu' },
             turn_detection: {
               type: 'semantic_vad',
               eagerness
             }
           },
           output: {
-            format: { type: 'g711_ulaw' },
+            format: { type: 'audio/pcmu' },
             voice
           }
         }

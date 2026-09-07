@@ -58,7 +58,7 @@ describe('OpenAI Realtime provider', () => {
     };
   }
 
-  it('configures the session with semantic_vad and g711_ulaw both ways on connect', () => {
+  it('configures the session with semantic_vad and audio/pcmu (mulaw) both ways on connect', () => {
     const handlers = makeHandlers();
     setupRealtime('be a helpful agent', handlers);
     const socket = FakeWebSocket.instances[0];
@@ -67,8 +67,8 @@ describe('OpenAI Realtime provider', () => {
     const update = socket.sent.find(m => m.type === 'session.update');
     expect(update).toBeTruthy();
     expect(update.session.instructions).toBe('be a helpful agent');
-    expect(update.session.audio.input.format).toEqual({ type: 'g711_ulaw' });
-    expect(update.session.audio.output.format).toEqual({ type: 'g711_ulaw' });
+    expect(update.session.audio.input.format).toEqual({ type: 'audio/pcmu' });
+    expect(update.session.audio.output.format).toEqual({ type: 'audio/pcmu' });
     expect(update.session.audio.input.turn_detection.type).toBe('semantic_vad');
   });
 
