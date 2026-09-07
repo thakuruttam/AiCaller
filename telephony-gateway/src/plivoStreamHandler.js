@@ -82,6 +82,18 @@ export function setupPlivoStream() {
     let transcriptTimer = null;
     const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '6000', 10);
 
+    // Deepgram's UtteranceEnd firing correctly (after a genuine ~2s pause)
+    // does NOT mean the caller is truly finished — a real call answered
+    // "All of the above." (UtteranceEnd fired, correctly, after a real
+    // pause), then added "And market research." a beat later. Flushing the
+    // instant UtteranceEnd fires dispatched the first half alone, and while
+    // that turn's LLM call was in flight the second half arrived and had
+    // nowhere to go. Give a brief settle window after the real signal
+    // instead of trusting it as instantaneous truth — a trailing
+    // afterthought arriving inside it extends this via handleTranscript()
+    // below and gets merged into the SAME turn instead of racing it.
+    const UTTERANCE_END_SETTLE_MS = parseInt(process.env.UTTERANCE_END_SETTLE_MS || '900', 10);
+
     // Buffer for user speech that arrives WHILE the bot is speaking (isSpeaking=true).
     // Rather than dropping it, we accumulate it and replay once TTS ends.
     let pendingTranscript = '';
@@ -395,7 +407,15 @@ export function setupPlivoStream() {
       if (!fullTranscript || !agent || isCallEnding) return;
 
       if (isFlushingTranscript) {
-        console.log(`[STT] Agent busy — dropping concurrent transcript: "${fullTranscript}"`);
+        // The previous turn's LLM call is still in flight. This is not junk
+        // to discard — it's usually the tail end of what the user was
+        // saying, arriving a beat after the first part was already
+        // dispatched. Route it through the same buffer used for "bot is
+        // speaking" so it gets replayed once the current turn resolves,
+        // rather than being silently lost — losing it here previously let a
+        // skip/end-call condition evaluate an incomplete answer as final.
+        console.log(`[STT] Agent busy — buffering transcript to replay after current turn: "${fullTranscript}"`);
+        pendingTranscript = pendingTranscript ? `${pendingTranscript} ${fullTranscript}` : fullTranscript;
         return;
       }
 
@@ -460,6 +480,17 @@ export function setupPlivoStream() {
           console.error("[Stream] Failed to hang up via API:", e.message);
         }
       }
+
+      // Something arrived while this turn was in flight (buffered above into
+      // pendingTranscript instead of being dropped). If the bot is now
+      // speaking a reply, the existing end-of-TTS replay path will pick it
+      // up naturally. If not — e.g. the reply was empty — it would
+      // otherwise never get processed at all, so drain it here.
+      if (!isSpeaking && !isCallEnding && pendingTranscript && agent) {
+        const captured = pendingTranscript;
+        pendingTranscript = '';
+        handleTranscript(captured);
+      }
     };
 
     const handleTranscript = (transcript) => {
@@ -505,8 +536,8 @@ export function setupPlivoStream() {
 
       if (transcriptTimer) { clearTimeout(transcriptTimer); transcriptTimer = null; }
       if (transcriptAccumulator.trim()) {
-        console.log('[STT] UtteranceEnd — flushing immediately');
-        flushTranscript();
+        console.log(`[STT] UtteranceEnd — settling ${UTTERANCE_END_SETTLE_MS}ms before flushing, in case of a trailing afterthought`);
+        transcriptTimer = setTimeout(flushTranscript, UTTERANCE_END_SETTLE_MS);
       }
     };
 
