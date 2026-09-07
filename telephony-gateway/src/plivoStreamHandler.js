@@ -5,6 +5,7 @@ import { publishEvaluation } from './queues/ingestQueue.js';
 import { redis } from './redis.js';
 import { setupSTT } from './providers/stt.js';
 import { speakBackToPlivo } from './providers/tts.js';
+import { setupRealtime } from './providers/openaiRealtime.js';
 import { createNotification, notifyWorkspace } from './utils/notifications.js';
 import { hangupCall } from './hangupCall.js';
 import { startPlivoRecording } from './plivoRest.js';
@@ -28,6 +29,17 @@ export function setupPlivoStream() {
     let streamSid = null;   // Plivo's streamId
     let agent = null;
     let sttStream = null;
+    let realtimeSession = null;   // set instead of sttStream when the realtime engine is active for this call
+    // Gate: only English campaigns, only when explicitly enabled, and only
+    // for the specific campaign ID(s) under test — this is untested against
+    // the live API and should not silently activate for any real production
+    // call. Hindi/Hinglish keeps using Sarvam/Deepgram (sttStream) untouched
+    // regardless, until the realtime engine's transcription quality on
+    // Indian-accented phone audio is validated against it.
+    const realtimeCampaignIds = (process.env.REALTIME_ENGINE_CAMPAIGN_IDS || '')
+      .split(',').map(id => id.trim()).filter(Boolean);
+    const realtimeEnabled = process.env.REALTIME_ENGINE === 'true'
+      && realtimeCampaignIds.includes(campaignId);
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
     // in providers/tts.js) is no longer opened. It was meant to save the
     // ~150-200ms per-turn reconnect cost of plain REST calls, but in
@@ -405,6 +417,49 @@ export function setupPlivoStream() {
       if (!isSpeaking) clearNoAnswerTimer();
     };
 
+    // ── Realtime engine turn handling ──────────────────────────────────
+    // Self-contained on purpose: does not touch transcriptAccumulator,
+    // transcriptTimer, pendingTranscript, or any of the other STT-timing
+    // state above — semantic_vad in providers/openaiRealtime.js already
+    // decides when a turn is complete, so none of that machinery applies
+    // here. Mirrors the shape of flushTranscript() (call agent.processInput,
+    // save state, speak the reply, hang up if needed) without the
+    // accumulation/settle/retry logic that exists solely to compensate for
+    // silence-timer-based STT.
+    let realtimeBusy = false;
+
+    const handleRealtimeTranscript = async (transcript) => {
+      if (!agent || isCallEnding || realtimeBusy) return;
+      realtimeBusy = true;
+      console.log(`[Realtime] Processing turn: "${transcript}"`);
+
+      let reply;
+      try {
+        reply = await agent.processInput(transcript);
+      } catch (e) {
+        console.error('[Realtime] Uncaught error from agent.processInput:', e.message);
+        realtimeBusy = false;
+        return;
+      }
+      realtimeBusy = false;
+
+      if (transcriptSaved) return;
+
+      if (callSid) await agent.saveState(redis, callSid);
+      if (agent.shouldHangUp) isCallEnding = true;
+      console.log(`[Agent] Reply: ${reply}`);
+
+      if (reply && reply.length > 0) {
+        realtimeSession.speak(reply);
+      } else if (isCallEnding) {
+        try {
+          await hangupCall(callSid);
+        } catch (e) {
+          console.error('[Stream] Failed to hang up via API:', e.message);
+        }
+      }
+    };
+
     let campaignLanguage = 'English'; // will be updated when campaign loads
 
     const flushTranscript = async () => {
@@ -616,17 +671,19 @@ export function setupPlivoStream() {
             campaignLanguage = campaign.callSettings?.language || 'English';
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
 
-            if (sttStream) {
-              sttStream.close();
+            const useRealtime = realtimeEnabled && campaignLanguage === 'English';
+
+            if (!useRealtime) {
+              if (sttStream) sttStream.close();
+              sttStream = setupSTT(campaignLanguage, {
+                onTranscript:     handleTranscript,
+                onUtteranceEnd:   handleUtteranceEnd,
+                onSpeechStart:    handleSpeechStart,
+                onSpeechActivity: handleSpeechActivity,
+                onError: (err) => console.error('[STT] Error:', err),
+                onClose: () => console.log('[STT] Closed')
+              });
             }
-            sttStream = setupSTT(campaignLanguage, {
-              onTranscript:     handleTranscript,
-              onUtteranceEnd:   handleUtteranceEnd,
-              onSpeechStart:    handleSpeechStart,
-              onSpeechActivity: handleSpeechActivity,
-              onError: (err) => console.error('[STT] Error:', err),
-              onClose: () => console.log('[STT] Closed')
-            });
             campaignContact = await prisma.campaignContact.findFirst({
               where: {
                 campaignId: campaign.id,
@@ -656,6 +713,38 @@ export function setupPlivoStream() {
               language: campaignLanguage
             });
 
+            if (useRealtime) {
+              realtimeSession = setupRealtime(agent.generateSystemPrompt(), {
+                onAudio: (chunk) => {
+                  if (ws.readyState === ws.OPEN && streamSid) {
+                    ws.send(JSON.stringify({
+                      event: 'playAudio',
+                      media: { contentType: 'audio/x-mulaw', sampleRate: 8000, payload: chunk.toString('base64') }
+                    }));
+                  }
+                },
+                onTranscript: handleRealtimeTranscript,
+                onSpeechStart: () => {
+                  console.log('[Stream] Realtime barge-in — sending clearAudio');
+                  if (ws.readyState === ws.OPEN && streamSid) {
+                    ws.send(JSON.stringify({ event: 'clearAudio', streamId: streamSid }));
+                  }
+                },
+                onResponseDone: async () => {
+                  if (isCallEnding && callSid) {
+                    console.log(`[Stream] Sign-off finished playing — hanging up ${callSid}`);
+                    try {
+                      await hangupCall(callSid);
+                    } catch (e) {
+                      console.error('[Stream] Failed to hang up via API:', e.message);
+                    }
+                  }
+                },
+                onError: (err) => console.error('[Realtime] Error:', err.message),
+                onClose: () => console.log('[Realtime] Closed')
+              });
+            }
+
             const effectiveDurationSec = (campaignContact?.overrides?.maxCallDurationSec) || campaign.maxCallDurationSec;
             if (effectiveDurationSec && effectiveDurationSec > 4) {
               const hangupAfterMs = (effectiveDurationSec - 4) * 1000;
@@ -668,8 +757,12 @@ export function setupPlivoStream() {
                   const closingText = `(System: You've reached the maximum call time. Say this exact closing to the user: "${signOff}" — then the call will end.)`;
                   const closing = await agent.processInput(closingText);
                   if (closing) {
-                    isSpeaking = true;
-                    await speakBackToPlivo(ws, streamSid, closing, campaignLanguage, ttsSocket);
+                    if (realtimeSession) {
+                      realtimeSession.speak(closing);
+                    } else {
+                      isSpeaking = true;
+                      await speakBackToPlivo(ws, streamSid, closing, campaignLanguage, ttsSocket);
+                    }
                   }
                 } catch (_) {}
                 if (callSid) {
@@ -697,23 +790,36 @@ export function setupPlivoStream() {
             const greeting = await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.)`);
             console.log(`[Agent] Greeting: ${greeting}`);
             if (greeting && greeting.length > 0) {
-              isSpeaking = true;
-              const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket);
-              if (!ok) isSpeaking = false;
-              else if (agent.expectsUserReply) startNoAnswerTimer();
+              if (useRealtime) {
+                // No-answer/max-answer timers are deliberately NOT wired up yet
+                // for the realtime path — semantic_vad handles "wait for the
+                // caller to finish," but true silence-forever detection
+                // ("Are you still there?") still needs its own realtime-native
+                // implementation rather than reusing startNoAnswerTimer(),
+                // which speaks through the old TTS engine directly.
+                realtimeSession.speak(greeting);
+              } else {
+                isSpeaking = true;
+                const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket);
+                if (!ok) isSpeaking = false;
+                else if (agent.expectsUserReply) startNoAnswerTimer();
+              }
             } else {
               console.warn('[Agent] Greeting was empty after sanitization — check callIntro config or LLM response.');
             }
           }
           break;
 
-        case 'media':
-          // Pipe raw mu-law audio to STT Provider.
-          if (sttStream) {
-            const audioPayload = Buffer.from(msg.media.payload, 'base64');
+        case 'media': {
+          // Pipe raw mu-law audio to whichever engine is active for this call.
+          const audioPayload = Buffer.from(msg.media.payload, 'base64');
+          if (realtimeSession) {
+            realtimeSession.sendAudio(audioPayload);
+          } else if (sttStream) {
             sttStream.sendAudio(audioPayload);
           }
           break;
+        }
 
         case 'playedStream':
           // Plivo's echo of our 'checkpoint' event, once that buffered audio
@@ -781,6 +887,7 @@ export function setupPlivoStream() {
           clearNoAnswerTimer();
           clearMaxAnswerTimer();
           if (sttStream) sttStream.close();
+          if (realtimeSession) realtimeSession.close();
           if (ttsSocket) { ttsSocket.close(); ttsSocket = null; }
           saveTranscript();
           break;
@@ -793,6 +900,7 @@ export function setupPlivoStream() {
       clearNoAnswerTimer();
       clearMaxAnswerTimer();
       if (sttStream) sttStream.close();
+      if (realtimeSession) realtimeSession.close();
       if (ttsSocket) { ttsSocket.close(); ttsSocket = null; }
 
       // A proper end-of-call always sends a 'stop' event first (handled above,
