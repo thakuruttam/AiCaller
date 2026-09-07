@@ -95,6 +95,41 @@ describe('OpenAI Realtime provider', () => {
     expect(update.session.audio.input.transcription.model).toBe('gpt-4o-mini-transcribe');
   });
 
+  it('defaults transcription language to English, and respects an explicit override', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    let socket = FakeWebSocket.instances[0];
+    socket._open();
+    let update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.input.transcription.language).toBe('en');
+
+    setupRealtime('x', makeHandlers(), 'hi');
+    socket = FakeWebSocket.instances[1];
+    socket._open();
+    update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.input.transcription.language).toBe('hi');
+  });
+
+  it('cancels the in-flight response on barge-in, not just clearing Plivo\'s local buffer', () => {
+    // clearAudio (handled by the caller of onSpeechStart, in
+    // plivoStreamHandler.js) only stops Plivo from PLAYING what's already
+    // been sent — a live call showed the model continuing to generate and
+    // stream MORE audio for the same stale response afterward, which then
+    // got queued right back into Plivo's buffer and interrupted the caller
+    // a second time. An explicit response.cancel stops the source, not
+    // just the symptom.
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    session.speak('This is a long reply the bot is mid-way through saying.');
+    socket._message({ type: 'input_audio_buffer.speech_started' }); // barge-in
+    expect(socket.sent.some(m => m.type === 'response.cancel')).toBe(true);
+    expect(handlers.onSpeechStart).toHaveBeenCalledTimes(1);
+  });
+
   it('defaults turn-detection eagerness to low, and respects an override', () => {
     process.env.OPENAI_REALTIME_EAGERNESS = 'high';
     const handlers = makeHandlers();

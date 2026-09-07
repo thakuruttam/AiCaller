@@ -40,7 +40,7 @@ import { WebSocket } from 'ws';
  * }
  * @returns {{ sendAudio: (mulawBuffer: Buffer) => void, speak: (text: string) => void, close: () => void }}
  */
-export function setupRealtime(instructions, handlers) {
+export function setupRealtime(instructions, handlers, language = 'en') {
   const model     = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
   const eagerness = process.env.OPENAI_REALTIME_EAGERNESS || 'low'; // low = give the caller more room before deciding they're done
   const voice     = process.env.OPENAI_REALTIME_VOICE || 'alloy';
@@ -119,7 +119,11 @@ export function setupRealtime(instructions, handlers) {
             // to this), but saying "Yes" or "Who is this?" produced total
             // silence with zero transcript and zero errors, on every call,
             // because nothing was ever configured to transcribe the input.
-            transcription: { model: 'gpt-4o-mini-transcribe' }
+            // language hints the transcriber instead of leaving it to guess
+            // per utterance — a live call showed it twice mis-transcribing
+            // ordinary English speech as Arabic and Hindi script on unclear
+            // audio, in an English-only campaign.
+            transcription: { model: 'gpt-4o-mini-transcribe', language }
           },
           output: {
             format: { type: 'audio/pcmu' },
@@ -179,7 +183,19 @@ export function setupRealtime(instructions, handlers) {
         // Only a real interruption if we were the one talking — otherwise
         // this is just the normal start of the caller's own turn.
         if (botSpeaking) {
-          console.log('[Realtime] Caller started speaking while bot was talking — barge-in');
+          console.log('[Realtime] Caller started speaking while bot was talking — barge-in, cancelling in-flight response');
+          // clearAudio (sent by the caller of this handler) only stops
+          // Plivo from PLAYING what's already been sent — it does nothing
+          // to stop the model from continuing to GENERATE that response
+          // server-side. interrupt_response:false means the API won't do
+          // this automatically either (that setting only concerns its own
+          // auto-created responses, unrelated to this). Without an explicit
+          // cancel, more audio for the same stale response keeps arriving
+          // and gets queued right back into Plivo's buffer, which can start
+          // playing again over whatever the caller says next — a second,
+          // confusing interruption that has nothing to do with them.
+          ws.send(JSON.stringify({ type: 'response.cancel' }));
+          botSpeaking = false;
           handlers.onSpeechStart?.();
         }
         break;

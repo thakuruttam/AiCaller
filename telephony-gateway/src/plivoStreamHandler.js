@@ -790,7 +790,7 @@ export function setupPlivoStream() {
                 },
                 onError: (err) => console.error('[Realtime] Error:', err.message),
                 onClose: () => console.log('[Realtime] Closed')
-              });
+              }, campaignLanguage === 'Hindi' || campaignLanguage === 'Hinglish' ? 'hi' : 'en');
             }
 
             const effectiveDurationSec = (campaignContact?.overrides?.maxCallDurationSec) || campaign.maxCallDurationSec;
