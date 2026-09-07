@@ -53,4 +53,18 @@ describe('VoiceAgent.evalCondition — comma-separated contains/does not contain
     const agent = makeAgent();
     expect(agent.evalCondition('contains', value, 'Mostly API. and performance.')).toBe(true);
   });
+
+  // An empty condition value means the campaign never actually configured
+  // one (a wizard field left blank). Splitting an empty string on ',' and
+  // filtering blank items now leaves nothing to match — 'contains' with an
+  // empty value can no longer fire on ANY answer, whereas plain substring
+  // matching used to treat '' as trivially contained in everything. Skip/
+  // end-call actions paired with a blank condition are almost always
+  // unintentional wizard configuration, not "match every answer" — this is
+  // the safer fail-closed default for that case.
+  it('an empty condition value never matches (fail-closed for an unconfigured condition)', () => {
+    const agent = makeAgent();
+    expect(agent.evalCondition('contains', '', 'literally any answer at all')).toBe(false);
+    expect(agent.evalCondition('does not contain', '', 'literally any answer at all')).toBe(true);
+  });
 });

@@ -54,20 +54,29 @@ export function setupPlivoStream() {
     let silenceTimeout = null;
     const timeoutSeconds = parseInt(process.env.VOICE_TIMEOUT_SECONDS || '60', 10);
 
-    // Turn-taking design (deliberately simple, per product decision after
-    // several rounds of chasing STT-provider timing quirks): our OWN 2-second
-    // idle-since-last-fragment timer is the authoritative "caller is done"
-    // signal — not Deepgram's UtteranceEnd. Deepgram's UtteranceEnd is still
-    // used when it arrives (it usually fires around the same ~2s mark and
-    // lets us flush a little earlier), but this local timer is what actually
-    // guarantees the 2-second rule regardless of that provider's own signal
-    // jitter/latency, which real calls showed could lag its stated
-    // utterance_end_ms=2000 threshold. If the caller never produces a full
-    // 2s gap (e.g. talking with short pauses throughout), MAX_ANSWER_SECONDS
-    // below is the hard ceiling that forces the turn along regardless.
+    // Turn-taking design: a plain 2-second cutoff (tried today) split a real
+    // caller's answers 3 separate times in ONE call — "Yeah. My current role
+    // is" <2s pause> "to lead to engineer..." — because natural mid-sentence
+    // pauses for this kind of open-ended question routinely run just past 2s.
+    // Each split misrouted the tail of one answer onto the NEXT question,
+    // burning retries on fragments that were never real attempts at that
+    // question. IDLE_MS is the first "looks done" signal (matches Deepgram's
+    // own ~2s UtteranceEnd, and doubles as our own local backstop if that
+    // signal is late/missing); SETTLE_MS is an extra grace period after
+    // EITHER signal before actually committing — long enough to catch a
+    // same-breath continuation, short enough to stay snappy. Effective
+    // silence-before-flush is IDLE_MS + SETTLE_MS (~3.2s combined).
+    // MAX_ANSWER_SECONDS below remains the sole hard ceiling for a caller who
+    // never produces a clean gap at all.
     let transcriptAccumulator = '';
     let transcriptTimer = null;
-    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '2000', 10);
+    const TRANSCRIPT_IDLE_MS = parseInt(process.env.TRANSCRIPT_IDLE_MS || '2000', 10);
+    const TRANSCRIPT_SETTLE_MS = parseInt(process.env.TRANSCRIPT_SETTLE_MS || '1200', 10);
+
+    function armSettleAndFlush() {
+      if (transcriptTimer) clearTimeout(transcriptTimer);
+      transcriptTimer = setTimeout(flushTranscript, TRANSCRIPT_SETTLE_MS);
+    }
 
     // Buffer for user speech that arrives WHILE the bot is speaking (isSpeaking=true).
     // Rather than dropping it, we accumulate it and replay once TTS ends.
@@ -97,7 +106,7 @@ export function setupPlivoStream() {
     const NO_ANSWER_MAX_RETRIES = parseInt(process.env.NO_ANSWER_MAX_RETRIES || '1', 10);
 
     // Hard cap per question/answer cycle — the fallback when the caller
-    // never produces a clean 2-second gap (TRANSCRIPT_BUFFER_MS above).
+    // never produces a clean gap at all (TRANSCRIPT_IDLE_MS/SETTLE_MS above).
     let maxAnswerTimer = null;
     const MAX_ANSWER_SECONDS = parseInt(process.env.MAX_ANSWER_SECONDS || '30', 10);
 
@@ -356,7 +365,7 @@ export function setupPlivoStream() {
           ? `${transcriptAccumulator} ${pendingTranscript}`
           : pendingTranscript;
         if (transcriptTimer) clearTimeout(transcriptTimer);
-        transcriptTimer = setTimeout(flushTranscript, TRANSCRIPT_BUFFER_MS);
+        transcriptTimer = setTimeout(armSettleAndFlush, TRANSCRIPT_IDLE_MS);
       }
       pendingTranscript = '';
       pendingUtteranceEnd = false;
@@ -498,7 +507,7 @@ export function setupPlivoStream() {
         : transcript;
 
       if (transcriptTimer) clearTimeout(transcriptTimer);
-      transcriptTimer = setTimeout(flushTranscript, TRANSCRIPT_BUFFER_MS);
+      transcriptTimer = setTimeout(armSettleAndFlush, TRANSCRIPT_IDLE_MS);
     };
 
     const handleUtteranceEnd = () => {
@@ -512,8 +521,8 @@ export function setupPlivoStream() {
 
       if (transcriptTimer) { clearTimeout(transcriptTimer); transcriptTimer = null; }
       if (transcriptAccumulator.trim()) {
-        console.log('[STT] UtteranceEnd — flushing immediately');
-        flushTranscript();
+        console.log(`[STT] UtteranceEnd — settling ${TRANSCRIPT_SETTLE_MS}ms before flushing, in case of a same-breath continuation`);
+        armSettleAndFlush();
       }
     };
 
