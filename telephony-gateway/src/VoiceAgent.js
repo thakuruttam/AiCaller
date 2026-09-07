@@ -189,7 +189,7 @@ export class VoiceAgent {
           model: "gpt-4.1-mini",
           messages: [{
             role: "user",
-            content: `A phone agent asked: "${questionText}"\nThe caller replied: "${userAnswer}"\n\nIs this a genuine, on-topic attempt to answer the question — even if brief, incomplete, or uncertain? Answer "no" only if the reply is gibberish, a refusal, a completely unrelated remark, or clearly dodges the question.\n\nReply with ONLY "yes" or "no".`
+            content: `A phone agent asked: "${questionText}"\nThe caller replied (this came through phone audio + speech-to-text, so minor transcription errors or odd/garbled phrases are expected and NOT disqualifying): "${userAnswer}"\n\nDoes this reply show a genuine attempt to engage with the question — in any way, however rough, brief, hesitant, or imperfectly worded? Say "yes" for ANY reply that references the topic asked about. Say "no" ONLY if the reply is one of: empty or pure filler with zero content ("um", "okay", "yes" alone), an explicit refusal to answer, or entirely about a different topic with no connection to the question at all.\n\nExamples:\nQ: "What is your current role?" A: "My current role is a lead QA engineer and day-to-day function teacher." -> yes (names a role, attempts to describe duties — one odd phrase from transcription noise doesn't disqualify it)\nQ: "What testing types have you worked on?" A: "I am a parrot." -> no (no real content, not an attempt)\nQ: "What is your current role?" A: "years" -> no (single disconnected word, no actual content)\n\nReply with ONLY "yes" or "no".`
           }],
           temperature: 0,
           max_tokens: 5,
