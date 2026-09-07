@@ -54,45 +54,20 @@ export function setupPlivoStream() {
     let silenceTimeout = null;
     const timeoutSeconds = parseInt(process.env.VOICE_TIMEOUT_SECONDS || '60', 10);
 
-    // Transcript accumulation buffer — merges multiple Deepgram finals that arrive
-    // within TRANSCRIPT_BUFFER_MS of each other into one coherent user turn before
-    // the agent processes it. Prevents mid-sentence STT cuts from being treated as
-    // complete answers and assigning speech to the wrong question.
-    //
-    // This is only meant as a SAFETY NET for when the provider's own
-    // UtteranceEnd never arrives — handleUtteranceEnd() below always
-    // pre-empts this timer and flushes immediately the moment the real
-    // signal fires, regardless of this value. Deepgram's own endpointing
-    // (the setting that produces each individual final) is 500ms, and its
-    // authoritative UtteranceEnd is supposed to fire after utterance_end_ms
-    // =2000 of true silence — but a real call showed this fallback firing
-    // first on a normal continuation ("Yeah. I work as a" / "QA engineer,
-    // and I take a stand up call...") with NO UtteranceEnd logged for that
-    // gap at all. The caller wasn't necessarily silent that whole time —
-    // the wall-clock gap this timer measures is between when WE RECEIVED
-    // each finalized transcript, and Deepgram's own transcription latency
-    // for a longer/more complex phrase adds to that on top of any real
-    // pause. A value only barely above 2000ms isn't enough margin against
-    // that combined delay — it just moves the race to a slightly longer
-    // gap instead of eliminating it. Set well clear of both Deepgram's
-    // stated threshold and realistic processing latency, while staying
-    // safely under the 10s no-answer timer (NO_ANSWER_SECONDS) so it can't
-    // race that instead.
+    // Turn-taking design (deliberately simple, per product decision after
+    // several rounds of chasing STT-provider timing quirks): our OWN 2-second
+    // idle-since-last-fragment timer is the authoritative "caller is done"
+    // signal — not Deepgram's UtteranceEnd. Deepgram's UtteranceEnd is still
+    // used when it arrives (it usually fires around the same ~2s mark and
+    // lets us flush a little earlier), but this local timer is what actually
+    // guarantees the 2-second rule regardless of that provider's own signal
+    // jitter/latency, which real calls showed could lag its stated
+    // utterance_end_ms=2000 threshold. If the caller never produces a full
+    // 2s gap (e.g. talking with short pauses throughout), MAX_ANSWER_SECONDS
+    // below is the hard ceiling that forces the turn along regardless.
     let transcriptAccumulator = '';
     let transcriptTimer = null;
-    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '6000', 10);
-
-    // Deepgram's UtteranceEnd firing correctly (after a genuine ~2s pause)
-    // does NOT mean the caller is truly finished — a real call answered
-    // "All of the above." (UtteranceEnd fired, correctly, after a real
-    // pause), then added "And market research." a beat later. Flushing the
-    // instant UtteranceEnd fires dispatched the first half alone, and while
-    // that turn's LLM call was in flight the second half arrived and had
-    // nowhere to go. Give a brief settle window after the real signal
-    // instead of trusting it as instantaneous truth — a trailing
-    // afterthought arriving inside it extends this via handleTranscript()
-    // below and gets merged into the SAME turn instead of racing it.
-    const UTTERANCE_END_SETTLE_MS = parseInt(process.env.UTTERANCE_END_SETTLE_MS || '900', 10);
+    const TRANSCRIPT_BUFFER_MS = parseInt(process.env.TRANSCRIPT_BUFFER_MS || '2000', 10);
 
     // Buffer for user speech that arrives WHILE the bot is speaking (isSpeaking=true).
     // Rather than dropping it, we accumulate it and replay once TTS ends.
@@ -121,9 +96,10 @@ export function setupPlivoStream() {
     const NO_ANSWER_SECONDS = parseInt(process.env.NO_ANSWER_SECONDS || '10', 10);
     const NO_ANSWER_MAX_RETRIES = parseInt(process.env.NO_ANSWER_MAX_RETRIES || '1', 10);
 
-    // Hard 40-second cap per question/answer cycle.
+    // Hard cap per question/answer cycle — the fallback when the caller
+    // never produces a clean 2-second gap (TRANSCRIPT_BUFFER_MS above).
     let maxAnswerTimer = null;
-    const MAX_ANSWER_SECONDS = parseInt(process.env.MAX_ANSWER_SECONDS || '40', 10);
+    const MAX_ANSWER_SECONDS = parseInt(process.env.MAX_ANSWER_SECONDS || '30', 10);
 
     function clearMaxAnswerTimer() {
       if (maxAnswerTimer) { clearTimeout(maxAnswerTimer); maxAnswerTimer = null; }
@@ -536,8 +512,8 @@ export function setupPlivoStream() {
 
       if (transcriptTimer) { clearTimeout(transcriptTimer); transcriptTimer = null; }
       if (transcriptAccumulator.trim()) {
-        console.log(`[STT] UtteranceEnd — settling ${UTTERANCE_END_SETTLE_MS}ms before flushing, in case of a trailing afterthought`);
-        transcriptTimer = setTimeout(flushTranscript, UTTERANCE_END_SETTLE_MS);
+        console.log('[STT] UtteranceEnd — flushing immediately');
+        flushTranscript();
       }
     };
 
