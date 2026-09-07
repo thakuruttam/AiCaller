@@ -75,7 +75,29 @@ export function setupPlivoStream() {
 
     function armSettleAndFlush() {
       if (transcriptTimer) clearTimeout(transcriptTimer);
-      transcriptTimer = setTimeout(flushTranscript, TRANSCRIPT_SETTLE_MS);
+      transcriptTimer = setTimeout(maybeFlush, TRANSCRIPT_SETTLE_MS);
+    }
+
+    // Without mandatory-answer validation, a fragment like "Yeah. I worked
+    // with" (cut off mid-thought, no closing punctuation) used to get caught
+    // by that check; now nothing stops it from being accepted as a complete
+    // answer and silently skipping past the real question. Give a fragment
+    // that clearly trails off ONE extra full wait cycle to catch a genuine
+    // continuation — silently, no spoken retry — before accepting it as-is
+    // regardless. Bounded to once per turn so a caller whose STT transcript
+    // never gets closing punctuation (a real Deepgram quirk, not always a
+    // sign of an actual fragment) doesn't get stuck waiting indefinitely.
+    let extendedForIncompleteness = false;
+
+    function maybeFlush() {
+      const looksComplete = /[.?!]$/.test(transcriptAccumulator.trim());
+      if (!looksComplete && !extendedForIncompleteness && transcriptAccumulator.trim()) {
+        extendedForIncompleteness = true;
+        console.log(`[STT] Answer looks cut off (no closing punctuation) — waiting once more before accepting it: "${transcriptAccumulator}"`);
+        transcriptTimer = setTimeout(armSettleAndFlush, TRANSCRIPT_IDLE_MS);
+        return;
+      }
+      flushTranscript();
     }
 
     // Buffer for user speech that arrives WHILE the bot is speaking (isSpeaking=true).
@@ -389,6 +411,7 @@ export function setupPlivoStream() {
       const fullTranscript = transcriptAccumulator.trim();
       transcriptAccumulator = '';
       transcriptTimer = null;
+      extendedForIncompleteness = false;
       if (!fullTranscript || !agent || isCallEnding) return;
 
       if (isFlushingTranscript) {
