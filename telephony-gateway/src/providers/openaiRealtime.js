@@ -51,6 +51,11 @@ export function setupRealtime(instructions, handlers) {
   });
 
   let ready = false;
+  // Counts audio chunks per response — logged on response.done so a silent
+  // failure (event names drifting again, audio generated but never
+  // forwarded) shows up immediately in the logs as "0 chunks" instead of
+  // needing another live call to notice nothing actually played.
+  let audioChunksThisResponse = 0;
   // True from when we ask the model to speak until its response finishes —
   // used the same way plivoStreamHandler.js's `isSpeaking` is used today,
   // to distinguish a real barge-in (caller interrupting OUR speech) from
@@ -100,8 +105,17 @@ export function setupRealtime(instructions, handlers) {
         break;
       }
 
-      case 'response.audio.delta':
-        if (msg.delta) handlers.onAudio?.(Buffer.from(msg.delta, 'base64'));
+      // GA renamed this from the beta's bare 'response.audio.delta' to
+      // 'response.output_audio.delta' — confirmed against OpenAI's own
+      // example code, not just docs prose. This silently broke the whole
+      // audio path with NO error event at all: the response was generated
+      // successfully, our switch just never matched the event, so nothing
+      // ever reached Plivo and the call sat in dead air.
+      case 'response.output_audio.delta':
+        if (msg.delta) {
+          audioChunksThisResponse++;
+          handlers.onAudio?.(Buffer.from(msg.delta, 'base64'));
+        }
         break;
 
       case 'input_audio_buffer.speech_started':
@@ -115,6 +129,12 @@ export function setupRealtime(instructions, handlers) {
 
       case 'response.done':
         botSpeaking = false;
+        if (audioChunksThisResponse === 0) {
+          console.warn('[Realtime] Response completed with ZERO audio chunks delivered — nothing was spoken. Check for an event-name mismatch or a text-only response.');
+        } else {
+          console.log(`[Realtime] Response finished — ${audioChunksThisResponse} audio chunks delivered`);
+        }
+        audioChunksThisResponse = 0;
         handlers.onResponseDone?.();
         break;
 

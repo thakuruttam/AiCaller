@@ -102,14 +102,14 @@ describe('OpenAI Realtime provider', () => {
     expect(handlers.onTranscript).not.toHaveBeenCalled();
   });
 
-  it('decodes response.audio.delta and forwards raw bytes to onAudio', () => {
+  it('decodes response.output_audio.delta (the GA event name) and forwards raw bytes to onAudio', () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);
     const socket = FakeWebSocket.instances[0];
     socket._open();
 
     const payload = Buffer.from([1, 2, 3, 4]).toString('base64');
-    socket._message({ type: 'response.audio.delta', delta: payload });
+    socket._message({ type: 'response.output_audio.delta', delta: payload });
     expect(handlers.onAudio).toHaveBeenCalledTimes(1);
     expect(handlers.onAudio.mock.calls[0][0]).toEqual(Buffer.from([1, 2, 3, 4]));
   });
@@ -139,6 +139,19 @@ describe('OpenAI Realtime provider', () => {
     session.speak('Goodbye.');
     socket._message({ type: 'response.done' });
     expect(handlers.onResponseDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns when a response completes with zero audio chunks delivered', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    session.speak('This should have produced audio.');
+    socket._message({ type: 'response.done' }); // no response.output_audio.delta ever arrived
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('ZERO audio chunks'));
+    warnSpy.mockRestore();
   });
 
   it('speak() sends a verbatim-text directive followed by response.create', () => {
