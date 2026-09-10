@@ -96,6 +96,17 @@ export function setupPlivoStream() {
     let pendingAutonomousTransition = false; // true from call start until the greeting finishes and we switch modes
     let autonomousPhaseActive = false; // true only AFTER the transition — guards onAssistantTranscript so the scripted greeting isn't double-captured
     let pendingAutonomousContinuation = false; // true after a tool-call-only (zero-audio) turn, until we've prompted the model to continue
+    // Confirmed on a live call: the checkpoint/playedStream hangup confirmation
+    // only proves Plivo's outbound stream reached that marker — NOT that real
+    // audio preceded it. If the closing response.create was rejected/produced
+    // zero audio (a real race right after interruptAndSpeak's response.cancel),
+    // the checkpoint can still echo back almost instantly since nothing real
+    // was queued ahead of it, and the call hangs up in total silence while the
+    // code believes the goodbye played. Track the actual closing text and
+    // retry once via a plain (non-interrupting) speak() before trusting a
+    // checkpoint confirmation.
+    let lastClosingText = null;
+    let closingRetried = false;
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
     // in providers/tts.js) is no longer opened. It was meant to save the
     // ~150-200ms per-turn reconnect cost of plain REST calls, but in
@@ -542,6 +553,7 @@ export function setupPlivoStream() {
       console.log(`[Agent] Reply: ${reply}`);
 
       if (reply && reply.length > 0) {
+        if (isCallEnding) { lastClosingText = reply; closingRetried = false; }
         realtimeSession.speak(reply);
       } else if (isCallEnding) {
         try {
@@ -615,6 +627,8 @@ export function setupPlivoStream() {
           const closingText = args.reason === 'completed'
             ? (agent.config.callSignOff || 'Thank you for your time. Goodbye.')
             : 'I apologize for the interruption. Have a great day.';
+          lastClosingText = closingText;
+          closingRetried = false;
           realtimeSession.interruptAndSpeak(closingText);
           agent.appendTranscriptTurn('assistant', closingText);
           if (callSid) agent.saveState(redis, callSid);
@@ -939,6 +953,22 @@ export function setupPlivoStream() {
                   // TTS path already relies on for exactly this — see the
                   // 'playedStream' case below — with a timeout backstop in case
                   // the echo never arrives.
+                  //
+                  // hadAudio guards a SEPARATE, confirmed bug: a checkpoint is
+                  // just a marker in the outbound stream, not proof real audio
+                  // preceded it. If the closing response delivered zero audio
+                  // (a live call hit this right after interruptAndSpeak's
+                  // response.cancel raced the server), the checkpoint can still
+                  // echo back almost instantly and this code would confirm an
+                  // EMPTY queue, hanging up in total silence. Retry the exact
+                  // closing text once via plain speak() before ever arming the
+                  // checkpoint for it.
+                  if (isCallEnding && callSid && !hadAudio && lastClosingText && !closingRetried) {
+                    closingRetried = true;
+                    console.warn(`[Stream] Closing line delivered zero audio — retrying once before hangup for ${callSid}`);
+                    realtimeSession.speak(lastClosingText);
+                    return;
+                  }
                   if (isCallEnding && callSid) {
                     if (ws.readyState === ws.OPEN && streamSid) {
                       console.log(`[Stream] Sign-off generated — confirming playback before hangup for ${callSid}`);
