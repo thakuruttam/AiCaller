@@ -120,10 +120,14 @@ export function setupRealtime(instructions, handlers, language = 'en') {
             // silence with zero transcript and zero errors, on every call,
             // because nothing was ever configured to transcribe the input.
             // language hints the transcriber instead of leaving it to guess
-            // per utterance — a live call showed it twice mis-transcribing
-            // ordinary English speech as Arabic and Hindi script on unclear
-            // audio, in an English-only campaign.
-            transcription: { model: 'gpt-4o-mini-transcribe', language }
+            // per utterance — added after a live call showed it twice
+            // mis-transcribing ordinary English speech as Arabic and Hindi
+            // script on unclear audio, in an English-only campaign. That
+            // still recurred (Urdu script, twice) even WITH the hint on a
+            // later call, so also upgraded from the mini model to the full
+            // gpt-4o-transcribe — cost was already accepted as a trade-off
+            // for quality earlier in this build.
+            transcription: { model: 'gpt-4o-transcribe', language }
           },
           output: {
             format: { type: 'audio/pcmu' },

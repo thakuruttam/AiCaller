@@ -363,7 +363,36 @@ When instructed to say the sign-off, you must say the exact sign-off and immedia
           return refusalApology;
         }
 
-        // 2. Confusion Detection
+        // 2. Identity/Purpose Clarification (mid-call) — mirrors the SAME
+        // handling already used right after the greeting
+        // (awaitingIdentityConfirm phase, below), which never applied
+        // anywhere else in the call. See telephony-gateway/src/VoiceAgent.js
+        // for the full rationale — a live call showed a mid-call "who is
+        // this?" silently swallowed as if it were the literal answer to
+        // whatever question had just been asked.
+        // userClean above already stripped apostrophes, so these must be
+        // written without them too ("who's" -> "whos") or they can never match.
+        const CLARIFICATION_PHRASES = [
+          'who is this', 'whos this', 'who is calling', 'whos calling',
+          'what is this about', 'whats this about', 'why are you calling',
+          'why is this call', 'what company is this', 'who am i speaking'
+        ];
+        const isClarificationQuestion = CLARIFICATION_PHRASES.some(p => userClean.includes(p));
+
+        if (isClarificationQuestion) {
+          const clarifyDirective = `(System: The user asked a clarification question about who is calling or why. Answer them briefly based on your system prompt, then repeat this exact previous question verbatim: "${prevItem.text}")`;
+          this.expectsUserReply = true;
+          const fullInput = `${userInput}\n${clarifyDirective}`;
+          this.chatHistory.push({ role: 'user', content: fullInput });
+          try {
+            return await this._callLLM();
+          } catch (e) {
+            console.error('[VoiceAgent] LLM error on mid-call clarification reply:', e.message);
+            return prevItem.text;
+          }
+        }
+
+        // 3. Confusion Detection
         const isSimpleConfusion = ['what', 'what?', 'huh', 'huh?', 'pardon', 'pardon?', 'repeat', 'sorry', 'sorry?'].includes(userClean);
         const isPhraseConfusion = [
           'repeat that', 'can you repeat', 'could you repeat', 'please repeat', 'repeat please',

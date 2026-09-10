@@ -92,7 +92,7 @@ describe('OpenAI Realtime provider', () => {
 
     const update = socket.sent.find(m => m.type === 'session.update');
     expect(update.session.audio.input.transcription).toBeTruthy();
-    expect(update.session.audio.input.transcription.model).toBe('gpt-4o-mini-transcribe');
+    expect(update.session.audio.input.transcription.model).toBe('gpt-4o-transcribe');
   });
 
   it('defaults transcription language to English, and respects an explicit override', () => {
