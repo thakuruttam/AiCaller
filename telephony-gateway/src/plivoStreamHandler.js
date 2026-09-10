@@ -596,7 +596,14 @@ export function setupPlivoStream() {
       if (agent.config.endCallIf?.trim()) {
         try {
           const fired = await agent._evalSemanticCondition(agent.config.endCallIf.trim(), transcript);
-          if (fired) {
+          // Re-check isCallEnding AFTER the await — confirmed on a live call
+          // that the model's own end_call tool call can fire independently
+          // while this side-channel network call is still in flight, and
+          // acting again here once it resolves raced a second, redundant
+          // end-call flow against the first (cascading "conversation_already
+          // _has_active_response" rejections). If something else already
+          // ended the call while we were checking, there's nothing to do.
+          if (fired && !isCallEnding) {
             console.log(`[Stream] Autonomous: configured End-Call-If condition matched on "${transcript}" — forcing end_call`);
             agent.recordEndCall('completed');
             isCallEnding = true;
