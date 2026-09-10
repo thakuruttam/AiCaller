@@ -691,7 +691,9 @@ Reason about the caller's latest message in context — declines, reschedule req
     try {
       if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
       decision = await this._decideAction(userInput, {
-        currentLabel: prevItem ? `We just asked (id="${prevItem.id}"): "${prevItem.text}"` : 'No item asked yet.',
+        currentLabel: prevItem
+          ? `We just asked (id="${prevItem.id}"): "${prevItem.text}". If the caller asks a clarification question instead of answering — "who is this?", "why are you calling?", "is this an AI?", or similar — choose explain_and_continue so they get answered before the question is repeated. Only choose repeat_current for confusion/mishearing ("what?", "can you repeat that?") where no real question was asked back.`
+          : 'No item asked yet.',
         allowedActions: allowed
       });
     } catch (e) {

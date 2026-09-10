@@ -104,6 +104,27 @@ describe('VoiceAgent — decision engine (realtime path)', () => {
     expect(agent.currentIndex).toBe(2);
   });
 
+  it('the mid-script decision prompt explicitly directs "who is this"-style questions to explain_and_continue, not just repeat_current', async () => {
+    // Confirmed on a live call: the mid-script prompt used to only mention
+    // clarification questions in a generic closing sentence, and the model
+    // repeatedly just repeated the question bare instead of answering who
+    // was calling. The identity-confirmation phase already had this as a
+    // concrete worked example and never had the problem — this locks in
+    // that the script phase now gets the same concrete instruction.
+    const agent = makeAgent();
+    agent.awaitingIdentityConfirm = false;
+    agent.currentIndex = 1;
+
+    const fetchMock = vi.fn().mockResolvedValue(mockToolCallResponse({ action: 'repeat_current' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await agent.processInput('Who is this?');
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const systemMessage = body.messages.find(m => m.role === 'system').content;
+    expect(systemMessage).toContain('explain_and_continue');
+    expect(systemMessage.toLowerCase()).toContain('who is this');
+  });
+
   it('a genuine decline/reschedule ("not a good time") ends the call instead of asking the next question — the real bug this replaces', async () => {
     const agent = makeAgent();
     agent.awaitingIdentityConfirm = false;
