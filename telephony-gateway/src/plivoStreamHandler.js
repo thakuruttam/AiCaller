@@ -10,6 +10,46 @@ import { createNotification, notifyWorkspace } from './utils/notifications.js';
 import { hangupCall } from './hangupCall.js';
 import { startPlivoRecording } from './plivoRest.js';
 
+// Tool contract for autonomous (free-flowing) realtime calls — see
+// VoiceAgent.generateAutonomousInstructions() for the matching instructions
+// telling the model when/how to call these. Realtime API tool definitions
+// are flat ({type,name,description,parameters}), unlike Chat Completions'
+// nested {type,function:{name,...}} shape used by VoiceAgent's decision-
+// engine tool — easy to mix up, verify against the live API if tool calls
+// aren't arriving as expected.
+const AUTONOMOUS_TOOLS = [
+  {
+    type: 'function',
+    name: 'answer_captured',
+    description: "Call once the caller has given a real, clear answer to the current question.",
+    parameters: {
+      type: 'object',
+      properties: { question_id: { type: 'string' } },
+      required: ['question_id']
+    }
+  },
+  {
+    type: 'function',
+    name: 'skip_to_question',
+    description: "Call to jump to a specific question because the caller's answer satisfied a configured skip condition.",
+    parameters: {
+      type: 'object',
+      properties: { question_id: { type: 'string' } },
+      required: ['question_id']
+    }
+  },
+  {
+    type: 'function',
+    name: 'end_call',
+    description: 'Call when the conversation should end — all questions covered, or the caller declined/was busy/was the wrong person.',
+    parameters: {
+      type: 'object',
+      properties: { reason: { type: 'string', enum: ['completed', 'declined', 'busy', 'wrong_person'] } },
+      required: ['reason']
+    }
+  }
+];
+
 // noServer: true — the shared 'upgrade' router in server.js dispatches to this
 // by pathname, since a `ws` WebSocketServer bound directly via {server, path}
 // installs its own unconditional 'upgrade' listener that would 400 any other path.
@@ -43,6 +83,17 @@ export function setupPlivoStream() {
       .split(',').map(id => id.trim()).filter(Boolean);
     const realtimeEnabled = process.env.REALTIME_ENGINE === 'true'
       && (realtimeCampaignIds.length === 0 || realtimeCampaignIds.includes(campaignId));
+    // Autonomous (free-flowing, tool-calling) mode is a further-gated subset
+    // of realtime calls — deliberately NOT widened alongside REALTIME_ENGINE_
+    // CAMPAIGN_IDS above. This is a bigger architectural change than the
+    // decision-engine rewrite (the model drives the conversation itself, not
+    // our code) and needs its own live-validation cycle on an explicit test
+    // campaign before it's trusted anywhere near the traffic the decision-
+    // engine mode already carries.
+    const autonomousCampaignIds = (process.env.REALTIME_AUTONOMOUS_CAMPAIGN_IDS || '')
+      .split(',').map(id => id.trim()).filter(Boolean);
+    let useAutonomous = false; // finalized once campaignLanguage is known, below
+    let pendingAutonomousTransition = false; // true from call start until the greeting finishes and we switch modes
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
     // in providers/tts.js) is no longer opened. It was meant to save the
     // ~150-200ms per-turn reconnect cost of plain REST calls, but in
@@ -501,6 +552,70 @@ export function setupPlivoStream() {
       if (realtimePendingTranscript.trim() && !isCallEnding) dispatchRealtimeTurn();
     };
 
+    // ── Autonomous mode turn handling ────────────────────────────────────
+    // No agent.processInput() call here at all — the Realtime session
+    // decides what to say on its own (create_response:true). This just
+    // records the transcript for saveTranscript() and watches for a stall
+    // (see VoiceAgent.isAutonomousStalled) since there's no per-turn
+    // decision call left to attach a repeat cap to otherwise.
+    const handleAutonomousTranscript = (transcript) => {
+      resetSilenceTimeout();
+      if (!agent || isCallEnding) return;
+      agent.appendTranscriptTurn('user', transcript);
+      agent.noteAutonomousTurn();
+
+      if (agent.isAutonomousStalled()) {
+        console.warn('[Stream] Autonomous mode stalled — forcing progress past the current question');
+        const stalledItem = agent.currentItem();
+        if (stalledItem) agent.recordAnswerCaptured(stalledItem.id);
+
+        const nextItem = agent.currentItem();
+        if (nextItem) {
+          realtimeSession.interruptAndSpeak(nextItem.text);
+          agent.appendTranscriptTurn('assistant', nextItem.text);
+        } else {
+          agent.recordEndCall('completed');
+          isCallEnding = true;
+          const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
+          realtimeSession.interruptAndSpeak(closingText);
+          agent.appendTranscriptTurn('assistant', closingText);
+        }
+        if (callSid) agent.saveState(redis, callSid);
+      }
+    };
+
+    const handleAutonomousToolCall = (name, args) => {
+      if (!agent || isCallEnding) return;
+      switch (name) {
+        case 'answer_captured':
+          agent.recordAnswerCaptured(args.question_id);
+          if (callSid) agent.saveState(redis, callSid);
+          break;
+        case 'skip_to_question':
+          agent.recordSkip(args.question_id);
+          if (callSid) agent.saveState(redis, callSid);
+          break;
+        case 'end_call': {
+          agent.recordEndCall(args.reason);
+          isCallEnding = true;
+          // Force the configured verbatim closing line rather than trust
+          // whatever the model was mid-sentence composing when it decided
+          // to end the call — same reasoning as the decision engine's
+          // forced sign-off, now via interruptAndSpeak since a response may
+          // already be generating for this same turn.
+          const closingText = args.reason === 'completed'
+            ? (agent.config.callSignOff || 'Thank you for your time. Goodbye.')
+            : 'I apologize for the interruption. Have a great day.';
+          realtimeSession.interruptAndSpeak(closingText);
+          agent.appendTranscriptTurn('assistant', closingText);
+          if (callSid) agent.saveState(redis, callSid);
+          break;
+        }
+        default:
+          console.warn(`[Stream] Autonomous mode: unknown tool call "${name}" — ignored.`);
+      }
+    };
+
     let campaignLanguage = 'English'; // will be updated when campaign loads
 
     const flushTranscript = async () => {
@@ -713,6 +828,8 @@ export function setupPlivoStream() {
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
 
             const useRealtime = realtimeEnabled && campaignLanguage === 'English';
+            useAutonomous = useRealtime && autonomousCampaignIds.includes(campaignId);
+            pendingAutonomousTransition = useAutonomous;
 
             if (!useRealtime) {
               if (sttStream) sttStream.close();
@@ -752,7 +869,8 @@ export function setupPlivoStream() {
               endCallIf: campaign.endCallIf,
               successCriteria: campaign.callModule?.successCriteria,
               language: campaignLanguage,
-              useDecisionEngine: useRealtime
+              useDecisionEngine: useRealtime,
+              useAutonomousEngine: useAutonomous
             });
 
             if (useRealtime) {
@@ -765,7 +883,9 @@ export function setupPlivoStream() {
                     }));
                   }
                 },
-                onTranscript: handleRealtimeTranscript,
+                onTranscript: useAutonomous ? handleAutonomousTranscript : handleRealtimeTranscript,
+                onAssistantTranscript: useAutonomous ? (text) => agent?.appendTranscriptTurn('assistant', text) : undefined,
+                onToolCall: useAutonomous ? (name, args) => handleAutonomousToolCall(name, args) : undefined,
                 onSpeechActivity: () => resetSilenceTimeout(),
                 onSpeechStart: () => {
                   console.log('[Stream] Realtime barge-in — sending clearAudio');
@@ -774,6 +894,15 @@ export function setupPlivoStream() {
                   }
                 },
                 onResponseDone: async () => {
+                  if (pendingAutonomousTransition) {
+                    pendingAutonomousTransition = false;
+                    console.log('[Stream] Greeting finished — switching to autonomous conversation mode');
+                    realtimeSession.beginAutonomousConversation(
+                      agent.generateAutonomousInstructions(),
+                      AUTONOMOUS_TOOLS
+                    );
+                    return;
+                  }
                   // onResponseDone fires when the model finishes GENERATING the
                   // closing audio server-side — not when Plivo has actually
                   // finished PLAYING it. Hanging up directly here (as before)

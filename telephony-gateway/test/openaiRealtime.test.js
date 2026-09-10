@@ -56,6 +56,8 @@ describe('OpenAI Realtime provider', () => {
       onResponseDone: vi.fn(),
       onError: vi.fn(),
       onClose: vi.fn(),
+      onToolCall: vi.fn(),
+      onAssistantTranscript: vi.fn(),
     };
   }
 
@@ -371,5 +373,103 @@ describe('OpenAI Realtime provider', () => {
 
     session.close();
     expect(handlers.onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('OpenAI Realtime provider — autonomous (free-flowing, tool-calling) mode', () => {
+  beforeEach(() => {
+    FakeWebSocket.instances.length = 0;
+    process.env.OPENAI_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  function makeHandlers() {
+    return {
+      onTranscript: vi.fn(),
+      onAudio: vi.fn(),
+      onSpeechStart: vi.fn(),
+      onSpeechActivity: vi.fn(),
+      onResponseDone: vi.fn(),
+      onError: vi.fn(),
+      onClose: vi.fn(),
+      onToolCall: vi.fn(),
+      onAssistantTranscript: vi.fn(),
+    };
+  }
+
+  it('beginAutonomousConversation sends a session.update with create_response:true and the tool list', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    const tools = [{ type: 'function', name: 'end_call', parameters: {} }];
+    session.beginAutonomousConversation('new instructions', tools);
+
+    const update = socket.sent.find(m => m.type === 'session.update');
+    expect(update).toBeTruthy();
+    expect(update.session.instructions).toBe('new instructions');
+    expect(update.session.tools).toEqual(tools);
+    expect(update.session.audio.input.turn_detection.create_response).toBe(true);
+  });
+
+  it('is a no-op if called before the socket is ready', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    // Deliberately not opened.
+    session.beginAutonomousConversation('instructions', []);
+    expect(socket.sent.find(m => m.type === 'session.update')).toBeUndefined();
+  });
+
+  it('forwards a tool call to onToolCall with parsed arguments, and acknowledges it', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    socket._message({
+      type: 'response.function_call_arguments.done',
+      name: 'answer_captured',
+      arguments: JSON.stringify({ question_id: 'q1' }),
+      call_id: 'call_123'
+    });
+
+    expect(handlers.onToolCall).toHaveBeenCalledWith('answer_captured', { question_id: 'q1' });
+    const ack = socket.sent.find(m => m.type === 'conversation.item.create' && m.item?.type === 'function_call_output');
+    expect(ack).toBeTruthy();
+    expect(ack.item.call_id).toBe('call_123');
+  });
+
+  it('forwards the model\'s own spoken text to onAssistantTranscript', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    socket._message({ type: 'response.output_audio_transcript.done', transcript: 'Sure, tell me more about that.' });
+    expect(handlers.onAssistantTranscript).toHaveBeenCalledWith('Sure, tell me more about that.');
+  });
+
+  it('interruptAndSpeak cancels an in-flight response before forcing the new text', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    session.speak('model was mid-response');
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(1);
+
+    session.interruptAndSpeak('Thank you for your time. Goodbye.');
+    expect(socket.sent.some(m => m.type === 'response.cancel')).toBe(true);
+    const creates = socket.sent.filter(m => m.type === 'conversation.item.create');
+    expect(creates[creates.length - 1].item.content[0].text).toContain('Thank you for your time. Goodbye.');
+    // Must not have queued behind the cancelled response — sent immediately.
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(2);
   });
 });

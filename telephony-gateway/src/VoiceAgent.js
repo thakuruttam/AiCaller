@@ -38,6 +38,21 @@ export class VoiceAgent {
     this.useDecisionEngine = !!config.useDecisionEngine;
     this.repeatCount = 0;                      // consecutive repeat/explain decisions — forces progress after a few
 
+    // ── Autonomous mode (free-flowing, tool-calling — a further-gated subset
+    // of realtime-engine calls) ─────────────────────────────────────────
+    // When true, the Realtime session itself drives the conversation
+    // (create_response:true) and speaks freely in its own words — VoiceAgent
+    // is no longer a per-turn decider (no _decideAction call). It becomes a
+    // passive ledger: recordAnswerCaptured/recordSkip/recordEndCall update
+    // currentIndex/done/shouldHangUp from the model's tool calls, the same
+    // fields the decision-engine path already uses. autonomousStallCount is
+    // a safety net decision-engine mode gets from its repeat/explain cap
+    // (see _resolveAction) but this mode has no per-turn decision to attach
+    // a cap to otherwise — without it, a confused model could in principle
+    // re-ask the same question indefinitely with nothing forcing progress.
+    this.useAutonomousEngine = !!config.useAutonomousEngine;
+    this.autonomousStallCount = 0;
+
     console.log("--------------------------------------------------");
     console.log(`[VoiceAgent] Initializing: ${this.name}`);
     console.log(`[VoiceAgent] Target Contact: ${this.contactName}`);
@@ -712,6 +727,95 @@ Reason about the caller's latest message in context — declines, reschedule req
       return this._handleIdentityTurn(userInput);
     }
     return this._handleScriptTurn(userInput);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Autonomous mode (free-flowing, tool-calling)
+  // ─────────────────────────────────────────────────────────────────
+  // The Realtime session drives the conversation itself and speaks in its
+  // own words — these methods are called from plivoStreamHandler.js's
+  // onToolCall/onTranscript wiring, never from processInput(). No per-turn
+  // LLM decision call exists in this mode; this is a passive ledger plus
+  // validation, same spirit as _resolveAction's guardrails but reacting to
+  // the model's own tool calls instead of choosing an action itself.
+
+  /**
+   * Standing system prompt for the whole autonomous conversation, built once
+   * when transitioning out of the forced-verbatim greeting — NOT rebuilt per
+   * turn like the decision engine's _decideAction prompt, since the model
+   * now holds the live conversation itself rather than us re-deriving intent
+   * from scratch every turn.
+   */
+  generateAutonomousInstructions() {
+    const { goal, endCallIf } = this.config;
+    return `You are on a live phone call with ${this.contactName}. Speak naturally, like a real professional conversation — you do not need to recite anything word-for-word, though you should lean toward the wording given below where it stays natural.
+
+GOAL: ${goal || 'Conduct a professional conversation and gather requested information.'}
+${endCallIf?.trim() ? `If at any point this becomes true based on what the caller says, end the call: ${endCallIf}` : ''}
+
+QUESTIONS TO COVER, IN ORDER (prefer this wording, natural rephrasing is fine):
+${this._describeItems() || '(none configured)'}
+
+TOOLS — call these as you go, in addition to speaking naturally:
+- Call answer_captured with the current question's id once the caller has given a real, clear answer to it. Then move on to asking the next question yourself, in order.
+- If the caller's answer matches a described skip condition above, call skip_to_question with the target id instead of asking the next question in sequence.
+- If the caller declines, is busy, asks to be called another time, or says they are not the intended person, call end_call with the appropriate reason and a brief, natural goodbye — do not keep asking questions after that.
+- Do not discuss anything outside this goal and these questions.`;
+  }
+
+  /** Append a real conversation turn directly to history — no decision logic, just the transcript record that saveTranscript() reads via getHistory(). */
+  appendTranscriptTurn(role, text) {
+    if (!text) return;
+    this.chatHistory.push({ role, content: text });
+  }
+
+  /** Model called answer_captured — validate and advance the pointer. */
+  recordAnswerCaptured(questionId) {
+    const idx = this.items.findIndex(i => i.id === questionId);
+    if (idx === -1) {
+      console.warn(`[VoiceAgent] Autonomous: answer_captured for unknown item id "${questionId}" — ignored.`);
+      return;
+    }
+    if (idx < this.currentIndex) {
+      console.warn(`[VoiceAgent] Autonomous: answer_captured for an already-covered item id "${questionId}" — ignored.`);
+      return;
+    }
+    this.currentIndex = idx + 1;
+    this.autonomousStallCount = 0;
+    console.log(`[VoiceAgent] Autonomous: answer_captured("${questionId}") — advanced to index ${this.currentIndex}`);
+    if (this.currentIndex >= this.items.length) {
+      this.done = true;
+    }
+  }
+
+  /** Model called skip_to_question — validate (forward only) and jump. */
+  recordSkip(questionId) {
+    const idx = this.items.findIndex(i => i.id === questionId);
+    if (idx === -1 || idx < this.currentIndex) {
+      console.warn(`[VoiceAgent] Autonomous: skip_to_question invalid/backward id "${questionId}" — ignored.`);
+      return;
+    }
+    this.currentIndex = idx;
+    this.autonomousStallCount = 0;
+    console.log(`[VoiceAgent] Autonomous: skip_to_question → index ${this.currentIndex}`);
+  }
+
+  /** Model called end_call. */
+  recordEndCall(reason) {
+    this.shouldHangUp = true;
+    this.done = true;
+    console.log(`[VoiceAgent] Autonomous: end_call(${reason || 'completed'})`);
+  }
+
+  /** Call once per caller turn in autonomous mode, before knowing whether it produced a tool call. */
+  noteAutonomousTurn() {
+    this.autonomousStallCount += 1;
+  }
+
+  /** True once too many consecutive turns have passed with no recorded progress — decision-engine mode gets this from its repeat/explain cap; this is the equivalent circuit breaker here. */
+  isAutonomousStalled() {
+    const max = parseInt(process.env.MAX_AUTONOMOUS_STALL_TURNS || '3', 10);
+    return this.autonomousStallCount > max;
   }
 
   // ─────────────────────────────────────────────────────────────────

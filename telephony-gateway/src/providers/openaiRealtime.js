@@ -36,9 +36,11 @@ import { WebSocket } from 'ws';
  *   onSpeechActivity: () => void,      // caller started talking at all — use to reset a silence/idle timeout
  *   onResponseDone: () => void,        // the bot's current spoken reply has fully finished playing
  *   onError: (err) => void,
- *   onClose: () => void
+ *   onClose: () => void,
+ *   onToolCall: (name: string, args: object) => void,          // autonomous mode only
+ *   onAssistantTranscript: (text: string) => void               // autonomous mode only — what the model itself just said
  * }
- * @returns {{ sendAudio: (mulawBuffer: Buffer) => void, speak: (text: string) => void, close: () => void }}
+ * @returns {{ sendAudio: (mulawBuffer: Buffer) => void, speak: (text: string) => void, interruptAndSpeak: (text: string) => void, beginAutonomousConversation: (instructions: string, tools: object[]) => void, close: () => void }}
  */
 export function setupRealtime(instructions, handlers, language = 'en') {
   const model     = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
@@ -194,6 +196,46 @@ export function setupRealtime(instructions, handlers, language = 'en') {
         }
         break;
 
+      // Autonomous mode only (create_response:true + tools) — the model's
+      // own text transcript of what it just SAID, parallel to the audio
+      // bytes above. Needed to keep the saved call transcript populated
+      // once VoiceAgent.processInput() is no longer in the loop deciding
+      // (and thus no longer pushing to chatHistory) for autonomous calls.
+      // Event name guessed from the same beta->GA rename pattern already
+      // confirmed for response.output_audio.delta — unconfirmed against a
+      // live autonomous-mode call, first thing to verify there.
+      case 'response.output_audio_transcript.done':
+        if (msg.transcript?.trim()) {
+          handlers.onAssistantTranscript?.(msg.transcript.trim());
+        }
+        break;
+
+      // Autonomous mode only — the model called one of the tools declared
+      // in beginAutonomousConversation(). Exact event name/shape (arriving
+      // alongside audio output in the same response, rather than as the
+      // sole content of a text-only response like Chat Completions
+      // tool-calling) is unconfirmed against the live API — first thing to
+      // verify on a real autonomous-mode call, not an assumption to build on.
+      case 'response.function_call_arguments.done': {
+        let args = {};
+        try { args = JSON.parse(msg.arguments || '{}'); } catch (e) {
+          console.error('[Realtime] Tool call arguments were not valid JSON:', msg.arguments);
+        }
+        console.log(`[Realtime] Tool call: ${msg.name}(${JSON.stringify(args)})`);
+        handlers.onToolCall?.(msg.name, args);
+        // Acknowledge so the model doesn't stall waiting on a function
+        // result — mirrors the function_call_output convention from
+        // OpenAI's other tool-calling APIs; not yet confirmed this is
+        // required (vs. optional) for the Realtime API specifically.
+        if (msg.call_id) {
+          ws.send(JSON.stringify({
+            type: 'conversation.item.create',
+            item: { type: 'function_call_output', call_id: msg.call_id, output: 'ok' }
+          }));
+        }
+        break;
+      }
+
       case 'input_audio_buffer.speech_started':
         // Fires on ANY detected speech, independent of whether it's a real
         // barge-in — used to reset the call-level silence timeout so a
@@ -297,6 +339,70 @@ export function setupRealtime(instructions, handlers, language = 'en') {
         return;
       }
       sendSpeak(text);
+    },
+
+    /**
+     * Force the configured verbatim text NOW, cancelling whatever the model
+     * might still be generating for the current turn first. Used for the
+     * autonomous mode's closing line — end_call should always speak the
+     * campaign's configured sign-off/apology, not whatever the model was
+     * mid-sentence composing when it decided to end the call.
+     */
+    interruptAndSpeak(text) {
+      if (botSpeaking) {
+        console.log('[Realtime] Cancelling in-flight response to force the configured closing line');
+        if (ready && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'response.cancel' }));
+        }
+        botSpeaking = false;
+      }
+      this.speak(text);
+    },
+
+    /**
+     * Switch a session from the forced-verbatim greeting into free-flowing
+     * autonomous conversation: create_response:true (the model replies on
+     * its own the instant semantic_vad decides a turn is over, same as
+     * ChatGPT Voice Mode) plus the tool-calling contract for order/logic
+     * tracking. Sent as a follow-up session.update once the greeting's own
+     * response.done has fired — never called before the socket is ready,
+     * since it can only happen after a session already exists.
+     */
+    beginAutonomousConversation(newInstructions, tools) {
+      if (!ready || ws.readyState !== WebSocket.OPEN) {
+        console.warn('[Realtime] beginAutonomousConversation called before the socket was ready — ignoring');
+        return;
+      }
+      console.log('[Realtime] Switching to autonomous conversation mode (create_response=true, tools enabled)');
+      ws.send(JSON.stringify({
+        type: 'session.update',
+        session: {
+          type: 'realtime',
+          instructions: newInstructions,
+          tools,
+          tool_choice: 'auto',
+          audio: {
+            input: {
+              format: { type: 'audio/pcmu' },
+              turn_detection: {
+                type: 'semantic_vad',
+                eagerness,
+                create_response: true,
+                // Keep manual barge-in handling (clearAudio + explicit
+                // response.cancel above) as the sole mechanism, same as the
+                // scripted phase — avoids two different cancellation paths
+                // racing each other.
+                interrupt_response: false
+              },
+              transcription: { model: 'gpt-4o-transcribe', language }
+            },
+            output: {
+              format: { type: 'audio/pcmu' },
+              voice
+            }
+          }
+        }
+      }));
     },
 
     close() {
