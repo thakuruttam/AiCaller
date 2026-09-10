@@ -472,4 +472,45 @@ describe('OpenAI Realtime provider — autonomous (free-flowing, tool-calling) m
     // Must not have queued behind the cancelled response — sent immediately.
     expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(2);
   });
+
+  it('onResponseDone reports whether the response actually delivered audio', () => {
+    // Confirmed on a live call: a turn that's ONLY a tool call (e.g.
+    // answer_captured) can finish with ZERO audio chunks — the model
+    // doesn't necessarily also speak in the same turn. The caller needs
+    // this signal to decide whether to prompt a continuation.
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    socket._message({
+      type: 'response.function_call_arguments.done',
+      name: 'answer_captured',
+      arguments: '{"question_id":"q1"}',
+      call_id: 'call_1'
+    });
+    socket._message({ type: 'response.done' });
+    expect(handlers.onResponseDone).toHaveBeenCalledWith(false);
+
+    handlers.onResponseDone.mockClear();
+    socket._message({ type: 'response.output_audio.delta', delta: Buffer.from('hi').toString('base64') });
+    socket._message({ type: 'response.done' });
+    expect(handlers.onResponseDone).toHaveBeenCalledWith(true);
+  });
+
+  it('continueConversation sends response.create only when no response is already in flight', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    session.continueConversation();
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(1);
+
+    // A response is now in flight (botSpeaking) — must not send a second
+    // response.create, which the API rejects outright.
+    session.continueConversation();
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(1);
+  });
 });

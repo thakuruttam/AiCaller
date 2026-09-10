@@ -94,6 +94,8 @@ export function setupPlivoStream() {
       .split(',').map(id => id.trim()).filter(Boolean);
     let useAutonomous = false; // finalized once campaignLanguage is known, below
     let pendingAutonomousTransition = false; // true from call start until the greeting finishes and we switch modes
+    let autonomousPhaseActive = false; // true only AFTER the transition — guards onAssistantTranscript so the scripted greeting isn't double-captured
+    let pendingAutonomousContinuation = false; // true after a tool-call-only (zero-audio) turn, until we've prompted the model to continue
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
     // in providers/tts.js) is no longer opened. It was meant to save the
     // ~150-200ms per-turn reconnect cost of plain REST calls, but in
@@ -589,10 +591,17 @@ export function setupPlivoStream() {
       switch (name) {
         case 'answer_captured':
           agent.recordAnswerCaptured(args.question_id);
+          // Confirmed on a live call: a turn that's ONLY a tool call
+          // delivers zero audio — the model doesn't necessarily also ask
+          // the next question in the same turn. Flag it so onResponseDone
+          // can prompt a continuation once this response actually finishes,
+          // rather than leaving the call silently stuck.
+          pendingAutonomousContinuation = true;
           if (callSid) agent.saveState(redis, callSid);
           break;
         case 'skip_to_question':
           agent.recordSkip(args.question_id);
+          pendingAutonomousContinuation = true;
           if (callSid) agent.saveState(redis, callSid);
           break;
         case 'end_call': {
@@ -884,7 +893,16 @@ export function setupPlivoStream() {
                   }
                 },
                 onTranscript: useAutonomous ? handleAutonomousTranscript : handleRealtimeTranscript,
-                onAssistantTranscript: useAutonomous ? (text) => agent?.appendTranscriptTurn('assistant', text) : undefined,
+                onAssistantTranscript: (text) => {
+                  // Guarded on autonomousPhaseActive, not just useAutonomous —
+                  // the scripted greeting is ALSO a spoken response and fires
+                  // this same event before the mode transition happens.
+                  // Without this guard, the greeting got double-pushed into
+                  // the saved transcript (once via the greeting's own
+                  // processInput()/chatHistory push, once here) — confirmed
+                  // on a live call.
+                  if (useAutonomous && autonomousPhaseActive) agent?.appendTranscriptTurn('assistant', text);
+                },
                 onToolCall: useAutonomous ? (name, args) => handleAutonomousToolCall(name, args) : undefined,
                 onSpeechActivity: () => resetSilenceTimeout(),
                 onSpeechStart: () => {
@@ -893,14 +911,23 @@ export function setupPlivoStream() {
                     ws.send(JSON.stringify({ event: 'clearAudio', streamId: streamSid }));
                   }
                 },
-                onResponseDone: async () => {
+                onResponseDone: async (hadAudio) => {
                   if (pendingAutonomousTransition) {
                     pendingAutonomousTransition = false;
+                    autonomousPhaseActive = true;
                     console.log('[Stream] Greeting finished — switching to autonomous conversation mode');
                     realtimeSession.beginAutonomousConversation(
                       agent.generateAutonomousInstructions(),
                       AUTONOMOUS_TOOLS
                     );
+                    return;
+                  }
+                  if (pendingAutonomousContinuation) {
+                    pendingAutonomousContinuation = false;
+                    if (!hadAudio && !isCallEnding) {
+                      console.log('[Stream] Tool-call turn had no speech — prompting the model to continue');
+                      realtimeSession.continueConversation();
+                    }
                     return;
                   }
                   // onResponseDone fires when the model finishes GENERATING the

@@ -40,7 +40,7 @@ import { WebSocket } from 'ws';
  *   onToolCall: (name: string, args: object) => void,          // autonomous mode only
  *   onAssistantTranscript: (text: string) => void               // autonomous mode only — what the model itself just said
  * }
- * @returns {{ sendAudio: (mulawBuffer: Buffer) => void, speak: (text: string) => void, interruptAndSpeak: (text: string) => void, beginAutonomousConversation: (instructions: string, tools: object[]) => void, close: () => void }}
+ * @returns {{ sendAudio: (mulawBuffer: Buffer) => void, speak: (text: string) => void, interruptAndSpeak: (text: string) => void, beginAutonomousConversation: (instructions: string, tools: object[]) => void, continueConversation: () => void, close: () => void }}
  */
 export function setupRealtime(instructions, handlers, language = 'en') {
   const model     = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
@@ -263,17 +263,27 @@ export function setupRealtime(instructions, handlers, language = 'en') {
         }
         break;
 
-      case 'response.done':
+      case 'response.done': {
         botSpeaking = false;
-        if (audioChunksThisResponse === 0) {
+        const hadAudio = audioChunksThisResponse > 0;
+        if (!hadAudio) {
+          // Confirmed on a live autonomous-mode call: a response whose ONLY
+          // content is a tool call (e.g. answer_captured) delivers zero
+          // audio — the model doesn't automatically also speak the next
+          // question in the same turn. Without an explicit follow-up
+          // response.create, nothing ever prompts it to continue, and the
+          // call goes silent waiting for a caller turn that was never
+          // coming. handlers.onResponseDone(hadAudio) lets the caller decide
+          // whether to prompt a continuation.
           console.warn('[Realtime] Response completed with ZERO audio chunks delivered — nothing was spoken. Check for an event-name mismatch or a text-only response.');
         } else {
           console.log(`[Realtime] Response finished — ${audioChunksThisResponse} audio chunks delivered`);
         }
         audioChunksThisResponse = 0;
-        handlers.onResponseDone?.();
+        handlers.onResponseDone?.(hadAudio);
         flushPendingSpeak();
         break;
+      }
 
       case 'error':
         console.error('[Realtime] Server error:', JSON.stringify(msg.error || msg));
@@ -357,6 +367,24 @@ export function setupRealtime(instructions, handlers, language = 'en') {
         botSpeaking = false;
       }
       this.speak(text);
+    },
+
+    /**
+     * Prompt the model to continue speaking when a turn ended with a tool
+     * call (answer_captured/skip_to_question) but no accompanying speech —
+     * confirmed on a live call that this genuinely happens, and nothing else
+     * triggers a new response until the caller speaks again, which leaves
+     * the call silently stuck. Only call this once response.done has fired
+     * (botSpeaking false) for the response that carried the tool call —
+     * calling it while a response is still active would hit the same
+     * "conversation_already_has_active_response" rejection speak() already
+     * guards against elsewhere.
+     */
+    continueConversation() {
+      if (!ready || ws.readyState !== WebSocket.OPEN || botSpeaking) return;
+      console.log('[Realtime] Prompting the model to continue — previous turn ended with a tool call and no speech');
+      botSpeaking = true;
+      ws.send(JSON.stringify({ type: 'response.create' }));
     },
 
     /**
