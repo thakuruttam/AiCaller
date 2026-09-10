@@ -83,13 +83,15 @@ export function setupPlivoStream() {
       .split(',').map(id => id.trim()).filter(Boolean);
     const realtimeEnabled = process.env.REALTIME_ENGINE === 'true'
       && (realtimeCampaignIds.length === 0 || realtimeCampaignIds.includes(campaignId));
-    // Autonomous (free-flowing, tool-calling) mode is a further-gated subset
-    // of realtime calls — deliberately NOT widened alongside REALTIME_ENGINE_
-    // CAMPAIGN_IDS above. This is a bigger architectural change than the
-    // decision-engine rewrite (the model drives the conversation itself, not
-    // our code) and needs its own live-validation cycle on an explicit test
-    // campaign before it's trusted anywhere near the traffic the decision-
-    // engine mode already carries.
+    // Autonomous (free-flowing, tool-calling) mode. Widened to all campaigns
+    // (empty/unset REALTIME_AUTONOMOUS_CAMPAIGN_IDS = all, same convention as
+    // REALTIME_ENGINE_CAMPAIGN_IDS above) per explicit instruction, despite
+    // five distinct real bugs found and fixed across tonight's test calls
+    // (premature answer_captured, an inverted End-Call-If evaluation, a race
+    // between two independent end-call paths, duplicate transcript entries,
+    // and unresolved turn-fragmentation risk) — no clean end-to-end test call
+    // yet. Set this back to a specific comma-separated list to re-scope to a
+    // subset without a code change if live traffic needs it pulled back.
     const autonomousCampaignIds = (process.env.REALTIME_AUTONOMOUS_CAMPAIGN_IDS || '')
       .split(',').map(id => id.trim()).filter(Boolean);
     let useAutonomous = false; // finalized once campaignLanguage is known, below
@@ -904,7 +906,7 @@ export function setupPlivoStream() {
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
 
             const useRealtime = realtimeEnabled && campaignLanguage === 'English';
-            useAutonomous = useRealtime && autonomousCampaignIds.includes(campaignId);
+            useAutonomous = useRealtime && (autonomousCampaignIds.length === 0 || autonomousCampaignIds.includes(campaignId));
             pendingAutonomousTransition = useAutonomous;
 
             if (!useRealtime) {
