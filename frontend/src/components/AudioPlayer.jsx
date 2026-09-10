@@ -1,13 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
 
-const AudioPlayer = ({ src }) => {
+const AudioPlayer = ({ src, onTimeUpdate }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef(null);
+  // Read via a ref (not a dependency) so an inline arrow passed by the
+  // parent on every render doesn't force this effect to keep tearing down
+  // and re-adding the audio element's listeners.
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate;
+  });
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -15,10 +22,12 @@ const AudioPlayer = ({ src }) => {
 
     const setAudioData = () => {
       setDuration(audio.duration);
+      onTimeUpdateRef.current?.(audio.currentTime, audio.duration);
     };
 
     const setAudioTime = () => {
       setCurrentTime(audio.currentTime);
+      onTimeUpdateRef.current?.(audio.currentTime, audio.duration);
     };
 
     const onAudioEnded = () => {

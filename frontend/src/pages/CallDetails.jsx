@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import { useParams, Link } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
@@ -66,6 +66,41 @@ const CallDetails = () => {
   const [lastRetryTime, setLastRetryTime] = useState(null);
   const [copied, setCopied] = useState(false);
   const autoSyncedRef = useRef(false);
+  // No per-line timestamps exist anywhere (transcript is saved as plain
+  // SPEAKER: text blocks server-side, no timing metadata). Real word-level
+  // sync would need that captured at STT time. Approximate instead: assume
+  // each turn's speaking time is proportional to its character length,
+  // spread across the recording's total duration.
+  const [playback, setPlayback] = useState({ currentTime: 0, duration: 0 });
+  const turnRefs = useRef([]);
+
+  const turns = useMemo(() => parseTranscript(callLog?.transcript), [callLog?.transcript]);
+
+  const turnTimings = useMemo(() => {
+    if (!turns.length || !playback.duration) return [];
+    const lengths = turns.map(t => Math.max((t.text || '').length, 1));
+    const total = lengths.reduce((a, b) => a + b, 0);
+    let acc = 0;
+    return turns.map((t, i) => {
+      const start = (acc / total) * playback.duration;
+      acc += lengths[i];
+      const end = (acc / total) * playback.duration;
+      return { start, end };
+    });
+  }, [turns, playback.duration]);
+
+  const activeTurnIndex = useMemo(() => {
+    if (!turnTimings.length) return -1;
+    const idx = turnTimings.findIndex(t => playback.currentTime >= t.start && playback.currentTime < t.end);
+    if (idx !== -1) return idx;
+    return playback.currentTime > 0 ? turnTimings.length - 1 : -1;
+  }, [turnTimings, playback.currentTime]);
+
+  useEffect(() => {
+    if (activeTurnIndex < 0) return;
+    const el = turnRefs.current[activeTurnIndex];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [activeTurnIndex]);
 
   useEffect(() => { autoSyncedRef.current = false; fetchCallDetails(); }, [id]);
 
@@ -151,8 +186,6 @@ const CallDetails = () => {
         ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
         : 'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400';
 
-  const turns = parseTranscript(callLog.transcript);
-
   return (
     <div className="p-8 max-w-[1200px] mx-auto">
       {/* Page Header */}
@@ -232,7 +265,10 @@ const CallDetails = () => {
             <WaveformBars progress={0.45} />
             {callLog.recordingUrl ? (
               <div className="mt-6">
-                <AudioPlayer src={callLog.recordingUrl} />
+                <AudioPlayer
+                  src={callLog.recordingUrl}
+                  onTimeUpdate={(currentTime, duration) => setPlayback({ currentTime, duration: duration || 0 })}
+                />
               </div>
             ) : isRetrying ? (
               <div className="mt-6 flex items-center justify-center">
@@ -310,16 +346,21 @@ const CallDetails = () => {
             <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-zinc-50/30 dark:bg-slate-900/30">
               {callLog.transcript ? (
                 turns.map((turn, i) => {
+                  const isActive = i === activeTurnIndex;
                   if (turn.raw) {
                     return (
-                      <div key={i} className="text-sm text-[#334155] dark:text-slate-400 whitespace-pre-line leading-relaxed">
+                      <div
+                        key={i}
+                        ref={el => turnRefs.current[i] = el}
+                        className={`text-sm text-[#334155] dark:text-slate-400 whitespace-pre-line leading-relaxed transition-colors rounded-lg ${isActive ? 'bg-amber-100 dark:bg-amber-500/20 -m-2 p-2' : ''}`}
+                      >
                         {turn.text}
                       </div>
                     );
                   }
                   if (turn.isAI) {
                     return (
-                      <div key={i} className="flex gap-4">
+                      <div key={i} ref={el => turnRefs.current[i] = el} className="flex gap-4">
                         <div className="w-10 h-10 rounded-full bg-[#0d9488] flex-shrink-0 flex items-center justify-center text-white">
                           <span className="material-symbols-outlined text-[20px]">smart_toy</span>
                         </div>
@@ -327,7 +368,7 @@ const CallDetails = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed">
+                          <div className={`bg-white dark:bg-slate-700 border p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed transition-colors ${isActive ? 'border-[#0d9488] ring-2 ring-[#0d9488]/40' : 'border-zinc-200 dark:border-slate-600'}`}>
                             {turn.text}
                           </div>
                         </div>
@@ -335,7 +376,7 @@ const CallDetails = () => {
                     );
                   }
                   return (
-                    <div key={i} className="flex gap-4 flex-row-reverse">
+                    <div key={i} ref={el => turnRefs.current[i] = el} className="flex gap-4 flex-row-reverse">
                       <div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center text-white">
                         <span className="material-symbols-outlined text-[20px]">person</span>
                       </div>
@@ -343,7 +384,7 @@ const CallDetails = () => {
                         <div className="flex items-center gap-2 justify-end">
                           <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
                         </div>
-                        <div className="bg-zinc-800 text-white p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left">
+                        <div className={`bg-zinc-800 text-white p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left transition-colors ${isActive ? 'ring-2 ring-amber-400' : ''}`}>
                           {turn.text}
                         </div>
                       </div>

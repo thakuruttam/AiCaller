@@ -42,7 +42,14 @@ import { WebSocket } from 'ws';
  */
 export function setupRealtime(instructions, handlers, language = 'en') {
   const model     = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
-  const eagerness = process.env.OPENAI_REALTIME_EAGERNESS || 'low'; // low = give the caller more room before deciding they're done
+  // 'high' = decide sooner that a turn is over. Was 'low', but combined with
+  // the per-turn merge-grace buffer that used to sit in plivoStreamHandler.js
+  // (removed — see handleRealtimeTranscript), 'low' was adding several
+  // seconds of dead air to every single turn. semantic_vad still reasons
+  // about sentence completeness either way, so this is a bias toward
+  // responsiveness, not a fixed timeout — validate on live calls that it
+  // doesn't reintroduce mid-sentence cutoffs before trusting it fully.
+  const eagerness = process.env.OPENAI_REALTIME_EAGERNESS || 'high';
   const voice     = process.env.OPENAI_REALTIME_VOICE || 'alloy';
 
   const ws = new WebSocket(`wss://api.openai.com/v1/realtime?model=${model}`, {

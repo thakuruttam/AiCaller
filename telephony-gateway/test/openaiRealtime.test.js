@@ -130,14 +130,23 @@ describe('OpenAI Realtime provider', () => {
     expect(handlers.onSpeechStart).toHaveBeenCalledTimes(1);
   });
 
-  it('defaults turn-detection eagerness to low, and respects an override', () => {
-    process.env.OPENAI_REALTIME_EAGERNESS = 'high';
+  it('defaults turn-detection eagerness to high, and respects an override', () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);
     const socket = FakeWebSocket.instances[0];
     socket._open();
     const update = socket.sent.find(m => m.type === 'session.update');
     expect(update.session.audio.input.turn_detection.eagerness).toBe('high');
+  });
+
+  it('respects an eagerness override', () => {
+    process.env.OPENAI_REALTIME_EAGERNESS = 'low';
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    const update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.input.turn_detection.eagerness).toBe('low');
   });
 
   it('forwards a completed transcript to onTranscript', () => {

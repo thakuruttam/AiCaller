@@ -27,6 +27,17 @@ export class VoiceAgent {
     this.confusionRetries = 0;                 // counter for how many times we've repeated a question
     this.expectsUserReply = false;             // true only when the bot just asked a question (or intro confirm)
 
+    // ── Decision-engine mode (realtime-engine calls only) ──────────────
+    // When true, processInput() routes real caller turns through a single
+    // LLM tool-call ("take_action") that picks from a fixed set of actions
+    // instead of the keyword-list detectors below (CLARIFICATION_PHRASES,
+    // NEGATIVE_WORDS, etc.) — see _processInputWithDecisionEngine(). The
+    // legacy Sarvam/Deepgram path (Hindi/Hinglish campaigns) keeps using
+    // the keyword-list detectors untouched via _processInputLegacy(), since
+    // this flag is only set true by plivoStreamHandler.js's useRealtime gate.
+    this.useDecisionEngine = !!config.useDecisionEngine;
+    this.repeatCount = 0;                      // consecutive repeat/explain decisions — forces progress after a few
+
     console.log("--------------------------------------------------");
     console.log(`[VoiceAgent] Initializing: ${this.name}`);
     console.log(`[VoiceAgent] Target Contact: ${this.contactName}`);
@@ -365,6 +376,348 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
   // Main entry point
   // ─────────────────────────────────────────────────────────────────
   async processInput(userInput) {
+    if (this.useDecisionEngine) {
+      return this._processInputWithDecisionEngine(userInput);
+    }
+    return this._processInputLegacy(userInput);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Decision engine (realtime-engine calls only)
+  // ─────────────────────────────────────────────────────────────────
+  // Replaces the keyword-list detectors + _buildNextDirective + verbatim-
+  // relay LLM call (steps 1a/1b/2/3 of _processInputLegacy below) with ONE
+  // LLM call per real caller turn. That call's only output is a `take_action`
+  // tool call choosing from a fixed set of actions — it never composes what
+  // gets spoken. Code resolves each action to verbatim text pulled straight
+  // from the campaign's own data (item text, callSignOff, callIntro, or a
+  // fixed constant), so there is no path for the model to paraphrase a
+  // question, by construction rather than by instruction.
+  //
+  // System-injected sends (greeting, forced max-duration closing) still go
+  // through _callLLM()'s verbatim-relay mechanism — see _processInputLegacy's
+  // isSystemMsg branch, reused here unchanged, since those are one-off
+  // deterministic sends where an extra LLM call isn't the latency problem
+  // this was built to fix.
+
+  _describeItems() {
+    return this.items.map((item, idx) => {
+      const status = idx < this.currentIndex ? 'already asked' : idx === this.currentIndex ? 'next up' : 'not yet asked';
+      const type = item.itemType || 'question';
+      let line = `- id="${item.id}" [${type}, ${status}]: "${item.text}"`;
+      if (item.is_mandatory) line += ' (mandatory)';
+      const onAnswer = item.onAnswer;
+      if (onAnswer?.action === 'skip_question' && onAnswer.skipToId) {
+        const cond = onAnswer.skipConditionActiveTab === 'semantic'
+          ? onAnswer.skipSemanticCondition
+          : `${onAnswer.skipCondition?.condition || ''} "${onAnswer.skipCondition?.value || ''}"`;
+        line += ` — if the answer satisfies: ${cond}, skip to id="${onAnswer.skipToId}"`;
+      }
+      if (onAnswer?.action === 'end_call') {
+        const cond = onAnswer.skipConditionActiveTab === 'semantic'
+          ? onAnswer.skipSemanticCondition
+          : `${onAnswer.skipCondition?.condition || ''} "${onAnswer.skipCondition?.value || ''}"`;
+        line += ` — if the answer satisfies: ${cond}, end the call`;
+      }
+      return line;
+    }).join('\n');
+  }
+
+  static TAKE_ACTION_TOOL = {
+    type: 'function',
+    function: {
+      name: 'take_action',
+      description: 'Decide what happens next on this call, given the conversation so far. You never compose what is said out loud — you only choose ONE action; the exact words are supplied by the system from pre-written campaign text.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['ask_item', 'repeat_current', 'explain_and_continue', 'skip_to_item', 'end_call', 'wrong_person']
+          },
+          item_id: {
+            type: 'string',
+            description: 'Required for ask_item and skip_to_item — the id of the item to go to next.'
+          },
+          end_reason: {
+            type: 'string',
+            enum: ['completed', 'declined', 'busy'],
+            description: 'Required for end_call.'
+          }
+        },
+        required: ['action']
+      }
+    }
+  };
+
+  /**
+   * The single decision call. Returns the parsed take_action arguments.
+   * Throws on any failure (bad response, disallowed action, network/timeout)
+   * so callers can fall back to deterministic behaviour rather than guess.
+   */
+  async _decideAction(userInput, { currentLabel, allowedActions }) {
+    const system = `You are deciding what happens next on a phone call, given the campaign brief below. You NEVER write what gets said out loud — you only choose one action via the take_action tool. The exact words are supplied by the system from pre-written text.
+
+GOAL: ${this.config.goal || 'Conduct a professional conversation and gather requested information.'}
+${this.config.endCallIf?.trim() ? `CUSTOM END-CALL CONDITION: if this becomes true based on what the caller says, end the call: ${this.config.endCallIf}` : ''}
+
+ITEMS (in order):
+${this._describeItems() || '(none configured)'}
+
+CURRENTLY: ${currentLabel}
+
+Reason about the caller's latest message in context — declines, reschedule requests, "who is this"/"why are you calling", confusion, or a genuine answer — and pick exactly one action via take_action. Only choose from: ${allowedActions.join(', ')}.`;
+
+    const messages = [
+      { role: 'system', content: system },
+      ...this.chatHistory.filter(m => m.role !== 'system'),
+      { role: 'user', content: userInput }
+    ];
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages,
+        tools: [VoiceAgent.TAKE_ACTION_TOOL],
+        tool_choice: { type: 'function', function: { name: 'take_action' } },
+        temperature: 0
+      }),
+      signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS)
+    });
+
+    if (!response.ok) {
+      const errData = await response.text();
+      throw new Error(`take_action call failed: ${response.status} - ${errData}`);
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) throw new Error('Model did not return a take_action tool call');
+
+    let args;
+    try {
+      args = JSON.parse(toolCall.function.arguments);
+    } catch (e) {
+      throw new Error(`take_action arguments were not valid JSON: ${toolCall.function.arguments}`);
+    }
+    if (!allowedActions.includes(args.action)) {
+      throw new Error(`Model chose disallowed action "${args.action}"`);
+    }
+    return args;
+  }
+
+  /** Deterministic fallback when _decideAction fails — same behaviour as the legacy _buildNextDirective. */
+  _fallbackDecision() {
+    const item = this.currentItem();
+    if (!item || this.currentIndex >= this.items.length) {
+      return { action: 'end_call', end_reason: 'completed' };
+    }
+    return { action: 'ask_item', item_id: item.id };
+  }
+
+  /**
+   * Resolve a decided action into the exact verbatim text to speak, updating
+   * state (currentIndex, done, shouldHangUp, expectsUserReply) deterministically.
+   * The model is never trusted blindly — item_id targets are validated, and
+   * a repeat/explain loop is capped so a confused or evasive caller can't
+   * stall the call forever.
+   */
+  _resolveAction(decision, { repeatText, confirmingIdentity = false } = {}) {
+    let { action } = decision;
+
+    if (action === 'repeat_current' || action === 'explain_and_continue') {
+      this.repeatCount += 1;
+    } else {
+      this.repeatCount = 0;
+    }
+    const maxRepeats = parseInt(process.env.MAX_REPEAT_ACTIONS || '2', 10);
+    if (this.repeatCount > maxRepeats) {
+      console.log(`[VoiceAgent] Repeat/explain cap (${maxRepeats}) hit — forcing progress instead of "${action}"`);
+      action = 'ask_item';
+      decision = { action: 'ask_item' };
+    }
+
+    switch (action) {
+      case 'wrong_person': {
+        this.identityConfirmed = false;
+        this.shouldHangUp = true;
+        this.done = true;
+        this.expectsUserReply = false;
+        const text = 'I apologize for the confusion. Have a great day.';
+        this.chatHistory.push({ role: 'assistant', content: text });
+        console.log('[VoiceAgent] Decision engine: wrong_person — hanging up.');
+        return text;
+      }
+
+      case 'end_call': {
+        this.shouldHangUp = true;
+        this.done = true;
+        this.expectsUserReply = false;
+        const text = decision.end_reason === 'completed'
+          ? (this.config.callSignOff || 'Thank you for your time. Goodbye.')
+          : 'I apologize for the interruption. Have a great day.';
+        this.chatHistory.push({ role: 'assistant', content: text });
+        console.log(`[VoiceAgent] Decision engine: end_call (${decision.end_reason || 'completed'}).`);
+        return text;
+      }
+
+      case 'repeat_current': {
+        this.expectsUserReply = true;
+        const text = repeatText || this.currentItem()?.text || '';
+        this.chatHistory.push({ role: 'assistant', content: text });
+        return text;
+      }
+
+      case 'explain_and_continue': {
+        this.expectsUserReply = true;
+        const explanation = this.config.callIntro?.trim();
+        const continueText = repeatText || this.currentItem()?.text || '';
+        const text = explanation ? `${explanation} ${continueText}` : continueText;
+        this.chatHistory.push({ role: 'assistant', content: text });
+        return text;
+      }
+
+      case 'skip_to_item': {
+        const idx = this.items.findIndex(i => i.id === decision.item_id);
+        if (idx === -1 || idx < this.currentIndex) {
+          console.warn(`[VoiceAgent] skip_to_item invalid/backward id "${decision.item_id}" — falling back to next item in order.`);
+          return this._resolveAction(this._fallbackDecision(), { repeatText, confirmingIdentity });
+        }
+        this.currentIndex = idx;
+        return this._speakItemAndAdvance(true, confirmingIdentity);
+      }
+
+      case 'ask_item':
+      default: {
+        if (decision.item_id) {
+          const idx = this.items.findIndex(i => i.id === decision.item_id);
+          if (idx !== -1 && idx >= this.currentIndex) {
+            this.currentIndex = idx;
+          } else if (idx !== -1) {
+            console.warn(`[VoiceAgent] ask_item pointed at an already-asked id "${decision.item_id}" — advancing normally instead.`);
+          }
+        }
+        return this._speakItemAndAdvance(true, confirmingIdentity);
+      }
+    }
+  }
+
+  /**
+   * Speak the current item (and any chained "information" items before it —
+   * same cascade _buildNextDirective handled, just resolved directly instead
+   * of via a directive string), advance the pointer, and update state.
+   */
+  _speakItemAndAdvance(withThanks, confirmingIdentity) {
+    if (confirmingIdentity) {
+      this.awaitingIdentityConfirm = false;
+      this.identityConfirmed = true;
+    }
+
+    const parts = [];
+    if (withThanks) parts.push('Thanks.');
+
+    let item = this.currentItem();
+    while (item && (item.itemType || 'question') === 'information') {
+      parts.push(item.text);
+      this.advanceTo();
+      item = this.currentItem();
+    }
+
+    if (!item || this.currentIndex >= this.items.length) {
+      this.done = true;
+      this.shouldHangUp = true;
+      this.expectsUserReply = false;
+      parts.push(this.config.callSignOff || 'Thank you for your time. Goodbye.');
+      const text = parts.join(' ');
+      this.chatHistory.push({ role: 'assistant', content: text });
+      return text;
+    }
+
+    parts.push(this._stripPlaceholders(item.text));
+    this.advanceTo();
+    this.expectsUserReply = true;
+    const text = parts.join(' ');
+    this.chatHistory.push({ role: 'assistant', content: text });
+    return text;
+  }
+
+  async _handleIdentityTurn(userInput) {
+    this.chatHistory.push({ role: 'user', content: userInput });
+    const firstItem = this.items[0];
+    const allowed = ['ask_item', 'wrong_person', 'explain_and_continue', 'repeat_current', 'end_call'];
+    let decision;
+    try {
+      if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
+      decision = await this._decideAction(userInput, {
+        currentLabel: `Waiting for the caller to confirm they are ${this.contactName} (we just asked "Am I speaking with ${this.contactName}?"). If they confirm, choose ask_item with item_id="${firstItem?.id || ''}" (the first item). If they say this isn't them, choose wrong_person. If they ask who's calling or why, choose explain_and_continue. If they seem confused or didn't hear, choose repeat_current. If they immediately decline or say they're not interested before even confirming who they are, choose end_call.`,
+        allowedActions: allowed
+      });
+    } catch (e) {
+      console.error('[VoiceAgent] _decideAction failed on identity turn, falling back:', e.message);
+      decision = firstItem ? { action: 'ask_item', item_id: firstItem.id } : { action: 'end_call', end_reason: 'completed' };
+    }
+
+    return this._resolveAction(decision, {
+      repeatText: `Am I speaking with ${this.contactName}?`,
+      confirmingIdentity: true
+    });
+  }
+
+  async _handleScriptTurn(userInput) {
+    this.chatHistory.push({ role: 'user', content: userInput });
+    const prevItem = this.items[this.currentIndex - 1] || null;
+    const allowed = ['ask_item', 'repeat_current', 'explain_and_continue', 'skip_to_item', 'end_call'];
+    let decision;
+    try {
+      if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
+      decision = await this._decideAction(userInput, {
+        currentLabel: prevItem ? `We just asked (id="${prevItem.id}"): "${prevItem.text}"` : 'No item asked yet.',
+        allowedActions: allowed
+      });
+    } catch (e) {
+      console.error('[VoiceAgent] _decideAction failed, falling back to next item in order:', e.message);
+      decision = this._fallbackDecision();
+    }
+
+    return this._resolveAction(decision, { repeatText: prevItem?.text });
+  }
+
+  async _processInputWithDecisionEngine(userInput) {
+    const isSystemMsg = userInput.startsWith('(System:');
+
+    if (isSystemMsg) {
+      if (this.awaitingIdentityConfirm) this.expectsUserReply = true;
+      this.chatHistory.push({ role: 'user', content: userInput });
+      try {
+        if (!process.env.OPENAI_API_KEY) return 'Please add OPENAI_API_KEY to your backend .env file.';
+        return await this._callLLM();
+      } catch (e) {
+        console.error('[VoiceAgent] Error querying LLM on system directive:', e.message);
+        this.shouldHangUp = true;
+        return "I'm sorry, I'm having trouble. Goodbye.";
+      }
+    }
+
+    if (this.done) {
+      this.chatHistory.push({ role: 'user', content: userInput });
+      return '';
+    }
+
+    if (this.awaitingIdentityConfirm) {
+      return this._handleIdentityTurn(userInput);
+    }
+    return this._handleScriptTurn(userInput);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Legacy path (Sarvam/Deepgram, non-realtime campaigns) — UNCHANGED
+  // ─────────────────────────────────────────────────────────────────
+  async _processInputLegacy(userInput) {
     const isSystemMsg = userInput.startsWith('(System:');
 
     // ── 1a. Identity confirmation phase (first real user utterance after greeting) ──
@@ -747,6 +1100,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       identityConfirmed:       this.identityConfirmed,
       confusionRetries:        this.confusionRetries,
       expectsUserReply:        this.expectsUserReply,
+      repeatCount:             this.repeatCount,
       chatHistory:             this.chatHistory
     };
     try {
@@ -774,6 +1128,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
       agent.identityConfirmed       = state.identityConfirmed ?? null;
       agent.confusionRetries        = state.confusionRetries;
       agent.expectsUserReply        = state.expectsUserReply ?? false;
+      agent.repeatCount             = state.repeatCount ?? 0;
       agent.chatHistory             = state.chatHistory;
       console.log(`[VoiceAgent] Restored state from Redis for ${callSid} (turn ${state.currentIndex})`);
       return agent;

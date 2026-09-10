@@ -30,16 +30,19 @@ export function setupPlivoStream() {
     let agent = null;
     let sttStream = null;
     let realtimeSession = null;   // set instead of sttStream when the realtime engine is active for this call
-    // Gate: only English campaigns, only when explicitly enabled, and only
-    // for the specific campaign ID(s) under test — this is untested against
-    // the live API and should not silently activate for any real production
-    // call. Hindi/Hinglish keeps using Sarvam/Deepgram (sttStream) untouched
-    // regardless, until the realtime engine's transcription quality on
-    // Indian-accented phone audio is validated against it.
+    // Gate: only English campaigns, only when explicitly enabled. An empty/
+    // unset REALTIME_ENGINE_CAMPAIGN_IDS means ALL campaigns — widened here
+    // per explicit instruction after the decision-engine rewrite, past the
+    // single-test-campaign scope this was originally gated to. Set it back
+    // to a specific comma-separated list to re-scope to a subset without a
+    // code change if something needs pulling back. Hindi/Hinglish keeps
+    // using Sarvam/Deepgram (sttStream) untouched regardless, until the
+    // realtime engine's transcription quality on Indian-accented phone
+    // audio is validated against it.
     const realtimeCampaignIds = (process.env.REALTIME_ENGINE_CAMPAIGN_IDS || '')
       .split(',').map(id => id.trim()).filter(Boolean);
     const realtimeEnabled = process.env.REALTIME_ENGINE === 'true'
-      && realtimeCampaignIds.includes(campaignId);
+      && (realtimeCampaignIds.length === 0 || realtimeCampaignIds.includes(campaignId));
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
     // in providers/tts.js) is no longer opened. It was meant to save the
     // ~150-200ms per-turn reconnect cost of plain REST calls, but in
@@ -427,24 +430,19 @@ export function setupPlivoStream() {
     // accumulation/settle/retry logic that exists solely to compensate for
     // silence-timer-based STT.
     let realtimeBusy = false;
-
-    // semantic_vad decides per-segment when a pause is "long enough" to be a
-    // turn boundary — but a real call showed it still occasionally split one
-    // continuous answer across a pause, with the second half misattributed
-    // as the answer to whatever question came next (since create_response
-    // is off, WE decide when a transcript is final enough to act on, so we
-    // can hold it briefly instead of dispatching instantly). Mirrors the
-    // same merge-grace fix already applied to the Sarvam REST path earlier
-    // today — same trade-off: reduces, does not eliminate, the split; adds
-    // this delay to every turn's response time, not just the ones that
-    // would have split.
-    let realtimeMergeBuffer = '';
-    let realtimeMergeTimer = null;
-    // 1200ms wasn't enough — multiple live calls kept splitting on this same
-    // caller's pauses ("...with my team lead to" cut off mid-sentence, still
-    // happened at 1200ms). Raised to 2500ms; still won't catch every pause
-    // (no fixed value can), but should catch meaningfully more of them.
-    const REALTIME_MERGE_GRACE_MS = parseInt(process.env.REALTIME_MERGE_GRACE_MS || '2500', 10);
+    // Set while waiting for Plivo's playedStream echo confirming the realtime
+    // path's closing message actually finished playing before we hang up —
+    // see the onResponseDone/playedStream handlers below.
+    let awaitingRealtimeHangupCheckpoint = false;
+    // No fixed merge-grace delay anymore — semantic_vad already decided the
+    // turn was complete before emitting this transcript at all; re-buffering
+    // after that just re-adds a fixed tax (was 2500ms) on every single turn
+    // and second-guesses a judgment the model already made. If a decision
+    // call is still in flight when the next transcript arrives (the caller
+    // kept talking, or started a new turn immediately), it's appended here
+    // and picked up the moment the in-flight call finishes — not dropped,
+    // not delayed by an artificial timer.
+    let realtimePendingTranscript = '';
 
     const handleRealtimeTranscript = (transcript) => {
       // Was missing entirely on this path — the call-level 60s silence
@@ -456,31 +454,20 @@ export function setupPlivoStream() {
       resetSilenceTimeout();
       if (!agent || isCallEnding) return;
 
-      realtimeMergeBuffer = realtimeMergeBuffer ? `${realtimeMergeBuffer} ${transcript}` : transcript;
-      if (realtimeMergeTimer) clearTimeout(realtimeMergeTimer);
-      realtimeMergeTimer = setTimeout(dispatchRealtimeTurn, REALTIME_MERGE_GRACE_MS);
+      realtimePendingTranscript = realtimePendingTranscript ? `${realtimePendingTranscript} ${transcript}` : transcript;
+      dispatchRealtimeTurn();
     };
 
     const dispatchRealtimeTurn = async () => {
-      const fullTranscript = realtimeMergeBuffer.trim();
+      if (realtimeBusy) return; // already in flight — picked up on completion below, once it frees up
+
+      const fullTranscript = realtimePendingTranscript.trim();
       if (!fullTranscript || !agent || isCallEnding) {
-        realtimeMergeBuffer = '';
-        realtimeMergeTimer = null;
+        realtimePendingTranscript = '';
         return;
       }
 
-      if (realtimeBusy) {
-        // Previous turn's agent.processInput() is still in flight — do NOT
-        // drop this, it's usually the tail end of what the caller was
-        // saying. Leave it in the buffer and retry shortly instead of
-        // discarding it (the exact bug already fixed once today for the
-        // old STT path's isFlushingTranscript case).
-        realtimeMergeTimer = setTimeout(dispatchRealtimeTurn, 300);
-        return;
-      }
-
-      realtimeMergeBuffer = '';
-      realtimeMergeTimer = null;
+      realtimePendingTranscript = '';
       realtimeBusy = true;
       console.log(`[Realtime] Processing turn: "${fullTranscript}"`);
 
@@ -490,6 +477,7 @@ export function setupPlivoStream() {
       } catch (e) {
         console.error('[Realtime] Uncaught error from agent.processInput:', e.message);
         realtimeBusy = false;
+        if (realtimePendingTranscript.trim()) dispatchRealtimeTurn();
         return;
       }
       realtimeBusy = false;
@@ -509,6 +497,8 @@ export function setupPlivoStream() {
           console.error('[Stream] Failed to hang up via API:', e.message);
         }
       }
+
+      if (realtimePendingTranscript.trim() && !isCallEnding) dispatchRealtimeTurn();
     };
 
     let campaignLanguage = 'English'; // will be updated when campaign loads
@@ -761,7 +751,8 @@ export function setupPlivoStream() {
               dataToCollect: finalQuestions,
               endCallIf: campaign.endCallIf,
               successCriteria: campaign.callModule?.successCriteria,
-              language: campaignLanguage
+              language: campaignLanguage,
+              useDecisionEngine: useRealtime
             });
 
             if (useRealtime) {
@@ -783,12 +774,36 @@ export function setupPlivoStream() {
                   }
                 },
                 onResponseDone: async () => {
+                  // onResponseDone fires when the model finishes GENERATING the
+                  // closing audio server-side — not when Plivo has actually
+                  // finished PLAYING it. Hanging up directly here (as before)
+                  // raced the trailing audio still queued in Plivo's buffer, cutting
+                  // the goodbye off mid-sentence on a real call. Reuse the same
+                  // checkpoint/playedStream ('end_of_tts') confirmation the legacy
+                  // TTS path already relies on for exactly this — see the
+                  // 'playedStream' case below — with a timeout backstop in case
+                  // the echo never arrives.
                   if (isCallEnding && callSid) {
-                    console.log(`[Stream] Sign-off finished playing — hanging up ${callSid}`);
-                    try {
-                      await hangupCall(callSid);
-                    } catch (e) {
-                      console.error('[Stream] Failed to hang up via API:', e.message);
+                    if (ws.readyState === ws.OPEN && streamSid) {
+                      console.log(`[Stream] Sign-off generated — confirming playback before hangup for ${callSid}`);
+                      awaitingRealtimeHangupCheckpoint = true;
+                      ws.send(JSON.stringify({ event: 'checkpoint', streamId: streamSid, name: 'end_of_tts' }));
+                      setTimeout(async () => {
+                        if (!awaitingRealtimeHangupCheckpoint) return; // already hung up via the playedStream echo
+                        awaitingRealtimeHangupCheckpoint = false;
+                        console.warn(`[Stream] No playedStream echo within 8s of sign-off — hanging up ${callSid} anyway`);
+                        try {
+                          await hangupCall(callSid);
+                        } catch (e) {
+                          console.error('[Stream] Failed to hang up via API:', e.message);
+                        }
+                      }, 8000);
+                    } else {
+                      try {
+                        await hangupCall(callSid);
+                      } catch (e) {
+                        console.error('[Stream] Failed to hang up via API:', e.message);
+                      }
                     }
                   }
                 },
@@ -876,6 +891,23 @@ export function setupPlivoStream() {
         case 'playedStream':
           // Plivo's echo of our 'checkpoint' event, once that buffered audio
           // has actually played out to the caller — equivalent to Twilio's mark.
+          if (msg.name === 'end_of_tts' && awaitingRealtimeHangupCheckpoint) {
+            // Realtime path's closing message confirmed actually played —
+            // see onResponseDone above. Handled in isolation from the legacy
+            // STT-path branches below (isSpeaking/pendingTranscript/
+            // autoAdvanceScript are all legacy-only state that don't apply
+            // to a realtime call and must not fire here).
+            awaitingRealtimeHangupCheckpoint = false;
+            console.log(`[Stream] Realtime sign-off confirmed played — hanging up ${callSid}`);
+            if (callSid) {
+              try {
+                await hangupCall(callSid);
+              } catch (e) {
+                console.error('[Stream] Failed to hang up via API:', e.message);
+              }
+            }
+            break;
+          }
           if (msg.name === 'end_of_tts') {
             if (bargedIn) {
               bargedIn = false;
