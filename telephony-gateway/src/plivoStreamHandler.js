@@ -572,10 +572,46 @@ export function setupPlivoStream() {
     // records the transcript for saveTranscript() and watches for a stall
     // (see VoiceAgent.isAutonomousStalled) since there's no per-turn
     // decision call left to attach a repeat cap to otherwise.
-    const handleAutonomousTranscript = (transcript) => {
+    const handleAutonomousTranscript = async (transcript) => {
       resetSilenceTimeout();
-      if (!agent || isCallEnding) return;
+      if (!agent) return;
+      // Record the caller's turn FIRST, unconditionally — confirmed on a live
+      // call that a real answer ("market research", right before the call
+      // ended) could go completely missing from the saved transcript when
+      // isCallEnding flipped true from a near-simultaneous tool call before
+      // this ran. What was actually said must never depend on whether we're
+      // about to hang up.
       agent.appendTranscriptTurn('user', transcript);
+      if (isCallEnding) return;
+
+      // Dedicated, deterministic check for the campaign's own configured
+      // End-Call-If condition — confirmed on a live call that leaving this
+      // purely to the free-flowing model's judgment is unreliable: it ended
+      // a call on "market research" when the configured condition was the
+      // OPPOSITE (end only if market research was NOT mentioned). Mirrors
+      // the same focused yes/no check decision-engine mode already relies on
+      // for this exact reason (_evalSemanticCondition), run here as a side
+      // channel alongside the free-flowing conversation rather than trusting
+      // the model to correctly juggle this while also talking naturally.
+      if (agent.config.endCallIf?.trim()) {
+        try {
+          const fired = await agent._evalSemanticCondition(agent.config.endCallIf.trim(), transcript);
+          if (fired) {
+            console.log(`[Stream] Autonomous: configured End-Call-If condition matched on "${transcript}" — forcing end_call`);
+            agent.recordEndCall('completed');
+            isCallEnding = true;
+            const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
+            lastClosingText = closingText;
+            closingRetried = false;
+            realtimeSession.interruptAndSpeak(closingText);
+            if (callSid) agent.saveState(redis, callSid);
+            return;
+          }
+        } catch (e) {
+          console.error('[Stream] Autonomous End-Call-If check failed, continuing normally:', e.message);
+        }
+      }
+
       agent.noteAutonomousTurn();
 
       if (agent.isAutonomousStalled()) {
@@ -585,14 +621,20 @@ export function setupPlivoStream() {
 
         const nextItem = agent.currentItem();
         if (nextItem) {
+          // interruptAndSpeak's forced text still goes through the model's
+          // normal speech pipeline, which still emits its own assistant-
+          // transcript event — appending it here too double-recorded every
+          // forced line (confirmed live: "Thank you for your time. Goodbye."
+          // showed up twice). Let the automatic onAssistantTranscript capture
+          // handle it exclusively.
           realtimeSession.interruptAndSpeak(nextItem.text);
-          agent.appendTranscriptTurn('assistant', nextItem.text);
         } else {
           agent.recordEndCall('completed');
           isCallEnding = true;
           const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
+          lastClosingText = closingText;
+          closingRetried = false;
           realtimeSession.interruptAndSpeak(closingText);
-          agent.appendTranscriptTurn('assistant', closingText);
         }
         if (callSid) agent.saveState(redis, callSid);
       }
@@ -629,8 +671,12 @@ export function setupPlivoStream() {
             : 'I apologize for the interruption. Have a great day.';
           lastClosingText = closingText;
           closingRetried = false;
+          // interruptAndSpeak's forced text still goes through the model's
+          // normal speech pipeline, which emits its own assistant-transcript
+          // event via onAssistantTranscript — appending it here too
+          // double-recorded every closing line (confirmed live: "Thank you
+          // for your time. Goodbye." appeared twice in the saved transcript).
           realtimeSession.interruptAndSpeak(closingText);
-          agent.appendTranscriptTurn('assistant', closingText);
           if (callSid) agent.saveState(redis, callSid);
           break;
         }

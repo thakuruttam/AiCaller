@@ -757,7 +757,8 @@ QUESTIONS TO COVER, IN ORDER (prefer this wording, natural rephrasing is fine):
 ${this._describeItems() || '(none configured)'}
 
 TOOLS — call these as you go, in addition to speaking naturally:
-- Call answer_captured with the current question's id once the caller has given a real, clear answer to it. Then move on to asking the next question yourself, in order.
+- Call answer_captured with the current question's id ONLY once the caller has given a real, substantive answer that actually addresses that specific question. Then move on to asking the next question yourself, in order.
+- A clarification question ("who is this?", "is this an AI?", "why are you calling?"), a meta-question about the call itself, small talk, or any reply that does not actually address the current question is NOT an answer — do not call answer_captured for these. Answer the caller's question briefly, then RE-ASK the exact same current question again before doing anything else. Never claim you "already have" an answer you were not actually given, and never advance to the next question until the current one has a real answer on record.
 - If the caller's answer matches a described skip condition above, call skip_to_question with the target id instead of asking the next question in sequence.
 - If the caller declines, is busy, asks to be called another time, or says they are not the intended person, call end_call with the appropriate reason and a brief, natural goodbye — do not keep asking questions after that.
 - Do not discuss anything outside this goal and these questions.`;

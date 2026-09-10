@@ -112,4 +112,14 @@ describe('VoiceAgent — autonomous mode ledger', () => {
     expect(instructions).toContain('skip_to_question');
     expect(instructions).toContain('end_call');
   });
+
+  it('generateAutonomousInstructions explicitly forbids treating a clarification question as an answer', () => {
+    // Confirmed on a live call: without this, the model called
+    // answer_captured off "who is this?"/"is this an AI?" — clarification
+    // questions with no real answer behind them at all.
+    const agent = makeAgent();
+    const instructions = agent.generateAutonomousInstructions();
+    expect(instructions).toContain('is NOT an answer');
+    expect(instructions.toLowerCase()).toContain('clarification question');
+  });
 });
