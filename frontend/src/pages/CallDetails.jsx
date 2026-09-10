@@ -73,6 +73,7 @@ const CallDetails = () => {
   // spread across the recording's total duration.
   const [playback, setPlayback] = useState({ currentTime: 0, duration: 0 });
   const turnRefs = useRef([]);
+  const transcriptContainerRef = useRef(null);
 
   const turns = useMemo(() => parseTranscript(callLog?.transcript), [callLog?.transcript]);
 
@@ -98,8 +99,16 @@ const CallDetails = () => {
 
   useEffect(() => {
     if (activeTurnIndex < 0) return;
+    const container = transcriptContainerRef.current;
     const el = turnRefs.current[activeTurnIndex];
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!container || !el) return;
+    // Scroll only the transcript panel's own scroll container — el.scrollIntoView()
+    // walks up EVERY scrollable ancestor including the page itself, which was
+    // dragging the whole screen along instead of just moving the transcript.
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const delta = (elRect.top - containerRect.top) - (container.clientHeight / 2 - elRect.height / 2);
+    container.scrollBy({ top: delta, behavior: 'smooth' });
   }, [activeTurnIndex]);
 
   useEffect(() => { autoSyncedRef.current = false; fetchCallDetails(); }, [id]);
@@ -343,7 +352,7 @@ const CallDetails = () => {
             </div>
 
             {/* Transcript Body */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-zinc-50/30 dark:bg-slate-900/30">
+            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-8 bg-zinc-50/30 dark:bg-slate-900/30">
               {callLog.transcript ? (
                 turns.map((turn, i) => {
                   const isActive = i === activeTurnIndex;
@@ -352,7 +361,7 @@ const CallDetails = () => {
                       <div
                         key={i}
                         ref={el => turnRefs.current[i] = el}
-                        className={`text-sm text-[#334155] dark:text-slate-400 whitespace-pre-line leading-relaxed transition-colors rounded-lg ${isActive ? 'bg-amber-100 dark:bg-amber-500/20 -m-2 p-2' : ''}`}
+                        className={`text-sm text-[#334155] dark:text-slate-400 whitespace-pre-line leading-relaxed transition-colors duration-100 rounded-lg p-2 ${isActive ? 'bg-yellow-200 dark:bg-yellow-400/30' : 'bg-transparent'}`}
                       >
                         {turn.text}
                       </div>
@@ -368,7 +377,7 @@ const CallDetails = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
                           </div>
-                          <div className={`bg-white dark:bg-slate-700 border p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed transition-colors ${isActive ? 'border-[#0d9488] ring-2 ring-[#0d9488]/40' : 'border-zinc-200 dark:border-slate-600'}`}>
+                          <div className={`border p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed transition-colors duration-100 ${isActive ? 'bg-yellow-200 dark:bg-yellow-400/30 border-yellow-400' : 'bg-white dark:bg-slate-700 border-zinc-200 dark:border-slate-600'}`}>
                             {turn.text}
                           </div>
                         </div>
@@ -384,7 +393,7 @@ const CallDetails = () => {
                         <div className="flex items-center gap-2 justify-end">
                           <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
                         </div>
-                        <div className={`bg-zinc-800 text-white p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left transition-colors ${isActive ? 'ring-2 ring-amber-400' : ''}`}>
+                        <div className={`p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left transition-colors duration-100 ${isActive ? 'bg-yellow-200 dark:bg-yellow-400/30 text-[#0f172a]' : 'bg-zinc-800 text-white'}`}>
                           {turn.text}
                         </div>
                       </div>
