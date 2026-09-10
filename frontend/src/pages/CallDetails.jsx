@@ -324,7 +324,7 @@ const CallDetails = () => {
 
         {/* Right Column: Transcript */}
         <div className="col-span-12 lg:col-span-7">
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg flex flex-col" style={{minHeight: '600px'}}>
+          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg flex flex-col" style={{height: 'calc(100vh - 220px)', maxHeight: '800px'}}>
             {/* Transcript Header */}
             <div className="p-4 border-b border-zinc-100 dark:border-slate-700 flex justify-between items-center bg-zinc-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
