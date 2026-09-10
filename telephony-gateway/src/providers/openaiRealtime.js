@@ -42,14 +42,15 @@ import { WebSocket } from 'ws';
  */
 export function setupRealtime(instructions, handlers, language = 'en') {
   const model     = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
-  // 'high' = decide sooner that a turn is over. Was 'low', but combined with
-  // the per-turn merge-grace buffer that used to sit in plivoStreamHandler.js
-  // (removed — see handleRealtimeTranscript), 'low' was adding several
-  // seconds of dead air to every single turn. semantic_vad still reasons
-  // about sentence completeness either way, so this is a bias toward
-  // responsiveness, not a fixed timeout — validate on live calls that it
-  // doesn't reintroduce mid-sentence cutoffs before trusting it fully.
-  const eagerness = process.env.OPENAI_REALTIME_EAGERNESS || 'high';
+  // 'low' was adding several seconds of dead air to every turn once the
+  // per-turn merge-grace buffer was removed (see handleRealtimeTranscript in
+  // plivoStreamHandler.js). Tried 'high' next — confirmed on a live call to
+  // fragment normal continuous speech into separate single-word turns
+  // ("It" / "my name" split from one sentence), which then got individually
+  // treated as complete answers and advanced the script incorrectly.
+  // 'medium' is the middle ground pending further live validation — neither
+  // extreme held up against real speech patterns.
+  const eagerness = process.env.OPENAI_REALTIME_EAGERNESS || 'medium';
   const voice     = process.env.OPENAI_REALTIME_VOICE || 'alloy';
 
   const ws = new WebSocket(`wss://api.openai.com/v1/realtime?model=${model}`, {
@@ -59,13 +60,16 @@ export function setupRealtime(instructions, handlers, language = 'en') {
   });
 
   let ready = false;
-  // A call to speak() before the WS handshake finishes (a real race: the
-  // greeting's own OpenAI chat-completion call can resolve faster than the
-  // Realtime WebSocket connects) used to be silently dropped — speak()
-  // just no-op'd with no log line, so the very first turn of a real call
-  // was never sent at all and nothing spoke, with nothing in the logs to
-  // explain why. Queue at most the latest pending greeting/reply and flush
-  // it the moment the socket actually opens, instead of losing it.
+  // Queued text waiting to be spoken — either because the WS handshake
+  // hasn't finished yet (the greeting's own OpenAI chat-completion call can
+  // resolve faster than the Realtime WebSocket connects), or because a
+  // previous response is still generating server-side. The latter was a
+  // real live-call bug: removing the per-turn merge-grace buffer let the
+  // next turn's speak() fire while the previous turn's response.create was
+  // still in flight, and the API rejected the second one outright
+  // ("conversation_already_has_active_response") — the caller heard
+  // nothing for that turn, and the answer was lost rather than replayed.
+  // Queuing in both cases and flushing on 'open' / response.done fixes both.
   let pendingSpeakText = null;
   // Counts audio chunks per response — logged on response.done so a silent
   // failure (event names drifting again, audio generated but never
@@ -77,6 +81,14 @@ export function setupRealtime(instructions, handlers, language = 'en') {
   // to distinguish a real barge-in (caller interrupting OUR speech) from
   // ordinary speech-start detection on their own turn.
   let botSpeaking = false;
+
+  function flushPendingSpeak() {
+    if (pendingSpeakText !== null) {
+      const text = pendingSpeakText;
+      pendingSpeakText = null;
+      sendSpeak(text);
+    }
+  }
 
   function sendSpeak(text) {
     botSpeaking = true;
@@ -145,11 +157,9 @@ export function setupRealtime(instructions, handlers, language = 'en') {
     }));
     console.log(`[Realtime] Session opened — model=${model}, turn_detection=semantic_vad(eagerness=${eagerness})`);
 
-    if (pendingSpeakText) {
+    if (pendingSpeakText !== null) {
       console.log('[Realtime] Flushing speak() that arrived before the socket was ready');
-      const text = pendingSpeakText;
-      pendingSpeakText = null;
-      sendSpeak(text);
+      flushPendingSpeak();
     }
   });
 
@@ -220,10 +230,23 @@ export function setupRealtime(instructions, handlers, language = 'en') {
         }
         audioChunksThisResponse = 0;
         handlers.onResponseDone?.();
+        flushPendingSpeak();
         break;
 
       case 'error':
         console.error('[Realtime] Server error:', JSON.stringify(msg.error || msg));
+        // A rejected response.create (e.g. "conversation_already_has_active_
+        // response") leaves botSpeaking stuck true with no response.done ever
+        // coming for the failed attempt, since it never actually started —
+        // without this, every future speak() would queue behind a response
+        // that doesn't exist and never get spoken for the rest of the call.
+        // speak() now checks botSpeaking before sending (see below) so this
+        // shouldn't be reachable from our own code anymore, but recovering
+        // here is cheap insurance against wedging the call silent.
+        if (msg.error?.code === 'conversation_already_has_active_response' && botSpeaking) {
+          botSpeaking = false;
+          flushPendingSpeak();
+        }
         handlers.onError?.(new Error(msg.error?.message || 'Realtime API error'));
         break;
     }
@@ -260,6 +283,16 @@ export function setupRealtime(instructions, handlers, language = 'en') {
     speak(text) {
       if (!ready || ws.readyState !== WebSocket.OPEN) {
         console.log('[Realtime] speak() called before the socket was ready — queuing until it opens');
+        pendingSpeakText = text;
+        return;
+      }
+      if (botSpeaking) {
+        // A previous response is still generating — sending response.create
+        // now would get rejected outright by the API (confirmed on a live
+        // call: "conversation_already_has_active_response"), silently
+        // dropping this turn's reply. Queue it and flush on response.done
+        // instead of losing it.
+        console.log('[Realtime] speak() called while a previous response is still in flight — queuing until it finishes');
         pendingSpeakText = text;
         return;
       }

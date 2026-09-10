@@ -130,13 +130,13 @@ describe('OpenAI Realtime provider', () => {
     expect(handlers.onSpeechStart).toHaveBeenCalledTimes(1);
   });
 
-  it('defaults turn-detection eagerness to high, and respects an override', () => {
+  it('defaults turn-detection eagerness to medium, and respects an override', () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);
     const socket = FakeWebSocket.instances[0];
     socket._open();
     const update = socket.sent.find(m => m.type === 'session.update');
-    expect(update.session.audio.input.turn_detection.eagerness).toBe('high');
+    expect(update.session.audio.input.turn_detection.eagerness).toBe('medium');
   });
 
   it('respects an eagerness override', () => {
@@ -300,6 +300,56 @@ describe('OpenAI Realtime provider', () => {
     const creates = socket.sent.filter(m => m.type === 'conversation.item.create');
     expect(creates).toHaveLength(1);
     expect(creates[0].item.content[0].text).toContain('final version');
+  });
+
+  it('queues a speak() called while a previous response is still in flight, and flushes it on response.done', () => {
+    // Real live-call bug: removing the per-turn merge-grace buffer let two
+    // turns dispatch close enough together that the second speak() fired
+    // response.create while the first response was still generating — the
+    // API rejected it outright ("conversation_already_has_active_response")
+    // and that turn's reply was never spoken at all.
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    session.speak('First reply.');
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(1);
+
+    session.speak('Second reply, arrived while the first is still generating.');
+    // Must NOT have sent a second response.create yet — it should be queued.
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(1);
+    expect(socket.sent.filter(m => m.type === 'conversation.item.create')).toHaveLength(1);
+
+    socket._message({ type: 'response.done', response: {} });
+
+    const creates = socket.sent.filter(m => m.type === 'conversation.item.create');
+    expect(creates).toHaveLength(2);
+    expect(creates[1].item.content[0].text).toContain('Second reply');
+    expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(2);
+  });
+
+  it('recovers from a rejected response.create instead of permanently wedging the call silent', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    session.speak('First reply.');
+    // Simulate the API rejecting a conflicting response.create that our own
+    // code should no longer be able to trigger (speak() now guards against
+    // it) — but recovering here is a cheap backstop against any other path
+    // that could hit this and leave botSpeaking stuck true forever.
+    socket._message({
+      type: 'error',
+      error: { code: 'conversation_already_has_active_response', message: 'Conversation already has an active response in progress.' }
+    });
+
+    session.speak('Next turn should still be speakable.');
+    const creates = socket.sent.filter(m => m.type === 'conversation.item.create');
+    expect(creates.some(c => c.item.content[0].text.includes('Next turn should still be speakable'))).toBe(true);
   });
 
   it('surfaces a server error event through onError', () => {
