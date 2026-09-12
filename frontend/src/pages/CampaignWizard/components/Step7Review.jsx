@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ClipboardList, PhoneCall, Users,
   Settings, CheckCircle2,
-  AlertCircle, ShieldCheck, Database
+  AlertCircle, ShieldCheck, Database, CalendarClock
 } from 'lucide-react';
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// The date/time input always represents India Standard Time, regardless of
+// the admin's own browser/OS timezone — this campaign's calls are IST-scheduled
+// by convention, so we convert explicitly instead of trusting local time.
+function isoToISTInputValue(iso) {
+  if (!iso) return '';
+  const shifted = new Date(new Date(iso).getTime() + IST_OFFSET_MS);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
+}
+
+function istInputValueToIso(value) {
+  if (!value) return null;
+  return new Date(`${value}:00+05:30`).toISOString();
+}
+
+function formatISTLabel(iso) {
+  return new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+}
 
 function SectionHeader({ icon: Icon, title, count }) {
   return (
@@ -30,9 +51,15 @@ function ReviewField({ label, value }) {
   );
 }
 
-export default function Step7Review({ payload, onLaunch }) {
-  const { name, type, goals, dataToCollect, callSettings, contacts, endCallIf } = payload;
+export default function Step7Review({ payload, updatePayload, onLaunch }) {
+  const { name, type, goals, dataToCollect, callSettings, contacts, endCallIf, scheduledAt } = payload;
   const rules = payload.rules || {};
+
+  // Floor to the next full minute so the "min" bound on the picker never
+  // rejects the current minute due to a few seconds of clock drift. A lazy
+  // useState initializer runs exactly once at mount, which is the sanctioned
+  // way to read the clock without breaking render purity on later renders.
+  const [nowIST] = useState(() => isoToISTInputValue(new Date(Date.now() + 60000).toISOString()));
 
   const overrideCount = (contacts || []).filter(c => c.overrides?.goals || c.overrides?.dataToCollect).length;
 
@@ -83,6 +110,59 @@ export default function Step7Review({ payload, onLaunch }) {
               <p className="text-xs font-medium text-zinc-400 mt-0.5">at ₹5/min</p>
             </div>
           </div>
+        </div>
+
+        {/* Launch Timing */}
+        <div className={`${cardCls} xl:col-span-2`}>
+          <SectionHeader icon={CalendarClock} title="Launch Timing" />
+          {updatePayload ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => updatePayload({ scheduledAt: null })}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                    !scheduledAt
+                      ? 'bg-teal-50 border-teal-500 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+                      : 'border-zinc-200 dark:border-slate-600 text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Launch Immediately
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updatePayload({ scheduledAt: scheduledAt || new Date(Date.now() + 60 * 60 * 1000).toISOString() })}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                    scheduledAt
+                      ? 'bg-teal-50 border-teal-500 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+                      : 'border-zinc-200 dark:border-slate-600 text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Schedule for Later
+                </button>
+              </div>
+
+              {scheduledAt && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">
+                    Date &amp; Time (India Standard Time)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={isoToISTInputValue(scheduledAt)}
+                    min={nowIST}
+                    onChange={(e) => updatePayload({ scheduledAt: istInputValueToIso(e.target.value) })}
+                    className="w-full max-w-xs px-3 py-2 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-zinc-900 dark:text-slate-100"
+                  />
+                  <p className="text-xs text-zinc-500 dark:text-slate-400">
+                    Calls will start automatically on {formatISTLabel(scheduledAt)} IST — no manual action needed.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <ReviewField label="Launch" value={scheduledAt ? `Scheduled for ${formatISTLabel(scheduledAt)} IST` : 'Immediately'} />
+          )}
         </div>
 
         {/* Campaign Overview */}

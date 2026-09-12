@@ -125,6 +125,7 @@ model Campaign {
 
   maxCallDurationSec    Int?
   estimatedTotalMinutes Int?
+  scheduledAt           DateTime?
 
   tenantId     String
   tenant       Tenant     @relation(fields: [tenantId], references: [id])

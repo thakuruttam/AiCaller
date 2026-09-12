@@ -71,7 +71,9 @@ async function processJob(job, tenantId) {
   console.log(`[Worker] Picked up job ${job.id} for tenant ${tenantId} to call ${phone}`);
 
   const log = await prisma.callLog.findUnique({ where: { id: callLogId } });
-  if (!log || log.status !== 'queued') {
+  // 'scheduled' is a call whose delayed BullMQ job has just become ready —
+  // it's the pre-fire equivalent of 'queued' and should dial normally.
+  if (!log || !['queued', 'scheduled'].includes(log.status)) {
     console.log(`[Worker] Skipping job ${job.id} — DB status is ${log?.status}`);
     return { skipped: true, reason: log?.status };
   }

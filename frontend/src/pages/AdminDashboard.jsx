@@ -13,6 +13,7 @@ const STATUS_BADGE = {
   cancelled:    "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
   "in-progress":"bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   queued:       "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400",
+  scheduled:    "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
 };
 
 const TICKET_STATUS_BADGE = {
@@ -360,8 +361,9 @@ export default function AdminDashboard() {
             const hasQueued = statuses.includes('queued');
             const hasInProgress = statuses.includes('in-progress');
             const hasPaused = statuses.includes('paused');
+            const hasScheduled = statuses.includes('scheduled');
             const allTerminal = logs.length > 0 && statuses.every(s => terminalStatuses.includes(s));
-            const hasActive = !allTerminal && (hasQueued || hasInProgress || hasPaused);
+            const hasActive = !allTerminal && (hasQueued || hasInProgress || hasPaused || hasScheduled);
             const hasEverRun = statuses.some(s => terminalStatuses.includes(s));
             const isExpanded = expandedCampaignId === campaign.id;
 
@@ -375,6 +377,11 @@ export default function AdminDashboard() {
                     <div className="col-span-3">
                       <p className="text-sm font-medium text-zinc-900 dark:text-slate-100">{campaign.name}</p>
                       <p className="text-xs text-zinc-500 dark:text-slate-400">ID: {campaign.id?.substring(0,12)}</p>
+                      {hasScheduled && campaign.scheduledAt && (
+                        <p className="text-xs font-medium text-purple-600 dark:text-purple-400 mt-0.5">
+                          Scheduled for {new Date(campaign.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
+                        </p>
+                      )}
                     </div>
                     <div className="col-span-3">
                       <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Workspace</p>
@@ -400,8 +407,8 @@ export default function AdminDashboard() {
                           <span className="material-symbols-outlined text-sm">play_arrow</span>
                         </button>
                       )}
-                      {(hasQueued || hasInProgress) && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'pause')} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="Pause">
+                      {(hasQueued || hasInProgress || hasScheduled) && (
+                        <button onClick={() => handleCampaignAction(campaign.id, 'pause')} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title={hasScheduled ? 'Cancel schedule' : 'Pause'}>
                           <span className="material-symbols-outlined text-sm">pause</span>
                         </button>
                       )}
@@ -546,7 +553,8 @@ export default function AdminDashboard() {
               callSettings: selectedCampaign.callSettings || {},
               contacts: selectedCampaign.campaignContacts || [],
               endCallIf: selectedCampaign.endCallIf || '',
-              rules: selectedCampaign.rules || {}
+              rules: selectedCampaign.rules || {},
+              scheduledAt: selectedCampaign.scheduledAt || null
             }} />
           </div>
         </Modal>

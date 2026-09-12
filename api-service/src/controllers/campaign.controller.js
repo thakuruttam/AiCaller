@@ -1,8 +1,17 @@
 import { prisma } from '../db.js';
 import { publishEvaluation } from '../queue/singletons.js';
-import { enqueueCall } from '../queue/publisher.js';
+import { enqueueCall, removeQueuedCall } from '../queue/publisher.js';
 import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
 import { notifyWorkspace } from '../utils/notifications.js';
+
+// Returns a valid future Date for a raw scheduledAt input, or null if it's
+// missing/unparseable/in the past — callers treat null as "launch immediately".
+function parseFutureSchedule(scheduledAt) {
+  if (!scheduledAt) return null;
+  const date = new Date(scheduledAt);
+  if (isNaN(date.getTime()) || date.getTime() <= Date.now()) return null;
+  return date;
+}
 
 function dbErrorPayload(error) {
   const unreachable =
@@ -56,11 +65,11 @@ export const getCampaignById = async (req, res) => {
 
 export const createWizardCampaign = async (req, res) => {
   try {
-    const { 
-      name, type, 
-      prompt, goals, 
-      dataToCollect, endCallIf, rules, callSettings, 
-      contacts 
+    const {
+      name, type,
+      prompt, goals,
+      dataToCollect, endCallIf, rules, callSettings,
+      contacts, scheduledAt
     } = req.body;
 
     // Use the authenticated user's workspace and identity
@@ -101,6 +110,7 @@ export const createWizardCampaign = async (req, res) => {
     });
 
     const createdContacts = [];
+    const createdCallLogs = [];
     if (contacts && contacts.length > 0) {
       // Deduplicate contacts by phone number to prevent calling the same person multiple times concurrently
       const uniqueContacts = Array.from(new Map(contacts.map(c => [c.phone, c])).values());
@@ -120,7 +130,7 @@ export const createWizardCampaign = async (req, res) => {
           }
         });
 
-        await prisma.callLog.create({
+        const callLog = await prisma.callLog.create({
           data: {
              tenantId,
              contactId: contact.id,
@@ -130,6 +140,30 @@ export const createWizardCampaign = async (req, res) => {
         });
 
         createdContacts.push(contact);
+        createdCallLogs.push({ contact, callLog });
+      }
+    }
+
+    // A future scheduledAt means this campaign should dial itself
+    // automatically at that time — no separate manual "Start" click needed.
+    // CallLogs go straight to 'scheduled' and each gets its own delayed
+    // BullMQ job (jobId = callLogId, so the reconciliation sweep can safely
+    // re-attempt this without ever double-booking a call).
+    const scheduleDate = parseFutureSchedule(scheduledAt);
+    if (scheduleDate) {
+      await prisma.campaign.update({
+        where: { id: campaign.id },
+        data: { scheduledAt: scheduleDate }
+      });
+      const delay = scheduleDate.getTime() - Date.now();
+      for (const { contact, callLog } of createdCallLogs) {
+        await prisma.callLog.update({ where: { id: callLog.id }, data: { status: 'scheduled' } });
+        await enqueueCall(tenantId, {
+          contactId: contact.id,
+          campaignId: campaign.id,
+          callLogId: callLog.id,
+          phone: contact.phone
+        }, { delay, jobId: callLog.id });
       }
     }
 
@@ -162,14 +196,15 @@ export const createWizardCampaign = async (req, res) => {
 export const updateWizardCampaign = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      name, type, 
-      prompt, goals, 
-      dataToCollect, endCallIf, rules, callSettings, 
-      contacts 
+    const {
+      name, type,
+      prompt, goals,
+      dataToCollect, endCallIf, rules, callSettings,
+      contacts, scheduledAt
     } = req.body;
 
     const maxCallDurationSec = Math.max(30, (callSettings?.maxDuration || 5) * 60);
+    const scheduleDate = parseFutureSchedule(scheduledAt);
 
     // 1. Update Campaign
     const campaign = await prisma.campaign.update({
@@ -182,6 +217,7 @@ export const updateWizardCampaign = async (req, res) => {
         rules:         rules         || {},
         callSettings:  callSettings  || {},
         maxCallDurationSec,
+        scheduledAt: scheduleDate,
       }
     });
 
@@ -283,6 +319,45 @@ export const updateWizardCampaign = async (req, res) => {
           contactId: { notIn: validContactIds }
         }
       });
+    }
+
+    // 5. Reconcile scheduling. Only touches CallLogs that haven't actually
+    // been started yet ('draft' = never scheduled, 'scheduled' = an earlier
+    // save already set a delayed job for this campaign) — never disturbs a
+    // campaign a user has already clicked Start on.
+    {
+      const unstartedLogs = await prisma.callLog.findMany({
+        where: { campaignId: id, status: { in: ['draft', 'scheduled'] } },
+        include: { contact: true }
+      });
+
+      if (scheduleDate) {
+        const delay = scheduleDate.getTime() - Date.now();
+        for (const log of unstartedLogs) {
+          // Remove any previously-scheduled job for this log first — BullMQ
+          // won't update an existing job's delay if we just re-add the same
+          // jobId, so a changed schedule time would otherwise be silently
+          // ignored and the call would fire at the OLD time.
+          await removeQueuedCall(tenantId, log.id);
+          await prisma.callLog.update({ where: { id: log.id }, data: { status: 'scheduled' } });
+          await enqueueCall(tenantId, {
+            contactId: log.contactId,
+            campaignId: id,
+            callLogId: log.id,
+            phone: log.contact.phone
+          }, { delay, jobId: log.id });
+        }
+      } else {
+        // Schedule was cleared (or never set) — cancel any pending delayed
+        // jobs and drop previously-'scheduled' logs back to 'draft' so they
+        // wait for a manual Start again, instead of firing unexpectedly.
+        for (const log of unstartedLogs) {
+          if (log.status === 'scheduled') {
+            await removeQueuedCall(tenantId, log.id);
+            await prisma.callLog.update({ where: { id: log.id }, data: { status: 'draft' } });
+          }
+        }
+      }
     }
 
     // Recalculate estimated total minutes based on current contacts and their overrides
@@ -487,13 +562,31 @@ export const updateCampaignStatus = async (req, res) => {
          );
        }
 
+       // Cancel any not-yet-fired scheduled/delayed jobs so they don't dial
+       // after this campaign has already been killed.
+       const scheduledLogs = await prisma.callLog.findMany({
+         where: { campaignId: id, status: 'scheduled' }
+       });
+       if (scheduledLogs.length > 0 && campaign) {
+         await Promise.allSettled(scheduledLogs.map(log => removeQueuedCall(campaign.tenantId, log.id)));
+       }
+
        await prisma.callLog.updateMany({
-         where: { campaignId: id, status: { in: ['queued', 'paused', 'draft', 'in-progress'] } },
+         where: { campaignId: id, status: { in: ['queued', 'paused', 'draft', 'in-progress', 'scheduled'] } },
          data: { status: 'cancelled' }
        });
     } else if (action === 'pause') {
+       // Pausing a scheduled campaign cancels its pending delayed jobs —
+       // resuming re-queues immediately rather than at the original time.
+       const scheduledLogs = await prisma.callLog.findMany({
+         where: { campaignId: id, status: 'scheduled' }
+       });
+       if (scheduledLogs.length > 0 && campaign) {
+         await Promise.allSettled(scheduledLogs.map(log => removeQueuedCall(campaign.tenantId, log.id)));
+       }
+
        await prisma.callLog.updateMany({
-         where: { campaignId: id, status: 'queued' },
+         where: { campaignId: id, status: { in: ['queued', 'scheduled'] } },
          data: { status: 'paused' }
        });
     } else if (action === 'start' || action === 'resume') {

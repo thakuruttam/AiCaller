@@ -35,7 +35,12 @@ vi.mock('./components/Step3DataToCollect', () => ({
 }));
 vi.mock('./components/StepContactOverrides', () => ({ default: () => <div data-testid="step-overrides">StepContactOverrides</div> }));
 vi.mock('./components/Step7Review', () => ({
-  default: ({ onLaunch }) => <div data-testid="step-review"><button onClick={onLaunch}>Trigger Launch</button></div>,
+  default: ({ onLaunch, updatePayload }) => (
+    <div data-testid="step-review">
+      <button onClick={onLaunch}>Trigger Launch</button>
+      <button onClick={() => updatePayload({ scheduledAt: '2027-01-01T05:30:00.000Z' })}>Set Schedule</button>
+    </div>
+  ),
 }));
 
 const CampaignWizard = (await import('./CampaignWizard.jsx')).default;
@@ -145,6 +150,22 @@ describe('CampaignWizard — launch (create mode)', () => {
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/api/campaigns/wizard', expect.any(Object)));
     expect(addToastMock).toHaveBeenCalledWith('Campaign launched successfully!', 'success');
     await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
+  });
+
+  it('includes scheduledAt in the POST payload and shows a scheduling-specific toast', async () => {
+    apiPost.mockResolvedValue({ data: {} });
+    const user = userEvent.setup();
+    renderWizard();
+    await goToStep5(user);
+
+    await user.click(screen.getByRole('button', { name: /set schedule/i }));
+    await user.click(screen.getByRole('button', { name: /trigger launch/i }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/api/campaigns/wizard',
+      expect.objectContaining({ scheduledAt: '2027-01-01T05:30:00.000Z' })
+    ));
+    await waitFor(() => expect(addToastMock).toHaveBeenCalledWith(expect.stringContaining('Campaign scheduled for'), 'success'));
   });
 
   it('shows an error toast and does not navigate when the launch API call fails', async () => {

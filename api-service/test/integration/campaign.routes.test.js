@@ -3,12 +3,16 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
 const enqueueCallMock = vi.fn().mockResolvedValue(undefined);
+const removeQueuedCallMock = vi.fn().mockResolvedValue(undefined);
 const publishEvaluationMock = vi.fn().mockResolvedValue(undefined);
 const notifyWorkspaceMock = vi.fn().mockResolvedValue(undefined);
 const hangupPlivoCallMock = vi.fn().mockResolvedValue(undefined);
 const fetchPlivoRecordingUrlMock = vi.fn().mockResolvedValue(null);
 
-vi.mock('../../src/queue/publisher.js', () => ({ enqueueCall: (...a) => enqueueCallMock(...a) }));
+vi.mock('../../src/queue/publisher.js', () => ({
+  enqueueCall: (...a) => enqueueCallMock(...a),
+  removeQueuedCall: (...a) => removeQueuedCallMock(...a),
+}));
 vi.mock('../../src/queue/singletons.js', () => ({ publishEvaluation: (...a) => publishEvaluationMock(...a) }));
 vi.mock('../../src/utils/notifications.js', () => ({
   notifyWorkspace: (...a) => notifyWorkspaceMock(...a),
@@ -38,6 +42,7 @@ function authHeader({ userId, tenantId, role = 'ADMIN', workspaceRole = 'ADMIN' 
 
 beforeEach(() => {
   enqueueCallMock.mockClear();
+  removeQueuedCallMock.mockClear();
   publishEvaluationMock.mockClear();
   notifyWorkspaceMock.mockClear();
   hangupPlivoCallMock.mockClear();
@@ -197,6 +202,104 @@ describe('POST /api/campaigns/wizard — createWizardCampaign', () => {
     const contacts = await prisma.contact.findMany({ where: { tenantId: tenant.id, phone: '+999' } });
     expect(contacts).toHaveLength(1);
   });
+
+  it('with a future scheduledAt: sets campaign.scheduledAt, marks callLogs "scheduled", and enqueues each with a delay + stable jobId', async () => {
+    const tenant = await makeTenant();
+    const admin = await makeUser('ADMIN');
+    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour out
+
+    const res = await request(app).post('/api/campaigns/wizard').set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Scheduled Campaign',
+      contacts: [{ name: 'A', phone: '+1' }],
+      scheduledAt,
+    });
+
+    expect(res.status).toBe(201);
+    const campaign = await prisma.campaign.findUnique({ where: { id: res.body.campaign.id } });
+    expect(new Date(campaign.scheduledAt).toISOString()).toBe(scheduledAt);
+
+    const logs = await prisma.callLog.findMany({ where: { campaignId: campaign.id } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0].status).toBe('scheduled');
+
+    expect(enqueueCallMock).toHaveBeenCalledTimes(1);
+    const [, , opts] = enqueueCallMock.mock.calls[0];
+    expect(opts.jobId).toBe(logs[0].id);
+    expect(opts.delay).toBeGreaterThan(0);
+  });
+
+  it('with a past scheduledAt: ignores it and falls back to the normal draft (manual-start) flow', async () => {
+    const tenant = await makeTenant();
+    const admin = await makeUser('ADMIN');
+    const res = await request(app).post('/api/campaigns/wizard').set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Past Schedule',
+      contacts: [{ name: 'A', phone: '+1' }],
+      scheduledAt: new Date(Date.now() - 60 * 1000).toISOString(),
+    });
+
+    expect(res.status).toBe(201);
+    const logs = await prisma.callLog.findMany({ where: { campaignId: res.body.campaign.id } });
+    expect(logs[0].status).toBe('draft');
+    expect(enqueueCallMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('PUT /api/campaigns/wizard/:id — updateWizardCampaign scheduling', () => {
+  async function makeDraftCampaign() {
+    const tenant = await makeTenant();
+    const callModule = await makeCallModule(tenant.id);
+    const admin = await makeUser('ADMIN');
+    const campaign = await prisma.campaign.create({ data: { name: 'Editable', tenantId: tenant.id, callModuleId: callModule.id, createdById: admin.id } });
+    const contact = await prisma.contact.create({ data: { name: 'C', phone: '+1', tenantId: tenant.id } });
+    await prisma.campaignContact.create({ data: { campaignId: campaign.id, contactId: contact.id } });
+    const log = await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: campaign.id, status: 'draft' } });
+    return { tenant, admin, campaign, contact, log };
+  }
+
+  it('adding a schedule to a draft campaign flips its logs to "scheduled" and enqueues with a delay', async () => {
+    const { tenant, admin, campaign } = await makeDraftCampaign();
+    const scheduledAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+    const res = await request(app).put(`/api/campaigns/wizard/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Editable', contacts: [{ name: 'C', phone: '+1' }], scheduledAt,
+    });
+
+    expect(res.status).toBe(200);
+    const logs = await prisma.callLog.findMany({ where: { campaignId: campaign.id } });
+    expect(logs.every(l => l.status === 'scheduled')).toBe(true);
+    expect(enqueueCallMock).toHaveBeenCalled();
+  });
+
+  it('clearing an existing schedule reverts "scheduled" logs to "draft" and cancels their queued jobs', async () => {
+    const { tenant, admin, campaign, contact, log } = await makeDraftCampaign();
+    await prisma.callLog.update({ where: { id: log.id }, data: { status: 'scheduled' } });
+    await prisma.campaign.update({ where: { id: campaign.id }, data: { scheduledAt: new Date(Date.now() + 3600_000) } });
+
+    const res = await request(app).put(`/api/campaigns/wizard/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Editable', contacts: [{ name: 'C', phone: '+1' }], scheduledAt: null,
+    });
+
+    expect(res.status).toBe(200);
+    const updatedLog = await prisma.callLog.findUnique({ where: { id: log.id } });
+    expect(updatedLog.status).toBe('draft');
+    expect(removeQueuedCallMock).toHaveBeenCalledWith(tenant.id, log.id);
+  });
+
+  it('rescheduling to a new time removes the old queued job before adding the new one', async () => {
+    const { tenant, admin, campaign, log } = await makeDraftCampaign();
+    await prisma.callLog.update({ where: { id: log.id }, data: { status: 'scheduled' } });
+    await prisma.campaign.update({ where: { id: campaign.id }, data: { scheduledAt: new Date(Date.now() + 3600_000) } });
+
+    const newScheduledAt = new Date(Date.now() + 7200_000).toISOString();
+    await request(app).put(`/api/campaigns/wizard/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Editable', contacts: [{ name: 'C', phone: '+1' }], scheduledAt: newScheduledAt,
+    });
+
+    expect(removeQueuedCallMock).toHaveBeenCalledWith(tenant.id, log.id);
+    expect(enqueueCallMock).toHaveBeenCalled();
+    const [, , opts] = enqueueCallMock.mock.calls[enqueueCallMock.mock.calls.length - 1];
+    expect(opts.jobId).toBe(log.id);
+  });
 });
 
 describe('POST /api/campaigns/:id/status — updateCampaignStatus', () => {
@@ -241,6 +344,26 @@ describe('POST /api/campaigns/:id/status — updateCampaignStatus', () => {
     const logs = await prisma.callLog.findMany({ where: { campaignId: campaign.id } });
     expect(logs.every(l => l.status === 'queued')).toBe(true);
     expect(enqueueCallMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('kill cancels scheduled logs too and removes their pending queued jobs', async () => {
+    const { tenant, admin, campaign, logs } = await setupCampaignWithLogs(['scheduled', 'completed']);
+    const res = await request(app).post(`/api/campaigns/${campaign.id}/status`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({ action: 'kill' });
+    expect(res.status).toBe(200);
+
+    const updated = await prisma.callLog.findMany({ where: { campaignId: campaign.id } });
+    expect(updated.map(l => l.status).sort()).toEqual(['cancelled', 'completed']);
+    expect(removeQueuedCallMock).toHaveBeenCalledWith(tenant.id, logs[0].id);
+  });
+
+  it('pause also cancels a scheduled campaign\'s pending job', async () => {
+    const { tenant, admin, campaign, logs } = await setupCampaignWithLogs(['scheduled']);
+    const res = await request(app).post(`/api/campaigns/${campaign.id}/status`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({ action: 'pause' });
+    expect(res.status).toBe(200);
+
+    const updated = await prisma.callLog.findUnique({ where: { id: logs[0].id } });
+    expect(updated.status).toBe('paused');
+    expect(removeQueuedCallMock).toHaveBeenCalledWith(tenant.id, logs[0].id);
   });
 
   it('rerun deletes non-terminal logs and re-queues fresh logs for all campaign contacts', async () => {

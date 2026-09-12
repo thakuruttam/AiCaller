@@ -19,10 +19,30 @@ export function getTenantCallQueue(tenantId) {
   return tenantCallQueues.get(tenantId);
 }
 
-export async function enqueueCall(tenantId, callData) {
+export async function enqueueCall(tenantId, callData, opts = {}) {
   // Register tenant in the active set so call-worker discovers this queue
   await redis.sadd('active:telephony:tenants', tenantId);
-  
+
   const queue = getTenantCallQueue(tenantId);
-  return queue.add('outbound-call', callData);
+  // opts.jobId lets a scheduled call be safely re-enqueued (e.g. by the
+  // reconciliation sweep, or when an edit reschedules it) — BullMQ no-ops
+  // if a job with that id already exists rather than creating a duplicate.
+  return queue.add('outbound-call', callData, opts);
+}
+
+// Cancels a not-yet-fired scheduled/delayed call (used when a campaign is
+// paused/killed/rescheduled before its scheduled time arrives). Safe no-op
+// if the job doesn't exist or has already started/finished.
+export async function removeQueuedCall(tenantId, callLogId) {
+  const queue = getTenantCallQueue(tenantId);
+  try {
+    const job = await queue.getJob(callLogId);
+    if (!job) return;
+    const state = await job.getState();
+    if (state === 'delayed' || state === 'waiting') {
+      await job.remove();
+    }
+  } catch (err) {
+    console.error(`[Publisher] removeQueuedCall(${callLogId}) failed:`, err.message);
+  }
 }
