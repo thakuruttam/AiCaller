@@ -178,7 +178,7 @@ export default function CampaignWizard() {
       setPayload(initialPayload);
       const launchMsg = payload.scheduledAt
         ? `Campaign scheduled for ${new Date(payload.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST`
-        : (id ? "Campaign updated successfully!" : "Campaign launched successfully!");
+        : (id ? "Campaign updated successfully!" : "Campaign created successfully!");
       addToast(launchMsg, "success");
       navigate('/');
     } catch (err) {
@@ -321,7 +321,7 @@ export default function CampaignWizard() {
                   onClick={handleLaunch}
                   className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm font-semibold hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
                 >
-                  {payload.scheduledAt ? 'Schedule Campaign' : (id ? 'Save Changes' : 'Launch Campaign')}
+                  {payload.scheduledAt ? 'Schedule Campaign' : (id ? 'Save Changes' : 'Create Campaign')}
                 </button>
               )}
             </div>

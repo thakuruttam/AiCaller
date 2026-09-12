@@ -148,7 +148,7 @@ describe('CampaignWizard — launch (create mode)', () => {
     await user.click(screen.getByRole('button', { name: /trigger launch/i }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/api/campaigns/wizard', expect.any(Object)));
-    expect(addToastMock).toHaveBeenCalledWith('Campaign launched successfully!', 'success');
+    expect(addToastMock).toHaveBeenCalledWith('Campaign created successfully!', 'success');
     await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
   });
 

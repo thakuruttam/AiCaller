@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import {
   ClipboardList, PhoneCall, Users,
   Settings, CheckCircle2,
@@ -7,19 +9,34 @@ import {
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-// The date/time input always represents India Standard Time, regardless of
-// the admin's own browser/OS timezone — this campaign's calls are IST-scheduled
-// by convention, so we convert explicitly instead of trusting local time.
-function isoToISTInputValue(iso) {
-  if (!iso) return '';
-  const shifted = new Date(new Date(iso).getTime() + IST_OFFSET_MS);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
-}
-
+// Every scheduling value here always represents India Standard Time,
+// regardless of the admin's own browser/OS timezone — this campaign's calls
+// are IST-scheduled by convention, so we convert explicitly rather than
+// trusting the viewer's local clock.
 function istInputValueToIso(value) {
   if (!value) return null;
   return new Date(`${value}:00+05:30`).toISOString();
+}
+
+// react-datepicker reads a Date's LOCAL getters (getHours, getDate, ...) to
+// render the calendar/time list. To make it show IST wall-clock numbers no
+// matter what timezone the viewer's machine is actually set to, we build a
+// Date whose LOCAL fields are set directly to the IST numbers — it's not a
+// "real" moment in the viewer's timezone, just a vessel for those digits.
+function isoToISTPickerDate(iso) {
+  if (!iso) return null;
+  const shifted = new Date(new Date(iso).getTime() + IST_OFFSET_MS);
+  return new Date(
+    shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(),
+    shifted.getUTCHours(), shifted.getUTCMinutes()
+  );
+}
+
+function istPickerDateToIso(date) {
+  if (!date) return null;
+  const pad = (n) => String(n).padStart(2, '0');
+  const value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return istInputValueToIso(value);
 }
 
 function formatISTLabel(iso) {
@@ -55,11 +72,11 @@ export default function Step7Review({ payload, updatePayload, onLaunch }) {
   const { name, type, goals, dataToCollect, callSettings, contacts, endCallIf, scheduledAt } = payload;
   const rules = payload.rules || {};
 
-  // Floor to the next full minute so the "min" bound on the picker never
-  // rejects the current minute due to a few seconds of clock drift. A lazy
-  // useState initializer runs exactly once at mount, which is the sanctioned
-  // way to read the clock without breaking render purity on later renders.
-  const [nowIST] = useState(() => isoToISTInputValue(new Date(Date.now() + 60000).toISOString()));
+  // Floor to the next full minute so the calendar's minDate never rejects
+  // the current minute due to a few seconds of clock drift. A lazy useState
+  // initializer runs exactly once at mount, which is the sanctioned way to
+  // read the clock without breaking render purity on later renders.
+  const [nowISTDate] = useState(() => isoToISTPickerDate(new Date(Date.now() + 60000).toISOString()));
 
   const overrideCount = (contacts || []).filter(c => c.overrides?.goals || c.overrides?.dataToCollect).length;
 
@@ -127,7 +144,7 @@ export default function Step7Review({ payload, updatePayload, onLaunch }) {
                       : 'border-zinc-200 dark:border-slate-600 text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700'
                   }`}
                 >
-                  Launch Immediately
+                  Create for Now
                 </button>
                 <button
                   type="button"
@@ -147,12 +164,16 @@ export default function Step7Review({ payload, updatePayload, onLaunch }) {
                   <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">
                     Date &amp; Time (India Standard Time)
                   </label>
-                  <input
-                    type="datetime-local"
-                    value={isoToISTInputValue(scheduledAt)}
-                    min={nowIST}
-                    onChange={(e) => updatePayload({ scheduledAt: istInputValueToIso(e.target.value) })}
-                    className="w-full max-w-xs px-3 py-2 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-zinc-900 dark:text-slate-100"
+                  <DatePicker
+                    selected={isoToISTPickerDate(scheduledAt)}
+                    onChange={(date) => updatePayload({ scheduledAt: istPickerDateToIso(date) })}
+                    minDate={nowISTDate}
+                    showTimeSelect
+                    timeIntervals={15}
+                    dateFormat="dd MMM yyyy, h:mm aa"
+                    readOnly
+                    wrapperClassName="w-full max-w-xs"
+                    className="w-full max-w-xs px-3 py-2 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-zinc-900 dark:text-slate-100 cursor-pointer"
                   />
                   <p className="text-xs text-zinc-500 dark:text-slate-400">
                     Calls will start automatically on {formatISTLabel(scheduledAt)} IST — no manual action needed.

@@ -233,3 +233,53 @@
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.6);
 }
+
+/* Launch Timing calendar (react-datepicker) — dark-mode overrides so the
+   popup matches the rest of the wizard instead of always rendering light. */
+.react-datepicker-popper {
+  z-index: 50;
+}
+
+html.dark .react-datepicker {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+html.dark .react-datepicker__header {
+  background-color: #0f172a;
+  border-bottom-color: #334155;
+}
+html.dark .react-datepicker__current-month,
+html.dark .react-datepicker__day-name,
+html.dark .react-datepicker__day,
+html.dark .react-datepicker-time__header,
+html.dark .react-datepicker__time-name {
+  color: #e2e8f0;
+}
+html.dark .react-datepicker__day:hover {
+  background-color: #334155;
+}
+html.dark .react-datepicker__day--disabled {
+  color: #475569;
+}
+html.dark .react-datepicker__day--selected,
+html.dark .react-datepicker__day--keyboard-selected {
+  background-color: #0d9488;
+  color: #fff;
+}
+html.dark .react-datepicker__time-container,
+html.dark .react-datepicker__time-container .react-datepicker__time,
+html.dark .react-datepicker__time-list {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+html.dark .react-datepicker__time-list-item:hover {
+  background-color: #334155 !important;
+}
+html.dark .react-datepicker__time-list-item--selected {
+  background-color: #0d9488 !important;
+}
+html.dark .react-datepicker__triangle::before,
+html.dark .react-datepicker__triangle::after {
+  border-bottom-color: #0f172a !important;
+}
