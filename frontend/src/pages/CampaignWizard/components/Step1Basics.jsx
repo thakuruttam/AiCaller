@@ -1,6 +1,25 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { Lightbulb, PhoneIncoming, PhoneOff, Timer } from 'lucide-react';
+import { Lightbulb, PhoneIncoming, PhoneOff, Timer, Mic, Play, Square, Loader2 } from 'lucide-react';
+import api from '../../../api/axios';
+
+// Same 10 voices the Realtime API accepts for live calls (kept in sync
+// manually with telephony-gateway/src/providers/openaiRealtime.js and
+// api-service/src/controllers/campaign.controller.js — they live in
+// different services). marin/cedar are OpenAI's newest, most natural-
+// sounding voices, called out here to help guide the choice.
+const VOICES = [
+  { value: 'marin',   label: 'Marin',   recommended: true },
+  { value: 'cedar',   label: 'Cedar',   recommended: true },
+  { value: 'alloy',   label: 'Alloy' },
+  { value: 'ash',     label: 'Ash' },
+  { value: 'ballad',  label: 'Ballad' },
+  { value: 'coral',   label: 'Coral' },
+  { value: 'echo',    label: 'Echo' },
+  { value: 'sage',    label: 'Sage' },
+  { value: 'shimmer', label: 'Shimmer' },
+  { value: 'verse',   label: 'Verse' },
+];
 
 const CAMPAIGN_TYPES = [
   { value: 'HR',            label: 'HR',           desc: 'Recruitment & talent outreach' },
@@ -88,6 +107,43 @@ export default function Step1Basics({ payload, updatePayload }) {
   const goals = payload.goals || {};
   const setGoal = (field, val) => updatePayload({ goals: { ...goals, [field]: val } });
 
+  // Voice preview — plays a short sample via a separate, cheap OpenAI TTS
+  // call (not the Realtime API the live calls use) so users can compare
+  // voices before picking one. previewingVoice tracks which button is
+  // loading/playing so only one plays at a time.
+  const [previewingVoice, setPreviewingVoice] = useState(null); // 'loading' | 'playing' per voice value
+  const audioRef = useRef(null);
+
+  const playVoicePreview = async (voice) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (previewingVoice?.voice === voice && previewingVoice?.state === 'playing') {
+      setPreviewingVoice(null);
+      return;
+    }
+    setPreviewingVoice({ voice, state: 'loading' });
+    try {
+      const sampleText = goals.callIntro?.trim() || undefined; // preview in the campaign's own words when set
+      const res = await api.post(
+        '/api/campaigns/preview-voice',
+        { voice, text: sampleText },
+        { responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(res.data);
+      const audioEl = new Audio(url);
+      audioRef.current = audioEl;
+      setPreviewingVoice({ voice, state: 'playing' });
+      audioEl.onended = () => setPreviewingVoice(null);
+      audioEl.onerror = () => setPreviewingVoice(null);
+      await audioEl.play();
+    } catch (e) {
+      console.error('Voice preview failed:', e);
+      setPreviewingVoice(null);
+    }
+  };
+
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       {/* <div>
@@ -166,6 +222,52 @@ export default function Step1Basics({ payload, updatePayload }) {
               ≈ ₹{payload.callSettings.maxDuration * 5} estimated per call
             </span>
           )}
+        </div>
+      </div>
+
+      {/* Voice */}
+      <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+        <div className="flex items-center gap-1.5">
+          <Mic size={13} className="text-teal-600" />
+          <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Voice</label>
+        </div>
+        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
+          Hit play to hear a sample before choosing — marin and cedar are OpenAI's newest, most natural-sounding voices.
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mt-1">
+          {VOICES.map(({ value, label, recommended }) => {
+            const selected = (payload.callSettings?.voice || 'marin') === value;
+            const isThis = previewingVoice?.voice === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => updatePayload({ callSettings: { ...(payload.callSettings || {}), voice: value } })}
+                className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border text-left transition-all
+                  ${selected
+                    ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50 text-teal-700'
+                    : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
+                  }`}
+              >
+                <span className="flex flex-col items-start">
+                  <span className="text-xs font-medium">{label}</span>
+                  {recommended && <span className="text-[10px] text-teal-600">Most natural</span>}
+                </span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); playVoicePreview(value); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value); } }}
+                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-teal-600 hover:bg-teal-50"
+                  title={`Preview ${label}`}
+                >
+                  {isThis && previewingVoice.state === 'loading' && <Loader2 size={13} className="animate-spin" />}
+                  {isThis && previewingVoice.state === 'playing' && <Square size={11} fill="currentColor" />}
+                  {!isThis && <Play size={13} fill="currentColor" />}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

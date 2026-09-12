@@ -100,6 +100,7 @@ export default function Step7Review({ payload, onLaunch }) {
           <div className="grid grid-cols-2 gap-y-6">
             <ReviewField label="AI Tone" value={callSettings?.tone} />
             <ReviewField label="Language" value={callSettings?.language} />
+            <ReviewField label="Voice" value={callSettings?.voice || 'marin'} />
             <ReviewField label="Max Duration" value={`${callSettings?.maxDuration} mins`} />
             <ReviewField
               label="Retry Attempts"

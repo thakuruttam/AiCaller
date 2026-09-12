@@ -151,6 +151,26 @@ describe('OpenAI Realtime provider', () => {
     expect(update.session.audio.input.turn_detection.eagerness).toBe('low');
   });
 
+  it('defaults voice to alloy, and a per-campaign voiceOverride argument takes priority over the env default', () => {
+    process.env.OPENAI_REALTIME_VOICE = 'echo';
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers, 'en', 'marin');
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    const update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.output.voice).toBe('marin');
+    delete process.env.OPENAI_REALTIME_VOICE;
+  });
+
+  it('falls back to the env var, then alloy, when no voiceOverride is passed', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    const update = socket.sent.find(m => m.type === 'session.update');
+    expect(update.session.audio.output.voice).toBe('alloy');
+  });
+
   it('forwards a completed transcript to onTranscript', () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);

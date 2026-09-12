@@ -40,9 +40,12 @@ import { WebSocket } from 'ws';
  *   onToolCall: (name: string, args: object) => void,          // autonomous mode only
  *   onAssistantTranscript: (text: string) => void               // autonomous mode only — what the model itself just said
  * }
+ * @param {string} [voiceOverride] - Per-campaign voice choice (campaign.callSettings.voice), e.g.
+ *   'marin'/'cedar' (OpenAI's newest, most natural-sounding options) or any other Realtime API voice.
+ *   Falls back to OPENAI_REALTIME_VOICE, then 'alloy', when not provided.
  * @returns {{ sendAudio: (mulawBuffer: Buffer) => void, speak: (text: string) => void, interruptAndSpeak: (text: string) => void, beginAutonomousConversation: (instructions: string, tools: object[]) => void, continueConversation: () => void, close: () => void }}
  */
-export function setupRealtime(instructions, handlers, language = 'en') {
+export function setupRealtime(instructions, handlers, language = 'en', voiceOverride = null) {
   const model     = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
   // 'low' was adding several seconds of dead air to every turn once the
   // per-turn merge-grace buffer was removed (see handleRealtimeTranscript in
@@ -53,7 +56,13 @@ export function setupRealtime(instructions, handlers, language = 'en') {
   // 'medium' is the middle ground pending further live validation — neither
   // extreme held up against real speech patterns.
   const eagerness = process.env.OPENAI_REALTIME_EAGERNESS || 'medium';
-  const voice     = process.env.OPENAI_REALTIME_VOICE || 'alloy';
+  // Per-campaign choice (campaign.callSettings.voice) takes priority when
+  // provided; env var stays as the fallback default for callers that don't
+  // pass one. Set once here and reused unchanged by beginAutonomousConversation()
+  // below — OpenAI's docs are explicit that voice cannot change once a
+  // session has emitted any audio, so there's deliberately no second place
+  // this gets resolved.
+  const voice     = voiceOverride || process.env.OPENAI_REALTIME_VOICE || 'alloy';
 
   const ws = new WebSocket(`wss://api.openai.com/v1/realtime?model=${model}`, {
     headers: {
@@ -157,7 +166,7 @@ export function setupRealtime(instructions, handlers, language = 'en') {
         }
       }
     }));
-    console.log(`[Realtime] Session opened — model=${model}, turn_detection=semantic_vad(eagerness=${eagerness})`);
+    console.log(`[Realtime] Session opened — model=${model}, voice=${voice}, turn_detection=semantic_vad(eagerness=${eagerness})`);
 
     if (pendingSpeakText !== null) {
       console.log('[Realtime] Flushing speak() that arrived before the socket was ready');

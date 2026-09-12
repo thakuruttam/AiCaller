@@ -31,6 +31,9 @@ const initialPayload = {
   callSettings: {
     tone: 'Professional',
     language: 'English',
+    // marin is OpenAI's newest, most natural-sounding Realtime API voice —
+    // used as the default rather than the older 'alloy' for that reason.
+    voice: 'marin',
     maxDuration: 5,
     retryAttempts: 2
   },

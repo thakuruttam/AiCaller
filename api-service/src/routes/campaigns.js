@@ -14,7 +14,8 @@ import {
   reevaluateCall,
   recallCall,
   mergeDuplicateContacts,
-  debugDuplicateContacts
+  debugDuplicateContacts,
+  previewVoice
 } from '../controllers/campaign.controller.js';
 
 const router = Router();
@@ -36,6 +37,7 @@ router.put('/wizard/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCam
 router.post('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateCampaignStatus);
 router.post('/:id/clone', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), cloneCampaign);
 router.post('/:campaignId/contacts', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('campaignId'), uploadContacts);
+router.post('/preview-voice', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), previewVoice);
 
 // TEMPORARY — one-off data migration, remove after use (see controller for context)
 router.post('/admin/merge-duplicate-contacts', authorize('SUPER_ADMIN'), mergeDuplicateContacts);

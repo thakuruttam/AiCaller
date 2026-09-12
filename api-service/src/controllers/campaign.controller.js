@@ -788,3 +788,58 @@ export const mergeDuplicateContacts = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Same 10 voices the Realtime API accepts for live calls (telephony-gateway's
+// providers/openaiRealtime.js) — kept in sync manually since they live in
+// different services. marin/cedar are OpenAI's newest and most natural-sounding.
+const REALTIME_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
+
+/**
+ * Generate a short spoken sample of a given voice so users can compare voices
+ * while building a campaign, before committing to one. Uses OpenAI's separate,
+ * synchronous /v1/audio/speech endpoint (gpt-4o-mini-tts) — a different, much
+ * cheaper API than the Realtime sessions live calls use, purely for previewing.
+ * The OpenAI key stays server-side; only the resulting audio bytes go back.
+ */
+export const previewVoice = async (req, res) => {
+  try {
+    const { voice, text } = req.body || {};
+    if (!voice || !REALTIME_VOICES.includes(voice)) {
+      return res.status(400).json({ error: `voice must be one of: ${REALTIME_VOICES.join(', ')}` });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: 'OPENAI_API_KEY is not configured on the server.' });
+    }
+
+    const sampleText = (text && text.trim())
+      ? text.trim().slice(0, 500) // previews are meant to be short samples, not the full call script
+      : 'Hi, this is an automated call. This is a quick preview of how this voice sounds.';
+
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini-tts',
+        voice,
+        input: sampleText,
+        response_format: 'mp3'
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[previewVoice] OpenAI TTS error:', response.status, errText);
+      return res.status(502).json({ error: 'Failed to generate voice preview.' });
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(audioBuffer);
+  } catch (error) {
+    console.error('[previewVoice]', error);
+    res.status(500).json({ error: error?.message || 'Unknown error' });
+  }
+};
