@@ -187,7 +187,7 @@ export default function Step7Review({ payload, updatePayload, onLaunch }) {
                     onChange={(date) => updatePayload({ scheduledAt: istPickerDateToIso(date) })}
                     minDate={nowISTDate}
                     showTimeSelect
-                    timeIntervals={15}
+                    timeIntervals={1}
                     dateFormat="dd MMM yyyy, h:mm aa"
                     customInput={<CalendarButton />}
                     // The wizard's step content sits inside an overflow-y-auto
