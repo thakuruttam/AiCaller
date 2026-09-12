@@ -110,9 +110,13 @@ export default function Step1Basics({ payload, updatePayload }) {
   // Voice preview — plays a short sample via a separate, cheap OpenAI TTS
   // call (not the Realtime API the live calls use) so users can compare
   // voices before picking one. previewingVoice tracks which button is
-  // loading/playing so only one plays at a time.
+  // loading/playing so only one plays at a time. previewCacheRef caches the
+  // generated audio per (voice, sample text) so replaying the same voice
+  // reuses it instantly instead of calling the API again every time — only
+  // invalidated if the campaign's own intro text (used as the sample) changes.
   const [previewingVoice, setPreviewingVoice] = useState(null); // 'loading' | 'playing' per voice value
   const audioRef = useRef(null);
+  const previewCacheRef = useRef(new Map()); // cacheKey -> object URL
 
   const playVoicePreview = async (voice) => {
     if (audioRef.current) {
@@ -123,21 +127,34 @@ export default function Step1Basics({ payload, updatePayload }) {
       setPreviewingVoice(null);
       return;
     }
+
+    const sampleText = goals.callIntro?.trim() || undefined; // preview in the campaign's own words when set
+    const cacheKey = `${voice}::${sampleText || '__default__'}`;
+    const playFromUrl = (url) => {
+      const audioEl = new Audio(url);
+      audioRef.current = audioEl;
+      setPreviewingVoice({ voice, state: 'playing' });
+      audioEl.onended = () => setPreviewingVoice(null);
+      audioEl.onerror = () => setPreviewingVoice(null);
+      audioEl.play();
+    };
+
+    const cachedUrl = previewCacheRef.current.get(cacheKey);
+    if (cachedUrl) {
+      playFromUrl(cachedUrl);
+      return;
+    }
+
     setPreviewingVoice({ voice, state: 'loading' });
     try {
-      const sampleText = goals.callIntro?.trim() || undefined; // preview in the campaign's own words when set
       const res = await api.post(
         '/api/campaigns/preview-voice',
         { voice, text: sampleText },
         { responseType: 'blob' }
       );
       const url = URL.createObjectURL(res.data);
-      const audioEl = new Audio(url);
-      audioRef.current = audioEl;
-      setPreviewingVoice({ voice, state: 'playing' });
-      audioEl.onended = () => setPreviewingVoice(null);
-      audioEl.onerror = () => setPreviewingVoice(null);
-      await audioEl.play();
+      previewCacheRef.current.set(cacheKey, url);
+      playFromUrl(url);
     } catch (e) {
       console.error('Voice preview failed:', e);
       setPreviewingVoice(null);
