@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
@@ -6,6 +6,24 @@ import {
   Settings, CheckCircle2,
   AlertCircle, ShieldCheck, Database, CalendarClock
 } from 'lucide-react';
+
+// A <button> structurally cannot accept typed text, unlike react-datepicker's
+// default <input> — this is what actually enforces "pick from the calendar,
+// don't type" (react-datepicker's own `readOnly` prop looked like the right
+// tool but turned out to disable opening the calendar altogether, not just typing).
+const CalendarButton = forwardRef(function CalendarButton({ value, onClick }, ref) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      ref={ref}
+      className="w-full max-w-xs px-3 py-2 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-zinc-900 dark:text-slate-100 flex items-center justify-between gap-2 hover:border-teal-500 transition-colors"
+    >
+      <span>{value}</span>
+      <CalendarClock size={16} className="text-zinc-400 shrink-0" />
+    </button>
+  );
+});
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -171,9 +189,13 @@ export default function Step7Review({ payload, updatePayload, onLaunch }) {
                     showTimeSelect
                     timeIntervals={15}
                     dateFormat="dd MMM yyyy, h:mm aa"
-                    readOnly
+                    customInput={<CalendarButton />}
+                    // The wizard's step content sits inside an overflow-y-auto
+                    // scroll container, which clips any absolutely-positioned
+                    // popup that overflows its bounds — the calendar rendered
+                    // but was invisible until portaled straight to <body>.
+                    portalId="datepicker-portal"
                     wrapperClassName="w-full max-w-xs"
-                    className="w-full max-w-xs px-3 py-2 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-zinc-900 dark:text-slate-100 cursor-pointer"
                   />
                   <p className="text-xs text-zinc-500 dark:text-slate-400">
                     Calls will start automatically on {formatISTLabel(scheduledAt)} IST — no manual action needed.
