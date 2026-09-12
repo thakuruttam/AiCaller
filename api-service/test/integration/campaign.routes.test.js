@@ -285,6 +285,53 @@ describe('PUT /api/campaigns/wizard/:id — updateWizardCampaign scheduling', ()
     expect(removeQueuedCallMock).toHaveBeenCalledWith(tenant.id, log.id);
   });
 
+  it('scheduling a campaign whose contacts already have only completed logs creates a fresh log and enqueues it (regression: silently did nothing before)', async () => {
+    const tenant = await makeTenant();
+    const callModule = await makeCallModule(tenant.id);
+    const admin = await makeUser('ADMIN');
+    const campaign = await prisma.campaign.create({ data: { name: 'Already Ran', tenantId: tenant.id, callModuleId: callModule.id, createdById: admin.id } });
+    const contact = await prisma.contact.create({ data: { name: 'C', phone: '+1', tenantId: tenant.id } });
+    await prisma.campaignContact.create({ data: { campaignId: campaign.id, contactId: contact.id } });
+    await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: campaign.id, status: 'completed' } });
+
+    const scheduledAt = new Date(Date.now() + 3600_000).toISOString();
+    const res = await request(app).put(`/api/campaigns/wizard/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Already Ran', contacts: [{ name: 'C', phone: '+1' }], scheduledAt,
+    });
+
+    expect(res.status).toBe(200);
+    const logs = await prisma.callLog.findMany({ where: { campaignId: campaign.id } });
+    expect(logs).toHaveLength(2); // original completed log preserved + one fresh scheduled log
+    expect(logs.filter(l => l.status === 'completed')).toHaveLength(1);
+    const scheduledLog = logs.find(l => l.status === 'scheduled');
+    expect(scheduledLog).toBeTruthy();
+    expect(enqueueCallMock).toHaveBeenCalledWith(
+      tenant.id,
+      expect.objectContaining({ callLogId: scheduledLog.id, phone: '+1' }),
+      expect.objectContaining({ jobId: scheduledLog.id })
+    );
+  });
+
+  it('scheduling a campaign with a contact already mid-call (in-progress) leaves that contact alone', async () => {
+    const tenant = await makeTenant();
+    const callModule = await makeCallModule(tenant.id);
+    const admin = await makeUser('ADMIN');
+    const campaign = await prisma.campaign.create({ data: { name: 'Mid Call', tenantId: tenant.id, callModuleId: callModule.id, createdById: admin.id } });
+    const contact = await prisma.contact.create({ data: { name: 'C', phone: '+1', tenantId: tenant.id } });
+    await prisma.campaignContact.create({ data: { campaignId: campaign.id, contactId: contact.id } });
+    await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: campaign.id, status: 'in-progress' } });
+
+    const scheduledAt = new Date(Date.now() + 3600_000).toISOString();
+    await request(app).put(`/api/campaigns/wizard/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id })).send({
+      name: 'Mid Call', contacts: [{ name: 'C', phone: '+1' }], scheduledAt,
+    });
+
+    const logs = await prisma.callLog.findMany({ where: { campaignId: campaign.id } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0].status).toBe('in-progress');
+    expect(enqueueCallMock).not.toHaveBeenCalled();
+  });
+
   it('rescheduling to a new time removes the old queued job before adding the new one', async () => {
     const { tenant, admin, campaign, log } = await makeDraftCampaign();
     await prisma.callLog.update({ where: { id: log.id }, data: { status: 'scheduled' } });

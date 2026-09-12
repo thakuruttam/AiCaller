@@ -321,37 +321,58 @@ export const updateWizardCampaign = async (req, res) => {
       });
     }
 
-    // 5. Reconcile scheduling. Only touches CallLogs that haven't actually
-    // been started yet ('draft' = never scheduled, 'scheduled' = an earlier
-    // save already set a delayed job for this campaign) — never disturbs a
-    // campaign a user has already clicked Start on.
+    // 5. Reconcile scheduling.
     {
-      const unstartedLogs = await prisma.callLog.findMany({
-        where: { campaignId: id, status: { in: ['draft', 'scheduled'] } },
+      const allCampaignContacts = await prisma.campaignContact.findMany({
+        where: { campaignId: id },
         include: { contact: true }
       });
+      const existingLogs = await prisma.callLog.findMany({ where: { campaignId: id } });
+      const logsByContact = new Map();
+      for (const log of existingLogs) {
+        if (!logsByContact.has(log.contactId)) logsByContact.set(log.contactId, []);
+        logsByContact.get(log.contactId).push(log);
+      }
+      const terminalStatuses = ['completed', 'failed', 'cancelled', 'no-answer', 'busy'];
 
       if (scheduleDate) {
         const delay = scheduleDate.getTime() - Date.now();
-        for (const log of unstartedLogs) {
+        for (const cc of allCampaignContacts) {
+          const logsForContact = logsByContact.get(cc.contactId) || [];
+          let target = logsForContact.find(l => ['draft', 'scheduled'].includes(l.status));
+
+          if (!target) {
+            // Every existing log for this contact is terminal (the campaign
+            // already ran for them) — scheduling here means "call again at
+            // this time", same intent as Rerun, so create a fresh log rather
+            // than silently doing nothing. Skip if a call for them is
+            // currently active (queued/in-progress/paused) instead of piling
+            // on a second one.
+            const allTerminal = logsForContact.length === 0 || logsForContact.every(l => terminalStatuses.includes(l.status));
+            if (!allTerminal) continue;
+            target = await prisma.callLog.create({
+              data: { tenantId, contactId: cc.contactId, campaignId: id, status: 'draft' }
+            });
+          }
+
           // Remove any previously-scheduled job for this log first — BullMQ
           // won't update an existing job's delay if we just re-add the same
           // jobId, so a changed schedule time would otherwise be silently
           // ignored and the call would fire at the OLD time.
-          await removeQueuedCall(tenantId, log.id);
-          await prisma.callLog.update({ where: { id: log.id }, data: { status: 'scheduled' } });
+          await removeQueuedCall(tenantId, target.id);
+          await prisma.callLog.update({ where: { id: target.id }, data: { status: 'scheduled' } });
           await enqueueCall(tenantId, {
-            contactId: log.contactId,
+            contactId: cc.contactId,
             campaignId: id,
-            callLogId: log.id,
-            phone: log.contact.phone
-          }, { delay, jobId: log.id });
+            callLogId: target.id,
+            phone: cc.contact.phone
+          }, { delay, jobId: target.id });
         }
       } else {
         // Schedule was cleared (or never set) — cancel any pending delayed
         // jobs and drop previously-'scheduled' logs back to 'draft' so they
         // wait for a manual Start again, instead of firing unexpectedly.
-        for (const log of unstartedLogs) {
+        for (const log of existingLogs) {
           if (log.status === 'scheduled') {
             await removeQueuedCall(tenantId, log.id);
             await prisma.callLog.update({ where: { id: log.id }, data: { status: 'draft' } });
