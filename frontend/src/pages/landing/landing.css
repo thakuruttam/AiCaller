@@ -1,0 +1,10 @@
+/* Fonts scoped to the public landing page only — the authenticated app keeps
+   its existing Poppins (--font-sans in index.css) untouched. Both families
+   are already fetched via the Google Fonts <link> in index.html. */
+.landing-page {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.landing-page .font-display {
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+}
