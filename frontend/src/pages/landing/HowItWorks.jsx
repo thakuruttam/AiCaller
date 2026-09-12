@@ -29,7 +29,7 @@ export function HowItWorks() {
         </RevealGroup>
       </div>
 
-      <Wave fill="#0a0f1a" />
+      <Wave fill="#fbfaf6" />
     </section>
   );
 }

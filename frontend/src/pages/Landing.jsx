@@ -6,6 +6,8 @@ import { DemoVideo } from './landing/DemoVideo';
 import { Features } from './landing/Features';
 import { HowItWorks } from './landing/HowItWorks';
 import { ValueBand } from './landing/ValueBand';
+import { BuildYourOwn } from './landing/BuildYourOwn';
+import { ScoringSpotlight } from './landing/ScoringSpotlight';
 import { Faq } from './landing/Faq';
 import { FinalCta } from './landing/FinalCta';
 import { Footer } from './landing/Footer';
@@ -26,6 +28,8 @@ export default function Landing() {
         <Features />
         <HowItWorks />
         <ValueBand />
+        <BuildYourOwn />
+        <ScoringSpotlight />
         <DemoVideo />
         <Faq />
         <FinalCta />
