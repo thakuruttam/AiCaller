@@ -224,6 +224,22 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
     }
 
     switch (msg.type) {
+      // Marks the start of ANY response — including the model's own
+      // automatic one in autonomous mode (create_response:true), which is
+      // the normal case for every ordinary back-and-forth turn there. Before
+      // this, botSpeaking was only ever set true by OUR OWN explicit
+      // sendSpeak()/continueConversation() calls, which autonomous mode's
+      // regular Q&A turns never go through — the model replies on its own
+      // the instant semantic_vad decides the caller's turn is over. That left
+      // the new half-duplex sendAudio() gate (see its comment) permanently
+      // believing the bot was never speaking during normal conversation, so
+      // it never actually withheld anything — confirmed by the user hitting
+      // the exact same repeated-question/hallucination symptom immediately
+      // after that fix shipped.
+      case 'response.created':
+        botSpeaking = true;
+        break;
+
       case 'conversation.item.input_audio_transcription.completed': {
         const transcript = msg.transcript?.trim();
         if (transcript) {

@@ -540,6 +540,32 @@ describe('OpenAI Realtime provider — autonomous (free-flowing, tool-calling) m
     };
   }
 
+  it('withholds caller audio during the model\'s own automatic response, not just ones triggered by our explicit speak()', () => {
+    // Confirmed live: the half-duplex gate on sendAudio() only ever checked
+    // botSpeaking, which used to be set true ONLY by our own sendSpeak()/
+    // continueConversation() calls — never by the model's own automatic
+    // response in autonomous mode (create_response:true), which is what
+    // fires for every ordinary Q&A turn there. That left the gate a no-op
+    // for the entire normal conversation, and the user hit the exact same
+    // repeated-question/hallucination symptom right after it shipped.
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+
+    // The model decides on its own that a response should start — no speak()
+    // or continueConversation() call from our side at all.
+    socket._message({ type: 'response.created' });
+
+    session.sendAudio(Buffer.from([1, 2, 3]));
+    expect(socket.sent.some(m => m.type === 'input_audio_buffer.append')).toBe(false);
+
+    socket._message({ type: 'response.done' });
+    session.sendAudio(Buffer.from([1, 2, 3]));
+    expect(socket.sent.some(m => m.type === 'input_audio_buffer.append')).toBe(true);
+  });
+
   it('beginAutonomousConversation sends a session.update with create_response:true and the tool list', () => {
     const handlers = makeHandlers();
     const session = setupRealtime('x', handlers);
