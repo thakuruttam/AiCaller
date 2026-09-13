@@ -404,7 +404,19 @@ export function setupPlivoStream() {
       }
 
       try {
-        const history = agent?.getHistory().filter(msg => msg.role !== 'system') || [];
+        // Strip (System: ...) directives we inject into 'user' turns to drive the
+        // greeting/re-ask/closing script (see VoiceAgent.js's isSystemMsg handling) —
+        // these were never actually said by anyone, but were saved verbatim into
+        // chatHistory. Left in, they inflate that turn's length far beyond what was
+        // really spoken, which threw off the call-details page's proportional
+        // audio-playback highlighting (it landed on the directive instead of the
+        // assistant's actual short reply). A turn that's ONLY a directive drops out
+        // entirely once stripped; a turn with real speech plus an appended directive
+        // keeps the real speech.
+        const history = (agent?.getHistory() || [])
+          .filter(msg => msg.role !== 'system')
+          .map(msg => ({ ...msg, content: (msg.content || '').replace(/\(System:[^)]*\)/gs, '').trim() }))
+          .filter(msg => msg.content.length > 0);
 
         const header = callSid ? `[Plivo_CallUUID:${callSid}]\n\n` : '';
         const formattedTranscript = history.length > 0
