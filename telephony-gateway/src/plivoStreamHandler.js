@@ -98,6 +98,11 @@ export function setupPlivoStream() {
     let pendingAutonomousTransition = false; // true from call start until the greeting finishes and we switch modes
     let autonomousPhaseActive = false; // true only AFTER the transition — guards onAssistantTranscript so the scripted greeting isn't double-captured
     let pendingAutonomousContinuation = false; // true after a tool-call-only (zero-audio) turn, until we've prompted the model to continue
+    // The most recent caller turn's transcript, so a model-initiated end_call
+    // can be checked against the CURRENT item's own configured condition
+    // before being trusted — see the end_call case in handleAutonomousToolCall
+    // below for why.
+    let lastAutonomousUserTranscript = null;
     // Confirmed on a live call: the checkpoint/playedStream hangup confirmation
     // only proves Plivo's outbound stream reached that marker — NOT that real
     // audio preceded it. If the closing response.create was rejected/produced
@@ -596,6 +601,7 @@ export function setupPlivoStream() {
       // this ran. What was actually said must never depend on whether we're
       // about to hang up.
       agent.appendTranscriptTurn('user', transcript);
+      lastAutonomousUserTranscript = transcript;
       if (isCallEnding) return;
 
       // Dedicated, deterministic check for the campaign's own configured
@@ -661,7 +667,7 @@ export function setupPlivoStream() {
       }
     };
 
-    const handleAutonomousToolCall = (name, args) => {
+    const handleAutonomousToolCall = async (name, args) => {
       if (!agent || isCallEnding) return;
       switch (name) {
         case 'answer_captured':
@@ -680,6 +686,48 @@ export function setupPlivoStream() {
           if (callSid) agent.saveState(redis, callSid);
           break;
         case 'end_call': {
+          // Deterministic guard, mirroring the global End-Call-If check above:
+          // confirmed on a live call that the model can wrongly decide a
+          // per-question end_call condition is satisfied when it literally
+          // is not — "if the answer does not contain 'market research' ->
+          // end call" fired even though the caller's answer to that exact
+          // question clearly DID say "market research". The model free-
+          // reasoning about a literal/semantic rule we wrote into its own
+          // prompt is exactly as unreliable here as it was for the global
+          // condition, which already gets this same re-check rather than
+          // trusting the model's own read of it.
+          const gatingItem = agent.currentItem();
+          if (gatingItem?.onAnswer?.action === 'end_call' && lastAutonomousUserTranscript) {
+            const { skipCondition, skipSemanticCondition, skipConditionActiveTab } = gatingItem.onAnswer;
+            const useSemanticSkip = skipConditionActiveTab === 'semantic';
+            try {
+              const conditionFired = await agent._evalConditionWithLLM(
+                useSemanticSkip ? null : skipCondition?.condition,
+                useSemanticSkip ? null : skipCondition?.value,
+                lastAutonomousUserTranscript,
+                useSemanticSkip ? skipSemanticCondition : null
+              );
+              if (!conditionFired) {
+                console.warn(`[Stream] Autonomous: rejecting end_call — the model called it right after "${gatingItem.id}", but that question's own end_call condition does not actually match "${lastAutonomousUserTranscript}". Treating the answer as accepted and continuing instead.`);
+                agent.recordAnswerCaptured(gatingItem.id);
+                const nextItem = agent.currentItem();
+                if (nextItem) {
+                  realtimeSession.interruptAndSpeak(nextItem.text);
+                } else {
+                  agent.recordEndCall('completed');
+                  isCallEnding = true;
+                  const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
+                  lastClosingText = closingText;
+                  closingRetried = false;
+                  realtimeSession.interruptAndSpeak(closingText);
+                }
+                if (callSid) agent.saveState(redis, callSid);
+                return;
+              }
+            } catch (e) {
+              console.error('[Stream] Autonomous: end_call condition re-check failed, trusting the model\'s own call:', e.message);
+            }
+          }
           agent.recordEndCall(args.reason);
           isCallEnding = true;
           // Force the configured verbatim closing line rather than trust
