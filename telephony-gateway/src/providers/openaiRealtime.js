@@ -107,7 +107,21 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
   // turn the caller never actually took.
   let lastSpeechStartedAtMs = null;
   let lastSpeechDurationMs = null;
+  let lastSpeechGapSinceBotAudioMs = null;
   const MIN_SPEECH_MS = 350;
+  // DIAGNOSTIC (temporary): a live call had two turns where the caller says
+  // they said nothing at all, yet a short transcript ("Yeah"/"Oh") still
+  // came through — surviving MIN_SPEECH_MS, so not simple silence. Leading
+  // theory: the bot's own voice echoing back down the line is getting
+  // detected as caller speech. lastBotAudioChunkAtMs marks the last time we
+  // forwarded real (non-cancelled) bot audio to Plivo, so every speech_started
+  // can log how soon after that it fired — a near-zero gap right as the bot
+  // finishes talking is the signature an echo would leave, versus a real
+  // pause before the caller starts their own turn. Note this measures when
+  // WE SENT the audio, not when Plivo finished playing it acoustically, so
+  // gaps will run a bit short of the true acoustic gap — still comparable
+  // call to call. Remove once the hypothesis is confirmed or ruled out.
+  let lastBotAudioChunkAtMs = null;
   // True from the moment we send response.cancel until that cancelled
   // response's own response.done confirms it's actually finished. Confirmed
   // on a live call: response.cancel does not stop audio already in flight —
@@ -213,13 +227,14 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       case 'conversation.item.input_audio_transcription.completed': {
         const transcript = msg.transcript?.trim();
         if (transcript) {
+          const gapNote = lastSpeechGapSinceBotAudioMs !== null ? `, ${lastSpeechGapSinceBotAudioMs}ms after we last sent bot audio` : '';
           if (lastSpeechDurationMs !== null && lastSpeechDurationMs < MIN_SPEECH_MS) {
             // See MIN_SPEECH_MS comment above — this segment was too short to
             // plausibly be the real word transcribed; treat it as a
             // hallucination and never surface it as a caller turn at all.
-            console.log(`[Realtime] Dropping suspected hallucinated transcript "${transcript}" — underlying speech segment was only ${lastSpeechDurationMs}ms`);
+            console.log(`[Realtime] Dropping suspected hallucinated transcript "${transcript}" — underlying speech segment was only ${lastSpeechDurationMs}ms${gapNote}`);
           } else {
-            console.log(`[Realtime] Transcript (semantic_vad decided turn is complete): "${transcript}"`);
+            console.log(`[Realtime] Transcript (semantic_vad decided turn is complete): "${transcript}" (segment ${lastSpeechDurationMs}ms${gapNote})`);
             handlers.onTranscript(transcript);
           }
         }
@@ -236,6 +251,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       case 'response.output_audio.delta':
         if (msg.delta && !responseCancelPending) {
           audioChunksThisResponse++;
+          lastBotAudioChunkAtMs = Date.now();
           handlers.onAudio?.(Buffer.from(msg.delta, 'base64'));
         }
         break;
@@ -288,8 +304,13 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
         // take a while on a long, natural answer).
         handlers.onSpeechActivity?.();
         lastSpeechStartedAtMs = typeof msg.audio_start_ms === 'number' ? msg.audio_start_ms : Date.now();
-        // Only a real interruption if we were the one talking — otherwise
-        // this is just the normal start of the caller's own turn.
+        lastSpeechGapSinceBotAudioMs = lastBotAudioChunkAtMs !== null ? Date.now() - lastBotAudioChunkAtMs : null;
+        console.log(`[Realtime][diag] speech_started — botSpeaking=${botSpeaking}, ${lastSpeechGapSinceBotAudioMs !== null ? `${lastSpeechGapSinceBotAudioMs}ms since we last sent bot audio to Plivo` : 'bot has not spoken yet this call'}`);
+        // sendAudio() now withholds caller audio entirely while botSpeaking is
+        // true (deliberate half-duplex trade-off — see its comment), so this
+        // branch should be unreachable in normal operation; kept as cheap
+        // insurance for the tiny race where a frame sent right as botSpeaking
+        // flips true still reaches OpenAI before sendAudio's check took effect.
         if (botSpeaking) {
           console.log('[Realtime] Caller started speaking while bot was talking — barge-in, cancelling in-flight response');
           // clearAudio (sent by the caller of this handler) only stops
@@ -312,6 +333,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       case 'input_audio_buffer.speech_stopped': {
         const endedAtMs = typeof msg.audio_end_ms === 'number' ? msg.audio_end_ms : Date.now();
         lastSpeechDurationMs = lastSpeechStartedAtMs !== null ? endedAtMs - lastSpeechStartedAtMs : null;
+        console.log(`[Realtime][diag] speech_stopped — segment duration=${lastSpeechDurationMs}ms`);
         break;
       }
 
@@ -392,6 +414,15 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
 
   return {
     sendAudio(mulawBuffer) {
+      // Half-duplex by design: never forward caller audio to OpenAI while the
+      // bot itself is talking, so its VAD has nothing to mishear the bot's own
+      // voice/line-echo as caller speech from in the first place — this is a
+      // stronger guarantee than filtering the result afterward (MIN_SPEECH_MS
+      // above), since the audio never reaches OpenAI's turn-detection at all.
+      // Trade-off accepted deliberately: a caller can no longer barge in
+      // mid-sentence — only speech that arrives once botSpeaking has gone
+      // back to false is heard at all. Listening resumes the instant it does.
+      if (botSpeaking) return;
       if (ready && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           type: 'input_audio_buffer.append',

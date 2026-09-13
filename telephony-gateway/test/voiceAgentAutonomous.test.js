@@ -135,6 +135,19 @@ describe('VoiceAgent — autonomous mode ledger', () => {
     expect(instructions).toContain('wrong_person');
   });
 
+  it('generateAutonomousInstructions forbids re-litigating identity once the interview has moved on', () => {
+    // Confirmed on a live call: a joke non-answer to the FIRST interview
+    // question ("Mostly I drink coffee and have fun on my day to day.")
+    // made the model re-ask "Just to confirm, is this X?" even though
+    // identity was already confirmed at the very start of the call — the
+    // original identity-check wording never said the check was a one-time
+    // thing, so the model re-applied it out of confusion later on, wasting
+    // a turn and visibly annoying the caller ("Why are you asking again?").
+    const agent = makeAgent();
+    const instructions = agent.generateAutonomousInstructions();
+    expect(instructions.toLowerCase()).toContain('never again');
+  });
+
   it('generateAutonomousInstructions tells the model to re-ask with the same wording, not improvise new phrasing each retry', () => {
     // Confirmed on a live call: three consecutive re-asks of the same
     // question used three different phrasings, one of which ("No problem.

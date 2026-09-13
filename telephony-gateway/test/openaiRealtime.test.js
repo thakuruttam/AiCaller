@@ -389,6 +389,23 @@ describe('OpenAI Realtime provider', () => {
     expect(append.audio).toBe(buf.toString('base64'));
   });
 
+  it('sendAudio withholds caller audio entirely while the bot is speaking (half-duplex, no echo self-detection)', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    session.speak('The bot is now talking.');
+    socket.sent.length = 0;
+
+    session.sendAudio(Buffer.from([1, 2, 3]));
+    expect(socket.sent.some(m => m.type === 'input_audio_buffer.append')).toBe(false);
+
+    socket._message({ type: 'response.done' });
+    session.sendAudio(Buffer.from([1, 2, 3]));
+    expect(socket.sent.some(m => m.type === 'input_audio_buffer.append')).toBe(true);
+  });
+
   it('sendAudio before the socket is ready is a silent no-op, not a throw', () => {
     const handlers = makeHandlers();
     const session = setupRealtime('x', handlers);
