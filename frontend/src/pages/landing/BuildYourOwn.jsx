@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, User, FileText, Check } from 'lucide-react';
-import { Reveal, Wave } from './primitives';
+import { Reveal } from './primitives';
 
 const MotionDiv = motion.div;
 
@@ -127,8 +127,6 @@ export function BuildYourOwn() {
           ))}
         </div>
       </div>
-
-      <Wave fill="#0a0f1a" />
     </section>
   );
 }

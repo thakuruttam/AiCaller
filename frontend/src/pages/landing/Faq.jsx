@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { FAQS } from './data';
-import { Reveal, Wave } from './primitives';
+import { Reveal } from './primitives';
 
 function FaqItem({ item, isOpen, onToggle, id }) {
   return (
@@ -59,8 +59,6 @@ export function Faq() {
           ))}
         </Reveal>
       </div>
-
-      <Wave fill="#0a0f1a" />
     </section>
   );
 }

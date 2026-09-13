@@ -1,7 +1,7 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { ClipboardCheck, Mic, ShieldCheck, PhoneCall } from 'lucide-react';
-import { Wave, IconChip, Reveal } from './primitives';
+import { IconChip, Reveal } from './primitives';
 
 const MotionDiv = motion.div;
 
@@ -32,59 +32,48 @@ function MorphingBlob() {
 }
 
 const CALLOUTS = [
-  { icon: PhoneCall, text: 'AI-powered call handling, designed for real-world conversation.' },
-  { icon: Mic, text: 'Every call transcribed, live, with no manual note-taking.' },
-  { icon: ShieldCheck, text: 'Role-based access, so the right people see the right calls.' },
+  { icon: PhoneCall, text: 'AI-powered call handling, designed for real-world conversation.', pos: 'top-4 left-[8%] md:left-[14%]' },
+  { icon: Mic, text: 'Every call transcribed, live, with no manual note-taking.', pos: 'top-1/2 -translate-y-1/2 right-[4%] md:right-[10%]' },
+  { icon: ShieldCheck, text: 'Role-based access, so the right people see the right calls.', pos: 'bottom-4 left-[12%] md:left-[20%]' },
 ];
 
-// Three caption cards revealed one after another as the section scrolls into
-// view — an approximation of the reference site's sticky-scroll cycling
-// captions, without full scroll-jacking: each card fades/slides in on its own
-// scroll trigger, positioned around the blob rather than all appearing at once.
-function CalloutCards() {
-  const positions = [
-    'top-4 left-[8%] md:left-[14%]',
-    'top-1/2 -translate-y-1/2 right-[4%] md:right-[10%]',
-    'bottom-4 left-[12%] md:left-[20%]',
-  ];
-  return (
-    <>
-      {CALLOUTS.map((c, i) => (
-        <motion.div
-          key={c.text}
-          initial={{ opacity: 0, y: 16, scale: 0.95 }}
-          whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.5, delay: i * 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className={`absolute ${positions[i]} max-w-[15rem] md:max-w-xs`}
-        >
-          <div className="flex items-center gap-3 rounded-xl bg-white shadow-lg shadow-black/10 border border-black/5 px-4 py-3">
-            <span className="w-8 h-8 rounded-lg bg-[#0d9488]/10 flex items-center justify-center shrink-0">
-              <c.icon size={15} className="text-[#0d9488]" />
-            </span>
-            <p className="text-[13px] leading-snug text-[#14261f]">{c.text}</p>
-          </div>
-        </motion.div>
-      ))}
-    </>
-  );
-}
-
+// A true scroll-pinned sequence, not just a scroll-reveal: the headline and
+// blob stay fixed in the viewport (`sticky`) while the section itself is
+// several viewport-heights tall, and each caption's opacity is driven
+// directly by scroll progress through that tall section — matching the
+// reference site's own sticky-scroll cycling captions, not an approximation.
 export function ValueBand() {
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end end'] });
+
+  const opacity0 = useTransform(scrollYProgress, [0.05, 0.15, 0.3, 0.4], [0, 1, 1, 0]);
+  const opacity1 = useTransform(scrollYProgress, [0.35, 0.45, 0.6, 0.7], [0, 1, 1, 0]);
+  const opacity2 = useTransform(scrollYProgress, [0.65, 0.75, 0.9, 1], [0, 1, 1, 0]);
+  const opacities = [opacity0, opacity1, opacity2];
+
   return (
-    <section className="relative bg-[#fbfaf6] pt-24 pb-4 md:pt-32 overflow-hidden">
-      <Reveal className="relative max-w-3xl mx-auto px-6 text-center">
-        <h2 className="font-display text-3xl md:text-5xl font-medium text-[#14261f] leading-[1.1] tracking-tight">
-          Outcomes<IconChip icon={ClipboardCheck} />you can measure, calls that are real-world ready
-        </h2>
-      </Reveal>
+    <section ref={sectionRef} className="relative bg-[#fbfaf6]" style={{ height: '300vh' }}>
+      <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden px-6">
+        <Reveal className="max-w-3xl mx-auto text-center mb-4">
+          <h2 className="font-display text-3xl md:text-5xl font-medium text-[#14261f] leading-[1.1] tracking-tight">
+            Outcomes<IconChip icon={ClipboardCheck} />you can measure, calls that are real-world ready
+          </h2>
+        </Reveal>
 
-      <div className="relative mt-16 md:mt-20 h-[26rem] md:h-[32rem] max-w-4xl mx-auto">
-        <MorphingBlob />
-        <CalloutCards />
+        <div className="relative w-full max-w-4xl h-[28rem] md:h-[36rem]">
+          <MorphingBlob />
+          {CALLOUTS.map((c, i) => (
+            <MotionDiv key={c.text} style={{ opacity: opacities[i] }} className={`absolute ${c.pos} max-w-[15rem] md:max-w-xs`}>
+              <div className="flex items-center gap-3 rounded-xl bg-white shadow-lg shadow-black/10 border border-black/5 px-4 py-3">
+                <span className="w-8 h-8 rounded-lg bg-[#0d9488]/10 flex items-center justify-center shrink-0">
+                  <c.icon size={15} className="text-[#0d9488]" />
+                </span>
+                <p className="text-[13px] leading-snug text-[#14261f]">{c.text}</p>
+              </div>
+            </MotionDiv>
+          ))}
+        </div>
       </div>
-
-      <Wave fill="#ffffff" />
     </section>
   );
 }

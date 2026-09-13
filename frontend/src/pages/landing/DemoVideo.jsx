@@ -1,5 +1,5 @@
 import React from 'react';
-import { Reveal, Wave } from './primitives';
+import { Reveal } from './primitives';
 
 export function DemoVideo() {
   return (
@@ -26,8 +26,6 @@ export function DemoVideo() {
           </video>
         </Reveal>
       </div>
-
-      <Wave fill="#ffffff" />
     </section>
   );
 }

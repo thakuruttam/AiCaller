@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Bot } from 'lucide-react';
-import { Reveal, Wave } from './primitives';
+import { Reveal } from './primitives';
 
 function TranscriptPanel() {
   return (
@@ -62,8 +62,6 @@ export function ScoringSpotlight() {
           <TranscriptPanel />
         </Reveal>
       </div>
-
-      <Wave fill="#f8fafc" />
     </section>
   );
 }

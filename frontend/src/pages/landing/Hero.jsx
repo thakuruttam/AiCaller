@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Compass, PhoneCall, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PILLARS } from './data';
-import { Wave, FloatingPill } from './primitives';
+import { FloatingPill } from './primitives';
 
 // eslint's unused-vars check doesn't recognize `<MotionDiv>` (a member
 // expression) as a use of `motion` — aliasing to a capitalized component
@@ -188,18 +188,19 @@ export function Hero({ onTakeTour }) {
         </MotionDiv>
       </div>
 
-      {/* Full-width solid-color panel holding the tilted screenshot collage —
-          mirrors the reference site's structure: visual sits below the
-          headline/CTAs, spanning the width, not beside the text. */}
-      <div className="relative bg-[#0d9488] pt-16 pb-24 md:pt-20 md:pb-32 px-6 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none opacity-40" aria-hidden="true">
-          <div className="absolute top-0 right-0 w-[28rem] h-[28rem] rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)' }} />
+      {/* Inset rounded panel holding the tilted screenshot collage — the
+          reference site's panel is a simple rounded rectangle sitting inset
+          within the page (border-radius ~16px, ~2:1 aspect ratio), not a
+          full-bleed section with a wavy cut. Matched exactly here. */}
+      <div className="max-w-6xl mx-auto px-6 pb-20 md:pb-28">
+        <div className="relative bg-[#0d9488] rounded-2xl overflow-hidden aspect-[1280/642] flex items-center justify-center px-6">
+          <div className="absolute inset-0 pointer-events-none opacity-40" aria-hidden="true">
+            <div className="absolute top-0 right-0 w-[28rem] h-[28rem] rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)' }} />
+          </div>
+          <div className="relative w-full">
+            <ProductPreview />
+          </div>
         </div>
-        <div className="relative">
-          <ProductPreview />
-        </div>
-
-        <Wave fill="#ffffff" />
       </div>
 
       {/* Compact capabilities strip — the real PILLARS content, kept out of

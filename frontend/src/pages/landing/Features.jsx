@@ -1,6 +1,6 @@
 import React from 'react';
 import { FEATURES } from './data';
-import { Reveal, RevealGroup, RevealItem, Wave } from './primitives';
+import { Reveal, RevealGroup, RevealItem } from './primitives';
 
 export function Features() {
   return (
@@ -30,8 +30,6 @@ export function Features() {
           ))}
         </RevealGroup>
       </div>
-
-      <Wave fill="#f8fafc" />
     </section>
   );
 }

@@ -5,27 +5,6 @@ import { motion } from 'framer-motion';
 // member-expression JSX as a use of the `motion` import).
 const MotionDiv = motion.div;
 
-// Curved "torn paper" section transition — an organic wave instead of a hard
-// straight edge between sections. `fill` should match the section BELOW this
-// divider (it sits at the bottom of the section above, overlapping into it).
-export function Wave({ fill, flip = false, className = '' }) {
-  return (
-    <div className={`absolute left-0 right-0 bottom-0 translate-y-[1px] pointer-events-none overflow-hidden leading-[0] ${className}`} aria-hidden="true">
-      <svg
-        viewBox="0 0 1440 110"
-        preserveAspectRatio="none"
-        className="w-full h-[70px] md:h-[110px]"
-        style={flip ? { transform: 'scaleX(-1)' } : undefined}
-      >
-        <path
-          d="M0,64 C240,110 480,10 720,40 C960,70 1200,20 1440,58 L1440,110 L0,110 Z"
-          fill={fill}
-        />
-      </svg>
-    </div>
-  );
-}
-
 // Fades + slides an element up into place the first time it scrolls into view.
 export function Reveal({ children, delay = 0, className = '', y = 24 }) {
   return (

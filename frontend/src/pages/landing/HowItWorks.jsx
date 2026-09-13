@@ -1,6 +1,6 @@
 import React from 'react';
 import { STEPS } from './data';
-import { Reveal, RevealGroup, RevealItem, Wave } from './primitives';
+import { Reveal, RevealGroup, RevealItem } from './primitives';
 
 export function HowItWorks() {
   return (
@@ -28,8 +28,6 @@ export function HowItWorks() {
           ))}
         </RevealGroup>
       </div>
-
-      <Wave fill="#fbfaf6" />
     </section>
   );
 }

@@ -1,10 +1,12 @@
 /* Fonts scoped to the public landing page only — the authenticated app keeps
-   its existing Poppins (--font-sans in index.css) untouched. Both families
-   are already fetched via the Google Fonts <link> in index.html. */
+   its existing Poppins (--font-sans in index.css) untouched. Inter comes from
+   the Google Fonts <link> in index.html already used site-wide; Cabinet
+   Grotesk (free, commercial-use licensed, via Fontshare) is fetched
+   separately, only for this page's display headlines. */
 .landing-page {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 .landing-page .font-display {
-  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Cabinet Grotesk', ui-sans-serif, system-ui, sans-serif;
 }
