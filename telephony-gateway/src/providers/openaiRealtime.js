@@ -474,15 +474,19 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
     },
 
     /**
-     * Force the configured verbatim text NOW, cancelling whatever the model
-     * might still be generating for the current turn first. Used for the
-     * autonomous mode's closing line — end_call should always speak the
-     * campaign's configured sign-off/apology, not whatever the model was
-     * mid-sentence composing when it decided to end the call.
+     * Force the given verbatim text NOW, cancelling whatever the model might
+     * still be generating for the current turn first. Two callers: the
+     * autonomous mode's closing line (end_call should always speak the
+     * campaign's configured sign-off, not whatever the model was mid-sentence
+     * composing) and plivoStreamHandler.js's stall-recovery valve (forcing
+     * the next question's text when the model isn't making progress). The
+     * log below used to say "the configured closing line" unconditionally,
+     * which was actively misleading while diagnosing a live call where THIS
+     * was the stall valve cutting off a mid-sentence reply, not a sign-off.
      */
     interruptAndSpeak(text) {
       if (botSpeaking) {
-        console.log('[Realtime] Cancelling in-flight response to force the configured closing line');
+        console.log(`[Realtime] Cancelling in-flight response to force: "${text}"`);
         if (ready && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'response.cancel' }));
           responseCancelPending = true;

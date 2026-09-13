@@ -780,6 +780,19 @@ TOOLS — call these as you go, in addition to speaking naturally:
 
   /** Model called answer_captured — validate and advance the pointer. */
   recordAnswerCaptured(questionId) {
+    // Reset unconditionally, even if the specific call below turns out
+    // invalid/already-covered — confirmed on a live call this matters: after
+    // the stall valve below force-advanced past a question the model itself
+    // hadn't finished with yet, the model (still under the impression it was
+    // on that question) later tried to properly answer_captured() it once a
+    // real answer came in. That call was correctly ignored as already-covered,
+    // but with the reset gated behind the idx check, the stall counter never
+    // cleared — so the very next non-answer immediately re-tripped the valve,
+    // force-advancing a SECOND question with no real answer either, compounding
+    // one bad skip into a cascade. The model attempting to record an answer at
+    // all is evidence it's engaged, not stalled, regardless of whether our
+    // bookkeeping had already moved on without telling it.
+    this.autonomousStallCount = 0;
     const idx = this.items.findIndex(i => i.id === questionId);
     if (idx === -1) {
       console.warn(`[VoiceAgent] Autonomous: answer_captured for unknown item id "${questionId}" — ignored.`);
@@ -790,7 +803,6 @@ TOOLS — call these as you go, in addition to speaking naturally:
       return;
     }
     this.currentIndex = idx + 1;
-    this.autonomousStallCount = 0;
     console.log(`[VoiceAgent] Autonomous: answer_captured("${questionId}") — advanced to index ${this.currentIndex}`);
     if (this.currentIndex >= this.items.length) {
       this.done = true;
@@ -799,13 +811,13 @@ TOOLS — call these as you go, in addition to speaking naturally:
 
   /** Model called skip_to_question — validate (forward only) and jump. */
   recordSkip(questionId) {
+    this.autonomousStallCount = 0; // see recordAnswerCaptured's comment — same reasoning applies here.
     const idx = this.items.findIndex(i => i.id === questionId);
     if (idx === -1 || idx < this.currentIndex) {
       console.warn(`[VoiceAgent] Autonomous: skip_to_question invalid/backward id "${questionId}" — ignored.`);
       return;
     }
     this.currentIndex = idx;
-    this.autonomousStallCount = 0;
     console.log(`[VoiceAgent] Autonomous: skip_to_question → index ${this.currentIndex}`);
   }
 
@@ -823,7 +835,15 @@ TOOLS — call these as you go, in addition to speaking naturally:
 
   /** True once too many consecutive turns have passed with no recorded progress — decision-engine mode gets this from its repeat/explain cap; this is the equivalent circuit breaker here. */
   isAutonomousStalled() {
-    const max = parseInt(process.env.MAX_AUTONOMOUS_STALL_TURNS || '3', 10);
+    // Was 3 — confirmed on a live call that a caller asking several genuine
+    // clarification questions before settling into answering ("who is this?"
+    // / "where are you based?" / "who owns this company?") is completely
+    // normal behavior, not stalling, and tripped the valve mid-response,
+    // cutting the bot off mid-sentence to force-skip a question the caller
+    // was actively engaging with, just hadn't answered yet. Raised to give
+    // that kind of back-and-forth more room before assuming the call is
+    // genuinely stuck.
+    const max = parseInt(process.env.MAX_AUTONOMOUS_STALL_TURNS || '5', 10);
     return this.autonomousStallCount > max;
   }
 

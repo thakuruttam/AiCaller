@@ -50,6 +50,29 @@ describe('VoiceAgent — autonomous mode ledger', () => {
     expect(agent.currentIndex).toBe(2);
   });
 
+  it('still resets the stall counter on an already-covered/unknown answer_captured call', () => {
+    // Confirmed on a live call: the stall valve (isAutonomousStalled) force-
+    // advanced past a question the model hadn't actually gotten an answer
+    // for yet, without telling the model that happened. The model, still
+    // thinking it was on that question, later got a real answer and tried
+    // to answer_captured() it — which is correctly ignored as already-
+    // covered, but MUST still count as "the model is engaged, not stalled."
+    // Before this fix the reset lived behind the idx check, so this exact
+    // ignored call left the counter climbing uninterrupted, and the very
+    // next non-answer immediately re-tripped the valve — one bad skip
+    // cascading into a second one moments later.
+    const agent = makeAgent();
+    agent.currentIndex = 1; // q1 already covered
+    agent.noteAutonomousTurn();
+    agent.noteAutonomousTurn();
+    agent.recordAnswerCaptured('q1'); // already-covered — ignored, but engaged
+    expect(agent.isAutonomousStalled()).toBe(false);
+    agent.noteAutonomousTurn();
+    agent.noteAutonomousTurn();
+    agent.noteAutonomousTurn();
+    expect(agent.isAutonomousStalled()).toBe(false); // only 3 ticks since the reset above
+  });
+
   it('recordSkip jumps forward to the target item', () => {
     const agent = makeAgent();
     agent.recordSkip('q3');
@@ -86,7 +109,9 @@ describe('VoiceAgent — autonomous mode ledger', () => {
     const agent = makeAgent();
     agent.noteAutonomousTurn();
     agent.noteAutonomousTurn();
+    agent.noteAutonomousTurn();
     expect(agent.isAutonomousStalled()).toBe(false);
+    agent.noteAutonomousTurn();
     agent.noteAutonomousTurn();
     agent.noteAutonomousTurn();
     expect(agent.isAutonomousStalled()).toBe(true);
@@ -94,6 +119,8 @@ describe('VoiceAgent — autonomous mode ledger', () => {
 
   it('recording any progress resets the stall counter', () => {
     const agent = makeAgent();
+    agent.noteAutonomousTurn();
+    agent.noteAutonomousTurn();
     agent.noteAutonomousTurn();
     agent.noteAutonomousTurn();
     agent.noteAutonomousTurn();
