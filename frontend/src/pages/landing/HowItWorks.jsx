@@ -5,10 +5,10 @@ import { Reveal, RevealGroup, RevealItem } from './primitives';
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="relative bg-[#f8fafc] py-20 md:py-28">
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-6">
         <Reveal className="max-w-2xl">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">How it works</p>
-          <h2 className="font-display text-3xl md:text-4xl font-semibold text-[#0f172a] tracking-tight">
+          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#0f172a] tracking-tight">
             From contact list to reported outcome in four steps
           </h2>
         </Reveal>

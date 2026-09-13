@@ -42,7 +42,7 @@ export function Faq() {
       <div className="max-w-3xl mx-auto px-6">
         <Reveal className="text-center mb-12">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">FAQ</p>
-          <h2 className="font-display text-3xl md:text-4xl font-semibold text-[#0f172a] tracking-tight">
+          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#0f172a] tracking-tight">
             Frequently asked questions
           </h2>
         </Reveal>

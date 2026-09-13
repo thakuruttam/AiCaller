@@ -5,10 +5,10 @@ import { Reveal, RevealGroup, RevealItem } from './primitives';
 export function Features() {
   return (
     <section id="features" className="relative bg-white py-20 md:py-28">
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-6">
         <Reveal className="max-w-2xl">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">Features</p>
-          <h2 className="font-display text-3xl md:text-4xl font-semibold text-[#0f172a] tracking-tight">
+          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#0f172a] tracking-tight">
             Everything you need to run AI voice campaigns
           </h2>
           <p className="mt-4 text-sm text-[#475569] leading-relaxed">

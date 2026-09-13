@@ -10,7 +10,7 @@ export function FinalCta() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[36rem] h-[36rem] rounded-full" style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.14) 0%, transparent 70%)' }} />
       </div>
       <Reveal className="relative max-w-3xl mx-auto px-6 text-center">
-        <h2 className="font-display text-3xl md:text-4xl font-semibold text-white tracking-tight">
+        <h2 className="font-display text-3xl md:text-4xl font-normal text-white tracking-tight">
           Ready to put outbound calling on autopilot?
         </h2>
         <p className="mt-4 text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">

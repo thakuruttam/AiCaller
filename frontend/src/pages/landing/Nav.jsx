@@ -15,8 +15,8 @@ export function Nav({ onTakeTour }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-[#e7e5e0]">
-      <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between" aria-label="Primary">
+    <header className="sticky top-0 z-50 bg-[#fbfaf6]/95 backdrop-blur">
+      <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between" aria-label="Primary">
         <a href="#top" className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] rounded-lg">
           <MiniLogo className="w-8 h-8" />
           <span className="font-display font-bold text-[#14261f] text-[15px] tracking-tight">AI Caller Pro</span>

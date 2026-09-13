@@ -5,7 +5,7 @@ import { MiniLogo } from './Nav';
 export function Footer() {
   return (
     <footer className="bg-[#0a0f1a] border-t border-white/5 py-10">
-      <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
         <a href="#top" className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] rounded-lg">
           <MiniLogo className="w-7 h-7" />
           <span className="font-display font-bold text-white text-[13.5px] tracking-tight">AI Caller Pro</span>

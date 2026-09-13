@@ -65,14 +65,14 @@ export function BuildYourOwn() {
 
   return (
     <section className="relative bg-white py-24 md:py-32">
-      <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
+      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
         <Reveal>
           <div className="flex items-center gap-2.5 mb-6">
             <span className="w-2 h-2 rounded-sm bg-amber-500" aria-hidden="true" />
             <span className="text-sm text-[#5b6158]">AiCaller Studio: No-Code Campaign Builder</span>
           </div>
 
-          <h2 className="font-display text-3xl md:text-4xl font-medium text-[#14261f] leading-[1.15] tracking-tight">
+          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#14261f] leading-[1.15] tracking-tight">
             Build your own campaign logic — in just minutes
           </h2>
 

@@ -7,7 +7,7 @@ export function DemoVideo() {
       <div className="max-w-4xl mx-auto px-6">
         <Reveal className="text-center max-w-2xl mx-auto">
           <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">Demo</p>
-          <h2 className="font-display text-3xl md:text-4xl font-semibold text-[#0f172a] tracking-tight">
+          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#0f172a] tracking-tight">
             See it in action
           </h2>
           <p className="mt-4 text-sm text-[#475569] leading-relaxed">

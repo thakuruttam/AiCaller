@@ -10,3 +10,17 @@
 .landing-page .font-display {
   font-family: 'Cabinet Grotesk', ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Swiper pagination dots — restyled from the library's default small black
+   circles to match the page's teal accent. */
+.scoring-spotlight-dots .swiper-pagination-bullet {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  opacity: 1;
+  margin: 0 !important;
+}
+.scoring-spotlight-dots .swiper-pagination-bullet-active {
+  background: #0d9488;
+}
+

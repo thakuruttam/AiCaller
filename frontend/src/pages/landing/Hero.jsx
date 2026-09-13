@@ -1,7 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Compass, PhoneCall, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Compass, PhoneCall, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, EffectFade } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/effect-fade';
 import { PILLARS } from './data';
 import { FloatingPill } from './primitives';
 
@@ -11,11 +15,15 @@ import { FloatingPill } from './primitives';
 const MotionDiv = motion.div;
 const MotionSpan = motion.span;
 
+const MotionSpanBar = motion.span;
+
 // A tiny animated audio-waveform, sitting inline mid-headline — AiCaller's
 // own take on "an icon living inside the display text," using bars instead
 // of a boxed icon since this product's whole identity is voice/audio. Pops
-// in ~0.9s after the rest of the headline, matching the reference site's own
-// inline-icon entrance timing (it isn't part of the initial paint there either).
+// in ~0.9s after the rest of the headline, then keeps bouncing continuously
+// like a live audio visualizer — a one-time pop is too easy to miss on a
+// quick glance or a slow connection; a never-stopping loop reads as "alive"
+// unambiguously.
 function InlineWaveform() {
   const heights = [40, 90, 55, 100, 65, 85, 45];
   return (
@@ -27,7 +35,18 @@ function InlineWaveform() {
       aria-hidden="true"
     >
       {heights.map((h, i) => (
-        <span key={i} className="w-[3px] md:w-1 rounded-full bg-[#0d9488]" style={{ height: `${h}%`, opacity: 0.5 + (h / 100) * 0.5 }} />
+        <MotionSpanBar
+          key={i}
+          className="w-[3px] md:w-1 rounded-full bg-[#0d9488] origin-bottom"
+          // A static height set via plain style, animated with `scaleY` (a
+          // transform) rather than animating `height` itself — framer-motion
+          // doesn't reliably re-trigger percentage-based `height` keyframes
+          // on a loop (confirmed: computed height was frozen on inspection),
+          // while transform-based scale always animates correctly.
+          style={{ height: `${h}%`, opacity: 0.5 + (h / 100) * 0.5 }}
+          animate={{ scaleY: [0.35, 1, 0.35] }}
+          transition={{ duration: 0.9 + (i % 3) * 0.15, repeat: Infinity, ease: 'easeInOut', delay: 1.2 + i * 0.06 }}
+        />
       ))}
     </MotionSpan>
   );
@@ -44,8 +63,7 @@ function SparkBars() {
   );
 }
 
-// The main, front-most card — full dashboard detail.
-function MainCard() {
+function CardChrome({ children }) {
   return (
     <div className="rounded-2xl overflow-hidden bg-white border border-black/5">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-black/5">
@@ -53,7 +71,15 @@ function MainCard() {
         <span className="text-[11px] font-semibold uppercase tracking-widest text-[#8a8f87]">Campaign: Q1 Outreach</span>
         <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full text-[#0d9488] bg-[#0d9488]/10">Live</span>
       </div>
-      <div className="p-4 space-y-4">
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+function OverviewSlide() {
+  return (
+    <CardChrome>
+      <div className="space-y-4">
         <div className="grid grid-cols-3 gap-2.5">
           {[
             { val: '312', label: 'Calls placed' },
@@ -83,7 +109,77 @@ function MainCard() {
           ))}
         </ul>
       </div>
-    </div>
+    </CardChrome>
+  );
+}
+
+function ObjectivesSlide() {
+  return (
+    <CardChrome>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#8a8f87] mb-3">Call Objectives</p>
+      <ul className="space-y-2.5">
+        {[
+          { label: 'Confirm identity', done: true },
+          { label: 'Ask notice period', done: true },
+          { label: 'Capture salary expectations', done: false },
+        ].map(o => (
+          <li key={o.label} className="flex items-center gap-2.5 rounded-lg bg-[#f6f5f1] px-3 py-2.5">
+            <CheckCircle2 size={15} className={o.done ? 'text-[#0d9488]' : 'text-[#c8cdc4]'} />
+            <span className="text-[12px] text-[#14261f]">{o.label}</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="mt-4 w-full text-center text-[12px] font-semibold text-white bg-[#14261f] rounded-lg py-2.5">
+        View full transcript
+      </button>
+    </CardChrome>
+  );
+}
+
+function ScheduleSlide() {
+  return (
+    <CardChrome>
+      <p className="text-[13px] font-semibold text-[#14261f] mb-3">Campaign schedule</p>
+      <div className="grid grid-cols-3 gap-2.5 mb-4">
+        {[
+          { val: '3 days', label: 'Duration' },
+          { val: '8 min', label: 'Est. / call' },
+          { val: '40', label: 'Contacts' },
+        ].map(m => (
+          <div key={m.label} className="rounded-lg p-3 bg-[#f6f5f1]">
+            <p className="text-[#14261f] font-bold text-sm leading-none">{m.val}</p>
+            <p className="text-[10px] text-[#8a8f87] mt-1.5">{m.label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#8a8f87] mb-2">Questions</p>
+      <div className="space-y-2">
+        {[70, 45, 90].map((r, i) => (
+          <div key={i} className="h-2.5 rounded-full bg-[#eceae2]" style={{ width: `${r}%` }} />
+        ))}
+      </div>
+    </CardChrome>
+  );
+}
+
+// The main, front-most card auto-cycles through a few different screens
+// (Swiper fade + autoplay) — the reference site's own front card does the
+// same, swapping content every couple of seconds while the side cards behind
+// it stay put. Confirmed by watching it directly rather than assuming a
+// single static card.
+function MainCard() {
+  return (
+    <Swiper
+      modules={[Autoplay, EffectFade]}
+      effect="fade"
+      fadeEffect={{ crossFade: true }}
+      autoplay={{ delay: 2600, disableOnInteraction: false }}
+      loop
+    >
+      <SwiperSlide><OverviewSlide /></SwiperSlide>
+      <SwiperSlide><ObjectivesSlide /></SwiperSlide>
+      <SwiperSlide><ScheduleSlide /></SwiperSlide>
+    </Swiper>
   );
 }
 
@@ -120,7 +216,7 @@ function ProductPreview() {
           key={c.key}
           initial={{ opacity: 0, y: 30, x: c.from.x, rotate: c.from.rotate }}
           animate={{ opacity: c.style.opacity, y: 0, x: 0, rotate: c.style.rotate }}
-          transition={{ duration: 0.9, delay: 0.15 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ type: 'spring', stiffness: 120, damping: 16, delay: 0.15 + i * 0.1 }}
           className="absolute"
           style={{ left: c.style.left, right: c.style.right, top: c.style.top, width: c.style.width, zIndex: c.style.z, boxShadow: '0 30px 60px -20px rgba(0,0,0,0.3)' }}
         >
@@ -134,7 +230,7 @@ function ProductPreview() {
       <MotionDiv
         initial={{ opacity: 0, y: 40, rotateY: -6, rotateX: 3 }}
         animate={{ opacity: 1, y: 0, rotateY: -6, rotateX: 3 }}
-        transition={{ duration: 0.9, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ type: 'spring', stiffness: 110, damping: 15, delay: 0.5 }}
         style={{ boxShadow: '0 40px 80px -20px rgba(0,0,0,0.35)', transformStyle: 'preserve-3d', zIndex: 3 }}
         className="relative w-[62%] mx-auto"
       >
@@ -150,7 +246,7 @@ function ProductPreview() {
 export function Hero({ onTakeTour }) {
   return (
     <section id="top" className="relative bg-[#fbfaf6] overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 pt-[120px] pb-16">
+      <div className="max-w-7xl mx-auto px-6 pt-[120px] pb-16">
         <MotionDiv
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -161,7 +257,7 @@ export function Hero({ onTakeTour }) {
             <span className="text-base text-[#4b5148]">The AI Voice Calling Platform</span>
           </div>
 
-          <h1 className="font-display text-[2.75rem] leading-[1.03] md:text-[4.25rem] md:leading-[1.03] font-medium text-[#14261f] tracking-tight max-w-[920px]">
+          <h1 className="font-display text-[2.75rem] leading-[1.03] md:text-[4.25rem] md:leading-[1.03] font-normal text-[#14261f] tracking-tight max-w-[920px]">
             Where every<InlineWaveform />outbound call becomes a scored outcome
           </h1>
 
@@ -192,7 +288,7 @@ export function Hero({ onTakeTour }) {
           reference site's panel is a simple rounded rectangle sitting inset
           within the page (border-radius ~16px, ~2:1 aspect ratio), not a
           full-bleed section with a wavy cut. Matched exactly here. */}
-      <div className="max-w-6xl mx-auto px-6 pb-20 md:pb-28">
+      <div className="max-w-7xl mx-auto px-6 pb-20 md:pb-28">
         <div className="relative bg-[#0d9488] rounded-2xl overflow-hidden aspect-[1280/642] flex items-center justify-center px-6">
           <div className="absolute inset-0 pointer-events-none opacity-40" aria-hidden="true">
             <div className="absolute top-0 right-0 w-[28rem] h-[28rem] rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)' }} />
@@ -207,7 +303,7 @@ export function Hero({ onTakeTour }) {
           the headline block itself so the hero text stays as uncluttered as
           the reference site's (badge → headline → subhead → CTAs, nothing else). */}
       <div className="relative bg-white py-6">
-        <ul className="max-w-6xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
+        <ul className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
           {PILLARS.map(p => (
             <li key={p.label} className="flex items-center gap-2 text-xs font-medium text-[#5b6158]">
               <p.icon size={15} className="text-[#0d9488]" aria-hidden="true" />
