@@ -122,4 +122,26 @@ describe('VoiceAgent — autonomous mode ledger', () => {
     expect(instructions).toContain('is NOT an answer');
     expect(instructions.toLowerCase()).toContain('clarification question');
   });
+
+  it('generateAutonomousInstructions requires an explicit identity confirmation before proceeding', () => {
+    // Confirmed on a live call: the model treated an ambiguous "Sure," as
+    // sufficient confirmation of "Am I speaking with X?" and immediately
+    // moved on to the interview questions — with no code-level identity gate
+    // in autonomous mode (unlike decision-engine mode's _handleIdentityTurn),
+    // this instruction is the only thing that can prevent that.
+    const agent = makeAgent();
+    const instructions = agent.generateAutonomousInstructions();
+    expect(instructions.toLowerCase()).toContain('identity check');
+    expect(instructions).toContain('wrong_person');
+  });
+
+  it('generateAutonomousInstructions tells the model to re-ask with the same wording, not improvise new phrasing each retry', () => {
+    // Confirmed on a live call: three consecutive re-asks of the same
+    // question used three different phrasings, one of which ("No problem.
+    // I'm here to understand your background.") read as answering a
+    // clarification question that was never actually asked.
+    const agent = makeAgent();
+    const instructions = agent.generateAutonomousInstructions();
+    expect(instructions.toLowerCase()).toContain('same wording');
+  });
 });

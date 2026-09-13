@@ -132,6 +132,65 @@ describe('OpenAI Realtime provider', () => {
     expect(handlers.onSpeechStart).toHaveBeenCalledTimes(1);
   });
 
+  // Confirmed on a live call: response.cancel does not stop audio already in
+  // flight for the response it cancels — the log showed "Response finished —
+  // 21 audio chunks delivered" for the exact response a barge-in had just
+  // cancelled, and (before this fix) that audio was forwarded to Plivo same
+  // as any other, landing on top of whatever played next. The caller heard
+  // this as the bot suddenly talking gibberish.
+  it('drops audio chunks that arrive for a response after it was cancelled by a barge-in', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    session.speak('This is a long reply the bot is mid-way through saying.');
+    socket._message({ type: 'input_audio_buffer.speech_started' }); // barge-in -> response.cancel sent
+
+    // The server had already generated more audio for the cancelled response
+    // before honoring the cancel — this must NOT reach Plivo.
+    socket._message({ type: 'response.output_audio.delta', delta: Buffer.from('stale').toString('base64') });
+    expect(handlers.onAudio).not.toHaveBeenCalled();
+  });
+
+  it('resumes forwarding audio normally once the cancelled response\'s own response.done arrives', () => {
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    session.speak('First reply.');
+    socket._message({ type: 'input_audio_buffer.speech_started' }); // barge-in -> cancel
+    socket._message({ type: 'response.output_audio.delta', delta: Buffer.from('stale').toString('base64') }); // dropped
+    socket._message({ type: 'response.done' }); // the cancelled response's own done
+
+    session.speak('Second, real reply.');
+    socket._message({ type: 'response.output_audio.delta', delta: Buffer.from('real').toString('base64') });
+    expect(handlers.onAudio).toHaveBeenCalledTimes(1);
+    expect(handlers.onAudio).toHaveBeenCalledWith(Buffer.from('real'));
+  });
+
+  it('does not get stuck dropping audio forever if the cancel itself is rejected (response_cancel_not_active)', () => {
+    // Confirmed on the same live call: a later cancel raced with a response
+    // that had already finished, and the API rejected it with
+    // response_cancel_not_active — no response.done is ever coming for a
+    // "cancelled" response that never existed, so without recovering here
+    // the drop-audio guard would stay on for the rest of the call, silently
+    // swallowing even the eventual sign-off.
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    session.speak('First reply.');
+    socket._message({ type: 'input_audio_buffer.speech_started' }); // barge-in -> cancel sent
+    socket._message({ type: 'error', error: { code: 'response_cancel_not_active', message: 'Cancellation failed: no active response found' } });
+
+    session.speak('Sign-off.');
+    socket._message({ type: 'response.output_audio.delta', delta: Buffer.from('signoff').toString('base64') });
+    expect(handlers.onAudio).toHaveBeenCalledWith(Buffer.from('signoff'));
+  });
+
   it('defaults turn-detection eagerness to medium, and respects an override', () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);
@@ -189,6 +248,51 @@ describe('OpenAI Realtime provider', () => {
 
     socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: '   ' });
     expect(handlers.onTranscript).not.toHaveBeenCalled();
+  });
+
+  // Confirmed on a live call: the caller insisted they said nothing at all
+  // at three points in the call where the transcript nonetheless showed them
+  // saying a short plausible filler word ("Sure," "Okay.", "Yes") — a
+  // documented hallucination pattern for these transcription models on
+  // near-silent/ambiguous audio (this file already has one prior hallucination
+  // incident on record: mis-transcribing English as Arabic/Hindi/Urdu script).
+  it('drops a transcript whose underlying speech segment was too short to be real speech (hallucination guard)', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    socket._message({ type: 'input_audio_buffer.speech_started', audio_start_ms: 1000 });
+    socket._message({ type: 'input_audio_buffer.speech_stopped', audio_end_ms: 1120 }); // 120ms — too short to be a real word
+    socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Sure,' });
+
+    expect(handlers.onTranscript).not.toHaveBeenCalled();
+  });
+
+  it('still forwards a transcript whose speech segment was a plausible real-speech duration', () => {
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    socket._message({ type: 'input_audio_buffer.speech_started', audio_start_ms: 1000 });
+    socket._message({ type: 'input_audio_buffer.speech_stopped', audio_end_ms: 2500 }); // 1.5s — plausible real speech
+    socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Yes, this is Karan' });
+
+    expect(handlers.onTranscript).toHaveBeenCalledWith('Yes, this is Karan');
+  });
+
+  it('does not filter a transcript when speech-segment duration is unknown (no speech_started/stopped seen)', () => {
+    // Guards against the hallucination filter itself ever silently eating a
+    // real answer just because this test harness (or some future event-order
+    // edge case) didn't emit the VAD boundary events first.
+    const handlers = makeHandlers();
+    setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Yes' });
+    expect(handlers.onTranscript).toHaveBeenCalledWith('Yes');
   });
 
   it('decodes response.output_audio.delta (the GA event name) and forwards raw bytes to onAudio', () => {

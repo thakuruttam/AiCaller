@@ -92,6 +92,33 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
   // to distinguish a real barge-in (caller interrupting OUR speech) from
   // ordinary speech-start detection on their own turn.
   let botSpeaking = false;
+  // Duration of the most recent detected speech segment (input_audio_buffer.
+  // speech_started -> speech_stopped), in ms. Used to catch a real, live
+  // failure: a call transcript showed the caller "saying" a plausible short
+  // filler ("Sure," "Okay.", "Yes") at moments the caller insists they said
+  // nothing at all — gpt-4o-transcribe hallucinating a short, generic word
+  // from a near-silent buffer (breathing, line noise, a thinking pause) is a
+  // documented failure mode for these models on ambiguous audio, and this
+  // file already has one prior hallucination incident on record (mis-
+  // transcribing English as Arabic/Hindi/Urdu script on unclear audio).
+  // A transcript whose underlying speech segment was only a few hundred ms
+  // is far more likely to be that than a real word — VoiceAgent treating it
+  // as a genuine (if weak) answer wastes a whole re-ask cycle on a phantom
+  // turn the caller never actually took.
+  let lastSpeechStartedAtMs = null;
+  let lastSpeechDurationMs = null;
+  const MIN_SPEECH_MS = 350;
+  // True from the moment we send response.cancel until that cancelled
+  // response's own response.done confirms it's actually finished. Confirmed
+  // on a live call: response.cancel does not stop audio already in flight —
+  // a barge-in mid-sentence still logged "Response finished — 21 audio
+  // chunks delivered" for the response we'd just cancelled, and those chunks
+  // were forwarded to Plivo same as any other, landing on top of whatever
+  // played next. The caller heard this as the bot suddenly talking
+  // gibberish. Every response.output_audio.delta while this flag is set
+  // belongs to a response we've already thrown away, so it's dropped
+  // instead of reaching Plivo.
+  let responseCancelPending = false;
 
   function flushPendingSpeak() {
     if (pendingSpeakText !== null) {
@@ -186,9 +213,17 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       case 'conversation.item.input_audio_transcription.completed': {
         const transcript = msg.transcript?.trim();
         if (transcript) {
-          console.log(`[Realtime] Transcript (semantic_vad decided turn is complete): "${transcript}"`);
-          handlers.onTranscript(transcript);
+          if (lastSpeechDurationMs !== null && lastSpeechDurationMs < MIN_SPEECH_MS) {
+            // See MIN_SPEECH_MS comment above — this segment was too short to
+            // plausibly be the real word transcribed; treat it as a
+            // hallucination and never surface it as a caller turn at all.
+            console.log(`[Realtime] Dropping suspected hallucinated transcript "${transcript}" — underlying speech segment was only ${lastSpeechDurationMs}ms`);
+          } else {
+            console.log(`[Realtime] Transcript (semantic_vad decided turn is complete): "${transcript}"`);
+            handlers.onTranscript(transcript);
+          }
         }
+        lastSpeechDurationMs = null;
         break;
       }
 
@@ -199,7 +234,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       // successfully, our switch just never matched the event, so nothing
       // ever reached Plivo and the call sat in dead air.
       case 'response.output_audio.delta':
-        if (msg.delta) {
+        if (msg.delta && !responseCancelPending) {
           audioChunksThisResponse++;
           handlers.onAudio?.(Buffer.from(msg.delta, 'base64'));
         }
@@ -252,6 +287,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
         // transcript hasn't come back yet (semantic_vad can legitimately
         // take a while on a long, natural answer).
         handlers.onSpeechActivity?.();
+        lastSpeechStartedAtMs = typeof msg.audio_start_ms === 'number' ? msg.audio_start_ms : Date.now();
         // Only a real interruption if we were the one talking — otherwise
         // this is just the normal start of the caller's own turn.
         if (botSpeaking) {
@@ -267,13 +303,32 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
           // playing again over whatever the caller says next — a second,
           // confusing interruption that has nothing to do with them.
           ws.send(JSON.stringify({ type: 'response.cancel' }));
+          responseCancelPending = true;
           botSpeaking = false;
           handlers.onSpeechStart?.();
         }
         break;
 
+      case 'input_audio_buffer.speech_stopped': {
+        const endedAtMs = typeof msg.audio_end_ms === 'number' ? msg.audio_end_ms : Date.now();
+        lastSpeechDurationMs = lastSpeechStartedAtMs !== null ? endedAtMs - lastSpeechStartedAtMs : null;
+        break;
+      }
+
       case 'response.done': {
         botSpeaking = false;
+        if (responseCancelPending) {
+          // This is the cancelled response's own response.done — any audio
+          // for it was already dropped above, so there's nothing real to
+          // report. Treating it like a normal (possibly zero-audio) response
+          // would misfire the "nothing was spoken, prompt a continuation"
+          // path for a turn we deliberately threw away, not one that
+          // actually produced nothing.
+          responseCancelPending = false;
+          audioChunksThisResponse = 0;
+          flushPendingSpeak();
+          break;
+        }
         const hadAudio = audioChunksThisResponse > 0;
         if (!hadAudio) {
           // Confirmed on a live autonomous-mode call: a response whose ONLY
@@ -307,6 +362,17 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
         if (msg.error?.code === 'conversation_already_has_active_response' && botSpeaking) {
           botSpeaking = false;
           flushPendingSpeak();
+        }
+        // A cancel we sent can itself be rejected (confirmed on a live call:
+        // "response_cancel_not_active" — nothing was active to cancel,
+        // typically because it had already finished by the time our cancel
+        // arrived). When that happens, no response.done is ever coming for
+        // a "cancelled" response that never existed, so the audio-dropping
+        // guard above would otherwise stay stuck on for the rest of the
+        // call, silently swallowing every future response's audio —
+        // including the eventual sign-off. Clear it here instead.
+        if (msg.error?.code === 'response_cancel_not_active' && responseCancelPending) {
+          responseCancelPending = false;
         }
         handlers.onError?.(new Error(msg.error?.message || 'Realtime API error'));
         break;
@@ -372,6 +438,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
         console.log('[Realtime] Cancelling in-flight response to force the configured closing line');
         if (ready && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'response.cancel' }));
+          responseCancelPending = true;
         }
         botSpeaking = false;
       }
