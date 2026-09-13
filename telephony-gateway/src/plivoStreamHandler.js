@@ -6,6 +6,7 @@ import { redis } from './redis.js';
 import { setupSTT } from './providers/stt.js';
 import { speakBackToPlivo } from './providers/tts.js';
 import { setupRealtime } from './providers/openaiRealtime.js';
+import { setupGeminiLive } from './providers/geminiLive.js';
 import { createNotification, notifyWorkspace } from './utils/notifications.js';
 import { hangupCall } from './hangupCall.js';
 import { startPlivoRecording } from './plivoRest.js';
@@ -94,7 +95,17 @@ export function setupPlivoStream() {
     // subset without a code change if live traffic needs it pulled back.
     const autonomousCampaignIds = (process.env.REALTIME_AUTONOMOUS_CAMPAIGN_IDS || '')
       .split(',').map(id => id.trim()).filter(Boolean);
+    // Opt-in allowlist for the Gemini Live provider (providers/geminiLive.js) —
+    // built to fix OpenAI Realtime's confirmed transcription hallucination on
+    // Indian-accented audio (verified against a real recording, corroborated
+    // independently by both Sarvam and Gemini batch transcription). Only
+    // meaningful for autonomous-mode campaigns; never tested against a real
+    // caller yet, only synthetic text turns — start with real IDs here
+    // deliberately, not '' (which would mean "all campaigns").
+    const geminiLiveCampaignIds = (process.env.GEMINI_LIVE_CAMPAIGN_IDS || '')
+      .split(',').map(id => id.trim()).filter(Boolean);
     let useAutonomous = false; // finalized once campaignLanguage is known, below
+    let useGeminiLive = false; // finalized alongside useAutonomous, below
     let pendingAutonomousTransition = false; // true from call start until the greeting finishes and we switch modes
     let autonomousPhaseActive = false; // true only AFTER the transition — guards onAssistantTranscript so the scripted greeting isn't double-captured
     let pendingAutonomousContinuation = false; // true after a tool-call-only (zero-audio) turn, until we've prompted the model to continue
@@ -995,7 +1006,12 @@ export function setupPlivoStream() {
 
             const useRealtime = realtimeEnabled && campaignLanguage === 'English';
             useAutonomous = useRealtime && (autonomousCampaignIds.length === 0 || autonomousCampaignIds.includes(campaignId));
-            pendingAutonomousTransition = useAutonomous;
+            useGeminiLive = useAutonomous && geminiLiveCampaignIds.includes(campaignId);
+            // Gemini Live has no mid-session instructions/tools update (confirmed
+            // live — a second setup message closes the connection outright), so
+            // there is no separate scripted-greeting-then-switch phase for it the
+            // way there is for OpenAI Realtime below.
+            pendingAutonomousTransition = useAutonomous && !useGeminiLive;
 
             if (!useRealtime) {
               if (sttStream) sttStream.close();
@@ -1039,8 +1055,24 @@ export function setupPlivoStream() {
               useAutonomousEngine: useAutonomous
             });
 
+            let processedIntro = finalGoals.callIntro || 'Hello, this is an AI assistant calling.';
+            if (agent.contactName) {
+              processedIntro = processedIntro.replace(/\[Name\]/gi, agent.contactName);
+
+              const introLower = processedIntro.toLowerCase();
+              if (!introLower.includes('speaking with') && !introLower.includes('is this') && !introLower.includes('are you')) {
+                processedIntro = processedIntro.trim();
+                if (!processedIntro.endsWith('?') && !processedIntro.endsWith('.')) processedIntro += '.';
+                processedIntro += ` Am I speaking with ${agent.contactName}?`;
+              }
+            }
+
+            const langDirective = campaignLanguage !== 'English'
+              ? ` Speak in ${campaignLanguage}. Deliver this greeting translated naturally into ${campaignLanguage}, keeping the meaning identical and adding no extra content.`
+              : '';
+
             if (useRealtime) {
-              realtimeSession = setupRealtime(agent.generateSystemPrompt(), {
+              const realtimeHandlers = {
                 onAudio: (chunk) => {
                   if (ws.readyState === ws.OPEN && streamSid) {
                     ws.send(JSON.stringify({
@@ -1137,8 +1169,28 @@ export function setupPlivoStream() {
                   }
                 },
                 onError: (err) => console.error('[Realtime] Error:', err.message),
-                onClose: () => console.log('[Realtime] Closed')
-              }, campaignLanguage === 'Hindi' || campaignLanguage === 'Hinglish' ? 'hi' : 'en', campaign.callSettings?.voice || null);
+                onClose: () => console.log('[Realtime] Closed'),
+                onReady: useGeminiLive ? () => {
+                  // No scripted-greeting phase for Gemini Live — the greeting
+                  // is already folded into its one upfront instruction set
+                  // (see fullAutonomousInstructions below), so the call is in
+                  // autonomous mode from the very first word, not after a
+                  // separate transition.
+                  autonomousPhaseActive = true;
+                  console.log('[Stream] Gemini Live session ready — triggering the greeting');
+                  realtimeSession.continueConversation();
+                } : undefined
+              };
+
+              const realtimeLanguageCode = campaignLanguage === 'Hindi' || campaignLanguage === 'Hinglish' ? 'hi' : 'en';
+
+              if (useGeminiLive) {
+                const geminiGreetingDirective = `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.`;
+                const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
+                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, null, AUTONOMOUS_TOOLS);
+              } else {
+                realtimeSession = setupRealtime(agent.generateSystemPrompt(), realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.voice || null);
+              }
             }
 
             const effectiveDurationSec = (campaignContact?.overrides?.maxCallDurationSec) || campaign.maxCallDurationSec;
@@ -1168,40 +1220,32 @@ export function setupPlivoStream() {
               console.log(`[Stream] Max call duration set to ${effectiveDurationSec}s — will hang up in ${hangupAfterMs / 1000}s`);
             }
 
-            let processedIntro = finalGoals.callIntro || 'Hello, this is an AI assistant calling.';
-            if (agent.contactName) {
-              processedIntro = processedIntro.replace(/\[Name\]/gi, agent.contactName);
-
-              const introLower = processedIntro.toLowerCase();
-              if (!introLower.includes('speaking with') && !introLower.includes('is this') && !introLower.includes('are you')) {
-                processedIntro = processedIntro.trim();
-                if (!processedIntro.endsWith('?') && !processedIntro.endsWith('.')) processedIntro += '.';
-                processedIntro += ` Am I speaking with ${agent.contactName}?`;
-              }
-            }
-
-            const langDirective = campaignLanguage !== 'English'
-              ? ` Speak in ${campaignLanguage}. Deliver this greeting translated naturally into ${campaignLanguage}, keeping the meaning identical and adding no extra content.`
-              : '';
-            const greeting = await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.)`);
-            console.log(`[Agent] Greeting: ${greeting}`);
-            if (greeting && greeting.length > 0) {
-              if (useRealtime) {
-                // No-answer/max-answer timers are deliberately NOT wired up yet
-                // for the realtime path — semantic_vad handles "wait for the
-                // caller to finish," but true silence-forever detection
-                // ("Are you still there?") still needs its own realtime-native
-                // implementation rather than reusing startNoAnswerTimer(),
-                // which speaks through the old TTS engine directly.
-                realtimeSession.speak(greeting);
-              } else {
-                isSpeaking = true;
-                const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket);
-                if (!ok) isSpeaking = false;
-                else if (agent.expectsUserReply) startNoAnswerTimer();
-              }
+            if (useGeminiLive) {
+              // Greeting is already folded into the one upfront instruction
+              // set passed to setupGeminiLive() above, and gets triggered by
+              // the onReady handler once the session confirms setup — nothing
+              // left to do here for this provider.
             } else {
-              console.warn('[Agent] Greeting was empty after sanitization — check callIntro config or LLM response.');
+              const greeting = await agent.processInput(`(System: The call has just been connected. Say this EXACT introduction to the user word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.)`);
+              console.log(`[Agent] Greeting: ${greeting}`);
+              if (greeting && greeting.length > 0) {
+                if (useRealtime) {
+                  // No-answer/max-answer timers are deliberately NOT wired up yet
+                  // for the realtime path — semantic_vad handles "wait for the
+                  // caller to finish," but true silence-forever detection
+                  // ("Are you still there?") still needs its own realtime-native
+                  // implementation rather than reusing startNoAnswerTimer(),
+                  // which speaks through the old TTS engine directly.
+                  realtimeSession.speak(greeting);
+                } else {
+                  isSpeaking = true;
+                  const ok = await speakBackToPlivo(ws, streamSid, greeting, campaignLanguage, ttsSocket);
+                  if (!ok) isSpeaking = false;
+                  else if (agent.expectsUserReply) startNoAnswerTimer();
+                }
+              } else {
+                console.warn('[Agent] Greeting was empty after sanitization — check callIntro config or LLM response.');
+              }
             }
           }
           break;
