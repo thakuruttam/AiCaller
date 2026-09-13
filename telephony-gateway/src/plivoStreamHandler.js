@@ -103,6 +103,7 @@ export function setupPlivoStream() {
     // before being trusted — see the end_call case in handleAutonomousToolCall
     // below for why.
     let lastAutonomousUserTranscript = null;
+    let identityReaskForced = false; // true once we've forced one deterministic identity re-ask — see the wrong_person guard below
     // Confirmed on a live call: the checkpoint/playedStream hangup confirmation
     // only proves Plivo's outbound stream reached that marker — NOT that real
     // audio preceded it. If the closing response.create was rejected/produced
@@ -696,6 +697,33 @@ export function setupPlivoStream() {
           // prompt is exactly as unreliable here as it was for the global
           // condition, which already gets this same re-check rather than
           // trusting the model's own read of it.
+          // Deterministic guard for wrong_person specifically: confirmed on
+          // TWO live calls in the same batch that an ambiguous filler reply
+          // to the identity greeting ("Sure.") made the model call end_call
+          // with reason "wrong_person" immediately — skipping the "ask once
+          // more, plainly" step its own instructions explicitly require for
+          // exactly this kind of ambiguous (not an explicit denial) reply.
+          // Same unreliable-free-reasoning pattern as the end_call condition
+          // check above; same fix shape — verify before trusting, and only
+          // once per call, so a caller who keeps stalling on identity doesn't
+          // get stuck in a forced-re-ask loop forever.
+          if (args.reason === 'wrong_person' && !identityReaskForced && lastAutonomousUserTranscript) {
+            identityReaskForced = true;
+            try {
+              const isExplicitDenial = await agent._evalSemanticCondition(
+                `The caller's reply explicitly denies being ${agent.contactName} or explicitly states this is the wrong number/person — as opposed to a vague, ambiguous, or filler acknowledgment like "sure" or "okay" that doesn't actually confirm OR deny anything.`,
+                lastAutonomousUserTranscript
+              );
+              if (!isExplicitDenial) {
+                console.warn(`[Stream] Autonomous: rejecting end_call(wrong_person) — "${lastAutonomousUserTranscript}" is ambiguous, not an explicit denial. Forcing one clarifying re-ask instead.`);
+                realtimeSession.interruptAndSpeak(`Just to confirm, is this ${agent.contactName}?`);
+                if (callSid) agent.saveState(redis, callSid);
+                return;
+              }
+            } catch (e) {
+              console.error('[Stream] Autonomous: wrong_person re-check failed, trusting the model\'s own call:', e.message);
+            }
+          }
           const gatingItem = agent.currentItem();
           if (gatingItem?.onAnswer?.action === 'end_call' && lastAutonomousUserTranscript) {
             const { skipCondition, skipSemanticCondition, skipConditionActiveTab } = gatingItem.onAnswer;
