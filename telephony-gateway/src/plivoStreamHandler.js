@@ -99,9 +99,14 @@ export function setupPlivoStream() {
     // built to fix OpenAI Realtime's confirmed transcription hallucination on
     // Indian-accented audio (verified against a real recording, corroborated
     // independently by both Sarvam and Gemini batch transcription). Only
-    // meaningful for autonomous-mode campaigns; never tested against a real
-    // caller yet, only synthetic text turns — start with real IDs here
-    // deliberately, not '' (which would mean "all campaigns").
+    // meaningful for autonomous-mode campaigns. Was scoped to specific
+    // campaign IDs during initial live-call validation (which surfaced and
+    // fixed a real protocol bug, a wrong model checkpoint, and — via the
+    // Sarvam re-transcription pass — genuine live hallucination on real
+    // audio); now defaults to ALL autonomous campaigns, present and future,
+    // same "empty list = everyone" convention already used for
+    // autonomousCampaignIds above. Set GEMINI_LIVE_CAMPAIGN_IDS to a specific
+    // comma-separated list to re-scope down without a code change if needed.
     const geminiLiveCampaignIds = (process.env.GEMINI_LIVE_CAMPAIGN_IDS || '')
       .split(',').map(id => id.trim()).filter(Boolean);
     let useAutonomous = false; // finalized once campaignLanguage is known, below
@@ -1006,7 +1011,7 @@ export function setupPlivoStream() {
 
             const useRealtime = realtimeEnabled && campaignLanguage === 'English';
             useAutonomous = useRealtime && (autonomousCampaignIds.length === 0 || autonomousCampaignIds.includes(campaignId));
-            useGeminiLive = useAutonomous && geminiLiveCampaignIds.includes(campaignId);
+            useGeminiLive = useAutonomous && (geminiLiveCampaignIds.length === 0 || geminiLiveCampaignIds.includes(campaignId));
             // Gemini Live has no mid-session instructions/tools update (confirmed
             // live — a second setup message closes the connection outright), so
             // there is no separate scripted-greeting-then-switch phase for it the
