@@ -158,7 +158,18 @@ function toGeminiFunctionDeclarations(tools) {
  * @returns {{ sendAudio, speak, interruptAndSpeak, beginAutonomousConversation, continueConversation, close }}
  */
 export function setupGeminiLive(instructions, handlers, language = 'en', voiceOverride = null, tools = []) {
-  const model = process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-preview-12-2025';
+  // Was 'gemini-2.5-flash-native-audio-preview-12-2025' — picked semi-
+  // arbitrarily while verifying the wire protocol, never actually validated
+  // for transcription/comprehension quality itself. Confirmed on a real test
+  // call that model was both mistranscribing caller speech (into unrelated
+  // languages) and failing to invoke answer_captured even on a clear, correct
+  // transcript — i.e. failing the same way independent of whether the
+  // separate transcription sub-system happened to get the words right,
+  // meaning the primary audio-understanding model itself, not just transcription,
+  // was the weak link. Switched to the model Google's own pricing docs
+  // describe as "the primary current offering for real-time voice
+  // conversations" instead of a preview checkpoint chosen without evidence.
+  const model = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview';
   const voice = voiceOverride || process.env.GEMINI_LIVE_VOICE || 'Kore';
   const apiKey = process.env.GEMINI_API_KEY;
 
