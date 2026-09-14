@@ -132,6 +132,74 @@ function pcm24kBase64ToMulaw8k(base64Data) {
   return pcm16ToMulawBuffer(pcm8k);
 }
 
+// ── PCM16 → WAV (for Sarvam's REST STT, which needs a real file, not a raw
+// stream) — mirrors providers/stt.js's own pcmToWav exactly. ─────────────
+function pcm16ToWav(pcmBuffer, sampleRate) {
+  const channels = 1, bitsPerSample = 16;
+  const blockAlign = channels * bitsPerSample / 8;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = pcmBuffer.length;
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+// Confirmed on a real call: Gemini Live's OWN understanding of the caller's
+// audio — both its transcription and, more importantly, its own decision-
+// making (tool calls) — genuinely hallucinates on Indian-accented speech
+// (a fabricated "Friedrich" that was never said, confirmed against two
+// independent transcriptions of the same call). The user explicitly wants
+// to keep everything else about Gemini (turn-detection, tool-calling,
+// voice) and just fix what gets treated as "what the caller said" — so this
+// re-transcribes each caller turn's own raw audio via Sarvam (proven
+// accurate on every real call tested this session) and uses THAT for our
+// own transcript/guards instead of Gemini's own inputTranscription.
+// Necessarily async and necessarily a little late: it can only start once
+// the turn's audio is fully buffered, so a tool call Gemini already fired
+// mid-turn off its own (possibly wrong) understanding isn't retroactively
+// undone — this fixes what gets recorded and what future turns are judged
+// against, not a guaranteed instant correction of that exact turn.
+async function retranscribeWithSarvam(mulawChunks) {
+  const apiKey = process.env.SARVAM_API_KEY;
+  if (!apiKey || mulawChunks.length === 0) return null;
+  try {
+    const mulaw = Buffer.concat(mulawChunks);
+    const pcm8k = mulawBufferToPCM16(mulaw);
+    const wav = pcm16ToWav(pcm8k, 8000);
+    const form = new FormData();
+    form.append('file', new Blob([wav], { type: 'audio/wav' }), 'turn.wav');
+    form.append('model', 'saaras:v3');
+    form.append('language_code', 'en-IN');
+    form.append('mode', 'codemix');
+    const res = await fetch('https://api.sarvam.ai/speech-to-text', {
+      method: 'POST',
+      headers: { 'api-subscription-key': apiKey },
+      body: form
+    });
+    if (!res.ok) {
+      console.warn(`[GeminiLive] Sarvam re-transcription failed (${res.status}) — falling back to Gemini's own transcript`);
+      return null;
+    }
+    const data = await res.json();
+    return (data.transcript ?? data.text ?? null)?.trim() || null;
+  } catch (e) {
+    console.warn('[GeminiLive] Sarvam re-transcription error — falling back to Gemini\'s own transcript:', e.message);
+    return null;
+  }
+}
+
 // Converts this codebase's OpenAI-Realtime-shaped tool definitions
 // ({ type: 'function', name, description, parameters }) into Gemini's
 // functionDeclarations shape ({ name, description, parameters } — no
@@ -189,6 +257,9 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
   let assistantTranscriptBuffer = '';
   let inputTranscriptBuffer = '';
   let sawAudioThisTurn = false;
+  // Raw mulaw chunks for the caller's CURRENT turn, so it can be re-sent to
+  // Sarvam once the turn ends — see retranscribeWithSarvam's comment above.
+  let currentTurnMulawChunks = [];
 
   function flushPendingSpeak() {
     if (pendingSpeakText !== null) {
@@ -208,13 +279,20 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     }));
   }
 
-  function flushInputTranscript() {
-    const text = inputTranscriptBuffer.trim();
+  async function flushInputTranscript() {
+    const geminiText = inputTranscriptBuffer.trim();
     inputTranscriptBuffer = '';
-    if (text) {
-      console.log(`[GeminiLive] Transcript (VAD decided turn is complete): "${text}"`);
-      handlers.onTranscript(text);
+    const turnAudio = currentTurnMulawChunks;
+    currentTurnMulawChunks = [];
+    if (!geminiText) return;
+
+    const sarvamText = await retranscribeWithSarvam(turnAudio);
+    const text = sarvamText || geminiText;
+    if (sarvamText && sarvamText !== geminiText) {
+      console.log(`[GeminiLive] Sarvam re-transcription differs from Gemini's own — using Sarvam: Gemini said "${geminiText}", Sarvam says "${sarvamText}"`);
     }
+    console.log(`[GeminiLive] Transcript (VAD decided turn is complete): "${text}"`);
+    handlers.onTranscript(text);
   }
 
   function flushAssistantTranscript() {
@@ -345,6 +423,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     sendAudio(mulawBuffer) {
       if (botSpeaking) return; // half-duplex — see responseCancelPending comment above
       if (ready && ws.readyState === WebSocket.OPEN) {
+        currentTurnMulawChunks.push(mulawBuffer); // for the Sarvam re-transcription pass — see retranscribeWithSarvam
         ws.send(JSON.stringify({
           realtimeInput: { audio: { data: mulaw8kToPCM16kBase64(mulawBuffer), mimeType: 'audio/pcm;rate=16000' } }
         }));
