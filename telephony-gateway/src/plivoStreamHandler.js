@@ -119,6 +119,15 @@ export function setupPlivoStream() {
     // before being trusted — see the end_call case in handleAutonomousToolCall
     // below for why.
     let lastAutonomousUserTranscript = null;
+    // True from the moment a real caller transcript arrives until the next
+    // answer_captured actually consumes it — guards against the model
+    // calling answer_captured with NO caller reply since the last one, which
+    // it did on a live call (marked a question "answered" immediately after
+    // the PREVIOUS question's reply, with zero new speech in between, then
+    // cascaded into a premature end_call). See the answer_captured guard
+    // below for the reasoning — same "don't trust the model's own claim
+    // without checking" pattern already used for end_call/wrong_person.
+    let hasFreshTranscriptForCurrentItem = false;
     let identityReaskForced = false; // true once we've forced one deterministic identity re-ask — see the wrong_person guard below
     // Confirmed on a live call: the checkpoint/playedStream hangup confirmation
     // only proves Plivo's outbound stream reached that marker — NOT that real
@@ -619,6 +628,7 @@ export function setupPlivoStream() {
       // about to hang up.
       agent.appendTranscriptTurn('user', transcript);
       lastAutonomousUserTranscript = transcript;
+      hasFreshTranscriptForCurrentItem = true;
       if (isCallEnding) return;
 
       // Dedicated, deterministic check for the campaign's own configured
@@ -688,6 +698,21 @@ export function setupPlivoStream() {
       if (!agent || isCallEnding) return;
       switch (name) {
         case 'answer_captured':
+          // Deterministic guard: confirmed on a live call that the model can
+          // call answer_captured with NO caller reply since the last one at
+          // all — it marked the hybrid-work question "answered" the instant
+          // after the PREVIOUS question's reply, with zero new speech in
+          // between, which then cascaded into a premature end_call nothing
+          // caught (end_call's own guard only re-checks the CONDITION on a
+          // real transcript — it has nothing to check against when there
+          // isn't one). Same "don't trust the model's own claim" reasoning
+          // as the end_call/wrong_person guards, applied to the more basic
+          // claim of having an answer at all.
+          if (!hasFreshTranscriptForCurrentItem) {
+            console.warn(`[Stream] Autonomous: rejecting answer_captured("${args.question_id}") — no caller reply since the last one was recorded. Ignoring.`);
+            break;
+          }
+          hasFreshTranscriptForCurrentItem = false;
           agent.recordAnswerCaptured(args.question_id);
           // Confirmed on a live call: a turn that's ONLY a tool call
           // delivers zero audio — the model doesn't necessarily also ask
@@ -698,6 +723,7 @@ export function setupPlivoStream() {
           if (callSid) agent.saveState(redis, callSid);
           break;
         case 'skip_to_question':
+          hasFreshTranscriptForCurrentItem = false;
           agent.recordSkip(args.question_id);
           pendingAutonomousContinuation = true;
           if (callSid) agent.saveState(redis, callSid);
@@ -753,6 +779,7 @@ export function setupPlivoStream() {
               );
               if (!conditionFired) {
                 console.warn(`[Stream] Autonomous: rejecting end_call — the model called it right after "${gatingItem.id}", but that question's own end_call condition does not actually match "${lastAutonomousUserTranscript}". Treating the answer as accepted and continuing instead.`);
+                hasFreshTranscriptForCurrentItem = false; // this transcript is now consumed — see the answer_captured guard above
                 agent.recordAnswerCaptured(gatingItem.id);
                 const nextItem = agent.currentItem();
                 if (nextItem) {
