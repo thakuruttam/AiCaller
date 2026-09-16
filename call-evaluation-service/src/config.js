@@ -23,6 +23,10 @@ export const config = {
     apiKey: process.env.OPENAI_API_KEY,
     model:  process.env.OPENAI_MODEL || 'gpt-4.1-mini'
   },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+    model:  process.env.GEMINI_EXTRACT_MODEL || 'gemini-3.6-flash'
+  },
   concurrency: {
     normalize:  parseInt(process.env.CONCURRENCY_NORMALIZE  || '50'),
     extract:    parseInt(process.env.CONCURRENCY_EXTRACT    || '10'),

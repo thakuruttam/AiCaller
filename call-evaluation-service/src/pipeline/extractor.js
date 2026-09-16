@@ -5,7 +5,7 @@ import { scoreAllQuestions } from './scorer.js';
 import { isTrivialTurn } from './affirmatives.js';
 
 /**
- * Extract answers and score them per question using Groq LLM.
+ * Extract answers and score them per question using Gemini.
  * Handles both implicit (whole-question answer) and explicit (sub-field) extraction.
  *
  * @param {Array}  turns          — clean [{role, text}] turns from normalizer
@@ -138,28 +138,29 @@ Return a single valid JSON object:
 
 Return ONLY the JSON object. No explanations, no markdown.`;
 
+  // Swapped from OpenAI to Gemini per explicit request, given OpenAI's
+  // account is out of credits and blocking report generation entirely.
+  // This file also had a pre-existing, unrelated mislabeling: the fetch
+  // target was already OpenAI's endpoint (config.openai.*), not Groq's,
+  // despite the error message and modelVersion labels still saying "Groq" —
+  // corrected both to say Gemini while already in here for the real swap.
   const start = Date.now();
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.apiKey}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.openai.apiKey}`
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: config.openai.model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      stream: false
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1 }
     })
   });
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Groq extraction failed: ${response.status} ${err}`);
+    throw new Error(`Gemini extraction failed: ${response.status} ${err}`);
   }
 
   const data = await response.json();
-  const rawJson = data.choices[0].message.content.trim();
+  const rawJson = data.candidates[0].content.parts[0].text.trim();
 
   let questionResults = [];
   let summary = null;
@@ -219,7 +220,7 @@ Return ONLY the JSON object. No explanations, no markdown.`;
     questions: scoredResults.length,
     totalScore: scoredResults.reduce((sum, q) => sum + (q.questionScore || 0), 0).toFixed(1),
     missingFields,
-    modelVersion: config.groq.model
+    modelVersion: config.gemini.model
   }, '[Extractor] Extraction complete');
 
   return {
@@ -230,7 +231,7 @@ Return ONLY the JSON object. No explanations, no markdown.`;
     sentiment,
     score: scored.score,
     breakdown: scored.breakdown,
-    modelVersion: config.groq.model
+    modelVersion: config.gemini.model
   };
 }
 
@@ -264,6 +265,6 @@ function emptyResult(dataToCollect) {
     sentiment: 'neutral',
     score: 0,
     breakdown: scored.breakdown,
-    modelVersion: config.groq.model
+    modelVersion: config.gemini.model
   };
 }
