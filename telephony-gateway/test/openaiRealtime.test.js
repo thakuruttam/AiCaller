@@ -230,13 +230,14 @@ describe('OpenAI Realtime provider', () => {
     expect(update.session.audio.output.voice).toBe('alloy');
   });
 
-  it('forwards a completed transcript to onTranscript', () => {
+  it('forwards a completed transcript to onTranscript', async () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);
     const socket = FakeWebSocket.instances[0];
     socket._open();
 
     socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Hello there' });
+    await new Promise(resolve => setImmediate(resolve));
     expect(handlers.onTranscript).toHaveBeenCalledWith('Hello there');
   });
 
@@ -269,7 +270,7 @@ describe('OpenAI Realtime provider', () => {
     expect(handlers.onTranscript).not.toHaveBeenCalled();
   });
 
-  it('still forwards a transcript whose speech segment was a plausible real-speech duration', () => {
+  it('still forwards a transcript whose speech segment was a plausible real-speech duration', async () => {
     const handlers = makeHandlers();
     setupRealtime('x', handlers);
     const socket = FakeWebSocket.instances[0];
@@ -279,10 +280,17 @@ describe('OpenAI Realtime provider', () => {
     socket._message({ type: 'input_audio_buffer.speech_stopped', audio_end_ms: 2500 }); // 1.5s — plausible real speech
     socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Yes, this is Karan' });
 
+    // The Sarvam re-transcription pass is genuinely async now (fire-and-forget,
+    // same pattern as geminiLive.js) — flush pending microtasks so its no-API-key
+    // fallback resolves before asserting. No SARVAM_API_KEY is set in this test
+    // env, so it resolves to null immediately and falls back to the model's own
+    // transcript, same text asserted below either way.
+    await new Promise(resolve => setImmediate(resolve));
+
     expect(handlers.onTranscript).toHaveBeenCalledWith('Yes, this is Karan');
   });
 
-  it('does not filter a transcript when speech-segment duration is unknown (no speech_started/stopped seen)', () => {
+  it('does not filter a transcript when speech-segment duration is unknown (no speech_started/stopped seen)', async () => {
     // Guards against the hallucination filter itself ever silently eating a
     // real answer just because this test harness (or some future event-order
     // edge case) didn't emit the VAD boundary events first.
@@ -292,7 +300,41 @@ describe('OpenAI Realtime provider', () => {
     socket._open();
 
     socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Yes' });
+    await new Promise(resolve => setImmediate(resolve));
     expect(handlers.onTranscript).toHaveBeenCalledWith('Yes');
+  });
+
+  it('uses Sarvam\'s re-transcription instead of the model\'s own when they differ', async () => {
+    // Confirmed on real calls (first surfaced on Gemini, same fix applied
+    // here): the native-audio model's own transcription can hallucinate on
+    // Indian-accented speech. Sarvam re-transcribes the same turn's raw
+    // audio independently, and its text — not the model's own — is what
+    // actually reaches onTranscript (and therefore the saved transcript and
+    // the deterministic end-call/wrong-person guards downstream).
+    process.env.SARVAM_API_KEY = 'test-sarvam-key';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ transcript: 'Yeah, this side Pradeep.' })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const handlers = makeHandlers();
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+
+    socket._message({ type: 'input_audio_buffer.speech_started', audio_start_ms: 1000 });
+    session.sendAudio(Buffer.from([1, 2, 3])); // buffers the raw audio retranscribeWithSarvam will re-send
+    socket._message({ type: 'input_audio_buffer.speech_stopped', audio_end_ms: 2500 });
+    socket._message({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'That is my brother.' });
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(fetchMock).toHaveBeenCalledWith('https://api.sarvam.ai/speech-to-text', expect.objectContaining({ method: 'POST' }));
+    expect(handlers.onTranscript).toHaveBeenCalledWith('Yeah, this side Pradeep.');
+    expect(handlers.onTranscript).not.toHaveBeenCalledWith('That is my brother.');
+
+    vi.unstubAllGlobals();
+    delete process.env.SARVAM_API_KEY;
   });
 
   it('decodes response.output_audio.delta (the GA event name) and forwards raw bytes to onAudio', () => {

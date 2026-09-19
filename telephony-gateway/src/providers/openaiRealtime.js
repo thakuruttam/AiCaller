@@ -1,5 +1,90 @@
 import { WebSocket } from 'ws';
 
+// ── mulaw → PCM16 (G.711 mu-law) — for Sarvam re-transcription only. ──────
+// Matches providers/stt.js's own MULAW_DECODE table and providers/geminiLive.js's
+// copy of it exactly (verified byte-for-byte against both) — see geminiLive.js's
+// comment for why an earlier attempt at this table was wrong.
+const MULAW_DECODE = new Int16Array(256);
+(function buildMulawDecodeTable() {
+  for (let i = 0; i < 256; i++) {
+    const b = ~i & 0xFF;
+    const sign = b & 0x80;
+    const exp = (b >> 4) & 0x07;
+    const mant = b & 0x0F;
+    const linear = ((mant << 3) + 0x84) << exp;
+    MULAW_DECODE[i] = sign ? -linear : linear;
+  }
+})();
+
+function mulawBufferToPCM16(mulawBuffer) {
+  const pcm = Buffer.alloc(mulawBuffer.length * 2);
+  for (let i = 0; i < mulawBuffer.length; i++) {
+    pcm.writeInt16LE(MULAW_DECODE[mulawBuffer[i]], i * 2);
+  }
+  return pcm;
+}
+
+// PCM16 → WAV (Sarvam's REST STT needs a real file, not a raw stream) —
+// mirrors providers/stt.js's own pcmToWav and providers/geminiLive.js's copy
+// of it exactly.
+function pcm16ToWav(pcmBuffer, sampleRate) {
+  const channels = 1, bitsPerSample = 16;
+  const blockAlign = channels * bitsPerSample / 8;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = pcmBuffer.length;
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+// Confirmed on real calls (first on Gemini, same reasoning applies here):
+// the native-audio model's own transcription can hallucinate on Indian-
+// accented speech — invented words, wrong languages, truncated sentences.
+// Re-transcribes one caller turn's own raw audio via Sarvam (proven accurate
+// on every real call tested) and returns its text instead of trusting the
+// provider's own read. Returns null on any failure so the caller can fall
+// back to the provider's own transcript rather than lose the turn entirely.
+async function retranscribeWithSarvam(mulawChunks) {
+  const apiKey = process.env.SARVAM_API_KEY;
+  if (!apiKey || mulawChunks.length === 0) return null;
+  try {
+    const mulaw = Buffer.concat(mulawChunks);
+    const pcm8k = mulawBufferToPCM16(mulaw);
+    const wav = pcm16ToWav(pcm8k, 8000);
+    const form = new FormData();
+    form.append('file', new Blob([wav], { type: 'audio/wav' }), 'turn.wav');
+    form.append('model', 'saaras:v3');
+    form.append('language_code', 'en-IN');
+    form.append('mode', 'codemix');
+    const res = await fetch('https://api.sarvam.ai/speech-to-text', {
+      method: 'POST',
+      headers: { 'api-subscription-key': apiKey },
+      body: form
+    });
+    if (!res.ok) {
+      console.warn(`[Realtime] Sarvam re-transcription failed (${res.status}) — falling back to the model's own transcript`);
+      return null;
+    }
+    const data = await res.json();
+    return (data.transcript ?? data.text ?? null)?.trim() || null;
+  } catch (e) {
+    console.warn('[Realtime] Sarvam re-transcription error — falling back to the model\'s own transcript:', e.message);
+    return null;
+  }
+}
+
 // ── OpenAI Realtime voice engine ─────────────────────────────────────────
 // Replaces the STT (providers/stt.js) + TTS (providers/tts.js) + our own
 // silence-timer turn-taking (plivoStreamHandler.js's TRANSCRIPT_IDLE_MS/
@@ -109,6 +194,14 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
   let lastSpeechDurationMs = null;
   let lastSpeechGapSinceBotAudioMs = null;
   const MIN_SPEECH_MS = 350;
+  // Raw mulaw chunks for the caller's CURRENT turn, so it can be re-sent to
+  // Sarvam once the turn ends — see retranscribeWithSarvam's comment above.
+  // MIN_SPEECH_MS below still gates whether we bother calling Sarvam at all
+  // (skip it for segments too short to plausibly be real speech, same as
+  // before) but no longer gates trusting the MODEL's own transcript content —
+  // Sarvam is now the authority on what was actually said, not a duration
+  // heuristic on the model's own read.
+  let currentTurnMulawChunks = [];
   // DIAGNOSTIC (temporary): a live call had two turns where the caller says
   // they said nothing at all, yet a short transcript ("Yeah"/"Oh") still
   // came through — surviving MIN_SPEECH_MS, so not simple silence. Leading
@@ -242,16 +335,28 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
 
       case 'conversation.item.input_audio_transcription.completed': {
         const transcript = msg.transcript?.trim();
+        const turnAudio = currentTurnMulawChunks;
+        currentTurnMulawChunks = [];
         if (transcript) {
           const gapNote = lastSpeechGapSinceBotAudioMs !== null ? `, ${lastSpeechGapSinceBotAudioMs}ms after we last sent bot audio` : '';
           if (lastSpeechDurationMs !== null && lastSpeechDurationMs < MIN_SPEECH_MS) {
             // See MIN_SPEECH_MS comment above — this segment was too short to
-            // plausibly be the real word transcribed; treat it as a
-            // hallucination and never surface it as a caller turn at all.
+            // plausibly be real speech at all; not even worth a Sarvam call.
             console.log(`[Realtime] Dropping suspected hallucinated transcript "${transcript}" — underlying speech segment was only ${lastSpeechDurationMs}ms${gapNote}`);
           } else {
-            console.log(`[Realtime] Transcript (semantic_vad decided turn is complete): "${transcript}" (segment ${lastSpeechDurationMs}ms${gapNote})`);
-            handlers.onTranscript(transcript);
+            // Fire-and-forget, same pattern as geminiLive.js's flushInputTranscript —
+            // re-transcribe via Sarvam and use ITS text instead of the model's own
+            // read, falling back to the model's transcript if Sarvam fails for any
+            // reason so a real turn is never silently lost.
+            (async () => {
+              const sarvamText = await retranscribeWithSarvam(turnAudio);
+              const finalText = sarvamText || transcript;
+              if (sarvamText && sarvamText !== transcript) {
+                console.log(`[Realtime] Sarvam re-transcription differs from the model's own — using Sarvam: model said "${transcript}", Sarvam says "${sarvamText}"`);
+              }
+              console.log(`[Realtime] Transcript (semantic_vad decided turn is complete): "${finalText}" (segment ${lastSpeechDurationMs}ms${gapNote})`);
+              handlers.onTranscript(finalText);
+            })();
           }
         }
         lastSpeechDurationMs = null;
@@ -440,6 +545,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       // back to false is heard at all. Listening resumes the instant it does.
       if (botSpeaking) return;
       if (ready && ws.readyState === WebSocket.OPEN) {
+        currentTurnMulawChunks.push(mulawBuffer); // for the Sarvam re-transcription pass — see retranscribeWithSarvam
         ws.send(JSON.stringify({
           type: 'input_audio_buffer.append',
           audio: mulawBuffer.toString('base64')
