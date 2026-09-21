@@ -21,6 +21,25 @@ const VOICES = [
   { value: 'verse',   label: 'Verse' },
 ];
 
+// Gemini Live's prebuilt voice set (kept in sync manually with
+// api-service/src/controllers/campaign.controller.js's GEMINI_VOICES and
+// telephony-gateway/src/plivoStreamHandler.js) — a completely separate name
+// space from OpenAI's, stored under callSettings.geminiVoice so whichever
+// provider actually ends up handling a given call, its own configured voice
+// is honored rather than silently falling back to a default.
+const GEMINI_VOICES = [
+  { value: 'Kore', label: 'Kore', desc: 'Firm', recommended: true },
+  { value: 'Puck', label: 'Puck', desc: 'Upbeat' },
+  { value: 'Zephyr', label: 'Zephyr', desc: 'Bright' },
+  { value: 'Charon', label: 'Charon', desc: 'Informative' },
+  { value: 'Aoede', label: 'Aoede', desc: 'Breezy' },
+  { value: 'Leda', label: 'Leda', desc: 'Youthful' },
+  { value: 'Orus', label: 'Orus', desc: 'Firm' },
+  { value: 'Sulafat', label: 'Sulafat', desc: 'Warm' },
+  { value: 'Achird', label: 'Achird', desc: 'Friendly' },
+  { value: 'Despina', label: 'Despina', desc: 'Smooth' },
+];
+
 const CAMPAIGN_TYPES = [
   { value: 'HR',            label: 'HR',           desc: 'Recruitment & talent outreach' },
   { value: 'RECRUITER',     label: 'Recruiter',     desc: 'Agency staffing calls' },
@@ -118,7 +137,7 @@ export default function Step1Basics({ payload, updatePayload }) {
   const audioRef = useRef(null);
   const previewCacheRef = useRef(new Map()); // cacheKey -> object URL
 
-  const playVoicePreview = async (voice) => {
+  const playVoicePreview = async (voice, provider = 'openai') => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -129,7 +148,7 @@ export default function Step1Basics({ payload, updatePayload }) {
     }
 
     const sampleText = goals.callIntro?.trim() || undefined; // preview in the campaign's own words when set
-    const cacheKey = `${voice}::${sampleText || '__default__'}`;
+    const cacheKey = `${provider}::${voice}::${sampleText || '__default__'}`;
     const playFromUrl = (url) => {
       const audioEl = new Audio(url);
       audioRef.current = audioEl;
@@ -147,8 +166,9 @@ export default function Step1Basics({ payload, updatePayload }) {
 
     setPreviewingVoice({ voice, state: 'loading' });
     try {
+      const endpoint = provider === 'gemini' ? '/api/campaigns/preview-voice-gemini' : '/api/campaigns/preview-voice';
       const res = await api.post(
-        '/api/campaigns/preview-voice',
+        endpoint,
         { voice, text: sampleText },
         { responseType: 'blob' }
       );
@@ -275,6 +295,55 @@ export default function Step1Basics({ payload, updatePayload }) {
                   tabIndex={0}
                   onClick={(e) => { e.stopPropagation(); playVoicePreview(value); }}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value); } }}
+                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-teal-600 hover:bg-teal-50"
+                  title={`Preview ${label}`}
+                >
+                  {isThis && previewingVoice.state === 'loading' && <Loader2 size={13} className="animate-spin" />}
+                  {isThis && previewingVoice.state === 'playing' && <Square size={11} fill="currentColor" />}
+                  {!isThis && <Play size={13} fill="currentColor" />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Gemini voice — separate provider, separate name space. Some calls
+          for this campaign may run on Gemini Live instead of OpenAI Realtime
+          depending on routing; without a voice configured here, those calls
+          fall back to a default voice regardless of what's picked above. */}
+      <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+        <div className="flex items-center gap-1.5">
+          <Mic size={13} className="text-teal-600" />
+          <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Voice (Gemini Live)</label>
+        </div>
+        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
+          Some calls run on Google's Gemini Live instead of the voice above — pick one here so those calls sound right too.
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mt-1">
+          {GEMINI_VOICES.map(({ value, label, desc, recommended }) => {
+            const selected = (payload.callSettings?.geminiVoice || 'Kore') === value;
+            const isThis = previewingVoice?.voice === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => updatePayload({ callSettings: { ...(payload.callSettings || {}), geminiVoice: value } })}
+                className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border text-left transition-all
+                  ${selected
+                    ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50 text-teal-700'
+                    : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
+                  }`}
+              >
+                <span className="flex flex-col items-start">
+                  <span className="text-xs font-medium">{label}</span>
+                  <span className="text-[10px] text-zinc-400 dark:text-slate-500">{recommended ? 'Recommended · ' : ''}{desc}</span>
+                </span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); playVoicePreview(value, 'gemini'); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value, 'gemini'); } }}
                   className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-teal-600 hover:bg-teal-50"
                   title={`Preview ${label}`}
                 >

@@ -1219,7 +1219,7 @@ export function setupPlivoStream() {
               if (useGeminiLive) {
                 const geminiGreetingDirective = `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.`;
                 const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
-                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, null, AUTONOMOUS_TOOLS);
+                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, AUTONOMOUS_TOOLS);
               } else {
                 realtimeSession = setupRealtime(agent.generateSystemPrompt(), realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.voice || null);
               }

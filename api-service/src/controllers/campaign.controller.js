@@ -908,6 +908,17 @@ export const mergeDuplicateContacts = async (req, res) => {
 // different services. marin/cedar are OpenAI's newest and most natural-sounding.
 const REALTIME_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
 
+// Gemini Live's prebuilt voice set (30 total, per Google's docs) — separate
+// from REALTIME_VOICES since Gemini and OpenAI use entirely different voice
+// name spaces; a campaign's chosen Gemini voice is stored under
+// callSettings.geminiVoice, independent of callSettings.voice (OpenAI).
+const GEMINI_VOICES = [
+  'Zephyr', 'Kore', 'Orus', 'Autonoe', 'Umbriel', 'Erinome', 'Laomedeia', 'Schedar',
+  'Achird', 'Sadachbia', 'Puck', 'Fenrir', 'Aoede', 'Enceladus', 'Algieba', 'Algenib',
+  'Achernar', 'Gacrux', 'Zubenelgenubi', 'Sadaltager', 'Charon', 'Leda', 'Callirrhoe',
+  'Iapetus', 'Despina', 'Rasalgethi', 'Alnilam', 'Pulcherrima', 'Vindemiatrix', 'Sulafat'
+];
+
 /**
  * Generate a short spoken sample of a given voice so users can compare voices
  * while building a campaign, before committing to one. Uses OpenAI's separate,
@@ -954,6 +965,92 @@ export const previewVoice = async (req, res) => {
     res.send(audioBuffer);
   } catch (error) {
     console.error('[previewVoice]', error);
+    res.status(500).json({ error: error?.message || 'Unknown error' });
+  }
+};
+
+// Wraps raw 16-bit PCM in a minimal WAV header so the browser <audio> element
+// can play it directly — Gemini's TTS endpoint returns headerless PCM, unlike
+// OpenAI's /audio/speech which returns a ready-to-play mp3.
+function pcm16ToWav(pcmBuffer, sampleRate) {
+  const channels = 1, bitsPerSample = 16;
+  const blockAlign = channels * bitsPerSample / 8;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = pcmBuffer.length;
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+/**
+ * Same idea as previewVoice, but for Gemini's prebuilt voices — used when a
+ * campaign will run on the Gemini Live provider. Calls Gemini's standalone
+ * TTS endpoint (generateContent with responseModalities: ['AUDIO']), which
+ * is a separate, cheap, synchronous API — not the Live WebSocket session
+ * live calls use.
+ */
+export const previewGeminiVoice = async (req, res) => {
+  try {
+    const { voice, text } = req.body || {};
+    if (!voice || !GEMINI_VOICES.includes(voice)) {
+      return res.status(400).json({ error: `voice must be one of: ${GEMINI_VOICES.join(', ')}` });
+    }
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+    }
+
+    const sampleText = (text && text.trim())
+      ? text.trim().slice(0, 500)
+      : 'Hi, this is an automated call. This is a quick preview of how this voice sounds.';
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: sampleText }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[previewGeminiVoice] Gemini TTS error:', response.status, errText);
+      return res.status(502).json({ error: 'Failed to generate voice preview.' });
+    }
+
+    const data = await response.json();
+    const part = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    if (!part?.data) {
+      console.error('[previewGeminiVoice] No audio in Gemini response:', JSON.stringify(data).slice(0, 500));
+      return res.status(502).json({ error: 'Gemini returned no audio for this voice.' });
+    }
+
+    // Gemini's TTS output is raw 16-bit PCM at 24kHz mono (per Google's docs),
+    // same rate geminiLive.js already assumes for its own output audio.
+    const pcmBuffer = Buffer.from(part.data, 'base64');
+    const wavBuffer = pcm16ToWav(pcmBuffer, 24000);
+    res.set('Content-Type', 'audio/wav');
+    res.send(wavBuffer);
+  } catch (error) {
+    console.error('[previewGeminiVoice]', error);
     res.status(500).json({ error: error?.message || 'Unknown error' });
   }
 };
