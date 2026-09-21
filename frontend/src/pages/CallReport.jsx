@@ -44,6 +44,8 @@ export default function CallReport() {
   const { campaignId, id } = useParams();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(null);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const [filterScore, setFilterScore] = useState('all');
@@ -81,26 +83,56 @@ export default function CallReport() {
   }, [handleResizeMove, handleResizeEnd]);
 
   useEffect(() => {
+    let cancelled = false;
+    let attempt = 0;
+    // The eval pipeline usually finishes within ~1s of the call ending, but
+    // opening this page right as the call hangs up can beat it — without a
+    // retry, a single early 404 here used to stick as a permanent "no
+    // report" error even after the report was written moments later (the
+    // only way out was an admin re-eval, which just re-triggered the fetch).
+    const MAX_ATTEMPTS = 10;
+    const RETRY_DELAY_MS = 3000;
+
     const fetchReport = async () => {
       try {
-        setLoading(true);
         const res = await axios.get(`${EVAL_BASE}/reports/call/${id}`);
+        if (cancelled) return;
         setReport(res.data);
         setError(null);
+        setNotFound(false);
+        setGenerating(false);
+        setLoading(false);
       } catch (err) {
+        if (cancelled) return;
+        if (err.response?.status === 404 && attempt < MAX_ATTEMPTS) {
+          attempt += 1;
+          setLoading(false);
+          setGenerating(true); // still within the retry window — tell the user it's in progress, not broken
+          setTimeout(fetchReport, RETRY_DELAY_MS);
+          return;
+        }
+        setLoading(false);
+        setGenerating(false);
         if (err.response?.status === 404) {
-          setError('No evaluation report found for this call. Run AI Evaluation first.');
+          // Retries exhausted with no report ever appearing — genuinely not
+          // generating (vs. still-in-progress), so per instruction: no
+          // error banner, just nothing.
+          setNotFound(true);
         } else {
           setError('Could not load report. Make sure the evaluation service is running.');
         }
-      } finally {
-        setLoading(false);
       }
     };
+
+    setLoading(true);
     fetchReport();
+
+    return () => { cancelled = true; };
   }, [id]);
 
   if (loading) return <PageLoader text="Loading call report…" />;
+  if (generating) return <PageLoader text="Generating report… this can take up to a minute." />;
+  if (notFound) return null;
 
   if (error) return (
     <div className="p-8 max-w-[1200px] mx-auto">
