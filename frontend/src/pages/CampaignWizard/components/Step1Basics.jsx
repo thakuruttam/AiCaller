@@ -3,41 +3,42 @@ import { useAuth } from '../../../context/AuthContext';
 import { Lightbulb, PhoneIncoming, PhoneOff, Timer, Mic, Play, Square, Loader2 } from 'lucide-react';
 import api from '../../../api/axios';
 
-// Same 10 voices the Realtime API accepts for live calls (kept in sync
-// manually with telephony-gateway/src/providers/openaiRealtime.js and
-// api-service/src/controllers/campaign.controller.js — they live in
-// different services). marin/cedar are OpenAI's newest, most natural-
-// sounding voices, called out here to help guide the choice.
-const VOICES = [
-  { value: 'marin',   label: 'Marin',   recommended: true },
-  { value: 'cedar',   label: 'Cedar',   recommended: true },
-  { value: 'alloy',   label: 'Alloy' },
-  { value: 'ash',     label: 'Ash' },
-  { value: 'ballad',  label: 'Ballad' },
-  { value: 'coral',   label: 'Coral' },
-  { value: 'echo',    label: 'Echo' },
-  { value: 'sage',    label: 'Sage' },
-  { value: 'shimmer', label: 'Shimmer' },
-  { value: 'verse',   label: 'Verse' },
-];
-
-// Gemini Live's prebuilt voice set (kept in sync manually with
-// api-service/src/controllers/campaign.controller.js's GEMINI_VOICES and
-// telephony-gateway/src/plivoStreamHandler.js) — a completely separate name
-// space from OpenAI's, stored under callSettings.geminiVoice so whichever
-// provider actually ends up handling a given call, its own configured voice
-// is honored rather than silently falling back to a default.
+// Gemini Live's full prebuilt voice set — all 30, per Google's docs (kept in
+// sync manually with api-service/src/controllers/campaign.controller.js's
+// GEMINI_VOICES). This is now the only voice picker in the wizard: every
+// call runs on Gemini Live, so there's no separate OpenAI voice list to
+// maintain here anymore.
 const GEMINI_VOICES = [
   { value: 'Kore', label: 'Kore', desc: 'Firm', recommended: true },
-  { value: 'Puck', label: 'Puck', desc: 'Upbeat' },
   { value: 'Zephyr', label: 'Zephyr', desc: 'Bright' },
-  { value: 'Charon', label: 'Charon', desc: 'Informative' },
-  { value: 'Aoede', label: 'Aoede', desc: 'Breezy' },
-  { value: 'Leda', label: 'Leda', desc: 'Youthful' },
   { value: 'Orus', label: 'Orus', desc: 'Firm' },
-  { value: 'Sulafat', label: 'Sulafat', desc: 'Warm' },
+  { value: 'Autonoe', label: 'Autonoe', desc: 'Bright' },
+  { value: 'Umbriel', label: 'Umbriel', desc: 'Easy-going' },
+  { value: 'Erinome', label: 'Erinome', desc: 'Clear' },
+  { value: 'Laomedeia', label: 'Laomedeia', desc: 'Upbeat' },
+  { value: 'Schedar', label: 'Schedar', desc: 'Even' },
   { value: 'Achird', label: 'Achird', desc: 'Friendly' },
+  { value: 'Sadachbia', label: 'Sadachbia', desc: 'Lively' },
+  { value: 'Puck', label: 'Puck', desc: 'Upbeat' },
+  { value: 'Fenrir', label: 'Fenrir', desc: 'Excitable' },
+  { value: 'Aoede', label: 'Aoede', desc: 'Breezy' },
+  { value: 'Enceladus', label: 'Enceladus', desc: 'Breathy' },
+  { value: 'Algieba', label: 'Algieba', desc: 'Smooth' },
+  { value: 'Algenib', label: 'Algenib', desc: 'Gravelly' },
+  { value: 'Achernar', label: 'Achernar', desc: 'Soft' },
+  { value: 'Gacrux', label: 'Gacrux', desc: 'Mature' },
+  { value: 'Zubenelgenubi', label: 'Zubenelgenubi', desc: 'Casual' },
+  { value: 'Sadaltager', label: 'Sadaltager', desc: 'Knowledgeable' },
+  { value: 'Charon', label: 'Charon', desc: 'Informative' },
+  { value: 'Leda', label: 'Leda', desc: 'Youthful' },
+  { value: 'Callirrhoe', label: 'Callirrhoe', desc: 'Easy-going' },
+  { value: 'Iapetus', label: 'Iapetus', desc: 'Clear' },
   { value: 'Despina', label: 'Despina', desc: 'Smooth' },
+  { value: 'Rasalgethi', label: 'Rasalgethi', desc: 'Informative' },
+  { value: 'Alnilam', label: 'Alnilam', desc: 'Firm' },
+  { value: 'Pulcherrima', label: 'Pulcherrima', desc: 'Forward' },
+  { value: 'Vindemiatrix', label: 'Vindemiatrix', desc: 'Gentle' },
+  { value: 'Sulafat', label: 'Sulafat', desc: 'Warm' },
 ];
 
 const CAMPAIGN_TYPES = [
@@ -126,8 +127,8 @@ export default function Step1Basics({ payload, updatePayload }) {
   const goals = payload.goals || {};
   const setGoal = (field, val) => updatePayload({ goals: { ...goals, [field]: val } });
 
-  // Voice preview — plays a short sample via a separate, cheap OpenAI TTS
-  // call (not the Realtime API the live calls use) so users can compare
+  // Voice preview — plays a short sample via Gemini's cheap, synchronous TTS
+  // endpoint (not the Live session live calls use) so users can compare
   // voices before picking one. previewingVoice tracks which button is
   // loading/playing so only one plays at a time. previewCacheRef caches the
   // generated audio per (voice, sample text) so replaying the same voice
@@ -137,7 +138,7 @@ export default function Step1Basics({ payload, updatePayload }) {
   const audioRef = useRef(null);
   const previewCacheRef = useRef(new Map()); // cacheKey -> object URL
 
-  const playVoicePreview = async (voice, provider = 'openai') => {
+  const playVoicePreview = async (voice) => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -148,7 +149,7 @@ export default function Step1Basics({ payload, updatePayload }) {
     }
 
     const sampleText = goals.callIntro?.trim() || undefined; // preview in the campaign's own words when set
-    const cacheKey = `${provider}::${voice}::${sampleText || '__default__'}`;
+    const cacheKey = `${voice}::${sampleText || '__default__'}`;
     const playFromUrl = (url) => {
       const audioEl = new Audio(url);
       audioRef.current = audioEl;
@@ -166,9 +167,8 @@ export default function Step1Basics({ payload, updatePayload }) {
 
     setPreviewingVoice({ voice, state: 'loading' });
     try {
-      const endpoint = provider === 'gemini' ? '/api/campaigns/preview-voice-gemini' : '/api/campaigns/preview-voice';
       const res = await api.post(
-        endpoint,
+        '/api/campaigns/preview-voice-gemini',
         { voice, text: sampleText },
         { responseType: 'blob' }
       );
@@ -262,63 +262,18 @@ export default function Step1Basics({ payload, updatePayload }) {
         </div>
       </div>
 
-      {/* Voice */}
+      {/* Voice — Gemini Live's prebuilt voices, since every call now runs on
+          Gemini Live (the earlier OpenAI voice picker is gone; it named
+          voices that were never valid for the engine actually placing the
+          calls). Stored as callSettings.geminiVoice, read directly by
+          setupGeminiLive() in plivoStreamHandler.js. */}
       <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
         <div className="flex items-center gap-1.5">
           <Mic size={13} className="text-teal-600" />
           <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Voice</label>
         </div>
         <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
-          Hit play to hear a sample before choosing — marin and cedar are OpenAI's newest, most natural-sounding voices.
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mt-1">
-          {VOICES.map(({ value, label, recommended }) => {
-            const selected = (payload.callSettings?.voice || 'marin') === value;
-            const isThis = previewingVoice?.voice === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => updatePayload({ callSettings: { ...(payload.callSettings || {}), voice: value } })}
-                className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border text-left transition-all
-                  ${selected
-                    ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50 text-teal-700'
-                    : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
-                  }`}
-              >
-                <span className="flex flex-col items-start">
-                  <span className="text-xs font-medium">{label}</span>
-                  {recommended && <span className="text-[10px] text-teal-600">Most natural</span>}
-                </span>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); playVoicePreview(value); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value); } }}
-                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-teal-600 hover:bg-teal-50"
-                  title={`Preview ${label}`}
-                >
-                  {isThis && previewingVoice.state === 'loading' && <Loader2 size={13} className="animate-spin" />}
-                  {isThis && previewingVoice.state === 'playing' && <Square size={11} fill="currentColor" />}
-                  {!isThis && <Play size={13} fill="currentColor" />}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Gemini voice — separate provider, separate name space. Some calls
-          for this campaign may run on Gemini Live instead of OpenAI Realtime
-          depending on routing; without a voice configured here, those calls
-          fall back to a default voice regardless of what's picked above. */}
-      <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
-        <div className="flex items-center gap-1.5">
-          <Mic size={13} className="text-teal-600" />
-          <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Voice (Gemini Live)</label>
-        </div>
-        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
-          Some calls run on Google's Gemini Live instead of the voice above — pick one here so those calls sound right too.
+          Hit play to hear a sample before choosing — Kore is the default if none is picked.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mt-1">
           {GEMINI_VOICES.map(({ value, label, desc, recommended }) => {
@@ -342,8 +297,8 @@ export default function Step1Basics({ payload, updatePayload }) {
                 <span
                   role="button"
                   tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); playVoicePreview(value, 'gemini'); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value, 'gemini'); } }}
+                  onClick={(e) => { e.stopPropagation(); playVoicePreview(value); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value); } }}
                   className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-teal-600 hover:bg-teal-50"
                   title={`Preview ${label}`}
                 >
