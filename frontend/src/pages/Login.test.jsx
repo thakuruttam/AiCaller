@@ -27,7 +27,7 @@ beforeEach(() => {
 describe('Login page', () => {
   it('renders email and password fields and a submit button', () => {
     renderLogin();
-    expect(screen.getByLabelText(/work email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
@@ -37,12 +37,12 @@ describe('Login page', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByLabelText(/work email/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^email$/i), 'a@b.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(loginMock).toHaveBeenCalledWith('a@b.com', 'password123');
-    expect(await screen.findByText('Signed in')).toBeInTheDocument();
+    expect(await screen.findByText('Login successful')).toBeInTheDocument();
   });
 
   it('shows the generic error message when login fails with a response error', async () => {
@@ -50,7 +50,7 @@ describe('Login page', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByLabelText(/work email/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^email$/i), 'a@b.com');
     await user.type(screen.getByLabelText(/^password$/i), 'wrongpass');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -64,7 +64,7 @@ describe('Login page', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByLabelText(/work email/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^email$/i), 'a@b.com');
     await user.type(screen.getByLabelText(/^password$/i), 'whatever');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -78,7 +78,7 @@ describe('Login page', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByLabelText(/work email/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^email$/i), 'a@b.com');
     await user.type(screen.getByLabelText(/^password$/i), 'whatever');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -96,7 +96,7 @@ describe('Login page', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByLabelText(/work email/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^email$/i), 'a@b.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 

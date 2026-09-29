@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { Button, IconButton } from '../components/ui';
 import api from '../api/axios';
 import { useParams, Link } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
@@ -50,7 +51,7 @@ function WaveformBars({ progress = 0.5 }) {
       {bars.map((b, i) => (
         <div
           key={i}
-          style={{ height: `${b.h}%`, width: '2px', background: b.active ? '#5eead4' : '#334155', transition: 'height 0.2s ease' }}
+          style={{ height: `${b.h}%`, width: '2px', background: b.active ? '#94b9ff' : '#505967', transition: 'height 0.2s ease' }}
         />
       ))}
     </div>
@@ -174,7 +175,7 @@ const CallDetails = () => {
 
   if (loading) return <PageLoader text="Loading call details…" />;
   if (!callLog) return (
-    <div className="flex items-center justify-center h-64 text-[#64748b] dark:text-slate-400">Call log not found.</div>
+    <div className="flex items-center justify-center h-64 text-ink-700 dark:text-ink-900">Call log not found.</div>
   );
 
   const contactName = callLog.contact?.name || 'Unknown';
@@ -188,15 +189,15 @@ const CallDetails = () => {
     : '—';
 
   const statusColor = callLog.status === 'completed'
-    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+    ? 'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive'
     : callLog.status === 'failed'
-      ? 'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300'
+      ? 'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative'
       : callLog.status === 'in-progress'
-        ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-        : 'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400';
+        ? 'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution'
+        : 'bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900';
 
   return (
-    <div className="p-8 max-w-[1200px] mx-auto">
+    <div className="p-10 max-w-[1200px] mx-auto">
       {/* Page Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
@@ -207,23 +208,23 @@ const CallDetails = () => {
               </span>
               {callLog.status ? callLog.status.charAt(0).toUpperCase() + callLog.status.slice(1) : 'Pending'}
             </span>
-            <span className="text-[#64748b] dark:text-slate-400 text-xs">
+            <span className="text-ink-700 dark:text-ink-900 text-xs">
               ID: {callLog.id?.substring(0, 12).toUpperCase() || '—'}
             </span>
           </div>
-          <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Call Details: {contactName}</h2>
+          <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">Call Details: {contactName}</h2>
         </div>
         <div className="flex gap-3">
           <Link
             to={`/campaigns/${campaignId || callLog.campaignId}`}
-            className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-paper-600 dark:border-ink-400 text-ink-100 dark:text-paper-200 text-sm rounded hover:bg-paper-200 dark:hover:bg-ink-400/50 transition-all"
           >
             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
             Back to Campaign
           </Link>
           <Link
             to={`/campaign/${campaignId || callLog.campaignId}/calls/${id}/report`}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0d9488] text-white text-sm rounded hover:bg-[#0f766e] transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white text-sm rounded hover:bg-brand-600 transition-all shadow-card"
           >
             <span className="material-symbols-outlined text-[20px]">analytics</span>
             View Report
@@ -232,28 +233,28 @@ const CallDetails = () => {
       </div>
 
       {/* Info Strip */}
-      <div className="grid grid-cols-4 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg p-6 mb-8">
-        <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 pr-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">Contact Info</p>
-          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{callLog.contact?.phone || '—'}</p>
-          <p className="text-sm text-zinc-600 dark:text-slate-400">{contactName}</p>
+      <div className="grid grid-cols-4 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control p-6 mb-8">
+        <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 pr-6">
+          <p className="text-xs text-ink-700 dark:text-ink-900 ">Contact Info</p>
+          <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{callLog.contact?.phone || '—'}</p>
+          <p className="text-sm text-ink-600 dark:text-ink-900">{contactName}</p>
         </div>
-        <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 px-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">Campaign</p>
-          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{campaignName}</p>
-          <p className="text-sm text-zinc-600 dark:text-slate-400 capitalize">{callLog.status || '—'}</p>
+        <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 px-6">
+          <p className="text-xs text-ink-700 dark:text-ink-900 ">Campaign</p>
+          <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{campaignName}</p>
+          <p className="text-sm text-ink-600 dark:text-ink-900 capitalize">{callLog.status || '—'}</p>
         </div>
-        <div className="space-y-1 border-r border-zinc-100 dark:border-slate-700/50 px-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">Call Timing</p>
-          <p className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{callDate}</p>
-          <p className="text-sm text-zinc-600 dark:text-slate-400">Duration: {durationStr}</p>
+        <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 px-6">
+          <p className="text-xs text-ink-700 dark:text-ink-900 ">Call Timing</p>
+          <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{callDate}</p>
+          <p className="text-sm text-ink-600 dark:text-ink-900">Duration: {durationStr}</p>
         </div>
         <div className="space-y-1 pl-6">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-tighter">AI Outcome</p>
-          <p className="text-sm font-bold text-[#0d9488]">
+          <p className="text-xs text-ink-700 dark:text-ink-900 ">AI Outcome</p>
+          <p className="text-sm font-bold text-brand-500">
             {callLog.status === 'completed' ? 'Call Completed' : callLog.status === 'failed' ? 'Call Failed' : 'In Progress'}
           </p>
-          <p className="text-sm text-zinc-600 dark:text-slate-400">Status: {callLog.status || '—'}</p>
+          <p className="text-sm text-ink-600 dark:text-ink-900">Status: {callLog.status || '—'}</p>
         </div>
       </div>
 
@@ -262,14 +263,14 @@ const CallDetails = () => {
         {/* Left Column */}
         <div className="col-span-12 lg:col-span-5 space-y-6">
           {/* Audio Card */}
-          <div className="bg-[#18181b] text-white rounded-lg p-8 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#0d9488] to-[#5eead4]" />
+          <div className="bg-ink-200 text-white rounded-control p-8 shadow-overlay relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 to-brand-300" />
             <div className="flex justify-between items-center mb-10">
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#5eead4]">graphic_eq</span>
+                <span className="material-symbols-outlined text-brand-300">graphic_eq</span>
                 Call Recording
               </h3>
-              <span className="text-sm text-zinc-400">{durationStr}</span>
+              <span className="text-sm text-ink-800">{durationStr}</span>
             </div>
             <WaveformBars progress={0.45} />
             {callLog.recordingUrl ? (
@@ -281,40 +282,34 @@ const CallDetails = () => {
               </div>
             ) : isRetrying ? (
               <div className="mt-6 flex items-center justify-center">
-                <p className="text-sm italic text-zinc-400">Checking for recording…</p>
+                <p className="text-sm italic text-ink-800">Checking for recording…</p>
               </div>
             ) : (
               <div className="mt-6 flex flex-col items-center gap-4">
-                <p className="text-sm italic text-zinc-400">No recording found for this call.</p>
+                <p className="text-sm italic text-ink-800">No recording found for this call.</p>
                 {callLog.status === 'completed' && (
-                  <button
-                    onClick={() => syncRecording()}
-                    disabled={isRetrying}
-                    className="px-4 py-2 border border-zinc-600 rounded text-sm text-zinc-300 hover:bg-zinc-800 transition-colors disabled:opacity-50"
-                  >
-                    Retry Sync
-                  </button>
+                  <Button variant="ghost" size="md" onClick={() => syncRecording()} disabled={isRetrying}>Retry Sync</Button>
                 )}
               </div>
             )}
           </div>
 
           {/* Sentiment Card */}
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg p-6">
-            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-4">Sentiment &amp; Insights</h3>
+          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control p-6">
+            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-4">Sentiment &amp; Insights</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600 dark:text-slate-400">Caller Sentiment</span>
-                <span className="text-xs font-medium text-emerald-600">Positive</span>
+                <span className="text-sm text-ink-600 dark:text-ink-900">Caller Sentiment</span>
+                <span className="text-xs font-medium text-positive-dim">Positive</span>
               </div>
-              <div className="w-full bg-zinc-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full w-[72%]" />
+              <div className="w-full bg-paper-400 dark:bg-ink-300 h-2 rounded-full overflow-hidden">
+                <div className="bg-positive h-full w-[72%]" />
               </div>
               <div className="pt-2">
-                <p className="text-xs text-zinc-500 dark:text-slate-400 mb-2 uppercase tracking-tighter">Keywords Detected</p>
+                <p className="text-xs text-ink-700 dark:text-ink-900 mb-2 ">Keywords Detected</p>
                 <div className="flex flex-wrap gap-2">
                   {['Call', 'Campaign', 'Outreach'].map(kw => (
-                    <span key={kw} className="bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 px-2 py-1 rounded text-xs">{kw}</span>
+                    <span key={kw} className="bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 px-2 py-1 rounded text-xs">{kw}</span>
                   ))}
                 </div>
               </div>
@@ -324,35 +319,23 @@ const CallDetails = () => {
 
         {/* Right Column: Transcript */}
         <div className="col-span-12 lg:col-span-7">
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg flex flex-col" style={{height: 'calc(100vh - 220px)', maxHeight: '800px'}}>
+          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control flex flex-col" style={{height: 'calc(100vh - 220px)', maxHeight: '800px'}}>
             {/* Transcript Header */}
-            <div className="p-4 border-b border-zinc-100 dark:border-slate-700 flex justify-between items-center bg-zinc-50/50 dark:bg-slate-900/50">
+            <div className="p-4 border-b border-paper-400 dark:border-ink-400 flex justify-between items-center bg-paper-200/50 dark:bg-ink-50/50">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500">description</span>
-                <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Transcript</h3>
+                <span className="material-symbols-outlined text-ink-800 dark:text-ink-800">description</span>
+                <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Transcript</h3>
               </div>
               {callLog.transcript && (
                 <div className="flex gap-2">
-                  <button
-                    onClick={handleCopyTranscript}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 rounded hover:bg-zinc-50 dark:hover:bg-slate-600 transition-all text-xs"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                  <button
-                    onClick={handleDownloadTranscript}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 border border-zinc-200 dark:border-slate-600 rounded hover:bg-zinc-50 dark:hover:bg-slate-600 transition-all text-xs"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">file_download</span>
-                    Download
-                  </button>
+                  <Button variant="secondary" size="sm" icon="content_copy" onClick={handleCopyTranscript}>{copied ? 'Copied' : 'Copy'}</Button>
+                  <Button variant="secondary" size="sm" icon="file_download" onClick={handleDownloadTranscript}>Download</Button>
                 </div>
               )}
             </div>
 
             {/* Transcript Body */}
-            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-8 bg-zinc-50/30 dark:bg-slate-900/30">
+            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-8 bg-paper-200/30 dark:bg-ink-50/30">
               {callLog.transcript ? (
                 turns.map((turn, i) => {
                   const isActive = i === activeTurnIndex;
@@ -361,7 +344,7 @@ const CallDetails = () => {
                       <div
                         key={i}
                         ref={el => turnRefs.current[i] = el}
-                        className={`text-sm text-[#334155] dark:text-slate-400 whitespace-pre-line leading-relaxed transition-colors duration-100 rounded-lg p-2 ${isActive ? 'bg-yellow-200 dark:bg-yellow-400/30' : 'bg-transparent'}`}
+                        className={`text-sm text-ink-600 dark:text-ink-900 whitespace-pre-line leading-relaxed transition-colors duration-100 rounded-control p-2 ${isActive ? 'bg-caution dark:bg-caution/30' : 'bg-transparent'}`}
                       >
                         {turn.text}
                       </div>
@@ -370,14 +353,14 @@ const CallDetails = () => {
                   if (turn.isAI) {
                     return (
                       <div key={i} ref={el => turnRefs.current[i] = el} className="flex gap-4">
-                        <div className="w-10 h-10 rounded-full bg-[#0d9488] flex-shrink-0 flex items-center justify-center text-white">
+                        <div className="w-10 h-10 rounded-full bg-brand-500 flex-shrink-0 flex items-center justify-center text-white">
                           <span className="material-symbols-outlined text-[20px]">smart_toy</span>
                         </div>
                         <div className="space-y-1 max-w-[85%]">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
+                            <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{turn.speaker}</span>
                           </div>
-                          <div className={`border p-4 rounded-r-lg rounded-bl-lg text-sm text-[#334155] dark:text-slate-300 dark:text-slate-400 leading-relaxed transition-colors duration-100 ${isActive ? 'bg-yellow-200 dark:bg-yellow-400/30 border-yellow-400' : 'bg-white dark:bg-slate-700 border-zinc-200 dark:border-slate-600'}`}>
+                          <div className={`border p-4 rounded-r-lg rounded-bl-lg text-sm text-ink-600 dark:text-ink-900 dark:text-ink-900 leading-relaxed transition-colors duration-100 ${isActive ? 'bg-caution dark:bg-caution/30 border-caution' : 'bg-paper-100 dark:bg-ink-300 border-paper-500 dark:border-ink-400'}`}>
                             {turn.text}
                           </div>
                         </div>
@@ -386,14 +369,14 @@ const CallDetails = () => {
                   }
                   return (
                     <div key={i} ref={el => turnRefs.current[i] = el} className="flex gap-4 flex-row-reverse">
-                      <div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-ink-300 flex-shrink-0 flex items-center justify-center text-white">
                         <span className="material-symbols-outlined text-[20px]">person</span>
                       </div>
                       <div className="space-y-1 max-w-[85%] text-right">
                         <div className="flex items-center gap-2 justify-end">
-                          <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{turn.speaker}</span>
+                          <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{turn.speaker}</span>
                         </div>
-                        <div className={`p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left transition-colors duration-100 ${isActive ? 'bg-yellow-200 dark:bg-yellow-400/30 text-[#0f172a]' : 'bg-zinc-800 text-white'}`}>
+                        <div className={`p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left transition-colors duration-100 ${isActive ? 'bg-caution dark:bg-caution/30 text-ink-100' : 'bg-ink-300 text-white'}`}>
                           {turn.text}
                         </div>
                       </div>
@@ -401,7 +384,7 @@ const CallDetails = () => {
                   );
                 })
               ) : (
-                <div className="flex items-center justify-center h-full text-sm text-zinc-400 dark:text-slate-500 italic">
+                <div className="flex items-center justify-center h-full text-sm text-ink-800 dark:text-ink-800 italic">
                   No transcript available for this call.
                 </div>
               )}

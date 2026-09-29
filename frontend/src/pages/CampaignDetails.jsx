@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Button, IconButton, CopyField, Badge, Page } from '../components/ui';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import PageLoader from '../components/PageLoader';
@@ -12,7 +13,6 @@ function ShareModal({ campaignId, onClose }) {
   const [days, setDays] = useState(7);
   const [link, setLink] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { addToast } = useToast();
 
   const generate = async () => {
@@ -20,60 +20,41 @@ function ShareModal({ campaignId, onClose }) {
     try {
       const res = await api.post(`/api/share/campaigns/${campaignId}`, { validityDays: days });
       setLink({ url: `${window.location.origin}/share/${res.data.token}`, expiresAt: res.data.expiresAt });
-    } catch (e) {
+    } catch {
       addToast('Failed to generate link', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const copy = () => {
-    navigator.clipboard.writeText(link.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-500 dark:text-slate-400 transition-colors">
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
+          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Share Campaign Report</h3>
+          <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
         </div>
         {!link ? (
           <>
-            <p className="text-sm text-zinc-500 dark:text-slate-400 mb-5">Generate a public link to share all call reports for this campaign. No login required.</p>
+            <p className="text-sm text-ink-700 dark:text-ink-900 mb-5">Generate a public link to share all call reports for this campaign. No login required.</p>
             <div className="mb-5">
-              <label className="block text-xs font-medium text-zinc-600 dark:text-slate-300 uppercase tracking-wider mb-2">Link Valid For</label>
+              <label className="block text-xs font-medium text-ink-600 dark:text-ink-900 mb-2">Link Valid For</label>
               <div className="flex gap-2">
                 {[3, 7, 14, 30].map(d => (
-                  <button key={d} onClick={() => setDays(d)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${days === d ? 'bg-[#0d9488] text-white border-[#0d9488]' : 'border-zinc-200 dark:border-slate-700 text-zinc-600 dark:text-slate-400 hover:border-[#0d9488]'}`}>
-                    {d}d
-                  </button>
+                  <Button variant="primary" size="md" key={d} onClick={() => setDays(d)}>{d}d</Button>
                 ))}
               </div>
             </div>
-            <button onClick={generate} disabled={loading}
-              className="w-full py-3 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+            <Button variant="primary" size="lg" onClick={generate} disabled={loading}>
               {loading ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Generating…</> : <><span className="material-symbols-outlined text-[18px]">link</span> Generate Link</>}
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <p className="text-xs text-zinc-500 dark:text-slate-400 mb-3">Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong></p>
-            <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 mb-4">
-              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all">{link.url}</span>
-              <button onClick={copy} className="shrink-0 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors text-zinc-500 dark:text-slate-400">
-                <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
-              </button>
-            </div>
-            <button onClick={() => setLink(null)}
-              className="w-full py-2.5 border border-zinc-200 dark:border-slate-700 rounded-xl text-sm text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors">
-              Generate Another
-            </button>
+            <p className="text-xs text-ink-700 dark:text-ink-900 mb-3">Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong></p>
+            <CopyField value={link.url} className="mb-4" />
+            <Button variant="secondary" size="md" onClick={() => setLink(null)}>Generate Another</Button>
           </>
         )}
       </div>
@@ -82,27 +63,27 @@ function ShareModal({ campaignId, onClose }) {
 }
 
 const STATUS_BADGE = {
-  completed:    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-  queued:       'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400',
-  'in-progress':'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  failed:       'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300',
-  cancelled:    'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  completed:    'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive',
+  queued:       'bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900',
+  'in-progress':'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution',
+  failed:       'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative',
+  cancelled:    'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution',
 };
 
 const STATUS_DOT = {
-  completed:    'bg-emerald-500',
-  queued:       'bg-zinc-400',
-  'in-progress':'bg-amber-500',
-  failed:       'bg-[#ba1a1a]',
-  cancelled:    'bg-orange-400',
+  completed:    'bg-positive',
+  queued:       'bg-paper-900',
+  'in-progress':'bg-caution/100',
+  failed:       'bg-negative-dim',
+  cancelled:    'bg-caution',
 };
 
 const INITIALS_COLORS = [
-  'bg-[#e2dfff] text-[#0d9488] dark:bg-indigo-900/30 dark:text-teal-300',
-  'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  'bg-brand-100 text-brand-500 dark:bg-brand-600/30 dark:text-brand-300',
+  'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive',
+  'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution',
+  'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative',
+  'bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300',
 ];
 
 function getInitials(name) {
@@ -138,7 +119,7 @@ export default function CampaignDetails() {
 
   if (loading) return <PageLoader text="Loading campaign…" />;
   if (loadError || !campaign) return (
-    <div className="flex items-center justify-center h-64 text-sm text-[#64748b] dark:text-slate-400">
+    <div className="flex items-center justify-center h-64 text-sm text-ink-700 dark:text-ink-900">
       {loadError === 'access-denied' ? "You don't have access to this campaign." : 'Campaign not found.'}
     </div>
   );
@@ -177,10 +158,10 @@ export default function CampaignDetails() {
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PER_PAGE));
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto bg-[#f0fdfa] dark:bg-slate-900 min-h-full">
+    <Page>
       {/* Breadcrumb */}
       <div className="mb-6">
-        <Link to="/" className="flex items-center gap-1 text-[#0d9488] hover:underline transition-all text-sm">
+        <Link to="/" className="flex items-center gap-1 text-brand-500 hover:underline transition-all text-sm">
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
           Back to Dashboard
         </Link>
@@ -189,52 +170,40 @@ export default function CampaignDetails() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-widest text-[#64748b] dark:text-slate-400">Campaign Details</p>
+          <p className="text-xs text-ink-700 dark:text-ink-900">Campaign Details</p>
           <div className="flex items-center gap-3">
-            <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">{campaign.name}</h2>
-            <span className="px-2.5 py-0.5 bg-[#e2dfff]/50 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 border border-[#0d9488]/20 dark:border-teal-700 rounded text-xs">{campaign.type || 'Campaign'}</span>
+            <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">{campaign.name}</h2>
+            <Badge tone="brand">{(campaign.type || 'Campaign').replace('_', ' ').toLowerCase()}</Badge>
           </div>
-          <p className="text-sm text-[#334155] dark:text-slate-400 max-w-2xl">
+          <p className="text-sm text-ink-600 dark:text-ink-900 max-w-2xl">
             {campaign.callModule?.callIntro || 'Automated outreach campaign.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowShare(true)}
-            className="px-4 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 text-sm rounded shadow-sm hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[18px]">share</span>
-            Share
-          </button>
+          <Button variant="secondary" size="md" icon="share" onClick={() => setShowShare(true)}>Share</Button>
           <Link
             to={`/campaigns/${id}/report`}
-            className="px-4 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 text-sm rounded shadow-sm hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-100 dark:text-paper-200 text-sm rounded shadow-card hover:bg-paper-200 dark:hover:bg-ink-400 transition-all flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">analytics</span>
             Report
           </Link>
-          <button
-            onClick={() => setIsSandboxOpen(true)}
-            className="px-4 py-2 bg-[#0d9488] text-white text-sm rounded shadow-sm hover:bg-[#0f766e] transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[18px]">science</span>
-            AI Sandbox
-          </button>
+          <Button variant="primary" size="md" icon="science" onClick={() => setIsSandboxOpen(true)}>AI Sandbox</Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {[
-          { label:'Total Contacts', value: contacts.length.toLocaleString(), barColor:'bg-[#0d9488]', barW:'100%' },
-          { label:'Calls Completed', value: completed.toLocaleString(), barColor:'bg-emerald-500', barW:`${logs.length ? (completed/logs.length*100) : 0}%` },
-          { label:'Avg. Duration', value: avgDuration >= 60 ? `${Math.floor(avgDuration/60)}m ${avgDuration%60}s` : `${avgDuration}s`, barColor:'bg-amber-500', barW:'50%' },
-          { label:'Success Rate', value: `${successRate}%`, barColor:'bg-teal-500', barW:`${successRate}%` },
+          { label:'Total Contacts', value: contacts.length.toLocaleString(), barColor:'bg-brand-500', barW:'100%' },
+          { label:'Calls Completed', value: completed.toLocaleString(), barColor:'bg-positive', barW:`${logs.length ? (completed/logs.length*100) : 0}%` },
+          { label:'Avg. Duration', value: avgDuration >= 60 ? `${Math.floor(avgDuration/60)}m ${avgDuration%60}s` : `${avgDuration}s`, barColor:'bg-caution/100', barW:'50%' },
+          { label:'Success Rate', value: `${successRate}%`, barColor:'bg-brand-500', barW:`${successRate}%` },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded shadow-sm">
-            <p className="text-xs text-[#334155] dark:text-slate-400 mb-2">{s.label}</p>
-            <p className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{s.value}</p>
-            <div className="mt-2 h-1 w-full bg-zinc-100 dark:bg-slate-700 rounded">
+          <div key={s.label} className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-6 rounded shadow-card">
+            <p className="text-xs text-ink-600 dark:text-ink-900 mb-2">{s.label}</p>
+            <p className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{s.value}</p>
+            <div className="mt-2 h-1 w-full bg-paper-400 dark:bg-ink-300 rounded">
               <div className={`h-1 ${s.barColor} rounded`} style={{width:s.barW}}></div>
             </div>
           </div>
@@ -242,39 +211,37 @@ export default function CampaignDetails() {
       </div>
 
       {/* Activity Table */}
-      <FullscreenTable className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded shadow-sm overflow-hidden">
+      <FullscreenTable className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded shadow-card overflow-hidden">
         {({ toggle, isFs }) => {
           const paginated = isFs ? filteredRows : filteredRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
           return (<>
-        <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-center justify-between bg-zinc-50/50 dark:bg-slate-900/50">
-          <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Contact Call Status</h3>
+        <div className="px-6 py-4 border-b border-paper-400 dark:border-ink-400 flex items-center justify-between bg-paper-200/50 dark:bg-ink-50/50">
+          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Contact Call Status</h3>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#334155] dark:text-slate-400 text-[18px]">filter_list</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-600 dark:text-ink-900 text-[18px]">filter_list</span>
               <input
-                className="pl-10 pr-4 py-1.5 border border-zinc-300 dark:border-slate-600 rounded text-sm text-[#0f172a] dark:text-slate-100 focus:ring-2 focus:ring-[#0d9488] focus:border-[#0d9488] outline-none transition-all placeholder:text-[#64748b] dark:placeholder:text-slate-500"
+                className="pl-10 pr-4 py-1.5 border border-paper-600 dark:border-ink-400 rounded text-sm text-ink-100 dark:text-paper-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder:text-ink-700 dark:placeholder:text-ink-700"
                 placeholder="Filter activity..."
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               />
             </div>
-            <button className="p-1.5 hover:bg-zinc-200 dark:hover:bg-slate-700 rounded transition-all">
-              <span className="material-symbols-outlined text-[#334155] dark:text-slate-400">download</span>
-            </button>
+            <IconButton tone="neutral" size="md" title="Download" icon="download"  />
             <FullscreenButton toggle={toggle} isFs={isFs} />
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
+            <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
               <tr>
                 {['Name','Phone','Tags / Overrides','Called At','Status','Duration','Call Details'].map(h => (
-                  <th key={h} className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">{h}</th>
+                  <th key={h} className="px-6 py-4 text-xs text-ink-600 dark:text-ink-900 ">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
+            <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
               {paginated.map(({ cc, log }, i) => {
                 const contact = cc.contact;
                 const name = cc.overrides?.name || contact?.name || '?';
@@ -287,51 +254,51 @@ export default function CampaignDetails() {
                   : '—';
 
                 return (
-                  <tr key={log?.id || cc.id} className="hover:bg-zinc-50/80 dark:hover:bg-slate-700/50 transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={log?.id || cc.id} className="hover:bg-paper-200/80 dark:hover:bg-ink-400/50 transition-colors">
+                    <td className="px-7 py-5">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-xs ${colorClass}`}>{initials}</div>
-                        <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{name}</span>
+                        <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400">
+                    <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900">
                       {contact?.phone || '—'}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-7 py-5">
                       <div className="flex flex-wrap gap-2">
                         {cc.overrides?.tag && (
-                          <span className="px-2 py-0.5 bg-[#e2dfff]/60 dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-full text-xs border border-[#5eead4] dark:border-teal-700">{cc.overrides.tag}</span>
+                          <span className="px-2 py-0.5 bg-brand-100/60 dark:bg-brand-500/15 text-brand-500 dark:text-brand-300 rounded-full text-xs border border-brand-300 dark:border-brand-500/30">{cc.overrides.tag}</span>
                         )}
                         {cc.overrides?.goals && (
-                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-xs border border-zinc-200 dark:border-slate-600">Script Override</span>
+                          <span className="px-2 py-0.5 bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 rounded-full text-xs border border-paper-500 dark:border-ink-400">Script Override</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400">
+                    <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900">
                       {log?.createdAt ? new Date(log.createdAt).toLocaleString() : '—'}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-7 py-5">
                       {status ? (
                         <span className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit ${STATUS_BADGE[status] || STATUS_BADGE.queued}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-zinc-400'}`}></span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-paper-900'}`}></span>
                           {status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
                         </span>
                       ) : (
-                        <span className="text-xs text-[#64748b] dark:text-slate-400 italic">No call</span>
+                        <span className="text-xs text-ink-700 dark:text-ink-900 italic">No call</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#334155] dark:text-slate-400">{durationStr}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900">{durationStr}</td>
+                    <td className="px-7 py-5">
                       {log ? (
                         <Link
                           to={`/campaign/${id}/calls/${log.id}`}
-                          className="flex items-center gap-1.5 text-[#0d9488] hover:text-[#0f766e] transition-colors"
+                          className="flex items-center gap-1.5 text-brand-500 hover:text-brand-600 transition-colors"
                         >
                           <span className="material-symbols-outlined text-[18px]">article</span>
                           <span className="text-sm">View Call</span>
                         </Link>
                       ) : (
-                        <span className="text-xs text-zinc-300 dark:text-slate-600 italic">N/A</span>
+                        <span className="text-xs text-ink-900 dark:text-ink-700 italic">N/A</span>
                       )}
                     </td>
                   </tr>
@@ -339,7 +306,7 @@ export default function CampaignDetails() {
               })}
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">
                     {searchQuery ? 'No contacts match your search.' : 'No contacts in this campaign.'}
                   </td>
                 </tr>
@@ -348,25 +315,21 @@ export default function CampaignDetails() {
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between">
-          <span className="text-xs text-[#334155] dark:text-slate-400">
+        <div className="px-6 py-4 border-t border-paper-400 dark:border-ink-400 flex items-center justify-between">
+          <span className="text-xs text-ink-600 dark:text-ink-900">
             {isFs ? `${filteredRows.length} entries` : `Showing ${paginated.length} of ${filteredRows.length} entries`}
           </span>
           {!isFs && (
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page <= 1} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-700 rounded disabled:opacity-30">
-                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-              </button>
+              <IconButton tone="neutral" size="md" title="Chevron left" icon="chevron_left" onClick={() => setPage(p => Math.max(1, p-1))} disabled={page <= 1} />
               {[...Array(Math.min(3, totalPages))].map((_, i) => (
-                <button key={i+1} onClick={() => setPage(i+1)} className={`px-3 py-1 rounded text-xs ${page===i+1 ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`}>{i+1}</button>
+                <Button variant="primary" size="sm" key={i+1} onClick={() => setPage(i+1)}>{i+1}</Button>
               ))}
-              {totalPages > 3 && <span className="px-2 text-zinc-400 dark:text-slate-500">...</span>}
+              {totalPages > 3 && <span className="px-2 text-ink-800 dark:text-ink-800">...</span>}
               {totalPages > 3 && (
-                <button onClick={() => setPage(totalPages)} className={`px-3 py-1 rounded text-xs ${page===totalPages ? 'bg-[#0d9488] text-white' : 'hover:bg-zinc-100 dark:hover:bg-slate-700 text-[#0f172a] dark:text-slate-100'}`}>{totalPages}</button>
+                <Button variant="primary" size="sm" onClick={() => setPage(totalPages)}>{totalPages}</Button>
               )}
-              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-700 rounded disabled:opacity-30">
-                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-              </button>
+              <IconButton tone="neutral" size="md" title="Chevron right" icon="chevron_right" onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} />
             </div>
           )}
         </div>
@@ -379,6 +342,6 @@ export default function CampaignDetails() {
       </Modal>
 
       {showShare && <ShareModal campaignId={id} onClose={() => setShowShare(false)} />}
-    </div>
+  </Page>
   );
 }

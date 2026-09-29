@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Button, IconButton } from './components/ui';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import api from './api/axios';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGate from './components/RoleGate';
-import Landing from './pages/Landing';
+import Landing from './pages/marketing';
 import Dashboard from './pages/Dashboard';
 import CampaignWizard from './pages/CampaignWizard/CampaignWizard';
 import CampaignDetails from './pages/CampaignDetails';
@@ -23,7 +24,7 @@ import Support from './pages/Support';
 import MyTeam from './pages/MyTeam';
 import Billing from './pages/Billing';
 import Usage from './pages/Usage';
-import Docs from './pages/Docs';
+import Notifications from './pages/Notifications';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import NotificationDropdown from './components/NotificationDropdown';
@@ -84,76 +85,64 @@ function TopBarWorkspacePicker() {
   return (
     <div ref={ref} className="relative hidden md:block">
       {/* ── Trigger pill — dark, matches sidebar ── */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-2 h-8 pl-2 pr-3 rounded-lg transition-all cursor-pointer ${
-          open
-            ? 'bg-[#0a0f1a] shadow-md'
-            : 'bg-[#0a0f1a] hover:bg-[#0d1520]'
-        }`}
-      >
-        <div className="w-5 h-5 rounded-md bg-[#0d9488] flex items-center justify-center shrink-0 text-[10px] font-bold text-white">
+      <Button variant="secondary" size="sm" onClick={() => setOpen(o => !o)}>
+        <div className="w-5 h-5 rounded-field bg-brand-500 flex items-center justify-center shrink-0 text-[10px] font-semibold text-white">
           {initials}
         </div>
-        <span className="max-w-[110px] truncate text-[12.5px] font-semibold text-white">
+        <span className="max-w-[110px] truncate text-[12.5px] font-medium text-ink-100 dark:text-paper-200">
           {current?.name || 'No Workspace'}
         </span>
-        <span className={`material-symbols-outlined text-[14px] text-[#64748b] transition-transform ${open ? 'rotate-180' : ''}`}>
+        <span className={`material-symbols-outlined [--icon-size:14px] text-ink-700 transition-transform ${open ? 'rotate-180' : ''}`}>
           expand_more
         </span>
-      </button>
+      </Button>
 
       {/* ── Dropdown ── */}
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] border border-[#e2e8f0] dark:border-slate-700 z-50 overflow-hidden">
+        <div className="absolute top-[calc(100%+8px)] right-0 w-64 bg-paper-100 dark:bg-ink-200 rounded-card shadow-raised border border-paper-500 dark:border-ink-400 z-50 overflow-hidden">
 
           {/* Current workspace header — clean, no gradient */}
-          <div className="px-4 py-3.5 border-b border-[#f1f5f9] dark:border-slate-700/50">
+          <div className="px-4 py-3.5 border-b border-paper-400 dark:border-ink-400">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#0d9488] flex items-center justify-center text-white text-sm font-bold shrink-0">
+              <div className="w-8 h-8 rounded-chip bg-brand-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold text-[#0f172a] dark:text-slate-100 truncate leading-snug">
+                <p className="text-[13px] font-semibold text-ink-100 dark:text-paper-200 truncate leading-snug">
                   {current?.name || 'No Workspace'}
                 </p>
-                <p className="text-[11px] text-[#0d9488] dark:text-teal-400 font-medium capitalize leading-none mt-0.5">
+                <p className="text-[11px] text-brand-600 dark:text-brand-300 font-medium capitalize leading-none mt-0.5">
                   {(current?.role || user?.workspaceRole || user?.role || '').toLowerCase()}
                 </p>
               </div>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Active" />
+              <span className="w-2 h-2 rounded-full bg-positive shrink-0" title="Active" />
             </div>
           </div>
 
           {/* Workspace list */}
           {workspaces.length > 1 && (
             <div className="py-1">
-              <p className="px-4 pt-2 pb-1.5 text-[10px] font-semibold text-[#94a3b8] dark:text-slate-500 uppercase tracking-widest">
+              <p className="px-4 pt-2 pb-1.5 text-[11px] font-medium text-ink-700 dark:text-ink-800">
                 Switch workspace
               </p>
               <div className="max-h-40 overflow-y-auto">
                 {workspaces.filter(w => w.id !== user?.workspaceId).map(w => (
-                  <button
-                    key={w.id}
-                    onClick={() => handleSwitch(w.id)}
-                    disabled={!!switching}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#f8fafc] dark:hover:bg-slate-700/50 group cursor-pointer"
-                  >
-                    <div className="w-7 h-7 rounded-md bg-[#f0fdfa] dark:bg-slate-700 flex items-center justify-center shrink-0 text-xs font-bold text-[#0d9488] dark:text-teal-400 group-hover:bg-[#0d9488] group-hover:text-white transition-colors">
+                  <Button variant="ghost" size="md" key={w.id} onClick={() => handleSwitch(w.id)} disabled={!!switching}>
+                    <div className="w-7 h-7 rounded-field bg-brand-100 dark:bg-brand-500/15 flex items-center justify-center shrink-0 text-xs font-semibold text-brand-600 dark:text-brand-300 group-hover:bg-brand-500 group-hover:text-white transition-colors">
                       {switching === w.id
                         ? <span className="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
                         : w.name.charAt(0).toUpperCase()}
                     </div>
-                    <p className="flex-1 text-[13px] font-medium text-[#334155] dark:text-slate-300 truncate group-hover:text-[#0f172a] dark:group-hover:text-slate-100 transition-colors">
+                    <p className="flex-1 text-[13px] font-medium text-ink-600 dark:text-ink-900 truncate group-hover:text-ink-100 dark:group-hover:text-white transition-colors">
                       {w.name}
                     </p>
-                    <span className="material-symbols-outlined text-[14px] text-[#cbd5e1] dark:text-slate-600 group-hover:text-[#0d9488] dark:group-hover:text-teal-400 transition-colors">
+                    <span className="material-symbols-outlined [--icon-size:14px] text-paper-900 dark:text-ink-600 group-hover:text-brand-500 transition-colors">
                       chevron_right
                     </span>
-                  </button>
+                  </Button>
                 ))}
               </div>
-              <div className="mx-4 border-t border-[#f1f5f9] dark:border-slate-700/50" />
+              <div className="mx-4 border-t border-paper-400 dark:border-ink-400" />
             </div>
           )}
 
@@ -165,29 +154,19 @@ function TopBarWorkspacePicker() {
                   autoFocus required value={newWsName}
                   onChange={e => setNewWsName(e.target.value)}
                   placeholder="Workspace name…"
-                  className="w-full h-8 px-3 bg-[#f8fafc] dark:bg-slate-700 border border-[#e2e8f0] dark:border-slate-600 rounded-lg text-sm text-[#0f172a] dark:text-slate-100 placeholder:text-[#94a3b8] dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all"
+                  className="w-full h-8 px-3 bg-paper-300 dark:bg-ink-300 border border-paper-500 dark:border-ink-400 rounded-control text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-700 focus:outline-none focus:ring-[3px] focus:ring-brand-500/25 focus:border-brand-500 transition-shadow"
                 />
                 <div className="flex gap-2">
-                  <button type="submit" disabled={creating || !newWsName.trim()}
-                    className="flex-1 h-8 bg-[#0d9488] text-white rounded-lg text-xs font-semibold hover:bg-[#0f766e] disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                  <Button variant="primary" size="sm" type="submit" disabled={creating || !newWsName.trim()}>
                     {creating
                       ? <span className="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
                       : <><span className="material-symbols-outlined text-[13px]">add</span>Create</>}
-                  </button>
-                  <button type="button" onClick={() => { setShowCreate(false); setNewWsName(''); }}
-                    className="h-8 px-3 border border-[#e2e8f0] dark:border-slate-600 text-[#64748b] dark:text-slate-400 rounded-lg text-xs font-medium hover:bg-[#f8fafc] dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                    Cancel
-                  </button>
+                  </Button>
+                  <Button variant="secondary" size="sm" type="button" onClick={() => { setShowCreate(false); setNewWsName(''); }}>Cancel</Button>
                 </div>
               </form>
             ) : (
-              <button
-                onClick={() => setShowCreate(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] font-medium text-[#64748b] dark:text-slate-400 hover:text-[#0d9488] dark:hover:text-teal-400 hover:bg-[#f0fdfa] dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[15px]">add_circle</span>
-                New workspace
-              </button>
+              <Button variant="ghost" size="md" icon="add_circle" onClick={() => setShowCreate(true)}>New workspace</Button>
             )}
           </div>
         </div>
@@ -209,34 +188,34 @@ function BalanceWidget() {
   const isLow = balance.minuteBalance <= 30;
   const isDepleted = balance.minuteBalance === 0;
 
-  const borderColor = isDepleted ? 'border-red-300 dark:border-red-700/40' : isLow ? 'border-amber-300 dark:border-amber-700/40' : 'border-[#e2e8f0] dark:border-zinc-700/40';
-  const bgColor     = isDepleted ? 'bg-red-50 dark:bg-red-900/30'          : isLow ? 'bg-amber-50 dark:bg-amber-900/30'          : 'bg-[#f8fafc] dark:bg-zinc-800/60';
-  const numColor    = isDepleted ? 'text-red-600 dark:text-red-400'        : isLow ? 'text-amber-600 dark:text-amber-400'        : 'text-[#0f172a] dark:text-white';
+  const borderColor = isDepleted ? 'border-negative/40' : isLow ? 'border-caution/40' : 'border-paper-500 dark:border-ink-400';
+  const bgColor     = isDepleted ? 'bg-negative/10'          : isLow ? 'bg-caution/10'          : 'bg-paper-200 dark:bg-ink-300/60';
+  const numColor    = isDepleted ? 'text-negative-dim'        : isLow ? 'text-caution-dim'        : 'text-ink-100 dark:text-white';
 
   return (
-    <div className={`mx-3 mb-2 rounded-lg border overflow-hidden ${bgColor} ${borderColor}`}>
+    <div className={`mx-3 mb-2 rounded-control border overflow-hidden ${bgColor} ${borderColor}`}>
       {/* Balance row → goes to /billing */}
       <NavLink to="/billing" className="block px-3 pt-2.5 pb-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-semibold text-[#64748b] dark:text-zinc-400 uppercase tracking-wider">Balance</span>
-          {isDepleted && <span className="text-[10px] font-bold text-red-600 dark:text-red-400">TOP UP</span>}
-          {isLow && !isDepleted && <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">LOW</span>}
+          <span className="text-[11px] font-medium text-ink-700 dark:text-ink-800">Balance</span>
+          {isDepleted && <span className="text-[10px] font-bold text-negative-dim dark:text-negative">TOP UP</span>}
+          {isLow && !isDepleted && <span className="text-[10px] font-bold text-caution-dim dark:text-caution">LOW</span>}
         </div>
         <div className="flex items-end gap-1.5">
           <span className={`text-lg font-bold leading-none ${numColor}`}>
             {balance.minuteBalance.toLocaleString('en-IN')}
           </span>
-          <span className="text-xs text-[#64748b] dark:text-zinc-500 mb-0.5">min</span>
+          <span className="text-xs text-ink-700 dark:text-ink-800 mb-0.5">min</span>
         </div>
       </NavLink>
 
       {/* Usage row → goes to /usage */}
       <NavLink
         to="/usage"
-        className="flex items-center justify-between px-3 py-1.5 border-t border-[#e2e8f0] dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        className="flex items-center justify-between px-3 py-1.5 border-t border-paper-500 dark:border-ink-400 hover:bg-paper-300 dark:hover:bg-white/5 transition-colors"
       >
-        <span className="text-[10px] font-semibold text-[#64748b] dark:text-zinc-400 uppercase tracking-wider">Usage</span>
-        <span className="material-symbols-outlined text-[14px] text-[#94a3b8] dark:text-zinc-500">arrow_forward</span>
+        <span className="text-[11px] font-medium text-ink-700 dark:text-ink-800">Usage</span>
+        <span className="material-symbols-outlined [--icon-size:14px] text-ink-800">arrow_forward</span>
       </NavLink>
     </div>
   );
@@ -247,13 +226,7 @@ function ThemeToggle() {
   const isDark = theme === 'dark';
 
   return (
-    <button
-      onClick={toggleTheme}
-      className="p-2 rounded-lg text-[#64748b] dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-    >
-      <span className="material-symbols-outlined text-[20px] block">{isDark ? 'light_mode' : 'dark_mode'}</span>
-    </button>
+    <IconButton tone="neutral" size="md" title={isDark ? 'Switch to light mode' : 'Switch to dark mode'} icon={isDark ? 'light_mode' : 'dark_mode'} onClick={toggleTheme} />
   );
 }
 
@@ -289,7 +262,23 @@ const NavLabel = ({ collapsed, children }) => (
   </span>
 );
 
-function Sidebar({ collapsed, onToggleCollapse }) {
+// Group heading above a run of nav items. It collapses its own height (not
+// just opacity) on the rail so the icons below don't drift, and its left inset
+// matches where the nav labels start — at px-6 it read as belonging to the
+// sidebar edge rather than to the items beneath it.
+const NavSection = ({ collapsed, children }) => (
+  <p
+    aria-hidden={collapsed}
+    style={{ paddingLeft: collapsed ? 0 : SIDEBAR_WIDTH_COLLAPSED }}
+    className={`text-[11px] font-medium text-ink-800 whitespace-nowrap overflow-hidden transition-all duration-200 ease-in-out ${
+      collapsed ? 'opacity-0 max-h-0 py-0' : 'opacity-100 max-h-10 pt-5 pb-1.5'
+    }`}
+  >
+    {children}
+  </p>
+);
+
+function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -299,9 +288,9 @@ function Sidebar({ collapsed, onToggleCollapse }) {
     navigate('/login');
   };
 
-  const navItemBase = `flex items-center py-2.5 transition-all text-sm`;
-  const activeClass = `${navItemBase} text-[#0d9488] dark:text-white bg-[#e6fffa] dark:bg-zinc-800 border-l-4 border-[#0d9488]`;
-  const inactiveClass = `${navItemBase} text-[#475569] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800/50 border-l-4 border-transparent`;
+  const navItemBase = `flex items-center py-3 transition-colors text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset`;
+  const activeClass = `${navItemBase} font-medium text-brand-600 dark:text-white bg-brand-100 dark:bg-ink-300 border-l-4 border-brand-500`;
+  const inactiveClass = `${navItemBase} text-ink-600 dark:text-ink-900 hover:text-ink-100 dark:hover:text-white hover:bg-paper-300 dark:hover:bg-ink-300/60 border-l-4 border-transparent`;
 
   const isAt = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -310,23 +299,32 @@ function Sidebar({ collapsed, onToggleCollapse }) {
 
   const navItems = [
     { to: '/', end: true, icon: 'dashboard', label: 'Dashboard' },
+  ];
+
+  const workspaceItems = [
+    { to: '/notifications', icon: 'notifications', label: 'Notifications' },
     { to: '/team', icon: 'group', label: 'My Team' },
     { to: '/billing', icon: 'payments', label: 'Billing' },
     { to: '/settings/workspace', icon: 'settings', label: 'Settings' },
   ];
 
   const logoBadge = (
-    <div className="w-10 h-10 bg-[#0f766e] rounded flex items-center justify-center shrink-0">
+    <div className="w-10 h-10 bg-brand-500 rounded-chip flex items-center justify-center shrink-0">
       <span className="material-symbols-outlined text-white" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
     </div>
   );
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full bg-white dark:bg-[#0a0f1a] flex flex-col justify-between py-4 border-r border-[#e2e8f0] dark:border-white/5 shadow-sm z-50 transition-[width] duration-200 ease-in-out overflow-x-hidden overflow-y-auto scrollbar-none"
+      // On the drawer, any click that lands on a link has navigated — dismiss
+      // it there rather than reacting to the route change afterwards.
+      onClick={mobile ? (e) => { if (e.target.closest('a')) onNavigate?.(); } : undefined}
+      className={`fixed left-0 top-0 h-full bg-paper-100 dark:bg-ink-100 flex flex-col justify-between py-6 border-r border-paper-500 dark:border-ink-400 z-50 overflow-x-hidden overflow-y-auto scrollbar-none ${
+        mobile ? 'animate-slide-in-left shadow-overlay' : 'transition-[width] duration-200 ease-in-out'
+      }`}
       style={{ width: `${collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}px` }}
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         {/* Fixed-height header so the nav list below always starts at the same
             Y position whether collapsed or expanded — otherwise the differing
             header heights make the nav icons jump during the toggle. Both
@@ -339,33 +337,19 @@ function Sidebar({ collapsed, onToggleCollapse }) {
             // and the hamburger lines up exactly with the nav icons under it.
             <div className="flex flex-col items-center gap-3 border-l-4 border-transparent">
               {logoBadge}
-              <button
-                onClick={onToggleCollapse}
-                aria-label="Expand sidebar"
-                title="Expand sidebar"
-                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[#64748b] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488]/40"
-              >
-                <span className="material-symbols-outlined text-[22px]">menu</span>
-              </button>
+              <IconButton tone="neutral" size="md" title="Expand sidebar" icon="menu" onClick={onToggleCollapse} />
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3 min-w-0 px-4">
                 {logoBadge}
                 <div className="min-w-0">
-                  <h1 className="font-bold text-[#0f172a] dark:text-white text-base leading-tight truncate">AI Caller Pro</h1>
-                  <p className="text-[#64748b] dark:text-zinc-400 text-[11px] uppercase tracking-widest truncate">Enterprise Operations</p>
+                  <h1 className="font-semibold text-ink-100 dark:text-white text-base leading-tight truncate">AI Caller Pro</h1>
+                  <p className="text-ink-700 dark:text-ink-800 text-[11px] truncate">Enterprise Operations</p>
                 </div>
               </div>
               <div className="flex justify-end px-4">
-                <button
-                  onClick={onToggleCollapse}
-                  aria-label="Collapse sidebar"
-                  title="Collapse sidebar"
-                  className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[#64748b] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488]/40"
-                >
-                  <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                </button>
+                <IconButton tone="neutral" size="md" title="Collapse sidebar" icon="chevron_left" onClick={onToggleCollapse} />
               </div>
             </div>
           )}
@@ -379,26 +363,25 @@ function Sidebar({ collapsed, onToggleCollapse }) {
             </NavLink>
           ))}
 
+          <NavSection collapsed={collapsed}>Workspace</NavSection>
+          {workspaceItems.map(({ to, end, icon, label }) => (
+            <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={isAt(to) ? activeClass : inactiveClass}>
+              <NavIcon>{icon}</NavIcon>
+              <NavLabel collapsed={collapsed}>{label}</NavLabel>
+            </NavLink>
+          ))}
+
           <RoleGate allow={['SUPER_ADMIN']}>
+            <NavSection collapsed={collapsed}>Administration</NavSection>
             <NavLink to="/admin" title={collapsed ? 'Admin Panel' : undefined} className={isAt('/admin') ? activeClass : inactiveClass}>
               <NavIcon>admin_panel_settings</NavIcon>
               <NavLabel collapsed={collapsed}>Admin Panel</NavLabel>
             </NavLink>
           </RoleGate>
-          <RoleGate allow={['SUPER_ADMIN', 'ADMIN']}>
-            <NavLink to="/docs" title={collapsed ? 'Docs' : undefined} className={isAt('/docs') ? activeClass : inactiveClass}>
-              <NavIcon>menu_book</NavIcon>
-              <NavLabel collapsed={collapsed}>Docs</NavLabel>
-            </NavLink>
-          </RoleGate>
         </nav>
 
         <div className="px-4">
-          <button
-            onClick={() => navigate('/create-campaign')}
-            title={collapsed ? 'New Campaign' : undefined}
-            className="w-full bg-[#0d9488] hover:bg-[#0f766e] text-white py-3 rounded-lg text-sm flex items-center transition-all active:scale-95"
-          >
+          <Button variant="primary" size="lg" onClick={() => navigate('/create-campaign')} title={collapsed ? 'New Campaign' : undefined}>
             {/* Icon slot is fixed to the collapsed button's own content width
                 (76px rail - 16px*2 wrapper padding = 44px), so it's centered
                 in the collapsed square AND sits at that exact same X once
@@ -408,17 +391,17 @@ function Sidebar({ collapsed, onToggleCollapse }) {
               <span className="material-symbols-outlined text-[18px]">campaign</span>
             </span>
             <NavLabel collapsed={collapsed}>New Campaign</NavLabel>
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="flex flex-col gap-1 pt-2">
         {!collapsed && <BalanceWidget />}
-        <div className="border-t border-[#e2e8f0] dark:border-zinc-800 pt-2 flex flex-col gap-1">
+        <div className="border-t border-paper-500 dark:border-ink-400 pt-2 flex flex-col gap-1">
           <NavLink
             to="/support"
             title={collapsed ? 'Support' : undefined}
-            className={({ isActive }) => `flex items-center py-2.5 transition-all text-left w-full text-sm rounded-lg ${isActive ? 'text-[#0d9488] dark:text-white bg-[#f0fdfa] dark:bg-zinc-800/70' : 'text-[#475569] dark:text-zinc-400 hover:text-[#0d9488] dark:hover:text-white hover:bg-[#f0fdfa] dark:hover:bg-zinc-800/50'}`}
+            className={({ isActive }) => `flex items-center py-3 transition-colors text-left w-full text-sm ${isActive ? 'font-medium text-brand-600 dark:text-white bg-brand-100 dark:bg-ink-300' : 'text-ink-600 dark:text-ink-900 hover:text-ink-100 dark:hover:text-white hover:bg-paper-300 dark:hover:bg-ink-300/60'}`}
           >
             <NavIcon>contact_support</NavIcon>
             <NavLabel collapsed={collapsed}>Support</NavLabel>
@@ -427,7 +410,7 @@ function Sidebar({ collapsed, onToggleCollapse }) {
             <button
               onClick={handleLogout}
               title={collapsed ? 'Sign out' : undefined}
-              className="flex items-center py-2.5 text-[#64748b] dark:text-zinc-500 hover:text-[#334155] dark:hover:text-zinc-200 hover:bg-[#f0fdfa] dark:hover:bg-zinc-800 transition-colors text-left w-full text-sm"
+              className={`${navItemBase} border-l-4 border-transparent text-ink-700 dark:text-ink-800 hover:text-ink-100 dark:hover:text-white hover:bg-paper-300 dark:hover:bg-ink-300/60 text-left w-full`}
             >
               <NavIcon>logout</NavIcon>
               <NavLabel collapsed={collapsed}>Sign out</NavLabel>
@@ -439,35 +422,42 @@ function Sidebar({ collapsed, onToggleCollapse }) {
   );
 }
 
-function TopBar({ collapsed }) {
+function TopBar({ collapsed, isMobile = false, onOpenMenu }) {
   const { user } = useAuth();
-  const location = useLocation();
-  const isDocsRoute = location.pathname.startsWith('/docs');
   const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
   const sidebarWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
 
   return (
     <header
-      className="fixed top-0 right-0 bg-[#f8fafc] dark:bg-slate-900 flex justify-between items-center px-8 h-16 z-40 border-b border-[#e2e8f0] dark:border-slate-700 shadow-sm transition-[width] duration-200 ease-in-out"
-      style={{ width: isDocsRoute ? '100%' : `calc(100% - ${sidebarWidth}px)` }}
+      className="fixed top-0 right-0 bg-paper-100 dark:bg-ink-100 flex justify-between items-center gap-3 px-4 md:px-10 h-16 z-40 border-b border-paper-500 dark:border-ink-400 transition-[width] duration-200 ease-in-out"
+      style={{ width: isMobile ? '100%' : `calc(100% - ${sidebarWidth}px)` }}
     >
-      <div className="flex items-center gap-4 flex-1">
-        <div className="relative w-full max-w-md">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] dark:text-slate-400 text-[18px]">search</span>
-          <input className="w-full bg-[#f0fdfa] dark:bg-slate-800 border-none rounded-full py-2 pl-10 pr-4 text-sm text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488] placeholder:text-[#64748b] dark:placeholder:text-slate-500" placeholder="Search logs, campaigns..." type="text" />
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {isMobile && (
+          <button
+            onClick={onOpenMenu}
+            aria-label="Open navigation menu"
+            className="shrink-0 p-2 -ml-1 rounded-control text-ink-700 dark:text-ink-900 hover:bg-paper-300 dark:hover:bg-ink-300 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+          >
+            <span className="material-symbols-outlined [--icon-size:22px]">menu</span>
+          </button>
+        )}
+        <div className="relative w-full max-w-lg">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-700 dark:text-ink-800 [--icon-size:18px]">search</span>
+          <input className="w-full bg-paper-300 dark:bg-ink-300 border border-paper-500 dark:border-ink-400 rounded-control py-2 pl-10 pr-4 text-sm text-ink-100 dark:text-paper-200 focus:outline-none focus:border-brand-500 focus:ring-[3px] focus:ring-brand-500/25 placeholder:text-ink-700 transition-shadow" placeholder="Search…" type="text" />
         </div>
       </div>
       <div className="flex items-center gap-4">
         <TopBarWorkspacePicker />
         <ThemeToggle />
         <NotificationDropdown />
-        <div className="h-8 w-px bg-[#cbd5e1] dark:bg-slate-700 mx-2"></div>
+        <div className="h-6 w-px bg-paper-600 dark:bg-ink-400 mx-2"></div>
         <div className="flex items-center gap-3">
           <div className="text-right hidden lg:block">
-            <p className="text-sm text-[#0f172a] dark:text-slate-100 font-medium leading-tight">{user?.name || 'User'}</p>
-            <p className="text-[10px] text-[#64748b] dark:text-slate-400 uppercase tracking-wider">{user?.workspaceRole || user?.role}</p>
+            <p className="text-sm text-ink-100 dark:text-paper-200 font-medium leading-tight">{user?.name || 'User'}</p>
+            <p className="text-[11px] text-ink-700 dark:text-ink-800 capitalize">{(user?.workspaceRole || user?.role || '').toLowerCase()}</p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-[#0f766e] flex items-center justify-center text-white text-sm font-bold border border-[#cbd5e1] dark:border-slate-600 overflow-hidden shrink-0">
+          <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center text-white text-sm font-semibold overflow-hidden shrink-0">
             {user?.avatarUrl
               ? <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
               : initials}
@@ -478,13 +468,39 @@ function TopBar({ collapsed }) {
   );
 }
 
+const MOBILE_BREAKPOINT = 768;
+
 function AppLayout() {
-  const location = useLocation();
-  const isDocsRoute = location.pathname.startsWith('/docs');
   const [collapsed, setCollapsed] = useState(() => {
     const stored = localStorage.getItem('sidebarCollapsed');
     return stored === null ? true : stored === '1';
   });
+
+  // Below md the sidebar is an off-canvas drawer rather than a permanent rail:
+  // at 280px fixed it consumed two thirds of a phone screen and pushed the
+  // content (including the primary action) off the right edge.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  );
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Esc closes it, and the page behind must not scroll while it is open.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [drawerOpen]);
 
   const toggleCollapse = () => {
     setCollapsed(prev => {
@@ -494,28 +510,44 @@ function AppLayout() {
     });
   };
 
-  const contentMargin = isDocsRoute ? 0 : (collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH);
+  const contentMargin = isMobile ? 0 : (collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc] dark:bg-slate-900">
-      {!isDocsRoute && <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />}
+    <div className="flex h-screen overflow-hidden bg-paper-300 dark:bg-ink-50">
+      {isMobile && drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-ink-50/50 backdrop-blur-[2px] animate-backdrop md:hidden"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {(!isMobile || drawerOpen) && (
+        <Sidebar
+          collapsed={isMobile ? false : collapsed}
+          onToggleCollapse={isMobile ? () => setDrawerOpen(false) : toggleCollapse}
+          mobile={isMobile}
+          onNavigate={() => setDrawerOpen(false)}
+        />
+      )}
+
       <div className="flex-1 flex flex-col overflow-hidden transition-[margin] duration-200 ease-in-out" style={{ marginLeft: `${contentMargin}px` }}>
-        <TopBar collapsed={collapsed} />
+        <TopBar collapsed={collapsed} isMobile={isMobile} onOpenMenu={() => setDrawerOpen(true)} />
         <main className="flex-1 overflow-y-auto pt-16">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/create-campaign" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to create campaigns.</div>}>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-ink-600 dark:text-ink-900 text-sm">You don't have permission to create campaigns.</div>}>
                 <CampaignWizard />
               </RoleGate>
             } />
             <Route path="/edit-campaign/:id" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to edit campaigns.</div>}>
+              <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-ink-600 dark:text-ink-900 text-sm">You don't have permission to edit campaigns.</div>}>
                 <CampaignWizard />
               </RoleGate>
             } />
             <Route path="/admin" element={
-              <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to access the admin panel.</div>}>
+              <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-ink-600 dark:text-ink-900 text-sm">You don't have permission to access the admin panel.</div>}>
                 <AdminDashboard />
               </RoleGate>
             } />
@@ -523,20 +555,11 @@ function AppLayout() {
             <Route path="/campaigns/:id/report" element={<CampaignReport />} />
             <Route path="/campaign/:campaignId/calls/:id" element={<CallDetails />} />
             <Route path="/campaign/:campaignId/calls/:id/report" element={<CallReport />} />
-            <Route path="/docs" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to view documentation.</div>}>
-                <Docs />
-              </RoleGate>
-            } />
-            <Route path="/docs/:slug" element={
-              <RoleGate allow={['SUPER_ADMIN', 'ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-[#334155] dark:text-slate-400 text-sm">You don't have permission to view documentation.</div>}>
-                <Docs />
-              </RoleGate>
-            } />
             <Route path="/settings/workspace" element={<WorkspaceSettings />} />
             <Route path="/team" element={<MyTeam />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/usage" element={<Usage />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/support" element={<Support />} />
           </Routes>
         </main>
@@ -550,8 +573,8 @@ function RootRoute() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc] dark:bg-slate-900">
-        <div className="w-12 h-12 bg-[#0f766e] rounded-xl flex items-center justify-center shadow-lg">
+      <div className="flex items-center justify-center min-h-screen bg-paper-300 dark:bg-ink-50">
+        <div className="w-12 h-12 bg-brand-500 rounded-chip flex items-center justify-center shadow-card">
           <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>graphic_eq</span>
         </div>
       </div>

@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Page, PageHeader, Button, IconButton, TabBar, Field } from '../components/ui';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-700',
-  ADMIN:       'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20 dark:bg-indigo-900/30 dark:text-teal-300 dark:border-teal-700',
-  EDITOR:      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
-  VIEWER:      'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600',
+  SUPER_ADMIN: 'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30',
+  ADMIN:       'bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30',
+  EDITOR:      'bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15',
+  VIEWER:      'bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400',
 };
 
 
@@ -97,76 +98,55 @@ export default function WorkspaceSettings() {
   };
 
   if (!workspaceId) return (
-    <div className="p-8 text-zinc-400 text-sm">No workspace found.</div>
-  );
-
-  const tabCls = active => `px-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${active ? 'border-[#0d9488] text-[#0d9488]' : 'border-transparent text-[#334155] hover:text-[#0f172a]'}`;
-
-  const Field = ({ label, children }) => (
-    <div>
-      <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">{label}</label>
-      {children}
-    </div>
+    <div className="p-8 text-ink-800 text-sm">No workspace found.</div>
   );
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Settings</h1>
-          <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Manage your profile and workspace configuration.</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Settings"
+        subtitle="Manage your profile and workspace configuration."
+      />
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-zinc-200 mb-8">
-        <button className={tabCls(tab === 'profile')} onClick={() => setTab('profile')}>Profile</button>
-        <button className={tabCls(tab === 'general')} onClick={() => setTab('general')}>Workspace</button>
-      </div>
+      <TabBar
+        className="mb-8"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { value: 'profile', label: 'Profile', icon: 'person' },
+          { value: 'general', label: 'Workspace', icon: 'workspaces' },
+        ]}
+      />
 
       {/* ── Profile Tab ─────────────────────────────────────────── */}
       {tab === 'profile' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left: Avatar card */}
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col items-center text-center gap-4">
+          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card flex flex-col items-center text-center gap-4">
             <div className="relative group mt-2">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#0f766e] flex items-center justify-center ring-4 ring-offset-2 ring-zinc-100 dark:ring-slate-800">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-brand-600 flex items-center justify-center ring-4 ring-offset-2 ring-paper-400 dark:ring-ink-400">
                 {avatarPreview
                   ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   : <span className="text-3xl font-bold text-white">{user?.name?.charAt(0)?.toUpperCase() || '?'}</span>
                 }
               </div>
-              <button
-                onClick={() => avatarRef.current?.click()}
-                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-              >
-                <span className="material-symbols-outlined text-white text-[22px]">photo_camera</span>
-              </button>
+              <IconButton tone="neutral" size="md" title="Photo camera" icon="photo_camera" onClick={() => avatarRef.current?.click()} />
               <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{user?.name}</p>
-              <p className="text-sm text-[#334155] dark:text-slate-400 mt-0.5">{user?.email}</p>
+              <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{user?.name}</p>
+              <p className="text-sm text-ink-600 dark:text-ink-900 mt-0.5">{user?.email}</p>
             </div>
             <div className="flex flex-col items-center gap-2 w-full">
-              <button
-                onClick={() => avatarRef.current?.click()}
-                className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-[#0d9488] hover:bg-[#e6fffa] transition-colors"
-              >
-                Change photo
-              </button>
+              <Button variant="subtle" size="md" onClick={() => avatarRef.current?.click()}>Change photo</Button>
               {avatarPreview && avatarPreview !== (user?.avatarUrl || null) && (
-                <button
-                  onClick={() => { setAvatarPreview(user?.avatarUrl || null); setAvatarData(null); }}
-                  className="w-full py-2 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  Remove photo
-                </button>
+                <Button variant="dangerGhost" size="md" onClick={() => { setAvatarPreview(user?.avatarUrl || null); setAvatarData(null); }}>Remove photo</Button>
               )}
             </div>
-            <div className="w-full pt-4 border-t border-zinc-100 dark:border-slate-800">
-              <p className="text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Workspace Role</p>
+            <div className="w-full pt-4 border-t border-paper-400 dark:border-ink-400">
+              <p className="text-xs font-medium text-ink-600 mb-2">Workspace Role</p>
               <span className={`text-xs font-medium px-3 py-1.5 rounded-full border ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
                 {user?.workspaceRole || user?.role}
               </span>
@@ -174,35 +154,31 @@ export default function WorkspaceSettings() {
           </div>
 
           {/* Right: Edit form */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Personal Information</h3>
+          <div className="lg:col-span-2 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card">
+            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-6">Personal Information</h3>
             <div className="space-y-5 max-w-lg">
               <Field label="Display Name">
                 <input
                   value={profileName}
                   onChange={e => setProfileName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full h-10 px-3 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
+                  className="w-full h-10 px-3 border border-paper-500 dark:border-ink-400 rounded-control text-sm bg-paper-100 dark:bg-ink-50 text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </Field>
               <Field label="Email">
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm text-[#334155] dark:text-slate-400 select-all">
+                <div className="h-10 px-3 flex items-center bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control text-sm text-ink-600 dark:text-ink-900 select-all">
                   {user?.email}
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">Email cannot be changed here.</p>
+                <p className="text-xs text-ink-800 mt-1">Email cannot be changed here.</p>
               </Field>
             </div>
-            <div className="mt-8 pt-5 border-t border-zinc-100 dark:border-slate-800">
-              <button
-                onClick={saveProfile}
-                disabled={savingProfile}
-                className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-              >
+            <div className="mt-8 pt-5 border-t border-paper-400 dark:border-ink-400">
+              <Button variant="primary" size="md" onClick={saveProfile} disabled={savingProfile}>
                 {savingProfile
                   ? <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span> Saving…</>
                   : 'Save changes'
                 }
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -211,54 +187,47 @@ export default function WorkspaceSettings() {
       {/* ── Workspace Tab ─────────────────────────────────────────── */}
       {tab === 'general' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-6">Workspace Information</h3>
+          <div className="lg:col-span-2 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card">
+            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-6">Workspace Information</h3>
             <div className="space-y-5 max-w-lg">
               <div>
-                <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Workspace Name</label>
+                <label className="block text-xs font-medium text-ink-600 mb-2">Workspace Name</label>
                 <div className="flex gap-3">
                   <input
                     value={workspaceName}
                     onChange={e => setWorkspaceName(e.target.value)}
                     disabled={!isAdmin}
-                    className="flex-1 h-10 px-3 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488] disabled:bg-zinc-50 disabled:text-zinc-400"
+                    className="flex-1 h-10 px-3 border border-paper-500 dark:border-ink-400 rounded-control text-sm bg-paper-100 dark:bg-ink-50 text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-paper-200 disabled:text-ink-800"
                   />
                   {isAdmin && (
-                    <button
-                      onClick={saveName}
-                      disabled={savingName || workspaceName === currentWorkspace?.name}
-                      className="px-5 h-10 bg-[#0d9488] text-white rounded-lg text-sm font-semibold hover:bg-[#0f766e] disabled:opacity-40 transition-colors"
-                    >
-                      {savingName ? 'Saving…' : 'Save'}
-                    </button>
+                    <Button variant="primary" size="md" onClick={saveName} disabled={savingName || workspaceName === currentWorkspace?.name}>{savingName ? 'Saving…' : 'Save'}</Button>
                   )}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Workspace ID</label>
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-xs text-[#334155] select-all">
+                <label className="block text-xs font-medium text-ink-600 mb-2">Workspace ID</label>
+                <div className="h-10 px-3 flex items-center bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control text-xs text-ink-600 select-all">
                   {workspaceId}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#334155] uppercase tracking-wider mb-2">Slug</label>
-                <div className="h-10 px-3 flex items-center bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm text-[#334155]">
+                <label className="block text-xs font-medium text-ink-600 mb-2">Slug</label>
+                <div className="h-10 px-3 flex items-center bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control text-sm text-ink-600">
                   {currentWorkspace?.slug || '—'}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-1">Your Access</h3>
-            <p className="text-sm text-[#334155] dark:text-slate-400">Your role determines what you can do in this workspace.</p>
+          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-1">Your Access</h3>
+            <p className="text-sm text-ink-600 dark:text-ink-900">Your role determines what you can do in this workspace.</p>
             <span className={`self-start text-xs font-medium px-3 py-1.5 rounded-full border mt-2 ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
               {user?.workspaceRole || user?.role}
             </span>
           </div>
         </div>
       )}
-
-    </div>
+  </Page>
   );
 }

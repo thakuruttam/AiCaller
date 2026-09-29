@@ -32,7 +32,7 @@ function DashedHex() {
       <polygon
         points="200,20 360,110 360,290 200,380 40,290 40,110"
         fill="none"
-        stroke="#0d9488"
+        stroke="#266df0"
         strokeOpacity="0.25"
         strokeDasharray="6 6"
         strokeWidth="1.5"
@@ -43,13 +43,13 @@ function DashedHex() {
 
 function GeneratingCard() {
   return (
-    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 rounded-xl bg-white border border-black/5 shadow-xl shadow-black/10 p-5">
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 rounded-xl bg-paper-100 border border-black/5 shadow-xl shadow-black/10 p-5">
       <p className="text-sm font-semibold text-[#14261f]">Generating campaign…</p>
       <div className="mt-3 flex gap-1" aria-hidden="true">
         {[0, 1, 2].map(i => (
           <MotionDiv
             key={i}
-            className="w-1.5 h-1.5 rounded-full bg-[#0d9488]"
+            className="w-1.5 h-1.5 rounded-full bg-[#266df0]"
             animate={{ opacity: [0.3, 1, 0.3] }}
             transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
           />
@@ -64,11 +64,11 @@ export function BuildYourOwn() {
   const active = TABS[tab];
 
   return (
-    <section className="relative bg-white py-24 md:py-32">
+    <section className="relative bg-paper-100 py-24 md:py-32">
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
         <Reveal>
           <div className="flex items-center gap-2.5 mb-6">
-            <span className="w-2 h-2 rounded-sm bg-amber-500" aria-hidden="true" />
+            <span className="w-2 h-2 rounded-sm bg-caution/100" aria-hidden="true" />
             <span className="text-sm text-[#5b6158]">AiCaller Studio: No-Code Campaign Builder</span>
           </div>
 
@@ -122,7 +122,7 @@ export function BuildYourOwn() {
                 <p.icon size={11} />
               </span>
               <span className="text-xs font-medium whitespace-nowrap">{p.label}</span>
-              <Check size={13} className="text-[#5eead4]" />
+              <Check size={13} className="text-[#94b9ff]" />
             </motion.div>
           ))}
         </div>

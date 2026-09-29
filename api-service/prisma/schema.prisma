@@ -60,6 +60,14 @@ model User {
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
 
+  // Delivery targets / opt-outs for the notification channels. `phone` is
+  // E.164. `notifyChannels` is a partial override of the default routing,
+  // shaped { email: bool, sms: bool, types: { <TYPE>: ["email","sms"] } }.
+  // Deliberately NOT @unique — Mongo unique indexes aren't sparse, so a second
+  // user without a phone number would collide.
+  phone          String?
+  notifyChannels Json?
+
   invitedById  String?
   invitedBy    User?      @relation("UserInvitedBy", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   invitedUsers User[]     @relation("UserInvitedBy")

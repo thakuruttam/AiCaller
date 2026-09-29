@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
+import { Button, IconButton } from '../../../components/ui';
 import {
   PhoneIncoming, MessageSquare, X,
   CheckCircle, AlertCircle, PhoneOff,
   User, Plus
 } from 'lucide-react';
-import QuestionCard, { emptyItem } from './QuestionCard';
+import QuestionCard from './QuestionCard';
+import { emptyItem } from './questionModel';
 import { useToast } from '../../../context/ToastContext';
 
 function wordCount(t) { return t?.trim().split(/\s+/).filter(Boolean).length || 0; }
@@ -15,12 +17,12 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, rows = 2 }) {
   return (
     <div className="flex flex-col gap-0.5 w-full">
       <textarea rows={rows} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className={`w-full rounded-lg border bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
+        className={`w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors
           ${over
-            ? 'border-red-400 focus:ring-red-500/20'
-            : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
+            ? 'border-negative focus:ring-negative/20'
+            : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
           }`} />
-      <span className={`text-xs text-right tabular-nums ${over ? 'text-red-500 font-semibold' : 'text-zinc-400'}`}>{count}/{limit} words</span>
+      <span className={`text-xs text-right tabular-nums ${over ? 'text-negative font-semibold' : 'text-ink-800'}`}>{count}/{limit} words</span>
     </div>
   );
 }
@@ -36,57 +38,52 @@ function CallDesignModal({ contact, campaignGoals, campaignMaxDuration, onSave, 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+      <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-paper-500 dark:border-ink-400 sticky top-0 bg-paper-100 dark:bg-ink-200 z-10">
           <div>
-            <h4 className="font-semibold text-sm text-zinc-900 dark:text-slate-100">Customize Call Design</h4>
-            <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 mt-0.5">Overrides for <span className="font-medium text-zinc-900 dark:text-slate-100">{contact.name}</span> only</p>
+            <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Customize Call Design</h4>
+            <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mt-0.5">Overrides for <span className="font-medium text-ink-100 dark:text-paper-200">{contact.name}</span> only</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-400 dark:text-slate-500 hover:text-zinc-700 dark:hover:text-slate-300 transition-colors"><X size={16} /></button>
+          <Button variant="ghost" size="md" onClick={onClose}><X size={16} /></Button>
         </div>
 
         <div className="p-6 flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-600 dark:text-slate-400 flex items-center gap-1"><MessageSquare size={11} /> Campaign Goal <span className="font-normal text-zinc-400 dark:text-slate-500">(max 100 words)</span></label>
+            <label className="text-xs font-medium text-ink-600 dark:text-ink-900 flex items-center gap-1"><MessageSquare size={11} /> Campaign Goal <span className="font-normal text-ink-800 dark:text-ink-800">(max 100 words)</span></label>
             <WordLimitTextarea value={local.goal} onChange={v => set('goal', v)} limit={100} placeholder="Override the campaign goal for this contact…" rows={2} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-600 dark:text-slate-400 flex items-center gap-1"><PhoneIncoming size={11} /> Call Introduction <span className="font-normal text-zinc-400 dark:text-slate-500">(max 300 words)</span></label>
+            <label className="text-xs font-medium text-ink-600 dark:text-ink-900 flex items-center gap-1"><PhoneIncoming size={11} /> Call Introduction <span className="font-normal text-ink-800 dark:text-ink-800">(max 300 words)</span></label>
             <WordLimitTextarea value={local.callIntro} onChange={v => set('callIntro', v)} limit={300} placeholder="Custom opening script for this contact…" rows={3} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-600 dark:text-slate-400 flex items-center gap-1"><PhoneOff size={11} /> Call Sign-off <span className="font-normal text-zinc-400 dark:text-slate-500">(max 300 words)</span></label>
+            <label className="text-xs font-medium text-ink-600 dark:text-ink-900 flex items-center gap-1"><PhoneOff size={11} /> Call Sign-off <span className="font-normal text-ink-800 dark:text-ink-800">(max 300 words)</span></label>
             <WordLimitTextarea value={local.callSignOff} onChange={v => set('callSignOff', v)} limit={300} placeholder="Custom closing script for this contact…" rows={3} />
           </div>
 
           {/* Per-contact max duration override */}
-          <div className="flex flex-col gap-1.5 pt-4 border-t border-zinc-100 dark:border-slate-700">
-            <label className="text-xs font-medium text-zinc-600 dark:text-slate-400">Max Call Duration (override)</label>
-            <p className="text-xs font-medium text-zinc-400">Leave blank to use campaign default ({campaignMaxDuration} min)</p>
+          <div className="flex flex-col gap-1.5 pt-4 border-t border-paper-400 dark:border-ink-400">
+            <label className="text-xs font-medium text-ink-600 dark:text-ink-900">Max Call Duration (override)</label>
+            <p className="text-xs font-medium text-ink-800">Leave blank to use campaign default ({campaignMaxDuration} min)</p>
             <div className="flex items-center gap-2">
               <input
                 type="number" min="1" max="60"
                 value={maxDurationMin}
                 onChange={e => setMaxDurationMin(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                 placeholder={String(campaignMaxDuration)}
-                className="h-9 w-24 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                className="h-9 w-24 rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
-              <span className="text-sm text-zinc-500">minutes</span>
+              <span className="text-sm text-ink-700">minutes</span>
               {maxDurationMin !== '' && (
-                <span className="text-xs font-medium text-zinc-400">≈ ₹{parseInt(maxDurationMin) * 5} est. cost</span>
+                <span className="text-xs font-medium text-ink-800">≈ ₹{parseInt(maxDurationMin) * 5} est. cost</span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-slate-700 sticky bottom-0 bg-white dark:bg-slate-800">
-          <button onClick={onClose} className="inline-flex items-center h-9 px-4 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">Cancel</button>
-          <button onClick={() => {
-            const durSec = maxDurationMin !== '' ? parseInt(maxDurationMin) * 60 : undefined;
-            onSave({ goals: local, ...(durSec ? { maxCallDurationSec: durSec } : { maxCallDurationSec: undefined }) });
-            onClose();
-          }}
-            className="inline-flex items-center h-9 px-4 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">Save Overrides</button>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-paper-500 dark:border-ink-400 sticky bottom-0 bg-paper-100 dark:bg-ink-200">
+          <Button variant="secondary" size="md" onClick={onClose} icon="close">Cancel</Button>
+          <Button variant="primary" size="md" onClick={() => { const durSec = maxDurationMin !== '' ? parseInt(maxDurationMin) * 60 : undefined; onSave({ goals: local, ...(durSec ? { maxCallDurationSec: durSec } : { maxCallDurationSec: undefined }) }); onClose(); }}>Save Overrides</Button>
         </div>
       </div>
     </div>
@@ -141,19 +138,19 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+      <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-paper-500 dark:border-ink-400 sticky top-0 bg-paper-100 dark:bg-ink-200 z-10">
           <div>
-            <h4 className="font-semibold text-sm text-zinc-900 dark:text-slate-100">Customize Setup Questions</h4>
-            <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 mt-0.5">Overrides for <span className="font-medium text-zinc-900 dark:text-slate-100">{contact.name}</span> only</p>
+            <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Customize Setup Questions</h4>
+            <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mt-0.5">Overrides for <span className="font-medium text-ink-100 dark:text-paper-200">{contact.name}</span> only</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-400 dark:text-slate-500 hover:text-zinc-700 dark:hover:text-slate-300 transition-colors"><X size={16} /></button>
+          <Button variant="ghost" size="md" onClick={onClose}><X size={16} /></Button>
         </div>
 
         <div className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-3">
             {local.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-zinc-200 dark:border-slate-700 rounded-xl text-zinc-400 dark:text-slate-500 bg-zinc-50 dark:bg-slate-900">
+              <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-ink-800 dark:text-ink-800 bg-paper-200 dark:bg-ink-50">
                 <MessageSquare size={32} className="mb-2 opacity-40" />
                 <p className="text-sm">No questions yet. Add one below.</p>
               </div>
@@ -174,19 +171,14 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={addItem}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-10 w-full text-xs font-medium text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-all mt-2"
-          >
+          <Button variant="subtle" size="sm" type="button" onClick={addItem}>
             <Plus size={14} /> Add Question / Information
-          </button>
+          </Button>
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-slate-700 sticky bottom-0 bg-white dark:bg-slate-800">
-          <button onClick={onClose} className="inline-flex items-center h-9 px-4 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">Cancel</button>
-          <button onClick={() => { onSave({ dataToCollect: local }); onClose(); }}
-            className="inline-flex items-center h-9 px-4 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">Save Overrides</button>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-paper-500 dark:border-ink-400 sticky bottom-0 bg-paper-100 dark:bg-ink-200">
+          <Button variant="secondary" size="md" onClick={onClose} icon="close">Cancel</Button>
+          <Button variant="primary" size="md" onClick={() => { onSave({ dataToCollect: local }); onClose(); }}>Save Overrides</Button>
         </div>
       </div>
     </div>
@@ -202,30 +194,28 @@ function ContactRow({ contact, index, campaignGoals, campaignQuestions, campaign
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-teal-300 dark:hover:border-teal-600 transition-colors">
+      <div className="flex items-center justify-between px-4 py-3 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 hover:border-brand-300 dark:hover:border-brand-500 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-xs font-bold text-teal-700">
+          <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-600">
             {contact.name?.charAt(0)?.toUpperCase() || '?'}
           </div>
           <div>
-            <p className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{contact.name}</p>
-            <p className="text-xs text-zinc-500 dark:text-slate-400">{contact.phone}</p>
+            <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{contact.name}</p>
+            <p className="text-xs text-ink-700 dark:text-ink-900">{contact.phone}</p>
           </div>
           <div className="flex gap-1 ml-2">
-            {hasDesignOverride    && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700">Design ✓</span>}
-            {hasQuestionsOverride && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-teal-200 bg-teal-50 text-teal-700">Questions ✓</span>}
+            {hasDesignOverride    && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-brand-200 bg-brand-100 text-brand-600">Design ✓</span>}
+            {hasQuestionsOverride && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-brand-200 bg-brand-100 text-brand-600">Questions ✓</span>}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => setModal('questions')}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
+          <Button variant="secondary" size="sm" onClick={() => setModal('questions')}>
             <MessageSquare size={11} /> Setup Questions
-          </button>
-          <button onClick={() => setModal('design')}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setModal('design')}>
             <PhoneIncoming size={11} /> Call Design
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -260,14 +250,14 @@ export default function StepContactOverrides({ payload, updatePayload }) {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       {overrideCount > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-teal-300 bg-teal-50 text-teal-800 text-sm font-medium">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-control border border-brand-300 bg-brand-100 text-brand-600 text-sm font-medium">
           <CheckCircle size={14} />
           {overrideCount} contact{overrideCount > 1 ? 's have' : ' has'} custom overrides
         </div>
       )}
 
       {contacts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-14 border-2 border-dashed border-zinc-200 dark:border-slate-700 rounded-xl text-zinc-400 dark:text-slate-500 bg-zinc-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center justify-center py-14 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-ink-800 dark:text-ink-800 bg-paper-200 dark:bg-ink-50">
           <User size={32} className="mb-2 opacity-40" />
           <p className="text-sm">No contacts uploaded yet. Go back to Step 2 to add contacts.</p>
         </div>
@@ -287,8 +277,8 @@ export default function StepContactOverrides({ payload, updatePayload }) {
         </div>
       )}
 
-      <div className="flex items-start gap-2 p-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 text-xs font-medium text-zinc-500 dark:text-slate-400">
-        <AlertCircle size={12} className="mt-0.5 shrink-0 text-zinc-400 dark:text-slate-500" />
+      <div className="flex items-start gap-2 p-3 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 text-xs font-medium text-ink-700 dark:text-ink-900">
+        <AlertCircle size={12} className="mt-0.5 shrink-0 text-ink-800 dark:text-ink-800" />
         <span>Overrides are saved locally in the wizard. When the campaign is launched, each contact's call will use its custom settings if set, falling back to campaign defaults otherwise.</span>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Button, IconButton } from '../components/ui';
 import { Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
 
 const AudioPlayer = ({ src, onTimeUpdate }) => {
@@ -99,7 +100,7 @@ const AudioPlayer = ({ src, onTimeUpdate }) => {
   };
 
   return (
-    <div className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 shadow-xl">
+    <div className="w-full bg-ink-50 border border-ink-400 rounded-card p-4 shadow-overlay">
       <audio ref={audioRef} src={src} />
       
       {/* Controls */}
@@ -107,48 +108,33 @@ const AudioPlayer = ({ src, onTimeUpdate }) => {
         
         {/* Progress Bar */}
         <div className="flex items-center gap-4 w-full">
-          <span className="text-xs text-zinc-500 w-10">{formatTime(currentTime)}</span>
+          <span className="text-xs text-ink-700 w-10">{formatTime(currentTime)}</span>
           <input
             type="range"
             min="0"
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
-            className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+            className="flex-1 h-1.5 bg-ink-300 rounded-control appearance-none cursor-pointer accent-white"
           />
-          <span className="text-xs text-zinc-400 w-10">{formatTime(duration)}</span>
+          <span className="text-xs text-ink-800 w-10">{formatTime(duration)}</span>
         </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={skipBackward}
-              className="p-2 text-zinc-400 hover:text-white transition-colors"
-              title="Backward 10s"
-            >
-              <RotateCcw size={20} />
-            </button>
+            <IconButton tone="neutral" size="md" title="Backward 10s" onClick={skipBackward}><RotateCcw size={20} /></IconButton>
 
-            <button 
-              onClick={togglePlayPause}
-              className="w-12 h-12 flex items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 transition-colors shadow-lg"
-            >
+            <Button variant="ghost" size="lg" onClick={togglePlayPause}>
               {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
-            </button>
+            </Button>
 
-            <button 
-              onClick={skipForward}
-              className="p-2 text-zinc-400 hover:text-white transition-colors"
-              title="Forward 10s"
-            >
-              <RotateCw size={20} />
-            </button>
+            <IconButton tone="neutral" size="md" title="Forward 10s" onClick={skipForward}><RotateCw size={20} /></IconButton>
           </div>
 
           <div className="flex items-center gap-3 w-32 group">
-            <button onClick={toggleMute} className="text-zinc-400 hover:text-white transition-colors">
+            <Button variant="ghost" size="md" onClick={toggleMute}>
               {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
+            </Button>
             <input
               type="range"
               min="0"
@@ -156,7 +142,7 @@ const AudioPlayer = ({ src, onTimeUpdate }) => {
               step="0.01"
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
-              className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+              className="flex-1 h-1 bg-ink-300 rounded-control appearance-none cursor-pointer accent-white"
             />
           </div>
         </div>

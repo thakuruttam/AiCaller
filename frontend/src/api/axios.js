@@ -44,7 +44,7 @@ api.interceptors.response.use(
         const accessToken = await refreshPromise;
         original.headers['Authorization'] = `Bearer ${accessToken}`;
         return api(original);
-      } catch (_) {
+      } catch {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');

@@ -45,10 +45,10 @@ export default function AuthCallback() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-900 flex items-center justify-center">
+    <div className="min-h-screen bg-paper-300 dark:bg-ink-50 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <span className="material-symbols-outlined text-[48px] text-[#0d9488] animate-spin">progress_activity</span>
-        <p className="text-[#334155] dark:text-slate-300 text-sm">Signing you in…</p>
+        <span className="material-symbols-outlined text-[48px] text-brand-500 animate-spin">progress_activity</span>
+        <p className="text-ink-600 dark:text-ink-900 text-sm">Signing you in…</p>
       </div>
     </div>
   );

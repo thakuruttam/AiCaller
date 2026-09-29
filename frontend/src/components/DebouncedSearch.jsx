@@ -39,13 +39,13 @@ export default function DebouncedSearch({
 
   return (
     <div className={`relative flex items-center ${className}`}>
-      <Search size={14} className="absolute left-3 text-zinc-400 dark:text-slate-500 pointer-events-none" />
+      <Search size={14} className="absolute left-3 text-ink-800 dark:text-ink-800 pointer-events-none" />
       <input
         type="text"
         value={value}
         onChange={e => setValue(e.target.value)}
         placeholder={placeholder}
-        className="h-9 w-full rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 pl-8 pr-4 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 shadow-sm focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/15 transition-all duration-150"
+        className="h-9 w-full rounded-control border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 pl-8 pr-4 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 shadow-card focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-all duration-150"
       />
     </div>
   );

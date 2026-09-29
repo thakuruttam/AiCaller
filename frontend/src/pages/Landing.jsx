@@ -3,6 +3,7 @@ import './landing/landing.css';
 import { Nav } from './landing/Nav';
 import { Hero } from './landing/Hero';
 import { DemoVideo } from './landing/DemoVideo';
+import { ProductTour } from './landing/ProductTour';
 import { Features } from './landing/Features';
 import { HowItWorks } from './landing/HowItWorks';
 import { ValueBand } from './landing/ValueBand';
@@ -25,6 +26,7 @@ export default function Landing() {
       <Nav onTakeTour={() => setTourOpen(true)} />
       <main>
         <Hero onTakeTour={() => setTourOpen(true)} />
+        <ProductTour />
         <Features />
         <HowItWorks />
         <ValueBand />

@@ -6,12 +6,13 @@ import Pagination from '../components/Pagination';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Avatar, Table, THead, TBody, Th, Tr, Td, EmptyState, SkeletonRow } from '../components/ui';
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-700',
-  ADMIN:       'bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20 dark:bg-indigo-900/30 dark:text-teal-300 dark:border-teal-700',
-  EDITOR:      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
-  VIEWER:      'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600',
+  SUPER_ADMIN: 'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30',
+  ADMIN:       'bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30',
+  EDITOR:      'bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15',
+  VIEWER:      'bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400',
 };
 
 const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'];
@@ -50,25 +51,23 @@ function InviteModal({ workspaceId, onClose, prefill }) {
     addToast('Invite link copied!', 'success');
   };
 
-  const inputClass = "w-full h-7 px-0.5 pb-1 bg-transparent border-0 border-b-[1.5px] border-[#e2e8f0] dark:border-white/[0.14] rounded-none text-[0.9rem] leading-none text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-[#0d9488] transition-colors";
+  const inputClass = "w-full h-7 px-0.5 pb-1 bg-transparent border-0 border-b-[1.5px] border-paper-500 dark:border-white/[0.14] rounded-none text-[0.9rem] leading-none text-ink-100 dark:text-white placeholder:text-ink-800 dark:placeholder:text-ink-600 focus:outline-none focus:border-brand-500 transition-colors";
   const selectClass = `${inputClass} appearance-none`;
-  const labelClass = "block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5";
+  const labelClass = "block text-xs font-medium text-ink-700  mb-1.5";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6">
+      <div className="relative bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Add Member</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-800 transition-colors">
-            <span className="material-symbols-outlined text-zinc-400 text-[18px]">close</span>
-          </button>
+          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Add Member</h3>
+          <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
         </div>
 
         {!inviteUrl ? (
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+              <label className={labelClass}>Email <span className="text-negative">*</span></label>
               <input
                 type="email" required
                 value={form.email}
@@ -79,7 +78,7 @@ function InviteModal({ workspaceId, onClose, prefill }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>First Name <span className="text-red-500">*</span></label>
+                <label className={labelClass}>First Name <span className="text-negative">*</span></label>
                 <input
                   type="text" required
                   value={form.firstName}
@@ -89,7 +88,7 @@ function InviteModal({ workspaceId, onClose, prefill }) {
                 />
               </div>
               <div>
-                <label className={labelClass}>Last Name <span className="text-red-500">*</span></label>
+                <label className={labelClass}>Last Name <span className="text-negative">*</span></label>
                 <input
                   type="text" required
                   value={form.lastName}
@@ -111,7 +110,7 @@ function InviteModal({ workspaceId, onClose, prefill }) {
                 />
               </div>
               <div>
-                <label className={labelClass}>Role <span className="text-red-500">*</span></label>
+                <label className={labelClass}>Role <span className="text-negative">*</span></label>
                 <select
                   value={form.role}
                   onChange={setField('role')}
@@ -121,33 +120,26 @@ function InviteModal({ workspaceId, onClose, prefill }) {
                 </select>
               </div>
             </div>
-            {error && <p className="text-xs text-red-500">{error}</p>}
-            <button
-              type="submit" disabled={loading || !canSubmit}
-              className="w-full h-10 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-lg text-sm font-semibold disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-            >
+            {error && <p className="text-xs text-negative">{error}</p>}
+            <Button variant="primary" size="md" type="submit" disabled={loading || !canSubmit}>
               {loading
                 ? <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span> Generating…</>
                 : 'Create'
               }
-            </button>
+            </Button>
           </form>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-zinc-600 dark:text-slate-400">
+            <p className="text-sm text-ink-600 dark:text-ink-900">
               {emailWarning
                 ? 'Invite link generated — email not sent'
                 : `Invite link generated! Share it with ${form.email}`}
             </p>
-            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-2.5">
-              <span className="text-xs text-zinc-600 dark:text-slate-300 truncate flex-1">{inviteUrl}</span>
-              <button onClick={copy} className="text-[#0d9488] hover:text-[#1e00a9] shrink-0">
-                <span className="material-symbols-outlined text-[18px]">content_copy</span>
-              </button>
+            <div className="flex items-center gap-2 bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control px-3 py-2.5">
+              <span className="text-xs text-ink-600 dark:text-ink-900 truncate flex-1">{inviteUrl}</span>
+              <IconButton tone="neutral" size="md" title="Content copy" icon="content_copy" onClick={copy} />
             </div>
-            <button onClick={onClose} className="w-full h-10 border border-zinc-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-zinc-600 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-800 transition-colors">
-              Done
-            </button>
+            <Button variant="secondary" size="md" onClick={onClose} icon="check">Done</Button>
           </div>
         )}
       </div>
@@ -259,7 +251,7 @@ export default function MyTeam() {
   };
 
   if (!workspaceId) return (
-    <div className="p-8 text-zinc-400 text-sm">No workspace found.</div>
+    <Page><EmptyState icon="workspaces" title="No workspace found" body="Pick or create a workspace to manage its members." /></Page>
   );
 
   const filteredMembers = members.filter(m => {
@@ -271,72 +263,59 @@ export default function MyTeam() {
   const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">My Team</h1>
-        <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Manage your workspace members and roles.</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="My Team"
+        subtitle="Manage your workspace members and roles."
+        actions={isAdmin && (
+          <Button icon="person_add" onClick={() => setShowInvite(true)}>Invite member</Button>
+        )}
+      />
 
       {/* Table */}
       <FullscreenTable className="bg-transparent">
         {({ toggle, isFs }) => (
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+          <Card padded={false} className="overflow-hidden">
             {/* Toolbar */}
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-zinc-100 dark:border-slate-800">
+            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-paper-400 dark:border-ink-400">
               <DebouncedSearch
                 onSearch={(q) => { setSearchQuery(q); setPage(1); }}
                 placeholder="Search members..."
                 className="w-72"
               />
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={loadMembers}
-                  title="Refresh"
-                  className="p-2 rounded-lg text-zinc-400 dark:text-slate-500 hover:bg-zinc-100 dark:hover:bg-slate-700 hover:text-zinc-700 dark:hover:text-slate-200 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px] block">refresh</span>
-                </button>
+                <IconButton title="Refresh" icon="refresh" onClick={loadMembers} />
                 <FullscreenButton toggle={toggle} isFs={isFs} />
-                {isAdmin && (
-                  <button
-                    onClick={() => setShowInvite(true)}
-                    className="flex items-center gap-1.5 bg-[#0d9488] hover:bg-[#0f766e] text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors shadow-sm active:scale-95 ml-1"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                    Team
-                  </button>
-                )}
               </div>
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center h-32 text-zinc-400 text-sm">Loading…</div>
+              <Table>
+                <TBody>
+                  {Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={isAdmin ? 7 : 6} />)}
+                </TBody>
+              </Table>
             ) : members.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 gap-3">
-                <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[48px]">group</span>
-                <p className="text-zinc-400 text-sm">No members yet. Invite someone to get started.</p>
-              </div>
+              <EmptyState
+                icon="group"
+                title="No members yet"
+                body="Invite a teammate to start collaborating in this workspace."
+                action={isAdmin && <Button icon="person_add" onClick={() => setShowInvite(true)}>Invite member</Button>}
+              />
             ) : filteredMembers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 gap-3">
-                <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[48px]">search_off</span>
-                <p className="text-zinc-400 text-sm">No members match your search.</p>
-              </div>
+              <EmptyState icon="search_off" title="No members match your search" body="Try a different name or email." />
             ) : (<>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
-                    <tr>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Email</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Role</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Created By</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Created Date</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-                      {isAdmin && <th className="px-5 py-3.5" />}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-50 dark:divide-slate-800">
+              <Table>
+                  <THead>
+                      <Th icon="person">Name</Th>
+                      <Th icon="mail">Email</Th>
+                      <Th icon="key">Role</Th>
+                      <Th icon="person_add">Created by</Th>
+                      <Th icon="calendar_today">Created</Th>
+                      <Th icon="toggle_on">Status</Th>
+                      {isAdmin && <Th align="right">Actions</Th>}
+                  </THead>
+                  <TBody>
                     {paginatedMembers.map(m => {
                       const isSelf = m.id === user?.id;
                       const isSuperAdminTarget = m.globalRole === 'SUPER_ADMIN';
@@ -347,65 +326,60 @@ export default function MyTeam() {
                           ? "Can't change a super admin's status"
                           : undefined;
                       return (
-                        <tr key={m.id} className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors">
-                          <td className="px-5 py-4">
+                        <Tr key={m.id}>
+                          <Td>
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-[#0f766e] flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
-                                {m.avatarUrl
-                                  ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                  : m.name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
-                              <p className="font-semibold text-zinc-900 dark:text-slate-100">
+                              <Avatar name={m.name} src={m.avatarUrl} size="sm" />
+                              <p className="font-medium text-ink-100 dark:text-paper-200">
                                 {m.name}
-                                {isSelf && <span className="ml-2 text-xs text-zinc-400 font-normal">(you)</span>}
+                                {isSelf && <span className="ml-2 text-xs text-ink-800 font-normal">(you)</span>}
                               </p>
                             </div>
-                          </td>
-                          <td className="px-5 py-4 text-zinc-500 dark:text-slate-400">{m.email}</td>
-                          <td className="px-5 py-4">
+                          </Td>
+                          <Td className="!text-ink-700 dark:!text-ink-900">{m.email}</Td>
+                          <Td>
                             {isAdmin && !isSelf ? (
-                              <select
+                              <Select
                                 value={m.workspaceRole}
                                 disabled={roleChanging[m.id]}
                                 onChange={e => changeRole(m.id, e.target.value)}
-                                className="text-xs font-semibold border border-zinc-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-900 text-zinc-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
+                                className="!h-8 !text-xs !w-auto"
                               >
                                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                              </select>
+                              </Select>
                             ) : (
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_BADGE[m.workspaceRole] || ROLE_BADGE.VIEWER}`}>
-                                {m.workspaceRole}
-                              </span>
+                              <Badge tone={m.workspaceRole === 'ADMIN' || m.workspaceRole === 'SUPER_ADMIN' ? 'brand' : 'neutral'}>
+                                {m.workspaceRole.replace('_', ' ').toLowerCase()}
+                              </Badge>
                             )}
-                          </td>
-                          <td className="px-5 py-4 text-zinc-500 dark:text-slate-400">{m.invitedByName || '—'}</td>
-                          <td className="px-5 py-4 text-zinc-500 dark:text-slate-400">{new Date(m.joinedAt).toLocaleDateString()}</td>
-                          <td className="px-5 py-4">
+                          </Td>
+                          <Td className="!text-ink-700 dark:!text-ink-900">{m.invitedByName || '—'}</Td>
+                          <Td className="!text-ink-700 dark:!text-ink-900">{new Date(m.joinedAt).toLocaleDateString()}</Td>
+                          <Td>
                             <ToggleSwitch
                               checked={m.status === 'ACTIVE'}
                               disabled={toggleDisabled}
                               title={toggleTitle}
                               onChange={(checked) => changeStatus(m.id, checked ? 'ACTIVE' : 'SUSPENDED')}
                             />
-                          </td>
+                          </Td>
                           {isAdmin && (
-                            <td className="px-5 py-4 text-right">
+                            <Td align="right">
                               {!isSelf && (
-                                <button
+                                <IconButton
+                                  tone="danger"
+                                  title={`Remove ${m.name}`}
+                                  icon="person_remove"
                                   onClick={() => removeMember(m.id, m.name)}
-                                  className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">person_remove</span>
-                                </button>
+                                />
                               )}
-                            </td>
+                            </Td>
                           )}
-                        </tr>
+                        </Tr>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </TBody>
+              </Table>
               <Pagination
                 page={currentPage}
                 totalPages={totalPages}
@@ -415,69 +389,52 @@ export default function MyTeam() {
                 onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
               />
             </>)}
-          </div>
+          </Card>
         )}
       </FullscreenTable>
 
       {isAdmin && (
         <div className="mt-8">
-          <p className="text-sm text-zinc-500 dark:text-slate-400 mb-3">
+          <p className="text-sm text-ink-700 dark:text-ink-900 mb-3">
             {invitesLoading ? 'Loading pending invites…' : `${invites.length} pending invite${invites.length !== 1 ? 's' : ''}`}
           </p>
           {!invitesLoading && invites.length > 0 && (
-            <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-800">
-                  <tr>
-                    <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Email</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Role</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Expires</th>
-                    <th className="px-5 py-3.5" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-50 dark:divide-slate-800">
+            <Card padded={false} className="overflow-hidden">
+              <Table>
+                <THead>
+                    <Th icon="mail">Email</Th>
+                    <Th icon="key">Role</Th>
+                    <Th icon="schedule">Expires</Th>
+                    <Th align="right">Actions</Th>
+                </THead>
+                <TBody>
                   {invites.map(inv => (
-                    <tr key={inv.id} className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors">
-                      <td className="px-5 py-4 text-zinc-900 dark:text-slate-100">{inv.email}</td>
-                      <td className="px-5 py-4">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_BADGE[inv.role] || ROLE_BADGE.VIEWER}`}>
-                          {inv.role}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-zinc-400">
+                    <Tr key={inv.id}>
+                      <Td>{inv.email}</Td>
+                      <Td>
+                        <Badge tone={inv.role === 'ADMIN' ? 'brand' : 'neutral'}>
+                          {inv.role.replace('_', ' ').toLowerCase()}
+                        </Badge>
+                      </Td>
+                      <Td className="!text-xs !text-ink-800">
                         {new Date(inv.expiresAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-5 py-4">
+                      </Td>
+                      <Td align="right">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => copyInviteLink(inv.inviteUrl)}
-                            title="Copy invite link"
-                            className="p-1.5 text-zinc-400 hover:text-[#0d9488] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                          </button>
-                          <button
-                            onClick={() => resendInvite(inv)}
-                            title="Resend invite"
-                            className="p-1.5 text-zinc-400 hover:text-[#0d9488] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">send</span>
-                          </button>
-                          <button
-                            onClick={() => revokeInvite(inv.id)}
+                          <IconButton tone="brand" title="Copy invite link" icon="content_copy"
+                            onClick={() => copyInviteLink(inv.inviteUrl)} />
+                          <IconButton tone="brand" title="Resend invite" icon="send"
+                            onClick={() => resendInvite(inv)} />
+                          <IconButton tone="danger" title="Revoke invite" icon="cancel"
                             disabled={revokingId === inv.id}
-                            title="Revoke invite"
-                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">cancel</span>
-                          </button>
+                            onClick={() => revokeInvite(inv.id)} />
                         </div>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </TBody>
+              </Table>
+            </Card>
           )}
         </div>
       )}
@@ -489,6 +446,6 @@ export default function MyTeam() {
           onClose={() => { setShowInvite(false); setResendPrefill(null); loadMembers(); loadInvites(); }}
         />
       )}
-    </div>
+    </Page>
   );
 }

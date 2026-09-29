@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
@@ -6,21 +7,22 @@ import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import Step7Review from './CampaignWizard/components/Step7Review';
+import { Tabs, Button, IconButton } from '../components/ui';
 
 const STATUS_BADGE = {
-  completed:    "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  failed:       'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300',
-  cancelled:    "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  "in-progress":"bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  queued:       "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400",
-  scheduled:    "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  completed:    "bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive",
+  failed:       'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative',
+  cancelled:    "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
+  "in-progress":"bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
+  queued:       "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
+  scheduled:    "bg-brand-100 text-brand-600 dark:bg-brand-600/30 dark:text-brand-300",
 };
 
 const TICKET_STATUS_BADGE = {
-  OPEN:        "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
-  IN_PROGRESS: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
-  RESOLVED:    "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
-  CLOSED:      "bg-zinc-100 text-zinc-500 border border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600",
+  OPEN:        "bg-brand-100 text-brand-600 border border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-600",
+  IN_PROGRESS: "bg-caution/10 text-caution-dim border border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15",
+  RESOLVED:    "bg-positive/10 text-positive-dim border border-positive/30 dark:bg-positive/15 dark:text-positive dark:border-positive/15",
+  CLOSED:      "bg-paper-400 text-ink-700 border border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400",
 };
 
 export default function AdminDashboard() {
@@ -32,9 +34,27 @@ export default function AdminDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [campaignSearchQuery, setCampaignSearchQuery] = useState('');
   const [callSearchQueries, setCallSearchQueries] = useState({});
-  const [lastUpdated, setLastUpdated] = useState(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
-  const [activeTab, setActiveTab] = useState('campaigns');
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  // Notifications deep-link here as /admin?tab=support&ticket=<id>, so the tab
+  // is seeded from the URL and kept in it — a linked ticket lands on the right
+  // tab, and the page stays shareable/reloadable.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const VALID_TABS = ['campaigns', 'support'];
+  const urlTab = searchParams.get('tab');
+  const deepLinkedTicketId = searchParams.get('ticket');
+
+  // The URL is the single source of truth for the active tab — deriving it
+  // rather than mirroring it into state means back/forward and a pasted link
+  // all land on the right tab with no effect to keep them in sync.
+  const activeTab = VALID_TABS.includes(urlTab) ? urlTab : 'campaigns';
+
+  const selectTab = (key) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', key);
+    if (key !== 'support') next.delete('ticket');
+    setSearchParams(next, { replace: true });
+  };
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [ticketFilter, setTicketFilter] = useState('all');
@@ -64,6 +84,15 @@ export default function AdminDashboard() {
       setTicketReply('');
     } catch { addToast('Failed to load ticket', 'error'); }
   };
+
+  // Arriving from a support notification (…&ticket=<id>) opens that ticket
+  // straight away. Runs once per id so closing the dialog doesn't reopen it.
+  const openedFromUrl = useRef(null);
+  useEffect(() => {
+    if (!deepLinkedTicketId || openedFromUrl.current === deepLinkedTicketId) return;
+    openedFromUrl.current = deepLinkedTicketId;
+    openTicket({ id: deepLinkedTicketId });
+  }, [deepLinkedTicketId]);
 
   const sendReply = async () => {
     if (!ticketReply.trim() || !selectedTicket) return;
@@ -97,6 +126,7 @@ export default function AdminDashboard() {
     const pollInterval = setInterval(fetchCampaigns, 8000);
     const clockInterval = setInterval(() => {
       setSecondsAgo(prev => prev + 1);
+      setNowTs(Date.now());
     }, 1000);
     return () => { clearInterval(pollInterval); clearInterval(clockInterval); };
   }, []);
@@ -105,7 +135,6 @@ export default function AdminDashboard() {
     try {
       const res = await api.get('/api/campaigns?all=true');
       setCampaigns(res.data);
-      setLastUpdated(Date.now());
       setSecondsAgo(0);
       wasFailingRef.current = false;
     } catch (e) {
@@ -128,7 +157,7 @@ export default function AdminDashboard() {
       await api.post(`/api/campaigns/${campaignId}/status`, { action });
       addToast(`Campaign ${action} executed`, "success");
       await fetchCampaigns();
-    } catch (e) {
+    } catch {
       addToast(`Failed to ${action} campaign`, "error");
     } finally {
       setActionLoading(false);
@@ -147,7 +176,7 @@ export default function AdminDashboard() {
         addToast("Re-call queued", "success");
       }
       await fetchCampaigns();
-    } catch (e) {
+    } catch {
       addToast(`Failed to ${actionStr} call`, "error");
     } finally {
       setActionLoading(false);
@@ -160,7 +189,7 @@ export default function AdminDashboard() {
     setActionLoading(true);
     let ok = 0;
     for (const call of calls) {
-      try { await api.post(`/api/campaigns/calls/${call.id}/evaluate`); ok++; } catch {}
+      try { await api.post(`/api/campaigns/calls/${call.id}/evaluate`); ok++; } catch { /* counted as a miss below */ }
     }
     setActionLoading(false);
     addToast(`Queued ${ok} of ${calls.length} evaluations`, "success");
@@ -172,7 +201,7 @@ export default function AdminDashboard() {
     setActionLoading(true);
     let ok = 0;
     for (const call of calls) {
-      try { await api.post(`/api/campaigns/calls/${call.id}/recall`); ok++; } catch {}
+      try { await api.post(`/api/campaigns/calls/${call.id}/recall`); ok++; } catch { /* counted as a miss below */ }
     }
     setActionLoading(false);
     addToast(`Queued ${ok} of ${calls.length} re-calls`, "success");
@@ -185,7 +214,7 @@ export default function AdminDashboard() {
       const res = await api.get(`/api/campaigns/${campaignId}`);
       setSelectedCampaign(res.data);
       setIsViewModalOpen(true);
-    } catch (e) {
+    } catch {
       addToast('Failed to load campaign details', 'error');
     } finally {
       setViewLoadingId(null);
@@ -199,7 +228,7 @@ export default function AdminDashboard() {
   const STALE_MS = 10 * 60 * 1000;
   const isLiveLog = (l) => {
     if (!['queued','in-progress'].includes(l.status)) return false;
-    return Date.now() - new Date(l.updatedAt || l.createdAt).getTime() < STALE_MS;
+    return nowTs - new Date(l.updatedAt || l.createdAt).getTime() < STALE_MS;
   };
   const totalActive = campaigns.filter(c => (c.callLogs||[]).some(isLiveLog)).length;
   const totalPaused = campaigns.filter(c => (c.callLogs||[]).some(l => l.status === 'paused')).length;
@@ -209,55 +238,37 @@ export default function AdminDashboard() {
   const filtered = campaigns.filter(c => c.name?.toLowerCase().includes(campaignSearchQuery.toLowerCase()));
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto">
+    <div className="p-10 max-w-[1440px] mx-auto">
       {/* Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-[#0d9488] text-3xl">shield</span>
-            <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Admin Dashboard</h2>
+            <span className="material-symbols-outlined text-brand-500 text-3xl">shield</span>
+            <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">Admin Dashboard</h2>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm">Real-time system oversight and campaign orchestration.</p>
+          <p className="text-ink-600 dark:text-ink-900 text-sm">Real-time system oversight and campaign orchestration.</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => {
-              if (window.confirm('CRITICAL ACTION: Kill all active campaigns?')) {
-                campaigns.forEach(c => {
-                  if ((c.callLogs||[]).some(l => ['queued','in-progress'].includes(l.status))) {
-                    handleCampaignAction(c.id, 'kill');
-                  }
-                });
-              }
-            }}
-            className="bg-[#ba1a1a] text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm hover:bg-red-700 transition-colors shadow-sm active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[18px]">skull</span>
-            Kill All
-          </button>
-          <button className="bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm border border-zinc-200 dark:border-slate-600 hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors">
-            <span className="material-symbols-outlined text-[18px]">download</span>
-            Export Logs
-          </button>
+          <Button variant="danger" size="md" icon="skull" onClick={() => { if (window.confirm('CRITICAL ACTION: Kill all active campaigns?')) { campaigns.forEach(c => { if ((c.callLogs||[]).some(l => ['queued','in-progress'].includes(l.status))) { handleCampaignAction(c.id, 'kill'); } }); } }}>Kill All</Button>
+          <Button variant="secondary" size="md" icon="download" >Export Logs</Button>
         </div>
       </div>
 
       {/* Tab Bar */}
-      <div className="flex gap-1 mb-6 bg-zinc-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
-        {[
-          { key: 'campaigns', icon: 'campaign', label: 'Campaigns' },
-          { key: 'support', icon: 'contact_support', label: `Support Tickets${tickets.filter(t => t.status === 'OPEN').length > 0 ? ` (${tickets.filter(t => t.status === 'OPEN').length})` : ''}` },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
-          >
-            <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mb-6"
+        value={activeTab}
+        onChange={selectTab}
+        items={[
+          { value: 'campaigns', label: 'Campaigns', icon: 'campaign' },
+          {
+            value: 'support',
+            label: 'Support tickets',
+            icon: 'contact_support',
+            count: tickets.filter(t => t.status === 'OPEN').length || undefined,
+          },
+        ]}
+      />
 
       {activeTab === 'support' && (
         <SupportTicketsPanel
@@ -281,68 +292,68 @@ export default function AdminDashboard() {
       {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
       <div className="grid grid-cols-12 gap-6 mb-6">
-        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Active Channels</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{totalChannels} / 2,000</h3>
-          <div className="w-full bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full mt-3">
-            <div className="bg-[#0d9488] h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
+        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Active Channels</p>
+          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalChannels} / 2,000</h3>
+          <div className="w-full bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full mt-3">
+            <div className="bg-brand-500 h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
           </div>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Calls per Second</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{totalCPS} CPS</h3>
-          <p className="text-emerald-600 text-xs flex items-center gap-1 mt-2">
+        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Calls per Second</p>
+          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalCPS} CPS</h3>
+          <p className="text-positive-dim text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
           </p>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">System Latency</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">142ms</h3>
-          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2">
+        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">System Latency</p>
+          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">142ms</h3>
+          <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
           </p>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm">
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Error Rate</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">0.04%</h3>
-          <p className="text-zinc-500 dark:text-slate-400 text-xs flex items-center gap-1 mt-2">
+        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Error Rate</p>
+          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">0.04%</h3>
+          <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">info</span> Low impact
           </p>
         </div>
       </div>
 
       {/* Campaign Table */}
-      <FullscreenTable className="bg-white dark:bg-slate-800 rounded-lg border border-zinc-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
+      <FullscreenTable className="bg-paper-100 dark:bg-ink-200 rounded-control border border-paper-500 dark:border-ink-400 shadow-card overflow-hidden mb-6">
         {({ toggle, isFs }) => (<>
-        <div className="px-6 py-4 border-b border-zinc-100 dark:border-slate-700 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-paper-400 dark:border-ink-400 bg-paper-200/50 dark:bg-ink-50/50 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h4 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">All Campaigns</h4>
-            <span className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-slate-500">              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">All Campaigns</h4>
+            <span className="flex items-center gap-1.5 text-xs text-ink-800 dark:text-ink-800">              <span className="inline-block w-1.5 h-1.5 rounded-full bg-positive animate-pulse"></span>
               {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 text-emerald-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-positive/10 dark:bg-positive/15 dark:text-positive text-positive-dim">
+              <span className="w-1.5 h-1.5 rounded-full bg-positive mr-1.5"></span>
               {totalActive} Active
             </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 text-amber-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-caution/10 dark:bg-caution/15 dark:text-caution text-caution-dim">
+              <span className="w-1.5 h-1.5 rounded-full bg-caution/100 mr-1.5"></span>
               {totalPaused} Paused
             </span>
             <FullscreenButton toggle={toggle} isFs={isFs} />
           </div>
         </div>
 
-        <div className="px-6 py-3 border-b border-zinc-100 dark:border-slate-700">
+        <div className="px-6 py-3 border-b border-paper-400 dark:border-ink-400">
           <DebouncedSearch onSearch={setCampaignSearchQuery} placeholder="Search campaigns..." className="w-72" />
         </div>
 
-        <div className="divide-y divide-zinc-100 dark:divide-slate-700">
+        <div className="divide-y divide-paper-400 dark:divide-ink-400">
           {loading && (
             <div className="px-6 py-10 flex flex-col items-center gap-3">
-              <Spinner size={28} className="text-[#0d9488]" />
-              <p className="text-sm text-[#64748b] dark:text-slate-400">Loading campaigns…</p>
+              <Spinner size={28} className="text-brand-500" />
+              <p className="text-sm text-ink-700 dark:text-ink-900">Loading campaigns…</p>
             </div>
           )}
           {!loading && filtered.map(campaign => {
@@ -369,89 +380,79 @@ export default function AdminDashboard() {
 
             return (
               <div key={campaign.id} className="group">
-                <div className="flex items-center px-6 py-4 cursor-pointer hover:bg-zinc-50/30 dark:hover:bg-slate-700/30 transition-colors" onClick={() => toggleCampaign(campaign.id)}>
+                <div className="flex items-center px-6 py-4 cursor-pointer hover:bg-paper-200/30 dark:hover:bg-ink-400/30 transition-colors" onClick={() => toggleCampaign(campaign.id)}>
                   <div className="w-8 flex-shrink-0">
-                    <span className={`material-symbols-outlined text-zinc-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                    <span className={`material-symbols-outlined text-ink-800 dark:text-ink-800 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
                   <div className="flex-1 grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-3">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100">{campaign.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-slate-400">ID: {campaign.id?.substring(0,12)}</p>
+                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{campaign.name}</p>
+                      <p className="text-xs text-ink-700 dark:text-ink-900">ID: {campaign.id?.substring(0,12)}</p>
                       {hasScheduled && campaign.scheduledAt && (
-                        <p className="text-xs font-medium text-purple-600 dark:text-purple-400 mt-0.5">
+                        <p className="text-xs font-medium text-brand-500 dark:text-brand-300 mt-0.5">
                           Scheduled for {new Date(campaign.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
                         </p>
                       )}
                     </div>
                     <div className="col-span-3">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Workspace</p>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate">{campaign.tenant?.name || '—'}</p>
-                      <p className="text-xs text-zinc-400 dark:text-slate-500 truncate">{campaign.createdBy?.email || '—'}</p>
+                      <p className="text-xs text-ink-700 dark:text-ink-900">Workspace</p>
+                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate">{campaign.tenant?.name || '—'}</p>
+                      <p className="text-xs text-ink-800 dark:text-ink-800 truncate">{campaign.createdBy?.email || '—'}</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Calls</p>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100">{logs.length.toLocaleString()}</p>
+                      <p className="text-xs text-ink-700 dark:text-ink-900">Calls</p>
+                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{logs.length.toLocaleString()}</p>
                     </div>
                     <div className="col-span-1">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase">Type</p>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 capitalize">{campaign.type || 'HR'}</p>
+                      <p className="text-xs text-ink-700 dark:text-ink-900">Type</p>
+                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200 capitalize">{campaign.type || 'HR'}</p>
                     </div>
                     <div className="col-span-3 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="View">
+                      <Button variant="secondary" size="md" onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} title="View">
                         {viewLoadingId === campaign.id
-                          ? <Spinner size={14} className="text-zinc-600 dark:text-slate-400" />
+                          ? <Spinner size={14} className="text-ink-600 dark:text-ink-900" />
                           : <span className="material-symbols-outlined text-sm">visibility</span>}
-                      </button>
+                      </Button>
                       {(hasDraft || !logs.length) && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'start')} disabled={actionLoading} className="bg-[#0d9488] text-white p-2 rounded-lg hover:bg-[#0f766e] transition-colors shadow-sm disabled:opacity-50" title="Start">
-                          <span className="material-symbols-outlined text-sm">play_arrow</span>
-                        </button>
+                        <IconButton tone="brand" size="md" title="Start" icon="play_arrow" onClick={() => handleCampaignAction(campaign.id, 'start')} disabled={actionLoading} />
                       )}
                       {(hasQueued || hasInProgress || hasScheduled) && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'pause')} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title={hasScheduled ? 'Cancel schedule' : 'Pause'}>
-                          <span className="material-symbols-outlined text-sm">pause</span>
-                        </button>
+                        <IconButton tone="neutral" size="md" title={hasScheduled ? 'Cancel schedule' : 'Pause'} icon="pause" onClick={() => handleCampaignAction(campaign.id, 'pause')} disabled={actionLoading} />
                       )}
                       {hasPaused && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'resume')} disabled={actionLoading} className="bg-amber-100 text-amber-700 p-2 rounded-lg hover:bg-amber-200 transition-colors border border-amber-200 disabled:opacity-50" title="Resume">
-                          <span className="material-symbols-outlined text-sm">play_circle</span>
-                        </button>
+                        <IconButton tone="neutral" size="md" title="Resume" icon="play_circle" onClick={() => handleCampaignAction(campaign.id, 'resume')} disabled={actionLoading} />
                       )}
                       {hasActive && (
-                        <button onClick={() => handleCampaignAction(campaign.id, 'kill')} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-[#ba1a1a] dark:text-red-400 p-2 rounded-lg hover:bg-[#ffdad6] dark:hover:bg-red-900/30 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="Kill">
-                          <span className="material-symbols-outlined text-sm">stop</span>
-                        </button>
+                        <IconButton tone="danger" size="md" title="Kill" icon="stop" onClick={() => handleCampaignAction(campaign.id, 'kill')} disabled={actionLoading} />
                       )}
                       {hasEverRun && (
-                        <button onClick={() => confirmRerun(campaign.id)} disabled={actionLoading} className="bg-zinc-100 dark:bg-slate-700 text-zinc-600 dark:text-slate-400 p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors border border-zinc-200 dark:border-slate-600 disabled:opacity-50" title="Re-run">
-                          <span className="material-symbols-outlined text-sm">refresh</span>
-                        </button>
+                        <IconButton tone="neutral" size="md" title="Re-run" icon="refresh" onClick={() => confirmRerun(campaign.id)} disabled={actionLoading} />
                       )}
                     </div>
                   </div>
                 </div>
 
                 {isExpanded && (
-                  <div className="bg-zinc-50/80 dark:bg-slate-900/50 px-14 border-t border-zinc-100 dark:border-slate-700">
+                  <div className="bg-paper-200/80 dark:bg-ink-50/50 px-14 border-t border-paper-400 dark:border-ink-400">
                     <div className="py-6">
                       <div className="flex justify-between items-center mb-4">
-                        <h5 className="text-sm font-semibold text-zinc-700 dark:text-slate-300">Live Call Stream</h5>
+                        <h5 className="text-sm font-semibold text-ink-500 dark:text-ink-900">Live Call Stream</h5>
                         <div className="flex items-center gap-3">
                           <DebouncedSearch onSearch={(q) => handleCallSearch(campaign.id, q)} placeholder="Search call logs..." className="w-64" />
-                          <button onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50">Evaluate All</button>
-                          <button onClick={() => handleBulkRecall(campaign)} disabled={actionLoading} className="text-xs px-3 py-1.5 border border-zinc-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors disabled:opacity-50">Re-call Failed</button>
+                          <Button variant="secondary" size="sm" onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading}>Evaluate All</Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleBulkRecall(campaign)} disabled={actionLoading}>Re-call Failed</Button>
                         </div>
                       </div>
-                      <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+                      <div className="overflow-x-auto rounded-field border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card">
                         <table className="w-full text-left">
-                          <thead className="bg-zinc-100 dark:bg-slate-700 border-b border-zinc-200 dark:border-slate-600">
+                          <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
                             <tr>
                               {['Contact','Phone','Status','Actions'].map(h => (
-                                <th key={h} className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-slate-300">{h}</th>
+                                <th key={h} className="px-4 py-2 text-xs font-medium text-ink-600 dark:text-ink-900">{h}</th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-100 dark:divide-slate-700 text-sm">
+                          <tbody className="divide-y divide-paper-400 dark:divide-ink-400 text-sm">
                             {(() => {
                               // One row per call attempt (callLog), not per contact — a contact
                               // can have multiple logs (re-calls), and keying off contacts with
@@ -470,7 +471,7 @@ export default function AdminDashboard() {
 
                               if (rows.length === 0) {
                                 return (
-                                  <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-slate-500 italic">
+                                  <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-ink-800 dark:text-ink-800 italic">
                                     {logs.length === 0 ? 'No contacts in this campaign.' : 'No call logs match.'}
                                   </td></tr>
                                 );
@@ -480,20 +481,18 @@ export default function AdminDashboard() {
                                 const cc = contactByContactId.get(log.contactId);
                                 const name = cc?.overrides?.name || cc?.contact?.name || '—';
                                 return (
-                                  <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50">
-                                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-slate-100">{name}</td>
-                                    <td className="px-4 py-3 text-zinc-500 dark:text-slate-400">{cc?.contact?.phone}</td>
-                                    <td className="px-4 py-3">
+                                  <tr key={log.id} className="hover:bg-paper-200 dark:hover:bg-ink-400/50">
+                                    <td className="px-5 py-3 font-medium text-ink-100 dark:text-paper-200">{name}</td>
+                                    <td className="px-5 py-3 text-ink-700 dark:text-ink-900">{cc?.contact?.phone}</td>
+                                    <td className="px-5 py-3">
                                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`}>
                                         {log.status}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-5 py-3">
                                       <div className="flex gap-2">
-                                        <button onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'} className="text-xs px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50">Eval</button>
-                                        <button onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading} className="text-xs px-2.5 py-1 rounded border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1">
-                                          <span className="material-symbols-outlined text-[12px]">history</span> Re-call
-                                        </button>
+                                        <Button variant="secondary" size="sm" onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'}>Eval</Button>
+                                        <Button variant="secondary" size="sm" icon="history" onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading}>Re-call</Button>
                                       </div>
                                     </td>
                                   </tr>
@@ -511,7 +510,7 @@ export default function AdminDashboard() {
           })}
 
           {!loading && filtered.length === 0 && (
-            <div className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">No campaigns found.</div>
+            <div className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">No campaigns found.</div>
           )}
         </div>
         </>)}
@@ -525,14 +524,12 @@ export default function AdminDashboard() {
         title="Re-run Campaign?"
         footer={
           <>
-            <button onClick={() => setIsConfirmOpen(false)} className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-9 px-4 border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-zinc-50 dark:hover:bg-slate-600 text-zinc-700 dark:text-slate-300 transition-colors">Cancel</button>
-            <button onClick={() => handleCampaignAction(confirmAction, 'rerun')} disabled={actionLoading} className="inline-flex items-center justify-center rounded-lg text-sm font-semibold h-9 px-4 bg-[#ba1a1a] text-white hover:bg-red-700 disabled:opacity-50 transition-colors">
-              {actionLoading ? 'Processing…' : 'Reset & Rerun'}
-            </button>
+            <Button variant="secondary" size="md" onClick={() => setIsConfirmOpen(false)}>Cancel</Button>
+            <Button variant="danger" size="md" onClick={() => handleCampaignAction(confirmAction, 'rerun')} disabled={actionLoading}>{actionLoading ? 'Processing…' : 'Reset & Rerun'}</Button>
           </>
         }
       >
-        <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed">
+        <p className="text-sm text-ink-600 dark:text-ink-900 leading-relaxed">
           Are you sure? Every contact will be re-queued for a fresh call. Recordings and transcripts from previous completed calls are kept — only pending or in-progress calls are cleared.
         </p>
       </Modal>
@@ -565,22 +562,22 @@ export default function AdminDashboard() {
 }
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: "bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300",
-  ADMIN:       "bg-[#0d9488]/10 text-[#0d9488] dark:bg-teal-900/30 dark:text-teal-300",
-  EDITOR:      "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  VIEWER:      "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400",
+  SUPER_ADMIN: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+  ADMIN:       "bg-brand-500/10 text-brand-500 dark:bg-brand-500/15 dark:text-brand-300",
+  EDITOR:      "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
+  VIEWER:      "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
 };
 
 const STATUS_USER_BADGE = {
-  ACTIVE:    "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  PENDING:   "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  SUSPENDED: "bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300",
+  ACTIVE:    "bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive",
+  PENDING:   "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
+  SUSPENDED: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
 };
 
 function Avatar({ user, size = 'md' }) {
   const dim = size === 'lg' ? 'w-14 h-14 text-base' : size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-xs';
   return (
-    <div className={`${dim} rounded-full bg-[#0f766e] flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
+    <div className={`${dim} rounded-full bg-brand-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
       {user?.avatarUrl
         ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
         : user?.name?.charAt(0)?.toUpperCase() || '?'}
@@ -601,72 +598,64 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
     <div className="space-y-6">
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-1">Open</p>
-          <p className="text-2xl font-bold text-blue-600">{openCount}</p>
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-5 shadow-card">
+          <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Open</p>
+          <p className="text-2xl font-bold text-brand-500">{openCount}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-1">In Progress</p>
-          <p className="text-2xl font-bold text-amber-600">{ipCount}</p>
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-5 shadow-card">
+          <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">In Progress</p>
+          <p className="text-2xl font-bold text-caution-dim">{ipCount}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-zinc-500 dark:text-slate-400 uppercase tracking-wider mb-1">Resolved</p>
-          <p className="text-2xl font-bold text-emerald-600">{resolveCount}</p>
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-5 shadow-card">
+          <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Resolved</p>
+          <p className="text-2xl font-bold text-positive-dim">{resolveCount}</p>
         </div>
       </div>
 
       <div className="flex gap-5 items-start">
         {/* ── Ticket list ── */}
-        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden`}>
-          <div className="px-4 py-3 border-b border-zinc-100 dark:border-slate-700 flex items-center justify-between">
-            <div className="flex gap-0.5 bg-zinc-100 dark:bg-slate-700 p-0.5 rounded-lg">
+        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden`}>
+          <div className="px-4 py-3 border-b border-paper-400 dark:border-ink-400 flex items-center justify-between">
+            <div className="flex gap-0.5 bg-paper-400 dark:bg-ink-300 p-0.5 rounded-control">
               {FILTERS.map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${filter === f ? "bg-white dark:bg-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm" : "text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-200"}`}
-                >
-                  {f === 'all' ? 'All' : f.replace('_', ' ')}
-                </button>
+                <Button variant="ghost" size="sm" key={f} onClick={() => setFilter(f)}>{f === 'all' ? 'All' : f.replace('_', ' ')}</Button>
               ))}
             </div>
-            <button onClick={onRefresh} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors">
-              <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500 text-[16px]">refresh</span>
-            </button>
+            <IconButton tone="neutral" size="md" title="Refresh" icon="refresh" onClick={onRefresh} />
           </div>
 
           {loading ? (
-            <div className="px-5 py-10 text-center text-zinc-400 dark:text-slate-500 text-sm">Loading…</div>
+            <div className="px-5 py-10 text-center text-ink-800 dark:text-ink-800 text-sm">Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <span className="material-symbols-outlined text-zinc-200 dark:text-slate-600 text-[40px] block mb-2">inbox</span>
-              <p className="text-zinc-400 dark:text-slate-500 text-sm">No tickets</p>
+              <span className="material-symbols-outlined text-paper-200 dark:text-ink-700 text-[40px] block mb-2">inbox</span>
+              <p className="text-ink-800 dark:text-ink-800 text-sm">No tickets</p>
             </div>
           ) : (
-            <div className="divide-y divide-zinc-50 dark:divide-slate-700/50 max-h-[65vh] overflow-y-auto">
+            <div className="divide-y divide-paper-400 dark:divide-ink-400/50 max-h-[65vh] overflow-y-auto">
               {filtered.map(t => (
                 <div
                   key={t.id}
                   onClick={() => onOpen(t)}
-                  className={`px-4 py-3.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors ${selectedTicket?.id === t.id ? "bg-zinc-50 dark:bg-slate-700/50 border-l-[3px] border-[#0d9488]" : "border-l-[3px] border-transparent"}`}
+                  className={`px-4 py-3.5 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-400/50 transition-colors ${selectedTicket?.id === t.id ? "bg-paper-200 dark:bg-ink-300/50 border-l-[3px] border-brand-500" : "border-l-[3px] border-transparent"}`}
                 >
                   <div className="flex items-start gap-3">
                     <Avatar user={t.user} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-zinc-900 dark:text-slate-100 truncate leading-tight">{t.subject}</p>
+                        <p className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate leading-tight">{t.subject}</p>
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}>
                           {t.status.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
+                      <p className="text-xs text-ink-700 dark:text-ink-900 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-zinc-400 dark:text-slate-500 capitalize">{t.category}</span>
-                        <span className="text-xs text-zinc-300 dark:text-slate-600">·</span>
-                        <span className="text-xs text-zinc-400 dark:text-slate-500">{new Date(t.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-ink-800 dark:text-ink-800 capitalize">{t.category}</span>
+                        <span className="text-xs text-ink-900 dark:text-ink-700">·</span>
+                        <span className="text-xs text-ink-800 dark:text-ink-800">{new Date(t.createdAt).toLocaleDateString()}</span>
                         {t._count?.replies > 0 && <>
-                          <span className="text-xs text-zinc-300 dark:text-slate-600">·</span>
-                          <span className="text-xs text-zinc-400 dark:text-slate-500">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
+                          <span className="text-xs text-ink-900 dark:text-ink-700">·</span>
+                          <span className="text-xs text-ink-800 dark:text-ink-800">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
                         </>}
                       </div>
                     </div>
@@ -682,26 +671,26 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
           <div className="flex-1 flex gap-4 items-start min-w-0">
 
             {/* Sender card */}
-            <div className="w-[220px] shrink-0 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-zinc-100 dark:border-slate-700">
-                <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Submitted by</p>
+            <div className="w-[220px] shrink-0 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-paper-400 dark:border-ink-400">
+                <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Submitted by</p>
               </div>
               <div className="p-4 space-y-4">
                 {/* Avatar + name */}
                 <div className="flex flex-col items-center text-center gap-2">
                   <Avatar user={selectedTicket.user} size="lg" />
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-slate-100 leading-tight">{selectedTicket.user?.name}</p>
-                    <p className="text-xs text-zinc-400 dark:text-slate-500 mt-0.5 break-all">{selectedTicket.user?.email}</p>
+                    <p className="text-sm font-semibold text-ink-100 dark:text-paper-200 leading-tight">{selectedTicket.user?.name}</p>
+                    <p className="text-xs text-ink-800 dark:text-ink-800 mt-0.5 break-all">{selectedTicket.user?.email}</p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-1">
                     {selectedTicket.user?.role && (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
                         {selectedTicket.user.role.replace('_', ' ')}
                       </span>
                     )}
                     {selectedTicket.user?.status && (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || "bg-zinc-100 text-zinc-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || "bg-paper-400 text-ink-700 dark:bg-ink-300 dark:text-ink-900"}`}>
                         {selectedTicket.user.status}
                       </span>
                     )}
@@ -709,58 +698,58 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 </div>
 
                 {/* Detail rows */}
-                <div className="space-y-2.5 border-t border-zinc-100 dark:border-slate-700 pt-3">
+                <div className="space-y-2.5 border-t border-paper-400 dark:border-ink-400 pt-3">
                   {selectedTicket.tenant?.name && (
                     <div>
-                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Workspace</p>
-                      <p className="text-xs text-zinc-700 dark:text-slate-300 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
+                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Workspace</p>
+                      <p className="text-xs text-ink-500 dark:text-ink-900 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceRole && (
                     <div>
-                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Workspace Role</p>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Workspace Role</p>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
                         {selectedTicket.submitterContext.workspaceRole}
                       </span>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceMemberSince && (
                     <div>
-                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Member Since</p>
-                      <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
+                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Member Since</p>
+                      <p className="text-xs text-ink-600 dark:text-ink-900 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.user?.createdAt && (
                     <div>
-                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Account Created</p>
-                      <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Account Created</p>
+                      <p className="text-xs text-ink-600 dark:text-ink-900 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.totalTickets != null && (
                     <div>
-                      <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Total Tickets</p>
-                      <p className="text-xs font-semibold text-zinc-700 dark:text-slate-300 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
+                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Total Tickets</p>
+                      <p className="text-xs font-semibold text-ink-500 dark:text-ink-900 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Ticket meta */}
-                <div className="space-y-2.5 border-t border-zinc-100 dark:border-slate-700 pt-3">
+                <div className="space-y-2.5 border-t border-paper-400 dark:border-ink-400 pt-3">
                   <div>
-                    <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Category</p>
-                    <p className="text-xs text-zinc-700 dark:text-slate-300 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
+                    <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Category</p>
+                    <p className="text-xs text-ink-500 dark:text-ink-900 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Opened</p>
-                    <p className="text-xs text-zinc-600 dark:text-slate-400 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                    <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Opened</p>
+                    <p className="text-xs text-ink-600 dark:text-ink-900 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-zinc-400 dark:text-slate-500 uppercase tracking-wider">Status</p>
+                    <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Status</p>
                     <select
                       value={selectedTicket.status}
                       onChange={e => onUpdateStatus(selectedTicket.id, e.target.value)}
                       disabled={statusLoading}
-                      className="mt-0.5 w-full text-xs border border-zinc-200 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-700 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#0d9488]"
+                      className="mt-0.5 w-full text-xs border border-paper-500 dark:border-ink-400 rounded-control px-2 py-1.5 bg-paper-100 dark:bg-ink-300 dark:text-paper-200 outline-none focus:ring-2 focus:ring-brand-500"
                     >
                       {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
                         <option key={s} value={s}>{s.replace('_', ' ')}</option>
@@ -772,34 +761,20 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
             </div>
 
             {/* Conversation panel */}
-            <div className="flex-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
+            <div className="flex-1 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
               {/* Header */}
-              <div className="px-5 py-4 border-b border-zinc-100 dark:border-slate-700 flex items-start justify-between shrink-0">
+              <div className="px-5 py-4 border-b border-paper-400 dark:border-ink-400 flex items-start justify-between shrink-0">
                 <div className="min-w-0 pr-3">
-                  <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wider capitalize">{selectedTicket.category.replace('_', ' ')}</p>
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
+                  <p className="text-xs text-ink-800 dark:text-ink-800 capitalize">{selectedTicket.category.replace('_', ' ')}</p>
+                  <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {selectedTicket.status === 'CLOSED' ? (
-                    <button
-                      onClick={() => onUpdateStatus(selectedTicket.id, 'OPEN')}
-                      disabled={statusLoading}
-                      className="text-xs font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#ede9fe] dark:hover:bg-teal-900/30 disabled:opacity-50 transition-colors"
-                    >
-                      Reopen
-                    </button>
+                    <Button variant="primary" size="sm" onClick={() => onUpdateStatus(selectedTicket.id, 'OPEN')} disabled={statusLoading}>Reopen</Button>
                   ) : (
-                    <button
-                      onClick={() => onUpdateStatus(selectedTicket.id, 'CLOSED')}
-                      disabled={statusLoading}
-                      className="text-xs font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-600 text-zinc-500 dark:text-slate-400 hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                    >
-                      Close
-                    </button>
+                    <Button variant="secondary" size="sm" onClick={() => onUpdateStatus(selectedTicket.id, 'CLOSED')} disabled={statusLoading}>Close</Button>
                   )}
-                  <button onClick={onCloseTicket} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors">
-                    <span className="material-symbols-outlined text-zinc-400 dark:text-slate-500 text-[18px]">close</span>
-                  </button>
+                  <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onCloseTicket} />
                 </div>
               </div>
 
@@ -810,13 +785,13 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                   <Avatar user={selectedTicket.user} size="sm" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <p className="text-xs font-semibold text-zinc-800 dark:text-slate-200">{selectedTicket.user?.name}</p>
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || "bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      <p className="text-xs font-semibold text-ink-100 dark:text-paper-200">{selectedTicket.user?.name}</p>
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
                         {selectedTicket.user?.role?.replace('_', ' ')}
                       </span>
-                      <p className="text-xs text-zinc-400 dark:text-slate-500 ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                      <p className="text-xs text-ink-800 dark:text-ink-800 ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                     </div>
-                    <div className="bg-zinc-50 dark:bg-slate-900 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    <div className="bg-paper-200 dark:bg-ink-50 rounded-card rounded-tl-sm p-4 text-sm text-ink-500 dark:text-ink-900 leading-relaxed whitespace-pre-wrap">
                       {selectedTicket.message}
                     </div>
                   </div>
@@ -828,13 +803,13 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <Avatar user={r.user} size="sm" />
                     <div className={`flex-1 ${r.isAdmin ? 'items-end' : ''}`}>
                       <div className={`flex items-center gap-2 mb-1.5 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
-                        <p className="text-xs font-semibold text-zinc-800 dark:text-slate-200">{r.user?.name}</p>
+                        <p className="text-xs font-semibold text-ink-100 dark:text-paper-200">{r.user?.name}</p>
                         {r.isAdmin && (
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#0d9488]/10 text-[#0d9488]">Support</span>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-brand-500/10 text-brand-500">Support</span>
                         )}
-                        <p className="text-xs text-zinc-400 dark:text-slate-500">{new Date(r.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-ink-800 dark:text-ink-800">{new Date(r.createdAt).toLocaleString()}</p>
                       </div>
-                      <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#ede9fe] dark:bg-teal-900/30 text-[#0d9488] dark:text-teal-300 rounded-tr-sm' : 'bg-zinc-50 dark:bg-slate-900 text-zinc-700 dark:text-slate-300 rounded-tl-sm'}`}>
+                      <div className={`rounded-card p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-brand-100 dark:bg-brand-500/15 text-brand-500 dark:text-brand-300 rounded-tr-sm' : 'bg-paper-200 dark:bg-ink-50 text-ink-500 dark:text-ink-900 rounded-tl-sm'}`}>
                         {r.message}
                       </div>
                     </div>
@@ -844,22 +819,16 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
 
               {/* Reply box */}
               {selectedTicket.status !== 'CLOSED' && (
-                <div className="p-4 border-t border-zinc-100 dark:border-slate-700 shrink-0">
+                <div className="p-4 border-t border-paper-400 dark:border-ink-400 shrink-0">
                   <div className="flex gap-3">
                     <textarea
                       value={ticketReply}
                       onChange={e => setTicketReply(e.target.value)}
                       placeholder="Reply to this ticket…"
                       rows={3}
-                      className="flex-1 text-sm bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-[#0d9488] text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500"
+                      className="flex-1 text-sm bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-card px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-brand-500 text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700"
                     />
-                    <button
-                      onClick={onSendReply}
-                      disabled={replyLoading || !ticketReply.trim()}
-                      className="self-end bg-[#0d9488] hover:bg-[#0f766e] disabled:opacity-40 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
-                    >
-                      {replyLoading ? 'Sending…' : 'Reply'}
-                    </button>
+                    <Button variant="primary" size="md" onClick={onSendReply} disabled={replyLoading || !ticketReply.trim()}>{replyLoading ? 'Sending…' : 'Reply'}</Button>
                   </div>
                 </div>
               )}

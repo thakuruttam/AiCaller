@@ -1,37 +1,13 @@
 import React, { useState } from 'react';
+import { CONDITIONS, uid } from './questionModel';
+import { Button, IconButton, Tabs } from '../../../components/ui';
 import {
   GripVertical, ChevronDown, ChevronUp, MessageSquare, Info,
   X, ArrowRight, SkipForward, PhoneOff, Database, Plus, Brain
 } from 'lucide-react';
 
-export const CONDITIONS = [
-  'contains', 'does not contain', 'equals', 'starts with', 'ends with',
-  'is greater than', 'is less than', 'is any value'
-];
-
-export function uid() {
-  return Math.random().toString(36).slice(2, 9);
-}
-
-export function emptyItem(order) {
-  return {
-    id: uid(),
-    order,
-    itemType: 'question',
-    text: '',
-    is_mandatory: false,
-    weight: 0,
-    isWeightManuallySet: false,
-    expectedAnswer: { condition: 'is any value', value: '' },
-    scoringCriteria: '',
-    scoringActiveTab: 'condition',
-    onAnswer: { action: 'continue', skipToId: '', skipConditionActiveTab: 'condition', skipCondition: { condition: 'contains', value: '' } },
-    fieldsToExtract: [],
-  };
-}
-
-const selectCls = 'h-8 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1 text-xs text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500';
-const inputCls  = 'h-8 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500';
+const selectCls = 'h-8 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 py-1 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500';
+const inputCls  = 'h-8 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500';
 
 export function ConditionSelect({ value, onChange, className = '' }) {
   return (
@@ -105,58 +81,56 @@ export default function QuestionCard({
 
   return (
     <div
-      className={`rounded-xl border bg-white dark:bg-slate-800 shadow-sm transition-all ${isDraggedOver ? 'border-teal-400 ring-1 ring-teal-400' : 'border-zinc-200 dark:border-slate-700'}`}
+      className={`rounded-card border bg-paper-100 dark:bg-ink-200 shadow-card transition-all ${isDraggedOver ? 'border-brand-300 ring-1 ring-brand-300' : 'border-paper-500 dark:border-ink-400'}`}
       draggable
       onDragStart={() => onDragStart(index)}
       onDragOver={e => { e.preventDefault(); onDragOver(index); }}
       onDrop={() => onDrop(index)}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-200 dark:border-slate-700 select-none">
-        <span className="cursor-grab text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-400 transition-colors" title="Drag to reorder">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-paper-500 dark:border-ink-400 select-none">
+        <span className="cursor-grab text-ink-800 dark:text-ink-800 hover:text-ink-600 dark:hover:text-ink-800 transition-colors" title="Drag to reorder">
           <GripVertical size={16} />
         </span>
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold shrink-0">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-bold shrink-0">
           {index + 1}
         </span>
 
         {/* Type toggle */}
-        <div className="flex bg-zinc-100 dark:bg-slate-700 p-0.5 rounded-lg border border-zinc-200 dark:border-slate-600 text-xs">
-          <button type="button" onClick={() => update({ itemType: 'question' })}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${item.itemType === 'question' ? 'bg-white dark:bg-slate-600 shadow-sm text-zinc-900 dark:text-slate-100' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-300'}`}>
+        <div className="flex bg-paper-400 dark:bg-ink-300 p-0.5 rounded-control border border-paper-500 dark:border-ink-400 text-xs">
+          <Button variant="ghost" size="sm" type="button" onClick={() => update({ itemType: 'question' })}>
             <MessageSquare size={11} /> Question
-          </button>
-          <button type="button" onClick={() => update({ itemType: 'information' })}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${item.itemType === 'information' ? 'bg-white dark:bg-slate-600 shadow-sm text-zinc-900 dark:text-slate-100' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-300'}`}>
+          </Button>
+          <Button variant="ghost" size="sm" type="button" onClick={() => update({ itemType: 'information' })}>
             <Info size={11} /> Information
-          </button>
+          </Button>
         </div>
 
         {item.is_mandatory && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 text-teal-700 px-2 py-0.5 text-xs font-medium">
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-100 text-brand-600 px-2 py-0.5 text-xs font-medium">
             Mandatory
           </span>
         )}
 
         {hasSubFields && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium">
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-100 text-brand-600 px-2 py-0.5 text-xs font-medium">
             <Database size={10} /> {fieldsToExtract.length} field{fieldsToExtract.length !== 1 ? 's' : ''}
           </span>
         )}
 
         {scoringCriteria.trim() && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 text-xs font-medium">
+          <span className="inline-flex items-center gap-1 rounded-full border border-positive/30 bg-positive/10 text-positive-dim dark:border-positive/15 dark:bg-positive/15 dark:text-positive px-2 py-0.5 text-xs font-medium">
             <Brain size={10} /> Semantic
           </span>
         )}
 
         <div className="flex items-center gap-1 ml-auto">
-          <button type="button" onClick={() => setExpanded(v => !v)} className="p-1 text-zinc-400 dark:text-slate-500 hover:text-zinc-700 dark:hover:text-slate-300 transition-colors rounded-md">
+          <Button variant="ghost" size="md" type="button" onClick={() => setExpanded(v => !v)}>
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          <button type="button" onClick={onRemove} className="p-1 text-zinc-400 dark:text-slate-500 hover:text-red-500 transition-colors rounded-md">
+          </Button>
+          <Button variant="dangerGhost" size="md" type="button" onClick={onRemove}>
             <X size={16} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -165,7 +139,7 @@ export default function QuestionCard({
         <div className="p-4 flex flex-col gap-4">
           {/* Text */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-500 dark:text-slate-400">
+            <label className="text-xs font-medium text-ink-700 dark:text-ink-900">
               {item.itemType === 'question' ? 'Question text' : 'Information to convey'}
             </label>
             <textarea rows={2} value={item.text}
@@ -173,13 +147,13 @@ export default function QuestionCard({
               placeholder={item.itemType === 'question'
                 ? 'e.g. What is your current CTC?'
                 : 'e.g. This call is regarding your pending EMI of ₹5,000.'}
-              className={`w-full rounded-lg border bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors ${
+              className={`w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors ${
                 item.itemType === 'question' && !item.text?.trim()
-                  ? 'border-red-400 focus:ring-red-500/20 focus:border-red-400'
-                  : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
+                  ? 'border-negative focus:ring-negative/20 focus:border-negative'
+                  : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
               }`} />
             {item.itemType === 'question' && !item.text?.trim() && (
-              <p className="text-xs font-medium text-red-500 mt-0.5">Question text is required — the bot will skip this item.</p>
+              <p className="text-xs font-medium text-negative mt-0.5">Question text is required — the bot will skip this item.</p>
             )}
           </div>
 
@@ -189,17 +163,16 @@ export default function QuestionCard({
               {/* Expected answer — Condition | Semantic tabs */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400">Expected answer</label>
-                  <div className="flex bg-zinc-100 dark:bg-slate-700 p-0.5 rounded-lg border border-zinc-200 dark:border-slate-600 text-xs">
-                    <button type="button" onClick={() => handleAnswerTabChange('condition')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition-all ${answerTab === 'condition' ? 'bg-white dark:bg-slate-600 shadow-sm text-zinc-900 dark:text-slate-100' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-300'}`}>
-                      Condition
-                    </button>
-                    <button type="button" onClick={() => handleAnswerTabChange('semantic')}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${answerTab === 'semantic' ? 'bg-white dark:bg-slate-600 shadow-sm text-zinc-900 dark:text-slate-100' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-slate-300'}`}>
-                      <Brain size={11} /> Semantic
-                    </button>
-                  </div>
+                  <label className="text-xs font-medium text-ink-700 dark:text-ink-900">Expected answer</label>
+                  <Tabs
+                    size="sm"
+                    value={answerTab}
+                    onChange={handleAnswerTabChange}
+                    items={[
+                      { value: 'condition', label: 'Condition', icon: 'rule' },
+                      { value: 'semantic', label: 'Semantic', icon: 'psychology' },
+                    ]}
+                  />
                 </div>
 
                 {answerTab === 'condition' && (
@@ -221,9 +194,9 @@ export default function QuestionCard({
                       value={scoringCriteria}
                       onChange={e => update({ scoringCriteria: e.target.value })}
                       placeholder={"Describe what a good answer looks like in plain English.\n\ne.g. Should have an engineering degree and Node.js experience. Give 0 if no experience, proportional marks for 1–4 years, full marks for 5+ years."}
-                      className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-y"
+                      className="w-full rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-y"
                     />
-                    <p className="text-xs font-medium text-zinc-400 dark:text-slate-500">
+                    <p className="text-xs font-medium text-ink-800 dark:text-ink-800">
                       AI uses this to score the answer in reports. Describe criteria and scoring thresholds in plain English. This tab must stay selected for it to govern scoring — switching back to Condition uses that rule instead, even if this is filled in.
                     </p>
                   </div>
@@ -232,42 +205,46 @@ export default function QuestionCard({
 
               {/* On Answer action */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-medium text-zinc-500 dark:text-slate-400">Action after answer</label>
+                <label className="text-xs font-medium text-ink-700 dark:text-ink-900">Action after answer</label>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { value: 'continue',      label: 'Continue',      icon: ArrowRight },
                     { value: 'skip_question', label: 'Skip Question', icon: SkipForward },
                     { value: 'end_call',      label: 'End Call',      icon: PhoneOff },
-                  ].map(({ value, label, icon: Icon }) => (
-                    <button key={value} type="button" onClick={() => updateOnAns({ action: value })}
-                      className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-lg border px-3 py-1.5 transition-all
-                        ${onAnswer.action === value
-                          ? value === 'end_call'
-                            ? 'border-red-400 bg-red-50 text-red-700'
-                            : 'border-teal-400 bg-teal-50 text-teal-700'
-                          : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700/50'}`}>
-                      <Icon size={12} /> {label}
-                    </button>
-                  ))}
+                  ].map((opt) => {
+                    const ActionIcon = opt.icon;
+                    const { value, label } = opt;
+                    return (
+                    <Button
+                      key={value}
+                      type="button"
+                      size="sm"
+                      variant={onAnswer.action === value ? 'primary' : 'secondary'}
+                      aria-pressed={onAnswer.action === value}
+                      onClick={() => updateOnAns({ action: value })}
+                    >
+                      <ActionIcon size={12} /> {label}
+                    </Button>
+                    );
+                  })}
                 </div>
 
                 {/* Skip / end-call details */}
                 {(onAnswer.action === 'skip_question' || onAnswer.action === 'end_call') && (
-                  <div className="flex flex-col gap-2 mt-1 p-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
+                  <div className="flex flex-col gap-2 mt-1 p-3 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium">
+                      <p className="text-xs text-ink-700 dark:text-ink-900 font-medium">
                         {onAnswer.action === 'end_call' ? 'End call condition' : 'Skip condition'} — if current answer…
                       </p>
-                      <div className="flex bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-zinc-200 dark:border-slate-600 text-xs">
-                        <button type="button" onClick={() => handleSkipConditionTabChange('condition')}
-                          className={`px-2 py-0.5 rounded-md font-medium transition-all ${skipConditionTab === 'condition' ? 'bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100' : 'text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-300'}`}>
-                          Condition
-                        </button>
-                        <button type="button" onClick={() => handleSkipConditionTabChange('semantic')}
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-medium transition-all ${skipConditionTab === 'semantic' ? 'bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100' : 'text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-300'}`}>
-                          <Brain size={10} /> Semantic
-                        </button>
-                      </div>
+                      <Tabs
+                        size="sm"
+                        value={skipConditionTab}
+                        onChange={handleSkipConditionTabChange}
+                        items={[
+                          { value: 'condition', label: 'Condition', icon: 'rule' },
+                          { value: 'semantic', label: 'Semantic', icon: 'psychology' },
+                        ]}
+                      />
                     </div>
 
                     {skipConditionTab === 'condition' && (
@@ -291,9 +268,9 @@ export default function QuestionCard({
                           placeholder={onAnswer.action === 'end_call'
                             ? 'e.g. If user says they are not interested or busy'
                             : 'e.g. If user has less than 2 years of experience'}
-                          className="w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-y"
+                          className="w-full rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-y"
                         />
-                        <p className="text-xs font-medium text-zinc-400 dark:text-slate-500">
+                        <p className="text-xs font-medium text-ink-800 dark:text-ink-800">
                           AI evaluates this live during the call against the user's answer.
                         </p>
                       </div>
@@ -301,7 +278,7 @@ export default function QuestionCard({
 
                     {onAnswer.action === 'skip_question' && (
                       <>
-                        <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium mt-1">Then JUMP directly to:</p>
+                        <p className="text-xs text-ink-700 dark:text-ink-900 font-medium mt-1">Then JUMP directly to:</p>
                         <GenericSelect
                           value={onAnswer.skipToId}
                           onChange={v => updateOnAns({ skipToId: v })}
@@ -321,42 +298,38 @@ export default function QuestionCard({
               </div>
 
               {/* Fields to Extract */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-zinc-100 dark:border-slate-700/50">
+              <div className="flex flex-col gap-2 pt-2 border-t border-paper-400 dark:border-ink-400/50">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-zinc-700 dark:text-slate-300 flex items-center gap-1.5">
-                      <Database size={12} className="text-teal-600" /> Fields to Extract
+                    <span className="text-xs font-medium text-ink-500 dark:text-ink-900 flex items-center gap-1.5">
+                      <Database size={12} className="text-brand-500" /> Fields to Extract
                     </span>
-                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">
+                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800">
                       {hasSubFields
                         ? 'Each sub-field weight counts toward the call score when that value is extracted'
                         : 'Default: extracts the full answer. Add specific fields for per-field weight scoring.'}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addSubField}
-                    className="inline-flex items-center gap-1 rounded-md border border-dashed border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-600 px-2.5 py-1 text-xs font-medium transition-colors"
-                  >
+                  <Button variant="subtle" size="sm" type="button" onClick={addSubField}>
                     <Plus size={11} /> Add Field
-                  </button>
+                  </Button>
                 </div>
 
                 {hasSubFields && (
                   <div className="flex flex-col gap-2">
                     {fieldsToExtract.map((sf) => (
-                      <div key={sf.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
+                      <div key={sf.id} className="flex items-center gap-2 p-2.5 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
                         <input
                           type="text"
                           value={sf.field}
                           onChange={e => updateSubField(sf.id, { field: e.target.value })}
                           placeholder="Field name (e.g. notice_period)"
-                          className="flex-1 h-7 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-xs text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500/30 focus:border-teal-500"
+                          className="flex-1 h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30 focus:border-brand-500"
                         />
                         <select
                           value={sf.type}
                           onChange={e => updateSubField(sf.id, { type: e.target.value })}
-                          className="h-7 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-xs text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500/30"
+                          className="h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
                         >
                           <option value="string">Text</option>
                           <option value="number">Number</option>
@@ -368,7 +341,7 @@ export default function QuestionCard({
                           value={sf.unit || ''}
                           onChange={e => updateSubField(sf.id, { unit: e.target.value })}
                           placeholder="Unit (e.g. years)"
-                          className="w-24 h-7 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-xs text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500/30"
+                          className="w-24 h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
                         />
                         <div className="flex items-center gap-1 shrink-0">
                           <input
@@ -378,17 +351,13 @@ export default function QuestionCard({
                               weight: Math.min(100, Math.max(0, Number(e.target.value))),
                               isWeightManuallySet: true
                             })}
-                            className="w-12 h-7 rounded-md border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-1 text-xs text-center tabular-nums text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500/30"
+                            className="w-12 h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-1 text-xs text-center tabular-nums text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
                           />
-                          <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">%</span>
+                          <span className="text-xs font-medium text-ink-800 dark:text-ink-800">%</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeSubField(sf.id)}
-                          className="p-1 text-zinc-400 dark:text-slate-500 hover:text-red-500 transition-colors rounded"
-                        >
+                        <Button variant="dangerGhost" size="md" type="button" onClick={() => removeSubField(sf.id)}>
                           <X size={13} />
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -396,23 +365,21 @@ export default function QuestionCard({
               </div>
 
               {/* Mandatory + Weight */}
-              <div className="flex items-center justify-between gap-6 pt-2 border-t border-zinc-100 dark:border-slate-700/50 flex-wrap">
+              <div className="flex items-center justify-between gap-6 pt-2 border-t border-paper-400 dark:border-ink-400/50 flex-wrap">
                 <div className="flex items-center justify-between flex-1 min-w-[200px]">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-zinc-700 dark:text-slate-300">Mandatory</span>
-                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">Bot retries if no valid answer received</span>
+                    <span className="text-xs font-medium text-ink-500 dark:text-ink-900">Mandatory</span>
+                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800">Bot retries if no valid answer received</span>
                   </div>
-                  <button type="button" role="switch" aria-checked={item.is_mandatory}
-                    onClick={() => update({ is_mandatory: !item.is_mandatory })}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${item.is_mandatory ? 'bg-teal-600' : 'bg-zinc-300'}`}>
-                    <span className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${item.is_mandatory ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+                  <Button variant="primary" size="md" type="button" role="switch" aria-checked={item.is_mandatory} onClick={() => update({ is_mandatory: !item.is_mandatory })}>
+                    <span className={`pointer-events-none block h-4 w-4 rounded-full bg-paper-100 shadow-raised ring-0 transition-transform ${item.is_mandatory ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </Button>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-zinc-700 dark:text-slate-300 text-right">Call Score Weight</span>
-                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500">
+                    <span className="text-xs font-medium text-ink-500 dark:text-ink-900 text-right">Call Score Weight</span>
+                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800">
                       {hasSubFields ? 'Sub-fields split this equally' : 'Contribution to success score'}
                     </span>
                   </div>
@@ -423,8 +390,8 @@ export default function QuestionCard({
                         isWeightManuallySet: true,
                         fieldsToExtract: (item.fieldsToExtract || []).map(sf => ({ ...sf, isWeightManuallySet: false }))
                       })}
-                      className="w-16 h-8 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-sm text-center tabular-nums text-zinc-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
-                    <span className="text-xs font-medium text-zinc-400 dark:text-slate-500 font-medium">%</span>
+                      className="w-16 h-8 rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-sm text-center tabular-nums text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800 font-medium">%</span>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button, IconButton } from '../../components/ui';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import Step1Basics from './components/Step1Basics';
@@ -205,16 +206,16 @@ export default function CampaignWizard() {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Left Step Panel */}
-      <nav className="w-72 bg-[#f0fdfa] dark:bg-slate-800/60 border-r border-zinc-200/50 dark:border-slate-700 flex flex-col shrink-0">
+      <nav className="w-72 bg-brand-100 dark:bg-ink-200/60 border-r border-paper-500/50 dark:border-ink-400 flex flex-col shrink-0">
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-medium uppercase tracking-widest text-zinc-500 dark:text-slate-400">Progress</span>
-            <span className="text-sm font-medium text-[#0d9488] dark:text-teal-400">{progress}%</span>
+            <span className="text-xs font-medium text-ink-700 dark:text-ink-900">Progress</span>
+            <span className="text-sm font-medium text-brand-500 dark:text-brand-300">{progress}%</span>
           </div>
-          <div className="w-full bg-zinc-200 dark:bg-slate-700 h-1.5 rounded-full">
+          <div className="w-full bg-paper-500 dark:bg-ink-300 h-1.5 rounded-full">
             <div
-              className="bg-[#0d9488] h-1.5 rounded-full transition-all duration-700"
+              className="bg-brand-500 h-1.5 rounded-full transition-all duration-700"
               style={{width: `${progress}%`}}
             />
           </div>
@@ -230,27 +231,27 @@ export default function CampaignWizard() {
                 key={i}
                 className={`px-6 py-4 flex items-center gap-4 transition-colors ${
                   isActive
-                    ? 'bg-white dark:bg-slate-800 shadow-sm'
+                    ? 'bg-paper-100 dark:bg-ink-200 shadow-card'
                     : isComplete
-                      ? 'opacity-60 cursor-pointer hover:bg-white/70 dark:hover:bg-slate-700/70'
-                      : 'opacity-60 cursor-pointer hover:bg-white/50 dark:hover:bg-slate-700/50'
+                      ? 'opacity-60 cursor-pointer hover:bg-white/70 dark:hover:bg-ink-400/70'
+                      : 'opacity-60 cursor-pointer hover:bg-white/50 dark:hover:bg-ink-400/50'
                 }`}
-                style={isActive ? {borderLeft: '3px solid #0d9488'} : {borderLeft: '3px solid transparent'}}
+                style={isActive ? {borderLeft: '3px solid #266df0'} : {borderLeft: '3px solid transparent'}}
                 onClick={() => isComplete && setStep(i + 1)}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-medium ${
                   isActive
-                    ? 'bg-[#0d9488] text-white'
+                    ? 'bg-brand-500 text-white'
                     : isComplete
-                      ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                      : 'border border-zinc-300 dark:border-slate-600 text-zinc-500 dark:text-slate-400'
+                      ? 'bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive border border-positive/30 dark:border-positive/15'
+                      : 'border border-paper-600 dark:border-ink-400 text-ink-700 dark:text-ink-900'
                 }`}>
                   {isComplete ? (
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   ) : stepNums[i]}
                 </div>
                 <span className={`text-sm ${
-                  isActive ? 'font-semibold text-[#0d9488] dark:text-teal-400' : 'text-[#334155] dark:text-slate-400'
+                  isActive ? 'font-semibold text-brand-500 dark:text-brand-300' : 'text-ink-600 dark:text-ink-900'
                 }`}>
                   {s}
                 </span>
@@ -260,22 +261,22 @@ export default function CampaignWizard() {
         </div>
 
         {/* AI Logic Confidence Card */}
-        <div className="p-6 border-t border-zinc-200 dark:border-slate-700">
-          <div className="bg-teal-50 dark:bg-teal-500/10 p-4 rounded-lg border border-teal-100 dark:border-teal-800">
-            <h4 className="text-sm font-semibold text-teal-900 dark:text-teal-300 mb-1">AI Logic Confidence</h4>
-            <p className="text-xs text-teal-700 dark:text-teal-400 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
+        <div className="p-6 border-t border-paper-500 dark:border-ink-400">
+          <div className="bg-brand-100 dark:bg-brand-500/10 p-4 rounded-control border border-brand-100 dark:border-brand-600">
+            <h4 className="text-sm font-semibold text-brand-600 dark:text-brand-300 mb-1">AI Logic Confidence</h4>
+            <p className="text-xs text-brand-600 dark:text-brand-300 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
           </div>
         </div>
       </nav>
 
       {/* Right Canvas */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-50 dark:bg-slate-900">
+      <div className="flex-1 flex flex-col overflow-hidden bg-paper-200 dark:bg-ink-50">
 
         {/* Sticky step header */}
-        <div className="shrink-0 border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 px-8 py-6">
+        <div className="shrink-0 border-b border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 px-8 py-6">
           <div className="max-w-4xl mx-auto">
-            <h3 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 mb-1 tracking-tight">{steps[step - 1]}</h3>
-            <p className="text-[#334155] dark:text-slate-400 text-sm">
+            <h3 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 mb-1 tracking-tight">{steps[step - 1]}</h3>
+            <p className="text-ink-600 dark:text-ink-900 text-sm">
               {step === 1 && 'Configure the basics of your outbound campaign — name, type, and core script objectives.'}
               {step === 2 && 'Upload or manage the contacts list that will be included in this campaign.'}
               {step === 3 && 'Define the structured sequence of inquiry the AI agent should follow. Add logic conditions to handle complex lead responses.'}
@@ -293,36 +294,15 @@ export default function CampaignWizard() {
         </div>
 
         {/* Sticky footer — always visible */}
-        <div className="shrink-0 border-t border-zinc-200 bg-white dark:bg-slate-800 dark:border-slate-700">
+        <div className="shrink-0 border-t border-paper-500 bg-paper-100 dark:bg-ink-200 dark:border-ink-400">
           <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
-            <button
-              onClick={handleSaveDraft}
-              className="px-6 py-2.5 border border-zinc-300 dark:border-slate-600 rounded text-sm font-semibold text-zinc-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-700 transition-colors"
-            >
-              Save as Draft
-            </button>
+            <Button variant="secondary" size="md" onClick={handleSaveDraft} icon="save">Save as Draft</Button>
             <div className="flex gap-4">
-              <button
-                onClick={prevStep}
-                disabled={step === 1}
-                className="px-8 py-2.5 bg-zinc-100 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded text-sm font-semibold hover:bg-zinc-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-30"
-              >
-                Previous Step
-              </button>
+              <Button variant="ghost" size="md" onClick={prevStep} disabled={step === 1} icon="arrow_back">Previous Step</Button>
               {step < 5 ? (
-                <button
-                  onClick={nextStep}
-                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm font-semibold hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
-                >
-                  {nextLabels[step - 1]}
-                </button>
+                <Button variant="primary" size="md" onClick={nextStep}>{nextLabels[step - 1]}</Button>
               ) : (
-                <button
-                  onClick={handleLaunch}
-                  className="px-8 py-2.5 bg-[#0d9488] text-white rounded text-sm font-semibold hover:bg-[#0f766e] transition-all shadow-md active:scale-95"
-                >
-                  {payload.scheduledAt ? 'Schedule Campaign' : (id ? 'Save Changes' : 'Create Campaign')}
-                </button>
+                <Button variant="primary" size="md" onClick={handleLaunch}>{payload.scheduledAt ? 'Schedule Campaign' : (id ? 'Save Changes' : 'Create Campaign')}</Button>
               )}
             </div>
           </div>

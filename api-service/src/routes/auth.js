@@ -8,7 +8,14 @@ import { prisma } from '../db.js';
 const router = Router();
 
 // ── Passport Google strategy ──────────────────────────────────────────────────
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+// Only registered when credentials are present, so the routes below have to
+// check the same flag — otherwise passport throws "Unknown authentication
+// strategy" and Express answers with a 500 (and a stack trace off-production).
+const googleConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+const frontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
+
+if (googleConfigured) {
   passport.use(new GoogleStrategy(
     {
       clientID:     process.env.GOOGLE_CLIENT_ID,
@@ -157,25 +164,38 @@ router.post('/switch-workspace', authenticate, async (req, res) => {
 });
 
 // ── Google OAuth routes ───────────────────────────────────────────────────────
+// failureRedirect has to be the absolute frontend URL: a bare '/login?...' is
+// resolved against the API host, where the catch-all in app.js redirects to the
+// frontend but drops the query string, swallowing the error message.
+const requireGoogle = (req, res, next) => {
+  if (!googleConfigured) return res.redirect(`${frontendUrl()}/login?error=google_not_configured`);
+  next();
+};
+
 router.get('/google',
-  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+  requireGoogle,
+  (req, res, next) =>
+    passport.authenticate('google', { scope: ['profile', 'email'], session: false })(req, res, next)
 );
 
 router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: '/login?error=google_failed' }),
+  requireGoogle,
+  (req, res, next) =>
+    passport.authenticate('google', {
+      session: false,
+      failureRedirect: `${frontendUrl()}/login?error=google_failed`
+    })(req, res, next),
   async (req, res) => {
     try {
       const session = await issueSessionForUser(req.user);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       const params = new URLSearchParams({
         token:        session.accessToken,
         refreshToken: session.refreshToken,
         user:         JSON.stringify(session.user)
       });
-      res.redirect(`${frontendUrl}/auth/callback?${params.toString()}`);
+      res.redirect(`${frontendUrl()}/auth/callback?${params.toString()}`);
     } catch (err) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      res.redirect(`${frontendUrl}/login?error=google_failed`);
+      res.redirect(`${frontendUrl()}/login?error=google_failed`);
     }
   }
 );

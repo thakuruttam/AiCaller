@@ -68,8 +68,8 @@ export function FloatingPill({ icon: Icon, label, className = '', bob = 0 }) {
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: bob }}
         className={`inline-flex items-center gap-2 rounded-full bg-[#0f1729]/90 border border-white/10 px-4 py-2 shadow-lg shadow-black/20 backdrop-blur`}
       >
-        {Icon && <Icon size={14} className="text-[#5eead4] shrink-0" />}
-        <span className="text-xs font-medium text-slate-200 whitespace-nowrap">{label}</span>
+        {Icon && <Icon size={14} className="text-[#94b9ff] shrink-0" />}
+        <span className="text-xs font-medium text-paper-200 whitespace-nowrap">{label}</span>
       </MotionDiv>
     </MotionDiv>
   );
@@ -77,9 +77,10 @@ export function FloatingPill({ icon: Icon, label, className = '', bob = 0 }) {
 
 // A small icon-in-a-pill mark meant to sit inline, mid-sentence, inside a
 // display headline — mirrors the "icon chip in the headline" trick.
-export function IconChip({ icon: Icon, className = '' }) {
+export function IconChip({ icon, className = '' }) {
+  const Icon = icon;
   return (
-    <span className={`inline-flex items-center justify-center align-middle mx-1.5 -mt-2 w-[0.85em] h-[0.85em] rounded-2xl bg-[#0d9488] ${className}`}>
+    <span className={`inline-flex items-center justify-center align-middle mx-1.5 -mt-2 w-[0.85em] h-[0.85em] rounded-2xl bg-[#266df0] ${className}`}>
       <Icon className="w-[55%] h-[55%] text-white" strokeWidth={2.5} />
     </span>
   );

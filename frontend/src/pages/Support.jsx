@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Page, PageHeader, Button, IconButton } from '../components/ui';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -12,10 +13,10 @@ const CATEGORIES = [
 ];
 
 const STATUS_BADGE = {
-  OPEN:        'bg-blue-50 text-blue-700 border border-blue-100',
-  IN_PROGRESS: 'bg-amber-50 text-amber-700 border border-amber-100',
-  RESOLVED:    'bg-emerald-50 text-emerald-700 border border-emerald-100',
-  CLOSED:      'bg-zinc-100 text-zinc-500 border border-zinc-200',
+  OPEN:        'bg-brand-100 text-brand-600 border border-brand-100',
+  IN_PROGRESS: 'bg-caution/10 text-caution-dim border border-caution/10',
+  RESOLVED:    'bg-positive/10 text-positive-dim border border-positive/10',
+  CLOSED:      'bg-paper-400 text-ink-700 border border-paper-500',
 };
 
 const STATUS_LABEL = {
@@ -39,19 +40,19 @@ const FAQS = [
 function FaqItem({ q, a, open, onToggle }) {
   return (
     <div
-      className={`py-4 border-b border-zinc-100 dark:border-slate-800 cursor-pointer group transition-colors hover:bg-zinc-50/50 dark:hover:bg-slate-700/50 ${open ? 'bg-zinc-50/50 dark:bg-slate-700/50' : ''}`}
+      className={`py-4 border-b border-paper-400 dark:border-ink-400 cursor-pointer group transition-colors hover:bg-paper-200/50 dark:hover:bg-ink-400/50 ${open ? 'bg-paper-200/50 dark:bg-ink-300/50' : ''}`}
       onClick={onToggle}
     >
       <div className="flex items-center justify-between gap-4">
-        <span className={`text-sm font-medium transition-colors ${open ? 'text-[#0d9488]' : 'text-zinc-800 dark:text-slate-100 group-hover:text-[#0d9488]'}`}>
+        <span className={`text-sm font-medium transition-colors ${open ? 'text-brand-500' : 'text-ink-100 dark:text-paper-200 group-hover:text-brand-500'}`}>
           {q}
         </span>
-        <span className={`material-symbols-outlined text-zinc-400 shrink-0 transition-transform duration-200 ${open ? 'rotate-180 text-[#0d9488]' : 'group-hover:text-[#0d9488]'}`}>
+        <span className={`material-symbols-outlined text-ink-800 shrink-0 transition-transform duration-200 ${open ? 'rotate-180 text-brand-500' : 'group-hover:text-brand-500'}`}>
           expand_more
         </span>
       </div>
       {open && (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-slate-400 leading-relaxed border-l-2 border-[#b2f5ea] pl-4">
+        <p className="mt-3 text-sm text-ink-700 dark:text-ink-900 leading-relaxed border-l-2 border-brand-200 pl-4">
           {a}
         </p>
       )}
@@ -97,52 +98,38 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh]">
-        <div className="flex items-start justify-between p-6 border-b border-zinc-100 dark:border-slate-800 shrink-0">
+      <div className="relative bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-2xl flex flex-col max-h-[85vh]">
+        <div className="flex items-start justify-between p-6 border-b border-paper-400 dark:border-ink-400 shrink-0">
           <div>
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider capitalize mb-1">{ticket.category}</p>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{ticket.subject}</h3>
+            <p className="text-xs font-medium text-ink-800 capitalize mb-1">{ticket.category}</p>
+            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">{ticket.subject}</h3>
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_BADGE[ticket.status]}`}>
               {STATUS_LABEL[ticket.status]}
             </span>
             {ticket.status === 'CLOSED' ? (
-              <button
-                onClick={() => changeStatus('OPEN')}
-                disabled={statusLoading}
-                className="text-xs font-semibold px-3 py-1 rounded-lg border border-[#0d9488] text-[#0d9488] hover:bg-[#f0fdfa] disabled:opacity-50 transition-colors"
-              >
-                Reopen
-              </button>
+              <Button variant="subtle" size="sm" onClick={() => changeStatus('OPEN')} disabled={statusLoading}>Reopen</Button>
             ) : (
-              <button
-                onClick={() => changeStatus('CLOSED')}
-                disabled={statusLoading}
-                className="text-xs font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-slate-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
-              >
-                Close
-              </button>
+              <Button variant="secondary" size="sm" onClick={() => changeStatus('CLOSED')} disabled={statusLoading}>Close</Button>
             )}
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-slate-800 transition-colors">
-              <span className="material-symbols-outlined text-zinc-400 text-[18px]">close</span>
-            </button>
+            <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#0d9488] flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
               {ticket.user?.avatarUrl
                 ? <img src={ticket.user.avatarUrl} alt="" className="w-full h-full object-cover" />
                 : ticket.user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <p className="text-xs font-medium text-zinc-800 dark:text-slate-100">{ticket.user?.name}</p>
-                <p className="text-xs text-zinc-400">{new Date(ticket.createdAt).toLocaleString()}</p>
+                <p className="text-xs font-medium text-ink-100 dark:text-paper-200">{ticket.user?.name}</p>
+                <p className="text-xs text-ink-800">{new Date(ticket.createdAt).toLocaleString()}</p>
               </div>
-              <div className="bg-zinc-50 dark:bg-slate-900 rounded-xl rounded-tl-sm p-4 text-sm text-zinc-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+              <div className="bg-paper-200 dark:bg-ink-50 rounded-card rounded-tl-sm p-4 text-sm text-ink-500 dark:text-ink-900 leading-relaxed whitespace-pre-wrap">
                 {ticket.message}
               </div>
             </div>
@@ -150,18 +137,18 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
 
           {(ticket.replies || []).map(r => (
             <div key={r.id} className={`flex gap-3 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden ${r.isAdmin ? 'bg-[#0d9488]' : 'bg-zinc-300'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden ${r.isAdmin ? 'bg-brand-500' : 'bg-paper-700'}`}>
                 {r.user?.avatarUrl
                   ? <img src={r.user.avatarUrl} alt="" className="w-full h-full object-cover" />
                   : r.user?.name?.charAt(0)?.toUpperCase() || '?'}
               </div>
               <div className="flex-1">
                 <div className={`flex items-center gap-2 mb-2 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-xs font-medium text-zinc-800 dark:text-slate-100">{r.user?.name}</p>
-                  {r.isAdmin && <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-[#f0fdfa] text-[#0d9488]">Support</span>}
-                  <p className="text-xs text-zinc-400">{new Date(r.createdAt).toLocaleString()}</p>
+                  <p className="text-xs font-medium text-ink-100 dark:text-paper-200">{r.user?.name}</p>
+                  {r.isAdmin && <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-500">Support</span>}
+                  <p className="text-xs text-ink-800">{new Date(r.createdAt).toLocaleString()}</p>
                 </div>
-                <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-[#f0fdfa] text-[#0d9488] dark:bg-[#0d9488]/20 dark:text-teal-300 rounded-tr-sm' : 'bg-zinc-50 dark:bg-slate-900 text-zinc-700 dark:text-slate-300 rounded-tl-sm'}`}>
+                <div className={`rounded-card p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-brand-100 text-brand-500 dark:bg-brand-500/20 dark:text-brand-300 rounded-tr-sm' : 'bg-paper-200 dark:bg-ink-50 text-ink-500 dark:text-ink-900 rounded-tl-sm'}`}>
                   {r.message}
                 </div>
               </div>
@@ -170,15 +157,15 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
 
           {ticket.status === 'CLOSED' && (
             <div className="flex items-center gap-3 py-2">
-              <div className="flex-1 h-px bg-zinc-200 dark:bg-slate-700" />
-              <span className="text-xs text-zinc-400 font-medium">Ticket closed</span>
-              <div className="flex-1 h-px bg-zinc-200 dark:bg-slate-700" />
+              <div className="flex-1 h-px bg-paper-500 dark:bg-ink-300" />
+              <span className="text-xs text-ink-800 font-medium">Ticket closed</span>
+              <div className="flex-1 h-px bg-paper-500 dark:bg-ink-300" />
             </div>
           )}
         </div>
 
         {ticket.status !== 'CLOSED' && (
-          <div className="p-5 border-t border-zinc-100 dark:border-slate-800 shrink-0">
+          <div className="p-5 border-t border-paper-400 dark:border-ink-400 shrink-0">
             <div className="flex gap-3">
               <textarea
                 value={reply}
@@ -186,15 +173,9 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply(); }}
                 placeholder="Add a reply…"
                 rows={3}
-                className="flex-1 text-sm bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-[#0d9488] text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400"
+                className="flex-1 text-sm bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-card px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-brand-500 text-ink-100 dark:text-paper-200 placeholder:text-ink-800"
               />
-              <button
-                onClick={sendReply}
-                disabled={sending || !reply.trim()}
-                className="self-end bg-[#0d9488] hover:bg-[#0d9488] disabled:opacity-40 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
-              >
-                {sending ? 'Sending…' : 'Send'}
-              </button>
+              <Button variant="primary" size="md" onClick={sendReply} disabled={sending || !reply.trim()}>{sending ? 'Sending…' : 'Send'}</Button>
             </div>
           </div>
         )}
@@ -249,30 +230,28 @@ export default function Support() {
 
   return (
     <div className="min-h-screen">
-      <div className="p-8 max-w-[1440px] mx-auto">
-
-        {/* Page Header */}
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Support Center</h1>
-            <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Get help, browse common questions, or open a support ticket.</p>
-          </div>
-          <a
+      <Page>
+        <PageHeader
+          title="Support Center"
+          subtitle="Get help, browse common questions, or open a support ticket."
+          actions={
+            <a
             href="mailto:support@aicallerpro.com"
-            className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-3 rounded text-sm font-semibold transition-all shadow-md active:scale-95"
+            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-control text-sm font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2"
           >
             <span className="material-symbols-outlined text-[18px]">mail</span>
             Email Support
           </a>
-        </div>
+          }
+        />
 
         {/* 2-column: FAQ + Form */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-14">
 
           {/* FAQ — left 7 cols */}
           <div className="lg:col-span-7">
-            <h2 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100 mb-5">Common Questions</h2>
-            <div className="border-t border-zinc-200 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-5">Common Questions</h2>
+            <div className="border-t border-paper-500 dark:border-ink-400">
               {FAQS.map((f, i) => (
                 <FaqItem
                   key={i}
@@ -287,50 +266,46 @@ export default function Support() {
 
           {/* Form — right 5 cols */}
           <div className="lg:col-span-5">
-            <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-800 rounded-xl shadow-sm p-8">
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-slate-100 mb-1">New Support Request</h2>
-              <p className="text-xs text-zinc-400 mb-6">Average response time: &lt; 2 hours</p>
+            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-8">
+              <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-1">New Support Request</h2>
+              <p className="text-xs text-ink-800 mb-6">Average response time: &lt; 2 hours</p>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Subject</label>
+                  <label className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Subject</label>
                   <input
                     value={form.subject}
                     onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
                     placeholder="Briefly describe the issue"
-                    className="w-full bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400 focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20 outline-none transition-all"
+                    className="w-full bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control px-3 py-2.5 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/25 outline-none transition-all"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Category</label>
+                  <label className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Category</label>
                   <select
                     value={form.category}
                     onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                    className="w-full bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-slate-100 focus:border-[#0d9488] outline-none transition-all cursor-pointer"
+                    className="w-full bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control px-3 py-2.5 text-sm text-ink-100 dark:text-paper-200 focus:border-brand-500 outline-none transition-all cursor-pointer"
                   >
                     {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500 dark:text-slate-400 uppercase tracking-wider">Details</label>
+                  <label className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Details</label>
                   <textarea
                     value={form.message}
                     onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
                     placeholder="Provide as much detail as possible…"
                     rows={4}
-                    className="w-full bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-slate-100 placeholder:text-zinc-400 focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20 outline-none transition-all resize-none"
+                    className="w-full bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control px-3 py-2.5 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/25 outline-none transition-all resize-none"
                   />
                 </div>
                 <div className="pt-1">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full bg-[#0d9488] hover:bg-[#0f766e] disabled:opacity-50 text-white py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
-                  >
+                  <Button variant="primary" size="md" type="submit" disabled={submitting}>
                     {submitting && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                     {submitting ? 'Creating…' : 'Create Ticket'}
-                  </button>
-                  <p className="text-xs text-center mt-3 text-zinc-400">
-                    Submitting as <span className="font-medium text-zinc-600 dark:text-slate-300">{user?.email}</span>
+                  </Button>
+                  <p className="text-xs text-center mt-3 text-ink-800">
+                    Submitting as <span className="font-medium text-ink-600 dark:text-ink-900">{user?.email}</span>
                   </p>
                 </div>
               </form>
@@ -341,61 +316,61 @@ export default function Support() {
         {/* Recent Tickets */}
         <section>
           <div className="flex items-center gap-3 mb-5">
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Recent Tickets</h2>
+            <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Recent Tickets</h2>
             {tickets.length > 0 && (
-              <span className="text-xs bg-zinc-100 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-500 font-medium px-2 py-0.5 rounded">
+              <span className="text-xs bg-paper-400 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-700 font-medium px-2 py-0.5 rounded">
                 {tickets.length} TOTAL
               </span>
             )}
           </div>
 
           {ticketsLoading ? (
-            <div className="border border-zinc-200 dark:border-slate-800 rounded-xl py-12 text-center text-zinc-400 text-sm">Loading…</div>
+            <div className="border border-paper-500 dark:border-ink-400 rounded-card py-12 text-center text-ink-800 text-sm">Loading…</div>
           ) : tickets.length === 0 ? (
-            <div className="border border-zinc-200 dark:border-slate-800 rounded-xl py-16 text-center">
-              <span className="material-symbols-outlined text-zinc-200 dark:text-slate-700 text-[48px] block mb-3">inbox</span>
-              <p className="text-zinc-400 text-sm">No tickets yet — fill out the form above and we'll get back to you.</p>
+            <div className="border border-paper-500 dark:border-ink-400 rounded-card py-16 text-center">
+              <span className="material-symbols-outlined text-paper-200 dark:text-ink-500 text-[48px] block mb-3">inbox</span>
+              <p className="text-ink-800 text-sm">No tickets yet — fill out the form above and we'll get back to you.</p>
             </div>
           ) : (
-            <div className="border border-zinc-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
+            <div className="border border-paper-500 dark:border-ink-400 rounded-card overflow-hidden bg-paper-100 dark:bg-ink-200 shadow-card">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-200 dark:border-slate-800">
-                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">Ticket Details</th>
-                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-4 text-xs font-medium text-zinc-500 uppercase tracking-wider text-center">Activity</th>
-                    <th className="px-6 py-4"></th>
+                  <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-500 dark:border-ink-400">
+                    <th className="px-7 py-4 text-xs font-medium text-ink-700 ">Ticket Details</th>
+                    <th className="px-7 py-4 text-xs font-medium text-ink-700 ">Status</th>
+                    <th className="px-7 py-4 text-xs font-medium text-ink-700 ">Created</th>
+                    <th className="px-7 py-4 text-xs font-medium text-ink-700 text-center">Activity</th>
+                    <th className="px-7 py-4"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
                   {tickets.map(t => (
                     <tr
                       key={t.id}
                       onClick={() => openTicket(t)}
-                      className="hover:bg-zinc-50/60 dark:hover:bg-slate-900/60 transition-colors cursor-pointer group"
+                      className="hover:bg-paper-200/60 dark:hover:bg-ink-100/60 transition-colors cursor-pointer group"
                     >
-                      <td className="px-6 py-5">
+                      <td className="px-7 py-5">
                         <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{t.subject}</span>
-                          <span className="text-xs text-zinc-400 capitalize mt-0.5">{CATEGORIES.find(c => c.value === t.category)?.label || t.category}</span>
+                          <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">{t.subject}</span>
+                          <span className="text-xs text-ink-800 capitalize mt-0.5">{CATEGORIES.find(c => c.value === t.category)?.label || t.category}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-7 py-5">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_BADGE[t.status]}`}>
                           {STATUS_LABEL[t.status]}
                         </span>
                       </td>
-                      <td className="px-6 py-5 text-sm text-zinc-500 dark:text-slate-400">
+                      <td className="px-7 py-5 text-sm text-ink-700 dark:text-ink-900">
                         {new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-5 text-center">
-                        <span className="text-xs font-medium text-zinc-400">
+                      <td className="px-7 py-5 text-center">
+                        <span className="text-xs font-medium text-ink-800">
                           {t._count?.replies || 0} {t._count?.replies === 1 ? 'reply' : 'replies'}
                         </span>
                       </td>
-                      <td className="px-6 py-5 text-right">
-                        <span className="text-[#0d9488] dark:text-teal-400 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:underline">
+                      <td className="px-7 py-5 text-right">
+                        <span className="text-brand-500 dark:text-brand-300 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:underline">
                           View
                         </span>
                       </td>
@@ -406,15 +381,15 @@ export default function Support() {
             </div>
           )}
         </section>
-      </div>
 
-      {selectedTicket && (
-        <TicketModal
-          ticket={selectedTicket}
-          onClose={() => setSelectedTicket(null)}
-          onRefresh={fetchTickets}
-        />
-      )}
+        {selectedTicket && (
+          <TicketModal
+            ticket={selectedTicket}
+            onClose={() => setSelectedTicket(null)}
+            onRefresh={fetchTickets}
+          />
+        )}
+      </Page>
     </div>
   );
 }

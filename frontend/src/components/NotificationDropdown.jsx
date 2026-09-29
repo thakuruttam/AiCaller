@@ -1,34 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
+import { Button, IconButton } from '../components/ui';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
-
-const TYPE_META = {
-  CAMPAIGN_CREATED:     { icon: '🚀', color: 'text-blue-500' },
-  CAMPAIGN_STARTED:     { icon: '▶️', color: 'text-green-500' },
-  CAMPAIGN_PAUSED:      { icon: '⏸️', color: 'text-yellow-500' },
-  CAMPAIGN_KILLED:      { icon: '🛑', color: 'text-red-500' },
-  CAMPAIGN_RERUN:       { icon: '🔁', color: 'text-teal-500' },
-  CAMPAIGN_COMPLETED:   { icon: '✅', color: 'text-green-600' },
-  CALL_COMPLETED:       { icon: '📞', color: 'text-blue-400' },
-  CALL_FAILED:          { icon: '❌', color: 'text-red-400' },
-  MEMBER_INVITED:       { icon: '✉️', color: 'text-teal-500' },
-  MEMBER_JOINED:        { icon: '👋', color: 'text-teal-500' },
-  MEMBER_ROLE_CHANGED:  { icon: '🔑', color: 'text-orange-500' },
-  MEMBER_REMOVED:       { icon: '🚪', color: 'text-gray-500 dark:text-slate-400' },
-};
-
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
+import NotificationRow from './NotificationRow';
 
 export default function NotificationDropdown() {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, loading, fetchNotifications, markRead, markAllRead } = useNotifications();
+  const navigate = useNavigate();
   const ref = useRef(null);
 
   // Close on outside click
@@ -44,75 +23,69 @@ export default function NotificationDropdown() {
     setOpen(o => !o);
   };
 
+  // Clicking a notification is meant to take you to the thing it is about —
+  // marking it read on its own left every `link` dead from here.
   const handleClick = (n) => {
     if (!n.isRead) markRead(n.id);
+    if (n.link) {
+      setOpen(false);
+      navigate(n.link);
+    }
   };
 
   return (
     <div ref={ref} className="relative">
       {/* Bell button */}
-      <button
-        onClick={handleOpen}
-        className="relative p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-        aria-label="Notifications"
-      >
+      <Button variant="ghost" size="md" onClick={handleOpen} aria-label="Notifications">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-negative/100 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
-      </button>
+      </Button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 rounded-card shadow-[0_8px_30px_rgba(0,0,0,0.12)] bg-paper-100 dark:bg-ink-200 border border-paper-400 dark:border-ink-400 z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700">
-            <span className="font-semibold text-sm text-gray-800 dark:text-slate-100">Notifications</span>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-paper-400 dark:border-ink-400">
+            <span className="font-semibold text-sm text-ink-100 dark:text-paper-200">Notifications</span>
             {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline"
-              >
-                Mark all read
-              </button>
+              <Button variant="ghost" size="sm" onClick={markAllRead} icon="mark_email_read">Mark all read</Button>
             )}
           </div>
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-slate-700">
+          <div className="max-h-96 overflow-y-auto divide-y divide-paper-400 dark:divide-ink-400">
             {loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-gray-400 dark:text-slate-500">Loading…</div>
+              <div className="px-4 py-8 text-center text-sm text-ink-800 dark:text-ink-800">Loading…</div>
             )}
             {!loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-gray-400 dark:text-slate-500">No notifications yet</div>
+              <div className="px-4 py-8 text-center text-sm text-ink-800 dark:text-ink-800">No notifications yet</div>
             )}
-            {notifications.map(n => {
-              const meta = TYPE_META[n.type] || { icon: '🔔', color: 'text-gray-500 dark:text-slate-400' };
-              return (
-                <button
-                  key={n.id}
-                  onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-slate-700/60 transition-colors ${!n.isRead ? 'bg-teal-50/60 dark:bg-teal-900/20' : ''}`}
-                >
-                  <span className="text-lg leading-none mt-0.5">{meta.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${!n.isRead ? 'text-gray-900 dark:text-slate-50' : 'text-gray-700 dark:text-slate-300'}`}>
-                      {n.title}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-0.5">{n.body}</p>
-                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
-                  </div>
-                  {!n.isRead && (
-                    <span className="mt-1.5 w-2 h-2 rounded-full bg-teal-500 flex-shrink-0" />
-                  )}
-                </button>
-              );
-            })}
+            {notifications.map(n => (
+              <NotificationRow
+                key={n.id}
+                notification={n}
+                compact
+                onOpen={handleClick}
+              />
+            ))}
+          </div>
+          <div className="border-t border-paper-400 dark:border-ink-400">
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth
+              iconRight="arrow_forward"
+              onClick={() => { setOpen(false); navigate('/notifications'); }}
+            >
+              View all notifications
+            </Button>
           </div>
         </div>
       )}

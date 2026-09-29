@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Button, IconButton } from '../../../components/ui';
 import { Plus, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
-import QuestionCard, { emptyItem, uid } from './QuestionCard';
+import QuestionCard from './QuestionCard';
+import { emptyItem, uid } from './questionModel';
 import { useToast } from '../../../context/ToastContext';
 
 function WordLimitTextarea({ value, onChange, limit, placeholder, className = '', rows = 2 }) {
@@ -13,13 +15,13 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, className = ''
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full rounded-lg border bg-white dark:bg-slate-700 px-3 pt-2 pb-6 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
+        className={`w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 pt-2 pb-6 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors
           ${over
-            ? 'border-red-400 focus:ring-red-500/20'
-            : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
+            ? 'border-negative focus:ring-negative/20'
+            : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
           } ${className}`}
       />
-      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
+      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-ink-300/90 px-1 backdrop-blur-sm rounded ${over ? 'text-negative font-semibold' : 'text-ink-800 dark:text-ink-800'}`}>
         {count} / {limit} words{over ? ' — over limit' : ''}
       </div>
     </div>
@@ -154,14 +156,17 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       {/* Question list */}
       <div className="flex flex-col gap-3">
         {items.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-zinc-200 dark:border-slate-700 rounded-xl text-zinc-400 dark:text-slate-500 bg-zinc-50 dark:bg-slate-900">
+          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-ink-800 dark:text-ink-800 bg-paper-200 dark:bg-ink-50">
             <MessageSquare size={32} className="mb-2 opacity-40" />
             <p className="text-sm">No questions yet. Add one below.</p>
           </div>
         )}
         {items.map((item, idx) => (
           <QuestionCard
-            key={item.id}
+            // Items arriving from a saved campaign may not carry an id yet —
+            // the effect above backfills one, but that lands after this first
+            // render, so fall back to the index for that single pass.
+            key={item.id || `item-${idx}`}
             item={item}
             allItems={items}
             index={idx}
@@ -186,10 +191,10 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         const over  = total > 100;
         const exact = total === 100;
         return (
-          <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm font-medium
-            ${over  ? 'border-red-300 bg-red-50 text-red-700'
-            : exact ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
-            :         'border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900 text-zinc-500 dark:text-slate-400'}`}
+          <div className={`flex items-center justify-between px-4 py-2.5 rounded-control border text-sm font-medium
+            ${over  ? 'border-negative/40 bg-negative/10 text-negative-dim'
+            : exact ? 'border-positive bg-positive/10 text-positive-dim'
+            :         'border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 text-ink-700 dark:text-ink-900'}`}
           >
             <span>Total Call Score Weight</span>
             <span className="tabular-nums">{total}%
@@ -202,22 +207,18 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       })()}
 
       {/* Add button */}
-      <button
-        type="button"
-        onClick={addItem}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 dark:border-slate-700 h-12 w-full text-sm font-medium text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-all"
-      >
+      <Button variant="subtle" size="lg" type="button" onClick={addItem}>
         <Plus size={16} /> Add Question / Information
-      </button>
+      </Button>
 
       {/* End Call If */}
-      <div className="flex flex-col gap-3 p-4 rounded-xl border border-red-200 bg-red-50">
+      <div className="flex flex-col gap-3 p-4 rounded-card border border-negative/30 bg-negative/10">
         <div className="flex items-center gap-2">
-          <AlertCircle size={15} className="text-red-600" />
-          <h4 className="text-sm font-semibold text-red-700">End Call If</h4>
-          <span className="text-xs font-medium text-red-500">(max 500 words)</span>
+          <AlertCircle size={15} className="text-negative-dim" />
+          <h4 className="text-sm font-semibold text-negative-dim">End Call If</h4>
+          <span className="text-xs font-medium text-negative">(max 500 words)</span>
         </div>
-        <p className="text-xs font-medium text-red-600/80 leading-relaxed">
+        <p className="text-xs font-medium text-negative-dim/80 leading-relaxed">
           Describe any condition(s) under which the bot should immediately end the call. For example: <em>"If the contact says they are not interested at any point, immediately end the call."</em>
         </p>
         <WordLimitTextarea
@@ -230,12 +231,12 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       </div>
 
       {/* Success Score Threshold */}
-      <div className="flex flex-col gap-3 p-4 rounded-xl border border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 p-4 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
         <div className="flex items-center gap-2">
-          <CheckCircle2 size={15} className="text-emerald-600" />
-          <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Success Score Threshold</h4>
+          <CheckCircle2 size={15} className="text-positive-dim" />
+          <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Success Score Threshold</h4>
         </div>
-        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 leading-relaxed">
+        <p className="text-xs font-medium text-ink-700 dark:text-ink-900 leading-relaxed">
           Calls whose final score falls below this threshold will be marked as <strong>Failed</strong> in reports.
         </p>
         <div className="flex flex-col gap-2 mt-1">
@@ -244,20 +245,20 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
               type="number"
               min={0}
               max={100}
-              className="flex h-9 w-24 rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+              className="flex h-9 w-24 rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm text-ink-100 dark:text-paper-200 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
               value={payload.rules?.successScore ?? 50}
               onChange={(e) => updatePayload({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value))) } })}
             />
-            <span className="text-sm text-zinc-500 dark:text-slate-400">/ 100</span>
+            <span className="text-sm text-ink-700 dark:text-ink-900">/ 100</span>
           </div>
-          <div className="relative h-2 rounded-full bg-zinc-200 dark:bg-slate-700 overflow-hidden w-full max-w-sm mt-1">
+          <div className="relative h-2 rounded-full bg-paper-500 dark:bg-ink-300 overflow-hidden w-full max-w-sm mt-1">
             <div
-              className="absolute left-0 top-0 h-full rounded-full bg-emerald-500 transition-all"
+              className="absolute left-0 top-0 h-full rounded-full bg-positive transition-all"
               style={{ width: `${payload.rules?.successScore ?? 50}%` }}
             />
           </div>
-          <p className="text-xs font-medium text-zinc-500 dark:text-slate-400">
-            Current threshold: <strong className="text-zinc-700 dark:text-slate-300">{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
+          <p className="text-xs font-medium text-ink-700 dark:text-ink-900">
+            Current threshold: <strong className="text-ink-500 dark:text-ink-900">{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
           </p>
         </div>
       </div>

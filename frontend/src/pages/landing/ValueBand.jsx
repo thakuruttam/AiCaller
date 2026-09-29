@@ -16,11 +16,11 @@ function MorphingBlob() {
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
       <div
-        className="absolute w-[26rem] h-[26rem] md:w-[34rem] md:h-[34rem] border border-dashed border-[#0d9488]/30"
+        className="absolute w-[26rem] h-[26rem] md:w-[34rem] md:h-[34rem] border border-dashed border-[#266df0]/30"
         style={{ borderRadius: '48% 52% 60% 40% / 40% 45% 55% 60%' }}
       />
       <MotionDiv
-        className="absolute w-[20rem] h-[20rem] md:w-[26rem] md:h-[26rem] bg-[#0d9488]/[0.08]"
+        className="absolute w-[20rem] h-[20rem] md:w-[26rem] md:h-[26rem] bg-[#266df0]/[0.08]"
         animate={{
           borderRadius: [
             '42% 58% 65% 35% / 45% 45% 55% 55%',
@@ -66,9 +66,9 @@ export function ValueBand() {
         >
           {CALLOUTS.map(c => (
             <SwiperSlide key={c.text} className="flex items-center justify-center">
-              <div className="flex items-center gap-3 rounded-xl bg-white shadow-lg shadow-black/10 border border-black/5 px-4 py-3">
-                <span className="w-8 h-8 rounded-lg bg-[#0d9488]/10 flex items-center justify-center shrink-0">
-                  <c.icon size={15} className="text-[#0d9488]" />
+              <div className="flex items-center gap-3 rounded-xl bg-paper-100 shadow-lg shadow-black/10 border border-black/5 px-4 py-3">
+                <span className="w-8 h-8 rounded-lg bg-[#266df0]/10 flex items-center justify-center shrink-0">
+                  <c.icon size={15} className="text-[#266df0]" />
                 </span>
                 <p className="text-[13px] leading-snug text-[#14261f]">{c.text}</p>
               </div>

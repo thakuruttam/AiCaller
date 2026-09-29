@@ -1,16 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
+import { Button, IconButton } from '../components/ui';
 
 export function FullscreenButton({ toggle, isFs }) {
   return (
-    <button
-      onClick={toggle}
-      title={isFs ? 'Exit fullscreen' : 'Fullscreen'}
-      className="p-1.5 rounded-lg border border-zinc-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 hover:text-zinc-800 dark:hover:text-slate-200 transition-colors"
-    >
-      <span className="material-symbols-outlined text-[18px]">
-        {isFs ? 'fullscreen_exit' : 'fullscreen'}
-      </span>
-    </button>
+    <IconButton tone="neutral" size="md" title={isFs ? 'Exit fullscreen' : 'Fullscreen'} icon={isFs ? 'fullscreen_exit' : 'fullscreen'} onClick={toggle} />
   );
 }
 
@@ -32,7 +25,7 @@ export default function FullscreenTable({ children, className = '' }) {
   return (
     <div
       ref={ref}
-      className={`${isFs ? 'bg-white dark:bg-slate-800 overflow-auto flex flex-col' : ''} ${className}`}
+      className={`${isFs ? 'bg-paper-100 dark:bg-ink-200 overflow-auto flex flex-col' : ''} ${className}`}
     >
       {typeof children === 'function' ? children({ toggle, isFs }) : children}
     </div>

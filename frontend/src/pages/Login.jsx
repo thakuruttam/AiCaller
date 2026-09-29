@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import { Button, Field, Input, IconButton, Tooltip } from '../components/ui';
 
 const EyeIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -38,8 +39,8 @@ const ArrowRightIcon = () => (
 const LOGO_VARIANT = 'C';
 
 const LOGO_BADGE_BG = LOGO_VARIANT === 'B'
-  ? 'linear-gradient(135deg, #0d9488, #3b82f6)'
-  : '#0d9488';
+  ? 'linear-gradient(135deg, #266df0, #94b9ff)'
+  : '#266df0';
 
 const LogoIcon = ({ size = 16 }) => {
   if (LOGO_VARIANT === 'A') {
@@ -100,11 +101,13 @@ export default function Login() {
   const [showPwd, setShowPwd]      = useState(false);
   const [errorCode, setErrorCode]  = useState('');
   const [loading, setLoading]      = useState(false);
-  const [toast, setToast]          = useState(
-    searchParams.get('error') === 'google_failed'
-      ? { type: 'error', message: 'Google sign-in failed. Please try again.' }
-      : null
-  );
+  const [toast, setToast]          = useState(() => {
+    const message = {
+      google_failed:         'Google sign-in failed. Please try again.',
+      google_not_configured: 'Google sign-in is not set up on this server. Use your email and password.'
+    }[searchParams.get('error')];
+    return message ? { type: 'error', message } : null;
+  });
   const [mounted, setMounted]      = useState(false);
   const canSubmit = email.trim().length > 0 && password.length > 0;
 
@@ -130,7 +133,7 @@ export default function Login() {
       setToast({ type: 'success', message: 'Login successful' });
       setTimeout(() => navigate(from, { replace: true }), 900);
     } catch (err) {
-      setToast({ type: 'error', message: err.response?.data?.error || 'Invalid Email or Password' });
+      setToast({ type: 'error', message: err.response?.data?.error || 'Invalid email or password' });
       setErrorCode(err.response?.data?.code || '');
     } finally {
       setLoading(false);
@@ -148,9 +151,7 @@ export default function Login() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
         .login-page, .login-page *, .login-page *::before, .login-page *::after {
-          font-family: 'Poppins', sans-serif !important;
           box-sizing: border-box;
         }
 
@@ -163,23 +164,13 @@ export default function Login() {
           to   { opacity: 1; transform: translateX(0); }
         }
         @keyframes pulse-ring {
-          0%   { box-shadow: 0 0 0 0 rgba(13,148,136,0.35); }
-          70%  { box-shadow: 0 0 0 6px rgba(13,148,136,0); }
-          100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
+          0%   { box-shadow: 0 0 0 0 rgba(38,109,240,0.30); }
+          70%  { box-shadow: 0 0 0 6px rgba(38,109,240,0); }
+          100% { box-shadow: 0 0 0 0 rgba(38,109,240,0); }
         }
         .anim-enter { animation: enter-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .anim-toast { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .google-btn-highlight { animation: pulse-ring 1.6s ease-out 2; }
-
-        .input-field {
-          width: 100%; height: 28px; padding: 0 2px 4px; line-height: 1;
-          border: none; border-bottom: 1.5px solid #e2e8f0;
-          border-radius: 0; font-size: 0.9rem; background: transparent;
-          transition: border-color 0.15s;
-          outline: none; font-family: inherit;
-        }
-        .dark .input-field { border-bottom-color: rgba(255,255,255,0.14); }
-        .input-field:focus { border-bottom-color: #0d9488 !important; }
 
         @media (prefers-reduced-motion: reduce) {
           .anim-enter, .anim-toast { animation: none; }
@@ -187,26 +178,26 @@ export default function Login() {
         }
       `}</style>
 
-      <main className="login-page flex min-h-screen overflow-x-hidden">
+      <main className="login-page ui-inter flex min-h-screen overflow-x-hidden">
 
         {/* ════════════════════════════════════════
             LEFT — Dark Info Panel
         ════════════════════════════════════════ */}
-        <section className="hidden lg:flex flex-col justify-between w-[48%] bg-[#0a0f1a] p-6 relative overflow-hidden">
+        <section className="hidden lg:flex flex-col justify-between w-[48%] bg-ink-50 p-6 relative overflow-hidden">
 
           {/* Glowing blurred gradient blob background */}
           <div className="absolute inset-0 pointer-events-none" style={{ filter: 'blur(70px)' }}>
-            <div className="absolute -top-24 -right-24 w-[520px] h-[520px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.6) 0%, transparent 70%)' }} />
-            <div className="absolute top-1/3 -left-16 w-[420px] h-[420px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 70%)' }} />
-            <div className="absolute bottom-0 left-1/4 w-[460px] h-[460px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.45) 0%, transparent 70%)' }} />
+            <div className="absolute -top-24 -right-24 w-[520px] h-[520px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(38,109,240,0.55) 0%, transparent 70%)' }} />
+            <div className="absolute top-1/3 -left-16 w-[420px] h-[420px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(83,139,243,0.32) 0%, transparent 70%)' }} />
+            <div className="absolute bottom-0 left-1/4 w-[460px] h-[460px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(148,185,255,0.28) 0%, transparent 70%)' }} />
           </div>
 
           {/* Logo */}
           <div className="relative z-10 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg" style={{ background: LOGO_BADGE_BG, boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
+            <div className="w-9 h-9 rounded-chip flex items-center justify-center" style={{ background: LOGO_BADGE_BG, boxShadow: '0 4px 14px rgba(38,109,240,0.35)' }}>
               <LogoIcon size={19} />
             </div>
-            <span className="font-bold text-white text-lg tracking-tight">AI Caller Pro</span>
+            <span className="font-semibold text-white text-lg">AI Caller Pro</span>
           </div>
 
           {/* Main content */}
@@ -214,12 +205,12 @@ export default function Login() {
 
             {/* Headline */}
             <div>
-              <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">AI-Powered Voice Platform</p>
-              <h2 className="text-[2rem] font-extrabold text-white leading-[1.18] tracking-tight">
+              <p className="text-xs font-semibold text-brand-300 mb-3">AI-Powered Voice Platform</p>
+              <h2 className="text-[2rem] font-semibold text-white leading-[1.18]">
                 Close more deals.<br />
-                <span className="text-[#0d9488]">Automatically.</span>
+                <span className="text-brand-300">Automatically.</span>
               </h2>
-              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+              <p className="mt-3 text-sm text-ink-900 leading-relaxed">
                 Deploy AI agents that qualify, pitch, and follow up — at enterprise scale, 24 / 7.
               </p>
             </div>
@@ -227,7 +218,7 @@ export default function Login() {
           </div>
 
           {/* Trust line */}
-          <p className="relative z-10 text-xs text-slate-600 tracking-wide">
+          <p className="relative z-10 text-xs text-ink-800 tracking-wide">
             Trusted by 500+ enterprise teams
           </p>
         </section>
@@ -235,92 +226,80 @@ export default function Login() {
         {/* ════════════════════════════════════════
             RIGHT — Login Form
         ════════════════════════════════════════ */}
-        <section className="flex-1 flex flex-col items-center px-8 py-10 bg-slate-50 dark:bg-[#050709]">
-          <div className={`w-full max-w-[490px] h-full flex flex-col bg-white dark:bg-[#0b0f17] rounded-2xl shadow-xl p-8 sm:p-10 ${mounted ? 'anim-enter' : 'opacity-0'}`} style={{ boxShadow: '0 20px 50px rgba(15,23,42,0.12)' }}>
+        <section className="flex-1 flex flex-col items-center px-8 py-10 bg-paper-300 dark:bg-ink-50">
+          <div className={`w-full max-w-[460px] my-auto flex flex-col bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-8 sm:p-10 ${mounted ? 'anim-enter' : 'opacity-0'}`}>
 
             {/* Mobile logo */}
             <div className="lg:hidden flex items-center gap-2.5 mb-10">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: LOGO_BADGE_BG }}>
+              <div className="w-8 h-8 rounded-chip flex items-center justify-center" style={{ background: LOGO_BADGE_BG }}>
                 <LogoIcon size={17} />
               </div>
-              <span className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">AI Caller Pro</span>
+              <span className="font-semibold text-ink-100 dark:text-white text-lg">AI Caller Pro</span>
             </div>
 
             {/* Heading */}
-            <div className="mb-20">
-              <h1 className="text-[22px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight mb-1.5">
+            <div className="mb-8">
+              <h1 className="text-[22px] font-semibold text-ink-100 dark:text-white leading-tight mb-1.5">
                 Login
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-ink-700 dark:text-ink-800">
                 Please enter your email and password to continue.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSubmit} className="space-y-5">
 
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-                  Email
-                </label>
-                <input
+              <Field label="Email" htmlFor="email">
+                <Input
                   id="email" type="email" value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="input-field text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                  placeholder="you@company.com"
+                  autoComplete="email" required
                 />
-              </div>
+              </Field>
 
-              {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
+                <Field label="Password" htmlFor="password">
+                  <Input
                     id="password" type={showPwd ? 'text' : 'password'}
                     value={password} onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="input-field text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600 pr-11"
+                    placeholder="••••••••"
+                    autoComplete="current-password" required
+                    trailing={
+                      <IconButton
+                        size="sm"
+                        type="button"
+                        title={showPwd ? 'Hide password' : 'Show password'}
+                        onClick={() => setShowPwd(!showPwd)}
+                      >
+                        {showPwd ? <EyeOffIcon /> : <EyeIcon />}
+                      </IconButton>
+                    }
                   />
-                  <button type="button" onClick={() => setShowPwd(!showPwd)}
-                    aria-label={showPwd ? 'Hide password' : 'Show password'}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer">
-                    {showPwd ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
+                </Field>
                 <div className="text-right mt-2">
-                  <a href="#" className="text-xs font-medium text-[#0d9488] hover:text-[#0f766e] transition-colors">
+                  <a href="#" className="text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors">
                     Forgot password?
                   </a>
                 </div>
               </div>
 
-              {/* Submit */}
-              <button type="submit" disabled={loading || !canSubmit}
-                className="w-full h-[48px] text-sm font-semibold rounded-[10px] flex items-center justify-center gap-2 mt-1 active:scale-[0.98] transition-all duration-150 disabled:cursor-not-allowed cursor-pointer"
-                style={{
-                  background: canSubmit ? '#0d9488' : '#e2e8f0',
-                  color: canSubmit ? 'white' : '#94a3b8',
-                  boxShadow: canSubmit ? '0 4px 14px rgba(13,148,136,0.3)' : 'none',
-                }}
-                onMouseEnter={e => { if (canSubmit) e.currentTarget.style.background = '#0f766e'; }}
-                onMouseLeave={e => { if (canSubmit) e.currentTarget.style.background = '#0d9488'; }}
+              <Button
+                type="submit" size="lg" fullWidth
+                loading={loading} disabled={!canSubmit}
+                iconRight={loading ? undefined : 'arrow_forward'}
               >
-                {loading
-                  ? <><Spinner size={16} /><span>Authenticating…</span></>
-                  : <><span>Sign in</span><ArrowRightIcon /></>
-                }
-              </button>
+                {loading ? 'Authenticating…' : 'Sign in'}
+              </Button>
             </form>
 
             {/* Divider */}
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-100 dark:border-white/[0.06]" />
+                <div className="w-full border-t border-paper-500 dark:border-ink-400" />
               </div>
               <div className="relative flex justify-center">
-                <span className="bg-white dark:bg-[#07090e] px-3 text-[12px] font-medium text-slate-400 uppercase tracking-widest">
+                <span className="bg-paper-100 dark:bg-ink-200 px-3 text-[12px] font-medium text-ink-800 ">
                   or continue with
                 </span>
               </div>
@@ -328,32 +307,34 @@ export default function Login() {
 
             {/* Social buttons */}
             <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={handleGoogleLogin}
-                aria-label="Continue with Google"
-                className={`group relative w-[46px] h-[46px] flex items-center justify-center rounded-[10px] transition-all duration-150 cursor-pointer bg-white dark:bg-white/[0.04] hover:bg-slate-50 dark:hover:bg-white/[0.07] ${errorCode === 'GOOGLE_ACCOUNT_NO_PASSWORD' ? 'google-btn-highlight' : ''}`}
-                style={{ border: errorCode === 'GOOGLE_ACCOUNT_NO_PASSWORD' ? '1px solid #0d9488' : '1px solid #e2e8f0' }}
-              >
-                <GoogleIcon />
-                <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-xs font-normal text-white opacity-0 scale-95 transition-all duration-150 group-hover:opacity-100 group-hover:scale-100">
-                  Continue with Google
-                </span>
-              </button>
-              <button
-                aria-label="Continue with Microsoft"
-                className="group relative w-[46px] h-[46px] flex items-center justify-center rounded-[10px] transition-all duration-150 cursor-pointer bg-white dark:bg-white/[0.04] hover:bg-slate-50 dark:hover:bg-white/[0.07]"
-                style={{ border: '1px solid #e2e8f0' }}
-              >
-                <MicrosoftIcon />
-                <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-xs font-normal text-white opacity-0 scale-95 transition-all duration-150 group-hover:opacity-100 group-hover:scale-100">
-                  Continue with Microsoft
-                </span>
-              </button>
+              <Tooltip label="Continue with Google">
+                <IconButton
+                  as="button"
+                  size="lg"
+                  onClick={handleGoogleLogin}
+                  title="Continue with Google"
+                  className={`w-[46px] h-[46px] border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-white/[0.04] ${
+                    errorCode === 'GOOGLE_ACCOUNT_NO_PASSWORD' ? 'google-btn-highlight !border-brand-500' : ''
+                  }`}
+                >
+                  <GoogleIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip label="Continue with Microsoft">
+                <IconButton
+                  as="button"
+                  size="lg"
+                  title="Continue with Microsoft"
+                  className="w-[46px] h-[46px] border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-white/[0.04]"
+                >
+                  <MicrosoftIcon />
+                </IconButton>
+              </Tooltip>
             </div>
 
-            <p className="mt-auto pt-6 text-center text-[12px] text-slate-500 dark:text-slate-500">
+            <p className="mt-8 text-center text-[12px] text-ink-700 dark:text-ink-800">
               New to AI Caller?{' '}
-              <a href="#" className="font-semibold text-[#0d9488] hover:text-[#0f766e] transition-colors">
+              <a href="#" className="font-semibold text-brand-500 hover:text-brand-600 transition-colors">
                 Start free trial
               </a>
             </p>
@@ -361,25 +342,23 @@ export default function Login() {
           </div>
         </section>
 
-        {/* Toast — bottom-left, accent colors from qa-app.biobrain.io/login, card style matched to this page's own white/shadow/Poppins language */}
+        {/* Toast — bottom-left, card style matched to this page's own surface/hairline language */}
         {toast && (
-          <div className="fixed z-50 anim-toast flex items-center gap-3 bg-white dark:bg-[#0f1420]"
+          <div className="fixed z-50 anim-toast flex items-center gap-3 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-raised"
             style={{
               left: '24px', bottom: '24px',
               minWidth: '300px',
               padding: '13px 20px 13px 16px',
-              borderRadius: '12px',
-              borderLeft: `3px solid ${toast.type === 'success' ? '#43a047' : '#d32f2f'}`,
-              boxShadow: '0 20px 44px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.06)',
+              borderLeft: `3px solid ${toast.type === 'success' ? '#0fc27b' : '#ff5b59'}`,
             }}>
             <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full"
               style={{
-                background: toast.type === 'success' ? 'rgba(67,160,71,0.12)' : 'rgba(211,47,47,0.12)',
-                color: toast.type === 'success' ? '#43a047' : '#d32f2f',
+                background: toast.type === 'success' ? 'rgba(15,194,123,0.12)' : 'rgba(255,91,89,0.12)',
+                color: toast.type === 'success' ? '#0db472' : '#f65351',
               }}>
               {toast.type === 'success' ? <ToastSuccessIcon size={17} /> : <ToastErrorIcon size={17} />}
             </span>
-            <span className="text-sm font-medium leading-snug text-slate-700 dark:text-slate-200">{toast.message}</span>
+            <span className="text-sm font-medium leading-snug text-ink-400 dark:text-ink-900">{toast.message}</span>
           </div>
         )}
       </main>

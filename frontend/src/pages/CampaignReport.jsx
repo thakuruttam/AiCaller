@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { Button, IconButton, Tabs, CopyField } from '../components/ui';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
@@ -9,19 +10,19 @@ import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable
 import { EVAL_BASE } from '../api/config';
 
 const SENTIMENT_ICON = {
-  positive: { icon: 'sentiment_satisfied', color: 'text-emerald-500' },
-  neutral:  { icon: 'sentiment_neutral', color: 'text-zinc-400' },
-  negative: { icon: 'sentiment_dissatisfied', color: 'text-[#ba1a1a]' },
+  positive: { icon: 'sentiment_satisfied', color: 'text-positive' },
+  neutral:  { icon: 'sentiment_neutral', color: 'text-ink-800' },
+  negative: { icon: 'sentiment_dissatisfied', color: 'text-negative-dim' },
 };
 
 const OUTCOME_BADGE = {
-  COMPLETED:    'bg-emerald-50 text-emerald-700',
-  NO_ANSWER:    'bg-zinc-100 text-zinc-600',
-  INCOMPLETE:   'bg-amber-50 text-amber-700',
-  WRONG_PERSON: 'bg-[#ffdad6] text-[#ba1a1a]',
-  RESCHEDULE:   'bg-blue-50 text-blue-700',
-  BUSY:         'bg-zinc-100 text-zinc-600',
-  FAILED:       'bg-[#ffdad6] text-[#ba1a1a]',
+  COMPLETED:    'bg-positive/10 text-positive-dim',
+  NO_ANSWER:    'bg-paper-400 text-ink-600',
+  INCOMPLETE:   'bg-caution/10 text-caution-dim',
+  WRONG_PERSON: 'bg-negative/10 text-negative-dim',
+  RESCHEDULE:   'bg-brand-100 text-brand-600',
+  BUSY:         'bg-paper-400 text-ink-600',
+  FAILED:       'bg-negative/10 text-negative-dim',
 };
 
 const OUTCOME_FILTER_KEYS = ['All', 'COMPLETED', 'NO_ANSWER', 'BUSY', 'INCOMPLETE', 'FAILED', 'WRONG_PERSON', 'RESCHEDULE'];
@@ -30,7 +31,6 @@ function ShareModal({ campaignId, onClose }) {
   const [days, setDays] = useState(7);
   const [link, setLink] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { addToast } = useToast();
 
   const generate = async () => {
@@ -39,73 +39,46 @@ function ShareModal({ campaignId, onClose }) {
       const res = await api.post(`/api/share/campaigns/${campaignId}`, { validityDays: days });
       const url = `${window.location.origin}/share/${res.data.token}`;
       setLink({ url, expiresAt: res.data.expiresAt });
-    } catch (e) {
+    } catch {
       addToast('Failed to generate link', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const copy = () => {
-    navigator.clipboard.writeText(link.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Share Campaign Report</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-500 transition-colors">
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
+          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Share Campaign Report</h3>
+          <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
         </div>
 
         {!link ? (
           <>
-            <p className="text-sm text-zinc-500 dark:text-slate-400 mb-5">
+            <p className="text-sm text-ink-700 dark:text-ink-900 mb-5">
               Generate a public link to share all call reports for this campaign. No login required.
             </p>
             <div className="mb-5">
-              <label className="block text-xs font-medium text-zinc-600 dark:text-slate-400 uppercase tracking-wider mb-2">Link Valid For</label>
+              <label className="block text-xs font-medium text-ink-600 dark:text-ink-900 mb-2">Link Valid For</label>
               <div className="flex gap-2">
                 {[3, 7, 14, 30].map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setDays(d)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${days === d ? 'bg-[#0d9488] text-white border-[#0d9488]' : 'border-zinc-200 dark:border-slate-600 text-zinc-600 dark:text-slate-300 hover:border-[#0d9488]'}`}
-                  >
-                    {d}d
-                  </button>
+                  <Button variant="primary" size="md" key={d} onClick={() => setDays(d)}>{d}d</Button>
                 ))}
               </div>
             </div>
-            <button
-              onClick={generate}
-              disabled={loading}
-              className="w-full py-3 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-            >
+            <Button variant="primary" size="lg" onClick={generate} disabled={loading}>
               {loading ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Generating…</> : <><span className="material-symbols-outlined text-[18px]">link</span> Generate Link</>}
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <p className="text-xs text-zinc-500 dark:text-slate-400 mb-3">
+            <p className="text-xs text-ink-700 dark:text-ink-900 mb-3">
               Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong>
             </p>
-            <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-200 dark:border-slate-600 bg-zinc-50 dark:bg-slate-900 mb-4">
-              <span className="text-xs text-zinc-700 dark:text-slate-300 flex-1 break-all">{link.url}</span>
-              <button onClick={copy} className="shrink-0 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-slate-700 transition-colors text-zinc-500">
-                <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
-              </button>
-            </div>
-            <button
-              onClick={() => setLink(null)}
-              className="w-full py-2.5 border border-zinc-200 dark:border-slate-600 rounded-xl text-sm text-zinc-600 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              Generate Another
-            </button>
+            <CopyField value={link.url} className="mb-4" />
+            <Button variant="secondary" size="md" onClick={() => setLink(null)}>Generate Another</Button>
           </>
         )}
       </div>
@@ -115,7 +88,6 @@ function ShareModal({ campaignId, onClose }) {
 
 export default function CampaignReport() {
   const { id } = useParams();
-  const { addToast } = useToast();
   const [metrics, setMetrics] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -163,10 +135,10 @@ export default function CampaignReport() {
   }, [allQuestions, contacts]);
 
   const qScoreDot = (pct) => {
-    if (pct == null) return 'bg-zinc-300';
-    if (pct >= 70) return 'bg-emerald-500';
-    if (pct >= 40) return 'bg-amber-400';
-    return 'bg-red-500';
+    if (pct == null) return 'bg-paper-700';
+    if (pct >= 70) return 'bg-positive';
+    if (pct >= 40) return 'bg-caution';
+    return 'bg-negative/100';
   };
 
   const downloadQuestionView = (format) => {
@@ -209,7 +181,7 @@ export default function CampaignReport() {
       setMetrics(resMetrics.data);
       setContacts(resContacts.data.contacts || []);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Could not load report. Make sure the evaluation service is running on port 4000.');
     }
   };
@@ -252,12 +224,12 @@ export default function CampaignReport() {
   if (loading) return <PageLoader text="Loading campaign report…" />;
 
   if (error) return (
-    <div className="p-8 max-w-[1200px] mx-auto">
-      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6">
+    <div className="p-10 max-w-[1200px] mx-auto">
+      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Campaign Details
       </Link>
-      <div className="p-5 rounded-xl border border-[#ffdad6] dark:border-red-800 bg-[#ffdad6]/30 dark:bg-red-900/20 flex items-center gap-3 text-[#ba1a1a] dark:text-red-300 text-sm">
+      <div className="p-5 rounded-card border border-negative/10 dark:border-negative/15 bg-negative/10/30 dark:bg-negative/15 flex items-center gap-3 text-negative-dim dark:text-negative text-sm">
         <span className="material-symbols-outlined">error</span>
         {error}
       </div>
@@ -265,14 +237,14 @@ export default function CampaignReport() {
   );
 
   if (!metrics || metrics.totalCalls === 0) return (
-    <div className="p-8 max-w-[1200px] mx-auto">
-      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-6">
+    <div className="p-10 max-w-[1200px] mx-auto">
+      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Campaign Details
       </Link>
-      <div className="p-12 rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col items-center justify-center text-zinc-400 dark:text-slate-500">
+      <div className="p-12 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 flex flex-col items-center justify-center text-ink-800 dark:text-ink-800">
         <span className="material-symbols-outlined text-[48px] mb-3 opacity-20">bar_chart</span>
-        <p className="font-semibold text-zinc-700 dark:text-slate-300">No Evaluation Data Yet</p>
+        <p className="font-semibold text-ink-500 dark:text-ink-900">No Evaluation Data Yet</p>
         <p className="text-sm mt-1">Run AI Evaluation on calls to generate reports.</p>
       </div>
     </div>
@@ -304,45 +276,39 @@ export default function CampaignReport() {
     : 0;
 
   return (
-    <div className="p-8 max-w-[1200px] mx-auto space-y-8">
+    <div className="p-10 max-w-[1200px] mx-auto space-y-8">
       {/* Page Header */}
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <Link to="/" className="flex items-center gap-2 text-[#334155] dark:text-slate-400 hover:text-[#0d9488] transition-colors text-sm mb-3">
+            <Link to="/" className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-3">
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Active Campaigns
             </Link>
-            <h2 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight mb-1">Campaign Performance Report</h2>
-            <p className="text-[#334155] dark:text-slate-400">AI evaluation analytics &amp; extracted data</p>
+            <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 mb-1">Campaign Performance Report</h2>
+            <p className="text-ink-600 dark:text-ink-900">AI evaluation analytics &amp; extracted data</p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowShare(true)}
-              className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all"
-            >
-              <span className="material-symbols-outlined text-[18px]">share</span>
-              Share
-            </button>
+            <Button variant="secondary" size="md" icon="share" onClick={() => setShowShare(true)}>Share</Button>
             <a
               href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`}
               download
-              className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 text-sm rounded hover:bg-zinc-50 dark:hover:bg-slate-700 transition-all"
+              className="flex items-center gap-2 px-4 py-2 border border-paper-600 dark:border-ink-400 text-ink-100 dark:text-paper-200 text-sm rounded hover:bg-paper-200 dark:hover:bg-ink-400 transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
               Export CSV
             </a>
             {progress && progress.total > 0 && (
-              <div className="bg-[#e2e8f0] dark:bg-slate-800 p-4 rounded-xl min-w-[280px]">
+              <div className="bg-paper-500 dark:bg-ink-200 p-4 rounded-card min-w-[280px]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">AI Evaluation Progress</span>
-                  <span className="text-xs text-[#0d9488] dark:text-teal-400">
+                  <span className="text-sm font-medium text-ink-100 dark:text-paper-200">AI Evaluation Progress</span>
+                  <span className="text-xs text-brand-500 dark:text-brand-300">
                     {progress.completed + progress.failed} / {progress.total} Evaluated
                   </span>
                 </div>
-                <div className="w-full bg-zinc-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-paper-500 dark:bg-ink-300 h-2 rounded-full overflow-hidden">
                   <div
-                    className="bg-[#0d9488] h-full transition-all duration-1000"
+                    className="bg-brand-500 h-full transition-all duration-1000"
                     style={{width: `${progressPct}%`}}
                   />
                 </div>
@@ -354,54 +320,54 @@ export default function CampaignReport() {
 
       {/* KPI Cards */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
           <div className="flex justify-between items-start mb-4">
-            <span className="p-2 bg-[#0d9488]/10 dark:bg-teal-500/10 text-[#0d9488] dark:text-teal-400 rounded-lg">
+            <span className="p-2 bg-brand-500/10 dark:bg-brand-500/10 text-brand-500 dark:text-brand-300 rounded-control">
               <span className="material-symbols-outlined">task_alt</span>
             </span>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1">Total Evaluated</p>
-          <h3 className="text-2xl font-semibold text-[#0f172a] dark:text-slate-100">{total.toLocaleString()}</h3>
+          <p className="text-ink-600 dark:text-ink-900 text-sm mb-1">Total Evaluated</p>
+          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{total.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
           <div className="flex justify-between items-start mb-4">
-            <span className="p-2 bg-[#dae2fd]/30 dark:bg-indigo-500/10 text-[#565e74] dark:text-indigo-300 rounded-lg">
+            <span className="p-2 bg-brand-100/30 dark:bg-brand-500/10 text-ink-600 dark:text-brand-300 rounded-control">
               <span className="material-symbols-outlined">percent</span>
             </span>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1">Completion Rate</p>
-          <h3 className="text-2xl font-semibold text-[#0d9488] dark:text-teal-400">{completionPercent}%</h3>
+          <p className="text-ink-600 dark:text-ink-900 text-sm mb-1">Completion Rate</p>
+          <h3 className="text-2xl font-semibold text-brand-500 dark:text-brand-300">{completionPercent}%</h3>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
           <div className="flex justify-between items-start mb-4">
-            <span className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-lg">
+            <span className="p-2 bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive rounded-control">
               <span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>star</span>
             </span>
           </div>
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-1">Avg Score</p>
-          <h3 className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{avgScore} / 100</h3>
+          <p className="text-ink-600 dark:text-ink-900 text-sm mb-1">Avg Score</p>
+          <h3 className="text-2xl font-semibold text-positive-dim dark:text-positive">{avgScore} / 100</h3>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-[#334155] dark:text-slate-400 text-sm mb-4">Sentiment Breakdown</p>
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
+          <p className="text-ink-600 dark:text-ink-900 text-sm mb-4">Sentiment Breakdown</p>
           <div className="flex flex-wrap gap-2">
             {posCount > 0 && (
-              <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full text-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-emerald-700 dark:bg-emerald-400 rounded-full" />
+              <span className="px-3 py-1 bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive rounded-full text-xs flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-positive/15 dark:bg-positive rounded-full" />
                 {Math.round((posCount / total) * 100)}% Pos
               </span>
             )}
             {neuCount > 0 && (
-              <span className="px-3 py-1 bg-zinc-100 dark:bg-slate-700 text-zinc-700 dark:text-slate-300 rounded-full text-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-zinc-500 dark:bg-slate-400 rounded-full" />
+              <span className="px-3 py-1 bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 rounded-full text-xs flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-ink-700 dark:bg-paper-900 rounded-full" />
                 {Math.round((neuCount / total) * 100)}% Neu
               </span>
             )}
             {negCount > 0 && (
-              <span className="px-3 py-1 bg-[#ffdad6] dark:bg-red-500/10 text-[#ba1a1a] dark:text-red-400 rounded-full text-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-[#ba1a1a] dark:bg-red-400 rounded-full" />
+              <span className="px-3 py-1 bg-negative/10 dark:bg-negative/100/10 text-negative-dim dark:text-negative rounded-full text-xs flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-negative-dim dark:bg-negative rounded-full" />
                 {Math.round((negCount / total) * 100)}% Neg
               </span>
             )}
@@ -410,7 +376,7 @@ export default function CampaignReport() {
       </section>
 
       {/* Results Section — By Contact / By Question */}
-      <FullscreenTable className="flex flex-col gap-4 bg-zinc-50/50 dark:bg-slate-900 rounded-2xl">
+      <FullscreenTable className="flex flex-col gap-4 bg-paper-200/50 dark:bg-ink-50 rounded-card">
       {({ toggle, isFs }) => {
         const paginated = isFs ? filteredContacts : filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -421,29 +387,24 @@ export default function CampaignReport() {
 
         return (<>
         {/* Section header with view toggle */}
-        <section className="bg-[#f0fdfa] dark:bg-slate-800/60 p-6 rounded-2xl border border-zinc-200/50 dark:border-slate-700">
+        <section className="bg-brand-100 dark:bg-ink-200/60 p-6 rounded-card border border-paper-500/50 dark:border-ink-400">
           <div className="flex flex-col gap-4">
             {/* Tab toggle + search row */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-1 bg-[#e2e8f0] dark:bg-slate-700 p-1 rounded-xl w-fit">
-                <button
-                  onClick={() => setViewMode('contact')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === 'contact' ? 'bg-white dark:bg-slate-800 text-[#0d9488] dark:text-teal-400 shadow-sm' : 'text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100'}`}
-                >
-                  By Contact
-                </button>
-                <button
-                  onClick={() => setViewMode('question')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === 'question' ? 'bg-white dark:bg-slate-800 text-[#0d9488] dark:text-teal-400 shadow-sm' : 'text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100'}`}
-                >
-                  By Question
-                </button>
-              </div>
+              <Tabs
+                value={viewMode}
+                onChange={setViewMode}
+                size="sm"
+                items={[
+                  { value: 'contact', label: 'By contact', icon: 'person' },
+                  { value: 'question', label: 'By question', icon: 'help' },
+                ]}
+              />
               <div className="flex gap-2 items-center flex-wrap">
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#334155] dark:text-slate-400">search</span>
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-600 dark:text-ink-900">search</span>
                   <input
-                    className="pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-[#0d9488] focus:border-[#0d9488] outline-none transition-all w-64 placeholder:text-[#64748b] dark:placeholder:text-slate-500"
+                    className="pl-10 pr-4 py-2.5 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-100 dark:text-paper-200 rounded-control text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all w-64 placeholder:text-ink-700 dark:placeholder:text-ink-700"
                     placeholder="Search contacts..."
                     value={searchQuery}
                     onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
@@ -451,22 +412,8 @@ export default function CampaignReport() {
                 </div>
                 {viewMode === 'question' && selectedQuestions.length > 0 && (
                   <>
-                    <button
-                      onClick={() => downloadQuestionView('csv')}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 rounded-lg text-xs text-[#334155] dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors"
-                      title="Download as CSV"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">download</span>
-                      CSV
-                    </button>
-                    <button
-                      onClick={() => downloadQuestionView('excel')}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 rounded-lg text-xs text-[#334155] dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors"
-                      title="Download as Excel"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">table_view</span>
-                      Excel
-                    </button>
+                    <Button variant="secondary" size="sm" icon="download" onClick={() => downloadQuestionView('csv')} title="Download as CSV">CSV</Button>
+                    <Button variant="secondary" size="sm" icon="table_view" onClick={() => downloadQuestionView('excel')} title="Download as Excel">Excel</Button>
                   </>
                 )}
                 <FullscreenButton toggle={toggle} isFs={isFs} />
@@ -476,21 +423,14 @@ export default function CampaignReport() {
             {/* Contact mode: outcome filter chips */}
             {viewMode === 'contact' && (
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => { setActiveFilter('All'); setPage(1); }}
-                  className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all active:scale-95 ${activeFilter === 'All' ? 'bg-[#0d9488] text-white' : 'bg-[#e2e8f0] dark:bg-slate-700 text-[#0f172a] dark:text-slate-200 hover:bg-[#cbd5e1]/50 dark:hover:bg-slate-600'}`}
-                >
-                  All Results <span className={`px-1.5 rounded text-[10px] ${activeFilter === 'All' ? 'bg-white/20' : 'bg-[#0d9488]/10 dark:bg-teal-500/10 text-[#0d9488] dark:text-teal-400'}`}>{contacts.length}</span>
-                </button>
+                <Button variant="primary" size="md" onClick={() => { setActiveFilter('All'); setPage(1); }}>
+                  All Results <span className={`px-1.5 rounded text-[10px] ${activeFilter === 'All' ? 'bg-white/20' : 'bg-brand-500/10 dark:bg-brand-500/10 text-brand-500 dark:text-brand-300'}`}>{contacts.length}</span>
+                </Button>
                 {Object.entries(outcomeCounts).map(([outcome, count]) => (
-                  <button
-                    key={outcome}
-                    onClick={() => { setActiveFilter(outcome); setPage(1); }}
-                    className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${activeFilter === outcome ? 'bg-[#0d9488] text-white' : 'bg-[#e2e8f0] dark:bg-slate-700 text-[#0f172a] dark:text-slate-200 hover:bg-[#cbd5e1]/50 dark:hover:bg-slate-600'}`}
-                  >
+                  <Button variant="primary" size="md" key={outcome} onClick={() => { setActiveFilter(outcome); setPage(1); }}>
                     {outcome.replace('_', ' ')}
-                    <span className={`px-1.5 rounded text-[10px] ${activeFilter === outcome ? 'bg-white/20' : 'bg-zinc-200 dark:bg-slate-600 text-zinc-600 dark:text-slate-300'}`}>{count}</span>
-                  </button>
+                    <span className={`px-1.5 rounded text-[10px] ${activeFilter === outcome ? 'bg-white/20' : 'bg-paper-500 dark:bg-ink-400 text-ink-600 dark:text-ink-900'}`}>{count}</span>
+                  </Button>
                 ))}
               </div>
             )}
@@ -499,14 +439,10 @@ export default function CampaignReport() {
             {viewMode === 'question' && allQuestions.length > 0 && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <p className="text-xs text-[#64748b] dark:text-slate-400">Select questions to display as columns:</p>
-                  <div className="flex items-center gap-1 bg-[#e2e8f0] dark:bg-slate-700 p-0.5 rounded-lg">
+                  <p className="text-xs text-ink-700 dark:text-ink-900">Select questions to display as columns:</p>
+                  <div className="flex items-center gap-1 bg-paper-500 dark:bg-ink-300 p-0.5 rounded-control">
                     {[['text', 'Text'], ['score', 'Score'], ['both', 'Both']].map(([val, label]) => (
-                      <button
-                        key={val}
-                        onClick={() => setCellDisplay(val)}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${cellDisplay === val ? 'bg-white dark:bg-slate-800 text-[#0d9488] dark:text-teal-400 shadow-sm' : 'text-[#334155] dark:text-slate-400 hover:text-[#0f172a] dark:hover:text-slate-100'}`}
-                      >{label}</button>
+                      <Button variant="ghost" size="sm" key={val} onClick={() => setCellDisplay(val)}>{label}</Button>
                     ))}
                   </div>
                 </div>
@@ -515,94 +451,89 @@ export default function CampaignReport() {
                     const active = selectedQuestions.includes(q);
                     const avg = questionAvgScores[q];
                     return (
-                      <button
-                        key={q}
-                        onClick={() => toggleQuestion(q)}
-                        title={q}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${active ? 'bg-[#0d9488] text-white border-[#0d9488]' : 'bg-white dark:bg-slate-800 text-[#334155] dark:text-slate-300 border-zinc-200 dark:border-slate-600 hover:border-[#0d9488]/50'}`}
-                      >
+                      <Button variant="primary" size="sm" key={q} onClick={() => toggleQuestion(q)} title={q}>
                         <span className="max-w-[180px] truncate">{q.length > 40 ? q.slice(0, 40) + '…' : q}</span>
                         {avg != null && (
-                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${active ? 'bg-white/20 text-white' : avg >= 70 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : avg >= 40 ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${active ? 'bg-white/20 text-white' : avg >= 70 ? 'bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive' : avg >= 40 ? 'bg-caution/10 dark:bg-caution/100/10 text-caution-dim dark:text-caution' : 'bg-negative/10 dark:bg-negative/100/10 text-negative-dim dark:text-negative'}`}>
                             {avg}%
                           </span>
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
               </div>
             )}
             {viewMode === 'question' && allQuestions.length === 0 && (
-              <p className="text-sm text-[#64748b] dark:text-slate-400">No extracted fields found. Make sure evaluation has run for at least one call.</p>
+              <p className="text-sm text-ink-700 dark:text-ink-900">No extracted fields found. Make sure evaluation has run for at least one call.</p>
             )}
           </div>
         </section>
 
         {/* ── By Contact table ── */}
         {viewMode === 'contact' && (
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
+                <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
                   {['Contact / Phone', 'Outcome', 'Sentiment', 'AI Score', 'Action'].map((h, i) => (
-                    <th key={h} className={`px-6 py-4 text-xs font-medium text-zinc-600 dark:text-slate-400 ${i === 4 ? 'text-right' : ''}`}>{h}</th>
+                    <th key={h} className={`px-6 py-4 text-xs font-medium text-ink-600 dark:text-ink-900 ${i === 4 ? 'text-right' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50 dark:divide-slate-700">
+              <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
                 {paginated.map(c => {
                   const sentimentInfo = SENTIMENT_ICON[c.sentiment] || null;
                   const score = c.score != null ? Number(c.score).toFixed(1) : null;
                   const scoreW = score ? `${Math.min(100, parseFloat(score) * 10)}%` : '0%';
-                  const outcomeBadge = OUTCOME_BADGE[c.outcome] || 'bg-zinc-100 text-zinc-600';
+                  const outcomeBadge = OUTCOME_BADGE[c.outcome] || 'bg-paper-400 text-ink-600';
                   const hasTranscript = c.outcome === 'COMPLETED';
                   return (
-                    <tr key={c.callLogId} className="hover:bg-zinc-50/80 dark:hover:bg-slate-700/50 transition-colors group">
-                      <td className="px-6 py-4">
+                    <tr key={c.callLogId} className="hover:bg-paper-200/80 dark:hover:bg-ink-400/50 transition-colors group">
+                      <td className="px-7 py-5">
                         <div className="flex flex-col">
-                          <span className="font-medium text-[#0f172a] dark:text-slate-100">{c.contactName || 'Unknown'}</span>
-                          <span className="text-xs text-zinc-400 dark:text-slate-500">{c.contactPhone || '—'}</span>
+                          <span className="font-medium text-ink-100 dark:text-paper-200">{c.contactName || 'Unknown'}</span>
+                          <span className="text-xs text-ink-800 dark:text-ink-800">{c.contactPhone || '—'}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${outcomeBadge}`}>
+                      <td className="px-7 py-5">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold  ${outcomeBadge}`}>
                           {(c.outcome || 'unknown').replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-7 py-5">
                         {sentimentInfo ? (
                           <div className="flex items-center gap-2">
                             <span className={`material-symbols-outlined text-[20px] ${sentimentInfo.color}`} style={{fontVariationSettings:"'FILL' 1"}}>{sentimentInfo.icon}</span>
-                            <span className="text-sm text-[#334155] dark:text-slate-300 capitalize">{c.sentiment}</span>
+                            <span className="text-sm text-ink-600 dark:text-ink-900 capitalize">{c.sentiment}</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-zinc-400 dark:text-slate-500">—</span>
+                          <span className="text-sm text-ink-800 dark:text-ink-800">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-7 py-5">
                         {score != null ? (
                           <div className="flex items-center gap-3">
-                            <div className="w-16 bg-zinc-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-emerald-500 h-full" style={{width: scoreW}} />
+                            <div className="w-16 bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-positive h-full" style={{width: scoreW}} />
                             </div>
-                            <span className="text-sm font-medium text-[#0f172a] dark:text-slate-100">{score}</span>
+                            <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{score}</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-zinc-400 dark:text-slate-500">—</span>
+                          <span className="text-sm text-ink-800 dark:text-ink-800">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-7 py-5 text-right">
                         {hasTranscript ? (
                           <Link
                             to={`/campaign/${id}/calls/${c.callLogId}/report`}
-                            className="text-[#0d9488] dark:text-teal-400 text-sm hover:underline inline-flex items-center gap-1"
+                            className="text-brand-500 dark:text-brand-300 text-sm hover:underline inline-flex items-center gap-1"
                           >
                             View Report <span className="material-symbols-outlined text-[16px]">open_in_new</span>
                           </Link>
                         ) : (
-                          <span className="text-[#0d9488]/40 dark:text-teal-400/40 text-sm inline-flex items-center gap-1">
+                          <span className="text-brand-500/40 dark:text-brand-300/40 text-sm inline-flex items-center gap-1">
                             View Report <span className="material-symbols-outlined text-[16px]">lock</span>
                           </span>
                         )}
@@ -612,7 +543,7 @@ export default function CampaignReport() {
                 })}
                 {filteredContacts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">
+                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">
                       {searchQuery || activeFilter !== 'All' ? 'No contacts match your filters.' : 'No data available.'}
                     </td>
                   </tr>
@@ -620,22 +551,14 @@ export default function CampaignReport() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-4 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center border-t border-zinc-100 dark:border-slate-700">
-            <p className="text-xs text-[#334155] dark:text-slate-400">
+          <div className="px-6 py-4 bg-paper-200/50 dark:bg-ink-50/50 flex justify-between items-center border-t border-paper-400 dark:border-ink-400">
+            <p className="text-xs text-ink-600 dark:text-ink-900">
               {isFs ? `${filteredContacts.length} evaluated calls` : `Showing ${paginated.length} of ${filteredContacts.length} evaluated calls`}
             </p>
             {!isFs && (
               <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                >Previous</button>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                >Next</button>
+                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Previous</Button>
+                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</Button>
               </div>
             )}
           </div>
@@ -644,22 +567,22 @@ export default function CampaignReport() {
 
         {/* ── By Question table ── */}
         {viewMode === 'question' && selectedQuestions.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-max">
               <thead>
-                <tr className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700">
-                  <th className="px-6 py-4 text-xs font-medium text-zinc-600 dark:text-slate-400 sticky left-0 bg-zinc-50 dark:bg-slate-900 z-10 min-w-[180px]">Contact</th>
+                <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
+                  <th className="px-7 py-4 text-xs font-medium text-ink-600 dark:text-ink-900 sticky left-0 bg-paper-200 dark:bg-ink-50 z-10 min-w-[180px]">Contact</th>
                   {selectedQuestions.map(q => {
                     const avg = questionAvgScores[q];
                     return (
-                      <th key={q} className="px-4 py-4 text-xs font-medium text-zinc-600 dark:text-slate-400 min-w-[200px] max-w-[240px]">
+                      <th key={q} className="px-4 py-4 text-xs font-medium text-ink-600 dark:text-ink-900 min-w-[200px] max-w-[240px]">
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-[#0f172a] dark:text-slate-100 leading-snug line-clamp-2" title={q}>
+                          <span className="font-medium text-ink-100 dark:text-paper-200 leading-snug line-clamp-2" title={q}>
                             {q.length > 55 ? q.slice(0, 55) + '…' : q}
                           </span>
                           {avg != null && (
-                            <span className={`text-[11px] flex items-center gap-1 ${avg >= 70 ? 'text-emerald-600 dark:text-emerald-400' : avg >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                            <span className={`text-[11px] flex items-center gap-1 ${avg >= 70 ? 'text-positive-dim dark:text-positive' : avg >= 40 ? 'text-caution-dim dark:text-caution' : 'text-negative-dim dark:text-negative'}`}>
                               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${qScoreDot(avg)}`} />
                               Avg {avg}%
                             </span>
@@ -670,13 +593,13 @@ export default function CampaignReport() {
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50 dark:divide-slate-700">
+              <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
                 {qPaginated.map(c => (
-                  <tr key={c.callLogId} className="hover:bg-zinc-50/50 dark:hover:bg-slate-700/50 transition-colors">
-                    <td className="px-6 py-4 sticky left-0 bg-white dark:bg-slate-800 group-hover:bg-zinc-50/50 dark:group-hover:bg-slate-700/50 z-10">
+                  <tr key={c.callLogId} className="hover:bg-paper-200/50 dark:hover:bg-ink-400/50 transition-colors">
+                    <td className="px-7 py-5 sticky left-0 bg-paper-100 dark:bg-ink-200 group-hover:bg-paper-200/50 dark:group-hover:bg-ink-400/50 z-10">
                       <div className="flex flex-col">
-                        <span className="font-medium text-[#0f172a] dark:text-slate-100 text-sm">{c.contactName || 'Unknown'}</span>
-                        <span className="text-xs text-zinc-400 dark:text-slate-500">{c.contactPhone || '—'}</span>
+                        <span className="font-medium text-ink-100 dark:text-paper-200 text-sm">{c.contactName || 'Unknown'}</span>
+                        <span className="text-xs text-ink-800 dark:text-ink-800">{c.contactPhone || '—'}</span>
                       </div>
                     </td>
                     {selectedQuestions.map(q => {
@@ -689,22 +612,22 @@ export default function CampaignReport() {
                           {hasData ? (
                             <div className="flex flex-col gap-1">
                               {(cellDisplay === 'text' || cellDisplay === 'both') && field && (
-                                <span className="text-sm text-[#0f172a] dark:text-slate-100 line-clamp-2" title={field.value}>{field.value || '—'}</span>
+                                <span className="text-sm text-ink-100 dark:text-paper-200 line-clamp-2" title={field.value}>{field.value || '—'}</span>
                               )}
                               {(cellDisplay === 'score' || cellDisplay === 'both') && pct != null && (
                                 <div className="flex items-center gap-1.5">
                                   <span className={`w-2 h-2 rounded-full shrink-0 ${qScoreDot(pct)}`} />
-                                  <span className={`text-[11px] font-semibold ${pct >= 70 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  <span className={`text-[11px] font-semibold ${pct >= 70 ? 'text-positive-dim dark:text-positive' : pct >= 40 ? 'text-caution-dim dark:text-caution' : 'text-negative-dim dark:text-negative'}`}>
                                     {pct}%
                                   </span>
                                   {cellDisplay !== 'score' && sbEntry?.reason && (
-                                    <span className="text-[10px] text-zinc-400 dark:text-slate-500 truncate max-w-[80px]" title={sbEntry.reason}>{sbEntry.reason}</span>
+                                    <span className="text-[10px] text-ink-800 dark:text-ink-800 truncate max-w-[80px]" title={sbEntry.reason}>{sbEntry.reason}</span>
                                   )}
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <span className="text-sm text-zinc-300 dark:text-slate-600">—</span>
+                            <span className="text-sm text-ink-900 dark:text-ink-700">—</span>
                           )}
                         </td>
                       );
@@ -713,7 +636,7 @@ export default function CampaignReport() {
                 ))}
                 {qContacts.length === 0 && (
                   <tr>
-                    <td colSpan={selectedQuestions.length + 1} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-400">
+                    <td colSpan={selectedQuestions.length + 1} className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">
                       {searchQuery ? 'No contacts match your search.' : 'No data available.'}
                     </td>
                   </tr>
@@ -721,22 +644,14 @@ export default function CampaignReport() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-4 bg-zinc-50/50 dark:bg-slate-900/50 flex justify-between items-center border-t border-zinc-100 dark:border-slate-700">
-            <p className="text-xs text-[#334155] dark:text-slate-400">
+          <div className="px-6 py-4 bg-paper-200/50 dark:bg-ink-50/50 flex justify-between items-center border-t border-paper-400 dark:border-ink-400">
+            <p className="text-xs text-ink-600 dark:text-ink-900">
               {isFs ? `${qContacts.length} contacts` : `Showing ${qPaginated.length} of ${qContacts.length} contacts`}
             </p>
             {!isFs && (
               <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                >Previous</button>
-                <button
-                  onClick={() => setPage(p => Math.min(qTotalPages, p + 1))}
-                  disabled={page >= qTotalPages}
-                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-600 text-[#0f172a] dark:text-slate-200 rounded text-xs hover:bg-zinc-50 dark:hover:bg-slate-700 disabled:opacity-30"
-                >Next</button>
+                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Previous</Button>
+                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.min(qTotalPages, p + 1))} disabled={page >= qTotalPages}>Next</Button>
               </div>
             )}
           </div>
@@ -744,7 +659,7 @@ export default function CampaignReport() {
         )}
 
         {viewMode === 'question' && selectedQuestions.length === 0 && allQuestions.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 border border-zinc-200/80 dark:border-slate-700 rounded-xl p-12 text-center text-sm text-zinc-400 dark:text-slate-500">
+          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 rounded-card p-12 text-center text-sm text-ink-800 dark:text-ink-800">
             Select at least one question above to see the breakdown.
           </div>
         )}

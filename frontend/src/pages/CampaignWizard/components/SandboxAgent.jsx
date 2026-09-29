@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Button, IconButton } from '../../../components/ui';
 import axios from 'axios';
 import { Mic, MicOff, Volume2, Loader2, Play } from 'lucide-react';
 
@@ -109,75 +110,58 @@ export default function SandboxAgent({ campaign }) {
       {session ? (
         <div className="p-6 flex flex-col gap-5">
           {error && (
-            <div className="text-sm font-medium text-red-600 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="text-sm font-medium text-negative-dim p-3 bg-negative/10 border border-negative/30 rounded-control">
               {error}
             </div>
           )}
 
-          <div className="bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl p-4 min-h-[200px] max-h-[300px] overflow-y-auto flex flex-col gap-3">
+          <div className="bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-card p-4 min-h-[200px] max-h-[300px] overflow-y-auto flex flex-col gap-3">
             {messages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <span className="text-xs uppercase font-medium text-zinc-400 dark:text-slate-500 mb-1">
+                <span className="text-xs uppercase font-medium text-ink-800 dark:text-ink-800 mb-1">
                   {m.role === 'user' ? 'You (Microphone)' : 'AI Voice Agent'}
                 </span>
-                <div className={`p-3 rounded-xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-slate-100 shadow-sm'}`}>
+                <div className={`p-3 rounded-card text-sm max-w-[80%] ${m.role === 'user' ? 'bg-brand-500 text-white' : 'bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-100 dark:text-paper-200 shadow-card'}`}>
                   {m.text}
                 </div>
               </div>
             ))}
             {loading && !isListening && (
-              <div className="flex items-center gap-2 text-zinc-400 dark:text-slate-500 text-sm">
+              <div className="flex items-center gap-2 text-ink-800 dark:text-ink-800 text-sm">
                 <Loader2 size={14} className="animate-spin" /> Thinking...
               </div>
             )}
           </div>
 
           <div className="flex flex-col items-center gap-3">
-            <button
-              onMouseDown={toggleListen}
-              disabled={loading && !isListening}
-              className={`h-16 w-16 rounded-full flex items-center justify-center transition-all ${
-                isListening
-                  ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]'
-                  : 'bg-teal-600 text-white hover:bg-teal-700 hover:scale-105 shadow-md'
-              }`}
-            >
+            <Button variant="danger" size="md" onMouseDown={toggleListen} disabled={loading && !isListening}>
               {isListening ? <Mic size={28} /> : <MicOff size={24} />}
-            </button>
-            <p className="text-xs font-medium text-zinc-400 dark:text-slate-500">Click to talk, click to stop.</p>
+            </Button>
+            <p className="text-xs font-medium text-ink-800 dark:text-ink-800">Click to talk, click to stop.</p>
           </div>
 
           <div className="flex justify-end">
-            <button
-              onClick={() => { setSession(null); window.speechSynthesis.cancel(); recognitionRef.current?.stop(); }}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
-            >
-              End Session
-            </button>
+            <Button variant="dangerGhost" size="sm" onClick={() => { setSession(null); window.speechSynthesis.cancel(); recognitionRef.current?.stop(); }}>End Session</Button>
           </div>
         </div>
       ) : (
         <div className="p-8 flex flex-col items-center justify-center text-center gap-5">
           {error && (
-            <div className="text-sm font-medium text-red-600 p-3 bg-red-50 border border-red-200 rounded-lg w-full">
+            <div className="text-sm font-medium text-negative-dim p-3 bg-negative/10 border border-negative/30 rounded-control w-full">
               {error}
             </div>
           )}
-          <div className="h-16 w-16 bg-teal-50 rounded-2xl flex items-center justify-center">
-            <Volume2 size={28} className="text-teal-600" />
+          <div className="h-16 w-16 bg-brand-100 rounded-card flex items-center justify-center">
+            <Volume2 size={28} className="text-brand-500" />
           </div>
           <div className="max-w-sm">
-            <p className="text-sm text-zinc-600 dark:text-slate-400 leading-relaxed mb-4">
+            <p className="text-sm text-ink-600 dark:text-ink-900 leading-relaxed mb-4">
               Use this sandbox to talk directly to your LLM configuration for this campaign before deploying to real phone numbers.
             </p>
-            <button
-              onClick={startSession}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold h-10 px-5 bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 transition-colors"
-            >
+            <Button variant="primary" size="md" onClick={startSession} disabled={loading}>
               {loading ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
               {loading ? 'Starting...' : 'Start Sandbox'}
-            </button>
+            </Button>
           </div>
         </div>
       )}

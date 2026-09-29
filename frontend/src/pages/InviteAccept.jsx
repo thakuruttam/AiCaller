@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { Button, IconButton } from '../components/ui';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
 const ROLE_COLOR = {
-  ADMIN:  "bg-[#e2dfff] text-[#0d9488] border-[#0d9488]/20 dark:bg-indigo-900/30 dark:text-teal-300 dark:border-teal-700",
-  EDITOR: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
-  VIEWER: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600",
+  ADMIN:  "bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30",
+  EDITOR: "bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15",
+  VIEWER: "bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400",
 };
 
 export default function InviteAccept() {
@@ -59,25 +60,22 @@ export default function InviteAccept() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center">
-        <span className="material-symbols-outlined text-[40px] text-[#0d9488] animate-spin">progress_activity</span>
+      <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center">
+        <span className="material-symbols-outlined text-[40px] text-brand-500 animate-spin">progress_activity</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center px-4">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-[28px] text-red-500">error</span>
+      <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
+        <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay max-w-md w-full p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-negative/10 flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-[28px] text-negative">error</span>
           </div>
-          <h2 className="text-[22px] font-extrabold tracking-tight text-zinc-900 dark:text-slate-100 mb-2">Invalid Invite</h2>
-          <p className="text-zinc-500 dark:text-slate-400 text-sm mb-6">{error}</p>
-          <button onClick={() => navigate('/login')}
-            className="px-6 py-2.5 bg-[#0d9488] text-white rounded-xl text-sm font-semibold hover:bg-[#0f766e] transition-colors">
-            Go to Login
-          </button>
+          <h2 className="text-[22px] font-semibold tracking-tight text-ink-100 dark:text-paper-200 mb-2">Invalid Invite</h2>
+          <p className="text-ink-700 dark:text-ink-900 text-sm mb-6">{error}</p>
+          <Button variant="primary" size="md" onClick={() => navigate('/login')}>Go to Login</Button>
         </div>
       </div>
     );
@@ -85,13 +83,13 @@ export default function InviteAccept() {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center px-4">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
-          <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-[28px] text-emerald-600">check_circle</span>
+      <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
+        <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay max-w-md w-full p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-positive/10 flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-[28px] text-positive-dim">check_circle</span>
           </div>
-          <h2 className="text-[22px] font-extrabold tracking-tight text-zinc-900 dark:text-slate-100 mb-2">You're in!</h2>
-          <p className="text-zinc-500 dark:text-slate-400 text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
+          <h2 className="text-[22px] font-semibold tracking-tight text-ink-100 dark:text-paper-200 mb-2">You're in!</h2>
+          <p className="text-ink-700 dark:text-ink-900 text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
         </div>
       </div>
     );
@@ -100,46 +98,46 @@ export default function InviteAccept() {
   const emailMismatch = user && user.email.toLowerCase() !== invite.email.toLowerCase();
 
   return (
-    <div className="min-h-screen bg-[#f0fdfa] dark:bg-slate-900 flex items-center justify-center px-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+    <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
+      <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay max-w-md w-full overflow-hidden">
 
         {/* Header */}
-        <div className="bg-[#0d9488] px-8 py-6 text-center">
-          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-3">
+        <div className="bg-brand-500 px-8 py-6 text-center">
+          <div className="w-12 h-12 rounded-card bg-white/10 flex items-center justify-center mx-auto mb-3">
             <span className="material-symbols-outlined text-white text-[24px]" style={{fontVariationSettings:"'FILL' 1"}}>corporate_fare</span>
           </div>
-          <h1 className="text-[22px] font-extrabold tracking-tight text-white">Workspace Invitation</h1>
-          <p className="text-[#c7bfff] text-sm mt-1">You've been invited to collaborate</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-white">Workspace Invitation</h1>
+          <p className="text-brand-300 text-sm mt-1">You've been invited to collaborate</p>
         </div>
 
         <div className="px-8 py-6">
           {/* Invite details */}
-          <div className="bg-zinc-50 dark:bg-slate-900 border border-zinc-100 dark:border-slate-700 rounded-xl p-4 mb-6">
-            <p className="text-xs font-medium text-zinc-400 dark:text-slate-500 uppercase tracking-wider mb-3">Invite Details</p>
+          <div className="bg-paper-200 dark:bg-ink-50 border border-paper-400 dark:border-ink-400 rounded-card p-4 mb-6">
+            <p className="text-xs font-medium text-ink-800 dark:text-ink-800 mb-3">Invite Details</p>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 dark:text-slate-400">Workspace</span>
-                <span className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{invite.workspaceName}</span>
+                <span className="text-sm text-ink-700 dark:text-ink-900">Workspace</span>
+                <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">{invite.workspaceName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 dark:text-slate-400">Invited email</span>
-                <span className="text-sm text-zinc-700 dark:text-slate-300">{invite.email}</span>
+                <span className="text-sm text-ink-700 dark:text-ink-900">Invited email</span>
+                <span className="text-sm text-ink-500 dark:text-ink-900">{invite.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 dark:text-slate-400">Your role</span>
+                <span className="text-sm text-ink-700 dark:text-ink-900">Your role</span>
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${ROLE_COLOR[invite.role] || ROLE_COLOR.VIEWER}`}>
                   {invite.role}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 dark:text-slate-400">Expires</span>
-                <span className="text-sm text-zinc-500 dark:text-slate-400">{new Date(invite.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                <span className="text-sm text-ink-700 dark:text-ink-900">Expires</span>
+                <span className="text-sm text-ink-700 dark:text-ink-900">{new Date(invite.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
             </div>
           </div>
 
           {emailMismatch && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-700">
+            <div className="mb-4 p-3 bg-caution/10 border border-caution/30 rounded-card text-xs font-medium text-caution-dim">
               <strong>Wrong account.</strong> You're signed in as <strong>{user.email}</strong> but this invite is for <strong>{invite.email}</strong>. Sign out and use the correct Google account.
             </div>
           )}
@@ -147,11 +145,10 @@ export default function InviteAccept() {
           {/* Action buttons */}
           {!user ? (
             <div className="space-y-3">
-              <p className="text-sm text-zinc-500 dark:text-slate-400 text-center mb-4">
+              <p className="text-sm text-ink-700 dark:text-ink-900 text-center mb-4">
                 Sign in with the Google account for <strong>{invite.email}</strong> to join this workspace.
               </p>
-              <button onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 py-3 border border-zinc-200 dark:border-slate-600 rounded-xl text-sm font-semibold text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors">
+              <Button variant="secondary" size="lg" onClick={handleGoogleLogin}>
                 <svg width="18" height="18" viewBox="0 0 18 18">
                   <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
                   <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
@@ -159,20 +156,16 @@ export default function InviteAccept() {
                   <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z"/>
                 </svg>
                 Continue with Google
-              </button>
+              </Button>
             </div>
           ) : emailMismatch ? (
-            <button onClick={() => navigate('/login')}
-              className="w-full py-3 border border-zinc-200 dark:border-slate-600 rounded-xl text-sm font-semibold text-zinc-600 dark:text-slate-400 hover:bg-zinc-50 dark:hover:bg-slate-700 transition-colors">
-              Sign in with a different account
-            </button>
+            <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>Sign in with a different account</Button>
           ) : (
-            <button onClick={handleAccept} disabled={accepting}
-              className="w-full py-3 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+            <Button variant="primary" size="lg" onClick={handleAccept} disabled={accepting}>
               {accepting
                 ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Joining…</>
                 : <><span className="material-symbols-outlined text-[18px]">person_add</span> Join {invite.workspaceName}</>}
-            </button>
+            </Button>
           )}
         </div>
       </div>

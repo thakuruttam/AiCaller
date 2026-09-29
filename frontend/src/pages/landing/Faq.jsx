@@ -5,7 +5,7 @@ import { Reveal } from './primitives';
 
 function FaqItem({ item, isOpen, onToggle, id }) {
   return (
-    <div className="border-b border-[#e2e8f0]">
+    <div className="border-b border-[#e4e7ec]">
       <h3>
         <button
           type="button"
@@ -13,10 +13,10 @@ function FaqItem({ item, isOpen, onToggle, id }) {
           aria-expanded={isOpen}
           aria-controls={`${id}-panel`}
           id={`${id}-button`}
-          className="w-full flex items-center justify-between gap-4 py-5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] rounded-lg"
+          className="w-full flex items-center justify-between gap-4 py-5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#266df0] rounded-lg"
         >
-          <span className="text-sm font-semibold text-[#0f172a]">{item.q}</span>
-          <ChevronDown size={18} className={`text-[#64748b] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          <span className="text-sm font-semibold text-[#1c1d1f]">{item.q}</span>
+          <ChevronDown size={18} className={`text-[#6f7988] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
       </h3>
       <div
@@ -27,7 +27,7 @@ function FaqItem({ item, isOpen, onToggle, id }) {
         style={{ display: 'grid' }}
       >
         <div className="overflow-hidden">
-          <p className="text-sm text-[#64748b] leading-relaxed pr-8">{item.a}</p>
+          <p className="text-sm text-[#6f7988] leading-relaxed pr-8">{item.a}</p>
         </div>
       </div>
     </div>
@@ -38,11 +38,11 @@ export function Faq() {
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section id="faq" className="relative bg-white py-20 md:py-28">
+    <section id="faq" className="relative bg-paper-100 py-20 md:py-28">
       <div className="max-w-3xl mx-auto px-6">
         <Reveal className="text-center mb-12">
-          <p className="text-xs font-semibold text-[#0d9488] uppercase tracking-widest mb-3">FAQ</p>
-          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#0f172a] tracking-tight">
+          <p className="text-xs font-semibold text-[#266df0] uppercase tracking-widest mb-3">FAQ</p>
+          <h2 className="font-display text-3xl md:text-4xl font-normal text-[#1c1d1f] tracking-tight">
             Frequently asked questions
           </h2>
         </Reveal>

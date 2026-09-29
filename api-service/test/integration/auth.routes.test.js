@@ -226,11 +226,27 @@ describe('POST /api/auth/switch-workspace', () => {
 });
 
 describe('Google OAuth strategy is not registered in tests (GOOGLE_CLIENT_ID/SECRET unset)', () => {
-  it('GET /api/auth/google does not succeed as a normal OAuth redirect (no strategy registered)', async () => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+  it('GET /api/auth/google bounces to the login page instead of throwing', async () => {
     const res = await request(app).get('/api/auth/google');
-    // No assumption about the exact status Passport returns for an unregistered strategy —
-    // just lock in that it is NOT a successful 302 redirect to accounts.google.com,
-    // confirming the "don't need to mock Google OAuth" assumption holds in practice.
-    expect(res.status).not.toBe(302);
+    // Without the guard, passport throws "Unknown authentication strategy" and
+    // Express answers 500 with a stack trace.
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`${frontendUrl}/login?error=google_not_configured`);
+    expect(res.headers.location).not.toContain('accounts.google.com');
+  });
+
+  it('GET /api/auth/google/callback bounces to the login page instead of throwing', async () => {
+    const res = await request(app).get('/api/auth/google/callback?code=irrelevant');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`${frontendUrl}/login?error=google_not_configured`);
+  });
+
+  it('never answers the OAuth routes with a 500', async () => {
+    for (const path of ['/api/auth/google', '/api/auth/google/callback']) {
+      const res = await request(app).get(path);
+      expect(res.status).not.toBe(500);
+    }
   });
 });

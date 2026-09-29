@@ -5,7 +5,7 @@ import { NAV_LINKS } from './data';
 
 export function MiniLogo({ className = 'w-9 h-9' }) {
   return (
-    <div className={`${className} rounded-xl bg-[#0d9488] flex items-center justify-center shrink-0`} style={{ boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
+    <div className={`${className} rounded-xl bg-[#266df0] flex items-center justify-center shrink-0`} style={{ boxShadow: '0 4px 14px rgba(38,109,240,0.35)' }}>
       <AudioLines className="w-[55%] h-[55%] text-white" strokeWidth={2.5} />
     </div>
   );
@@ -17,7 +17,7 @@ export function Nav({ onTakeTour }) {
   return (
     <header className="sticky top-0 z-50 bg-[#fbfaf6]/95 backdrop-blur">
       <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between" aria-label="Primary">
-        <a href="#top" className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] rounded-lg">
+        <a href="#top" className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#266df0] rounded-lg">
           <MiniLogo className="w-8 h-8" />
           <span className="font-display font-bold text-[#14261f] text-[15px] tracking-tight">AI Caller Pro</span>
         </a>
@@ -36,7 +36,7 @@ export function Nav({ onTakeTour }) {
           <button
             type="button"
             onClick={onTakeTour}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#14261f] border border-[#d8d5cc] hover:border-[#0d9488] transition-colors px-3.5 py-2 rounded-lg cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#14261f] border border-[#d8d5cc] hover:border-[#266df0] transition-colors px-3.5 py-2 rounded-lg cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
           >
             <Compass size={16} />
             Take a tour
@@ -46,7 +46,7 @@ export function Nav({ onTakeTour }) {
           </Link>
           <Link
             to="/login"
-            className="text-sm font-semibold text-white bg-[#14261f] hover:bg-[#0d9488] transition-colors px-4 py-2.5 rounded-lg cursor-pointer"
+            className="text-sm font-semibold text-white bg-[#266df0] hover:bg-[#245bc2] transition-colors px-4 py-2.5 rounded-lg cursor-pointer"
           >
             Get started
           </Link>
@@ -88,7 +88,7 @@ export function Nav({ onTakeTour }) {
             <Link to="/login" className="text-center text-sm font-medium text-[#4b5148] hover:text-[#14261f] py-2.5 rounded-lg border border-[#d8d5cc] cursor-pointer">
               Sign in
             </Link>
-            <Link to="/login" className="text-center text-sm font-semibold text-white bg-[#14261f] hover:bg-[#0d9488] py-2.5 rounded-lg cursor-pointer">
+            <Link to="/login" className="text-center text-sm font-semibold text-white bg-[#266df0] hover:bg-[#245bc2] py-2.5 rounded-lg cursor-pointer">
               Get started
             </Link>
           </div>

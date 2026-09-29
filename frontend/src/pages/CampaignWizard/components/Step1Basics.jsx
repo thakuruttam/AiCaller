@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { Button, IconButton, SelectableCard } from '../../../components/ui';
 import { Lightbulb, PhoneIncoming, PhoneOff, Timer, Mic, Play, Square, Loader2 } from 'lucide-react';
 import api from '../../../api/axios';
 
@@ -83,17 +83,17 @@ function WordLimitTextarea({ value, onChange, limit, placeholder, minHeight = '6
   return (
     <div className="relative flex flex-col">
       <textarea
-        className={`flex w-full rounded-lg border bg-white dark:bg-slate-700 px-3 pt-2 pb-6 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 resize-y transition-colors
+        className={`flex w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 pt-2 pb-6 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors
           ${over
-            ? 'border-red-400 focus:ring-red-500/20'
-            : 'border-zinc-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-500/20'
+            ? 'border-negative focus:ring-negative/20'
+            : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
           }`}
         style={{ minHeight }}
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
       />
-      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-slate-700/90 px-1 backdrop-blur-sm rounded ${over ? 'text-red-500 font-semibold' : 'text-zinc-400 dark:text-slate-500'}`}>
+      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-ink-300/90 px-1 backdrop-blur-sm rounded ${over ? 'text-negative font-semibold' : 'text-ink-800 dark:text-ink-800'}`}>
         {count} / {limit} words{over ? ' — over limit' : ''}
       </div>
     </div>
@@ -104,20 +104,16 @@ function SuggestionPills({ items, onSelect }) {
   return (
     <div className="flex flex-wrap gap-1.5 mt-0.5">
       {items.map((s, i) => (
-        <button
-          key={i} type="button" onClick={() => onSelect(s)}
-          className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 dark:border-slate-600 bg-zinc-50 dark:bg-slate-800/50 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
-        >
+        <Button variant="subtle" size="sm" key={i} type="button" onClick={() => onSelect(s)}>
           <Lightbulb size={10} />
           {s.length > 50 ? s.slice(0, 47) + '…' : s}
-        </button>
+        </Button>
       ))}
     </div>
   );
 }
 
 export default function Step1Basics({ payload, updatePayload }) {
-  const { user } = useAuth();
   const type = payload.type || 'HR';
 
   const goalSuggestions   = GOAL_SUGGESTIONS[type]   || GOAL_SUGGESTIONS.HR;
@@ -184,20 +180,20 @@ export default function Step1Basics({ payload, updatePayload }) {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       {/* <div>
-        <h3 className="text-2xl font-bold text-zinc-900 dark:text-slate-100 tracking-tight">Campaign Basics</h3>
-        <p className="text-zinc-500 dark:text-slate-400 text-sm mt-1">
+        <h3 className="text-2xl font-bold text-ink-100 dark:text-paper-200 tracking-tight">Campaign Basics</h3>
+        <p className="text-ink-700 dark:text-ink-900 text-sm mt-1">
           Give your campaign a name, choose its type, and craft the words your AI agent will use.
         </p>
       </div> */}
 
       {/* Campaign name */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">
-          Campaign Name <span className="text-red-500">*</span>
+        <label className="text-xs font-medium text-ink-500 dark:text-ink-900">
+          Campaign Name <span className="text-negative">*</span>
         </label>
         <input
           type="text"
-          className="h-9 w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-colors"
+          className="h-9 w-full rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 transition-colors"
           value={payload.name}
           onChange={e => updatePayload({ name: e.target.value })}
           placeholder="e.g. Q3 Software Engineer Hiring"
@@ -206,37 +202,33 @@ export default function Step1Basics({ payload, updatePayload }) {
 
       {/* Campaign type */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-zinc-700 dark:text-slate-300">
-          Campaign Type <span className="text-red-500">*</span>
+        <label className="text-xs font-medium text-ink-500 dark:text-ink-900">
+          Campaign Type <span className="text-negative">*</span>
         </label>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
           {CAMPAIGN_TYPES.map(({ value, label, desc }) => (
-            <button
+            <SelectableCard
               key={value}
-              type="button"
-              onClick={() => updatePayload({ type: value })}
-              className={`flex flex-col items-start gap-0.5 p-2.5 rounded-lg border text-left transition-all
-                ${payload.type === value
-                  ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50 text-teal-700'
-                  : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
-                }`}
+              compact
+              selected={payload.type === value}
+              onSelect={() => updatePayload({ type: value })}
             >
-              <span className="text-xs font-medium">{label}</span>
-              <span className="text-xs text-zinc-400 dark:text-slate-500 leading-snug">{desc}</span>
-            </button>
+              <span className="block text-xs font-semibold text-ink-100 dark:text-paper-200">{label}</span>
+              <span className="block text-xs text-ink-700 dark:text-ink-800 leading-snug mt-0.5">{desc}</span>
+            </SelectableCard>
           ))}
         </div>
       </div>
 
       {/* Max Call Duration */}
-      <div className="flex flex-col gap-1.5 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+      <div className="flex flex-col gap-1.5 mt-2 pt-6 border-t border-paper-400 dark:border-ink-400/50">
         <div className="flex items-center gap-1.5">
-          <Timer size={13} className="text-teal-600" />
-          <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">
-            Max Call Duration <span className="text-red-500">*</span>
+          <Timer size={13} className="text-brand-500" />
+          <label className="text-sm font-semibold text-ink-100 dark:text-paper-200">
+            Max Call Duration <span className="text-negative">*</span>
           </label>
         </div>
-        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
+        <p className="text-xs font-medium text-ink-700 dark:text-ink-900 -mt-0.5">
           The call will automatically end 4 seconds before this limit. Can be overridden per contact.
         </p>
         <div className="flex items-center gap-3 mt-1">
@@ -250,12 +242,12 @@ export default function Step1Basics({ payload, updatePayload }) {
                 const v = Math.max(1, Math.min(60, parseInt(e.target.value) || 1));
                 updatePayload({ callSettings: { ...(payload.callSettings || {}), maxDuration: v } });
               }}
-              className="h-9 w-full rounded-lg border border-zinc-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 text-sm text-zinc-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+              className="h-9 w-full rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm text-ink-100 dark:text-paper-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
           </div>
-          <span className="text-sm text-zinc-500">minutes per call</span>
+          <span className="text-sm text-ink-700">minutes per call</span>
           {payload.callSettings?.maxDuration && (
-            <span className="text-xs font-medium text-zinc-400">
+            <span className="text-xs font-medium text-ink-800">
               ≈ ₹{payload.callSettings.maxDuration * 5} estimated per call
             </span>
           )}
@@ -267,12 +259,12 @@ export default function Step1Basics({ payload, updatePayload }) {
           voices that were never valid for the engine actually placing the
           calls). Stored as callSettings.geminiVoice, read directly by
           setupGeminiLive() in plivoStreamHandler.js. */}
-      <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-zinc-100 dark:border-slate-700/50">
+      <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-paper-400 dark:border-ink-400/50">
         <div className="flex items-center gap-1.5">
-          <Mic size={13} className="text-teal-600" />
-          <label className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Voice</label>
+          <Mic size={13} className="text-brand-500" />
+          <label className="text-sm font-semibold text-ink-100 dark:text-paper-200">Voice</label>
         </div>
-        <p className="text-xs font-medium text-zinc-500 dark:text-slate-400 -mt-0.5">
+        <p className="text-xs font-medium text-ink-700 dark:text-ink-900 -mt-0.5">
           Hit play to hear a sample before choosing — Kore is the default if none is picked.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mt-1">
@@ -280,44 +272,45 @@ export default function Step1Basics({ payload, updatePayload }) {
             const selected = (payload.callSettings?.geminiVoice || 'Kore') === value;
             const isThis = previewingVoice?.voice === value;
             return (
-              <button
+              <SelectableCard
                 key={value}
-                type="button"
-                onClick={() => updatePayload({ callSettings: { ...(payload.callSettings || {}), geminiVoice: value } })}
-                className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border text-left transition-all
-                  ${selected
-                    ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50 text-teal-700'
-                    : 'border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-700/50'
-                  }`}
+                compact
+                selected={selected}
+                onSelect={() => updatePayload({ callSettings: { ...(payload.callSettings || {}), geminiVoice: value } })}
               >
-                <span className="flex flex-col items-start">
-                  <span className="text-xs font-medium">{label}</span>
-                  <span className="text-[10px] text-zinc-400 dark:text-slate-500">{recommended ? 'Recommended · ' : ''}{desc}</span>
+                <span className="flex w-full items-center gap-2">
+                <span className="flex min-w-0 flex-1 flex-col items-start">
+                  <span className="truncate text-xs font-semibold text-ink-100 dark:text-paper-200">{label}</span>
+                  <span className="truncate text-[10px] text-ink-700 dark:text-ink-800">
+                    {recommended ? 'Recommended · ' : ''}{desc}
+                  </span>
                 </span>
                 <span
                   role="button"
                   tabIndex={0}
+                  aria-label={`Preview ${label}`}
                   onClick={(e) => { e.stopPropagation(); playVoicePreview(value); }}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); playVoicePreview(value); } }}
-                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-teal-600 hover:bg-teal-50"
+                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-ink-800 hover:text-brand-500 hover:bg-brand-100 cursor-pointer"
                   title={`Preview ${label}`}
                 >
                   {isThis && previewingVoice.state === 'loading' && <Loader2 size={13} className="animate-spin" />}
                   {isThis && previewingVoice.state === 'playing' && <Square size={11} fill="currentColor" />}
                   {!isThis && <Play size={13} fill="currentColor" />}
                 </span>
-              </button>
+                </span>
+              </SelectableCard>
             );
           })}
         </div>
       </div>
 
-      <div className="flex flex-col gap-5 pt-4 border-t border-zinc-100 dark:border-slate-700/50">
+      <div className="flex flex-col gap-5 pt-4 border-t border-paper-400 dark:border-ink-400/50">
         {/* Campaign Goal */}
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <Lightbulb size={13} className="text-teal-600" />
-            <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Primary Goal</h4>
+            <Lightbulb size={13} className="text-brand-500" />
+            <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Primary Goal</h4>
           </div>
           <WordLimitTextarea
             value={goals.goal} onChange={v => setGoal('goal', v)} limit={100}
@@ -330,8 +323,8 @@ export default function Step1Basics({ payload, updatePayload }) {
         {/* Call Introduction */}
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <PhoneIncoming size={13} className="text-teal-600" />
-            <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Introduction</h4>
+            <PhoneIncoming size={13} className="text-brand-500" />
+            <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Introduction</h4>
           </div>
           <WordLimitTextarea
             value={goals.callIntro} onChange={v => setGoal('callIntro', v)} limit={300}
@@ -344,8 +337,8 @@ export default function Step1Basics({ payload, updatePayload }) {
         {/* Call Sign-off */}
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <PhoneOff size={13} className="text-teal-600" />
-            <h4 className="text-sm font-semibold text-zinc-800 dark:text-slate-200">Sign-off</h4>
+            <PhoneOff size={13} className="text-brand-500" />
+            <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Sign-off</h4>
           </div>
           <WordLimitTextarea
             value={goals.callSignOff} onChange={v => setGoal('callSignOff', v)} limit={300}

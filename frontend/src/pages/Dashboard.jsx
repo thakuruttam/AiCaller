@@ -9,25 +9,10 @@ import Modal from '../components/Modal';
 import Step7Review from './CampaignWizard/components/Step7Review';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-
-const STATUS_BADGE = {
-  active:      'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  completed:   'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  queued:      'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400',
-  paused:      'bg-zinc-100 text-zinc-600 dark:bg-slate-700 dark:text-slate-400',
-  'in-progress':'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  failed:      'bg-[#ffdad6] text-[#ba1a1a] dark:bg-red-900/30 dark:text-red-300',
-  cancelled:   'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-};
-
-function StatusBadge({ status }) {
-  const cls = STATUS_BADGE[status] || STATUS_BADGE.queued;
-  return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize ${cls}`}>
-      {status}
-    </span>
-  );
-}
+import {
+  Page, PageHeader, EmptyState, Stat, Card, Button, IconButton, Badge, StatusBadge, Input, Pagination,
+  Table, THead, TBody, Th, Tr, Td, RecordLink, SkeletonRow,
+} from '../components/ui';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'no-answer', 'busy', 'cancelled']);
 
@@ -56,36 +41,36 @@ function CampaignCostInsight({ campaign }) {
     <div className="flex flex-col gap-2 min-w-[170px]">
       {/* Progress bar */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-zinc-100 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-paper-500 dark:bg-ink-400 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, background: pct === 100 ? '#10b981' : '#0d9488' }}
+            style={{ width: `${pct}%`, background: pct === 100 ? '#0fc27b' : '#266df0' }}
           />
         </div>
-        <span className="text-xs text-zinc-400 dark:text-slate-500 shrink-0">{contactsDone}/{totalContacts}</span>
+        <span className="text-xs text-ink-800 dark:text-ink-700 shrink-0">{contactsDone}/{totalContacts}</span>
       </div>
       {/* Metric grid */}
       <div className="grid grid-cols-3 gap-x-3">
         {/* Spent — actual, real billable minutes */}
         <div>
-          <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none mb-0.5">Spent</p>
-          <p className="text-sm font-bold text-[#0d9488] leading-none">₹{costIncurred}</p>
+          <p className="text-xs text-ink-700 dark:text-ink-800 leading-none mb-0.5">Spent</p>
+          <p className="text-sm font-semibold text-brand-500 leading-none">₹{costIncurred}</p>
         </div>
         {/* Left — estimated remaining */}
         <div>
           <div className="flex items-center gap-0.5 mb-0.5">
-            <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none">Left</p>
-            <span className="text-xs text-amber-400 font-semibold leading-none">~est</span>
+            <p className="text-xs text-ink-700 dark:text-ink-800 leading-none">Left</p>
+            <span className="text-xs text-caution font-semibold leading-none">~est</span>
           </div>
-          <p className="text-sm font-bold text-amber-500 leading-none">~₹{remainingEstCost}</p>
+          <p className="text-sm font-semibold text-caution-dim leading-none">~₹{remainingEstCost}</p>
         </div>
         {/* Total — estimated based on max duration */}
         <div>
           <div className="flex items-center gap-0.5 mb-0.5">
-            <p className="text-xs text-zinc-400 dark:text-slate-500 uppercase tracking-wide leading-none">Total</p>
-            <span className="text-xs text-zinc-400 dark:text-slate-500 font-semibold leading-none">~est</span>
+            <p className="text-xs text-ink-700 dark:text-ink-800 leading-none">Total</p>
+            <span className="text-xs text-ink-800 dark:text-ink-700 font-semibold leading-none">~est</span>
           </div>
-          <p className="text-sm font-semibold text-[#334155] dark:text-slate-400 leading-none">~₹{totalEstCost}</p>
+          <p className="text-sm font-semibold text-ink-600 dark:text-ink-900 leading-none">~₹{totalEstCost}</p>
         </div>
       </div>
     </div>
@@ -172,206 +157,158 @@ const Dashboard = () => {
   const PER_PAGE = 4;
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto">
-      {/* Page Header */}
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-[22px] font-extrabold text-[#0f172a] dark:text-slate-100 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-[#334155] dark:text-slate-400 mt-1">Real-time oversight of enterprise voice operations.</p>
-        </div>
-        <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']}>
-          <Link
-            to="/create-campaign"
-            className="flex items-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white px-6 py-3 rounded text-sm transition-all shadow-md active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[18px]">campaign</span>
-            New Campaign
-          </Link>
-        </RoleGate>
-      </div>
+    <Page>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Real-time oversight of enterprise voice operations."
+        actions={
+          <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']}>
+            <Button icon="campaign" size="lg" onClick={() => navigate('/create-campaign')}>
+              New Campaign
+            </Button>
+          </RoleGate>
+        }
+      />
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* Total Calls Queued */}
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-[#e2dfff] dark:bg-teal-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#0d9488]">queue</span>
-            </div>
-            <span className="text-xs text-[#0d9488] dark:text-teal-300 bg-[#e2dfff] dark:bg-teal-900/30 px-2 py-1 rounded">+12.5%</span>
-          </div>
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Total Calls Queued</p>
-          <h3 className="text-5xl font-bold text-[#0f172a] dark:text-slate-100" style={{letterSpacing:'-0.02em'}}>{loading ? '—' : stats.total.toLocaleString()}</h3>
-        </div>
-
-        {/* Completed Calls */}
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-emerald-600">check_circle</span>
-            </div>
-            <span className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded">On Track</span>
-          </div>
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Completed Calls</p>
-          <h3 className="text-5xl font-bold text-[#0f172a] dark:text-slate-100" style={{letterSpacing:'-0.02em'}}>{loading ? '—' : stats.completed.toLocaleString()}</h3>
-        </div>
-
-        {/* Success Rate */}
-        <div className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 p-6 rounded shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-amber-600">trending_up</span>
-            </div>
-            <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded">Target 92%</span>
-          </div>
-          <p className="text-xs text-[#334155] dark:text-slate-400 mb-1 uppercase tracking-wider">Success Rate %</p>
-          <h3 className="text-5xl font-bold text-[#0f172a] dark:text-slate-100" style={{letterSpacing:'-0.02em'}}>{loading ? '—' : `${successRate}%`}</h3>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card interactive>
+          <Stat
+            icon="queue" tone="brand" label="Total calls queued"
+            value={loading ? '—' : stats.total.toLocaleString()}
+            badge={<Badge dot={false} tone="brand" className="!text-brand-600 dark:!text-brand-300">+12.5%</Badge>}
+          />
+        </Card>
+        <Card interactive>
+          <Stat
+            icon="check_circle" tone="positive" label="Completed calls"
+            value={loading ? '—' : stats.completed.toLocaleString()}
+            badge={<Badge tone="positive">On track</Badge>}
+          />
+        </Card>
+        <Card interactive>
+          <Stat
+            icon="trending_up" tone="caution" label="Success rate"
+            value={loading ? '—' : `${successRate}%`}
+            badge={<Badge tone="caution">Target 92%</Badge>}
+          />
+        </Card>
       </div>
 
       {/* Active Campaigns Table */}
-      <FullscreenTable className="bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded shadow-sm overflow-hidden">
+      <FullscreenTable className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
         {({ toggle, isFs }) => {
           const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PER_PAGE));
           const paginated = isFs ? filteredCampaigns : filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
           return (<>
-        <div className="p-6 border-b border-zinc-100 dark:border-slate-700/50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <h4 className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">Active Campaigns</h4>
+        <div className="px-7 py-6 border-b border-paper-400 dark:border-ink-400 flex flex-col md:flex-row justify-between items-center gap-4">
+          <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Active Campaigns</h4>
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] dark:text-slate-500 text-[18px]">filter_list</span>
-              <input
-                className="w-full bg-[#e6fffa] dark:bg-slate-700 border-none rounded py-2 pl-10 pr-4 text-sm text-[#0f172a] dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#0d9488] placeholder:text-[#64748b] dark:text-slate-500"
+            <div className="flex-1 md:w-64">
+              <Input
+                icon="filter_list"
                 placeholder="Filter campaigns..."
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               />
             </div>
-            <button className="p-2 border border-[#cbd5e1] dark:border-slate-600 rounded hover:bg-[#e6fffa] dark:hover:bg-slate-700 transition-colors">
-              <span className="material-symbols-outlined text-[#334155] dark:text-slate-400">download</span>
-            </button>
+            <Button variant="secondary" size="md" icon="download" aria-label="Export" className="!px-3" />
             <FullscreenButton toggle={toggle} isFs={isFs} />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-zinc-50 dark:bg-slate-900 border-b border-zinc-100 dark:border-slate-700 dark:border-slate-700/50">
-              <tr>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Campaign Name</th>
-                {isSuperAdmin && <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Workspace</th>}
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Contacts</th>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider">Cost Insight</th>
-                <th className="px-6 py-4 text-xs text-[#334155] dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-slate-700">
+        <Table>
+            <THead>
+              <Th icon="campaign">Campaign</Th>
+              {isSuperAdmin && <Th icon="corporate_fare">Workspace</Th>}
+              <Th icon="radio_button_checked">Status</Th>
+              <Th icon="group">Contacts</Th>
+              <Th icon="payments">Cost insight</Th>
+              <Th align="right">Actions</Th>
+            </THead>
+            <TBody>
               {loading && Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  <td className="px-6 py-4"><div className="h-4 bg-zinc-100 dark:bg-slate-700 rounded w-40 mb-1" /><div className="h-3 bg-zinc-100 dark:bg-slate-700 rounded w-24" /></td>
-                  {isSuperAdmin && <td className="px-6 py-4"><div className="h-4 bg-zinc-100 dark:bg-slate-700 rounded w-28" /></td>}
-                  <td className="px-6 py-4"><div className="h-5 bg-zinc-100 dark:bg-slate-700 rounded-full w-20" /></td>
-                  <td className="px-6 py-4"><div className="h-4 bg-zinc-100 dark:bg-slate-700 rounded w-16" /></td>
-                  <td className="px-6 py-4"><div className="h-4 bg-zinc-100 dark:bg-slate-700 rounded w-12" /></td>
-                  <td className="px-6 py-4 text-right"><div className="h-8 bg-zinc-100 dark:bg-slate-700 rounded w-20 ml-auto" /></td>
-                </tr>
+                <SkeletonRow key={i} cols={isSuperAdmin ? 6 : 5} />
               ))}
               {!loading && paginated.map(c => (
-                <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="px-6 py-4">
+                <Tr key={c.id}>
+                  <Td>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-[#0f172a] dark:text-slate-100">{c.name}</span>
-                      <span className="text-xs text-[#64748b] dark:text-slate-500">
+                      <RecordLink as={Link} to={`/campaigns/${c.id}`}>
+                        {c.name}
+                      </RecordLink>
+                      <span className="text-xs text-ink-700 dark:text-ink-800">
                         Created {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—'}
                       </span>
                     </div>
-                  </td>
+                  </Td>
                   {isSuperAdmin && (
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6fffa] dark:bg-teal-900/30 border border-[#e2e8f0] dark:border-teal-700 text-xs font-semibold text-[#0d9488]">
-                        <span className="material-symbols-outlined text-[12px]" style={{fontVariationSettings:"'FILL' 1"}}>corporate_fare</span>
-                        {c.tenant?.name || '—'}
-                      </span>
-                    </td>
+                    <Td>
+                      <Badge tone="brand">{c.tenant?.name || '—'}</Badge>
+                    </Td>
                   )}
-                  <td className="px-6 py-4">
+                  <Td>
                     <StatusBadge status={c.status || 'queued'} />
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[#0f172a] dark:text-slate-100">
+                  </Td>
+                  <Td>
                     {c.campaignContacts?.length || 0}
-                  </td>
-                  <td className="px-6 py-4">
+                  </Td>
+                  <Td>
                     <CampaignCostInsight campaign={c} />
-                  </td>
-                  <td className="px-6 py-4 text-right">
+                  </Td>
+                  <Td align="right">
                     <div className="flex justify-end gap-2">
-                      <button
+                      <IconButton
+                        tone="brand" title="View"
                         onClick={() => openViewModal(c.id)}
                         disabled={loadingCampaignId === c.id}
-                        className="p-2 hover:bg-[#e2dfff]/50 dark:hover:bg-teal-900/40 text-[#0d9488] dark:text-teal-300 transition-colors rounded"
-                        title="View"
                       >
                         {loadingCampaignId === c.id
-                          ? <Spinner size={18} className="text-[#0d9488]" />
-                          : <span className="material-symbols-outlined text-[20px]">visibility</span>}
-                      </button>
-                      <Link to={`/edit-campaign/${c.id}`} className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded" title="Edit">
-                        <span className="material-symbols-outlined text-[20px]">edit</span>
-                      </Link>
-                      <button
+                          ? <Spinner size={18} />
+                          : <span className="material-symbols-outlined [--icon-size:20px]">visibility</span>}
+                      </IconButton>
+                      <IconButton as={Link} to={`/edit-campaign/${c.id}`} title="Edit" icon="edit" />
+                      <IconButton
+                        title="Clone"
                         onClick={() => handleClone(c.id)}
                         disabled={cloningId === c.id}
-                        className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded disabled:opacity-50"
-                        title="Clone"
                       >
                         {cloningId === c.id
-                          ? <Spinner size={18} className="text-[#0d9488]" />
-                          : <span className="material-symbols-outlined text-[20px]">content_copy</span>}
-                      </button>
-                      <Link to={`/campaigns/${c.id}/report`} className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded" title="Report">
-                        <span className="material-symbols-outlined text-[20px]">assessment</span>
-                      </Link>
-                      <Link to={`/campaigns/${c.id}`} className="p-2 hover:bg-[#e6fffa] dark:hover:bg-slate-700 text-[#334155] dark:text-slate-400 transition-colors rounded" title="Details">
-                        <span className="material-symbols-outlined text-[20px]">more_horiz</span>
-                      </Link>
+                          ? <Spinner size={18} />
+                          : <span className="material-symbols-outlined [--icon-size:20px]">content_copy</span>}
+                      </IconButton>
+                      <IconButton as={Link} to={`/campaigns/${c.id}/report`} title="Report" icon="assessment" />
+                      <IconButton as={Link} to={`/campaigns/${c.id}`} title="Details" icon="more_horiz" />
                     </div>
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
               {!loading && filteredCampaigns.length === 0 && (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 6 : 5} className="px-6 py-12 text-center text-sm text-[#64748b] dark:text-slate-500">No campaigns found.</td>
+                  <Td colSpan={isSuperAdmin ? 6 : 5} className="!py-0">
+                    <EmptyState
+                      icon="campaign"
+                      title={searchQuery ? 'No campaigns match that filter' : 'No campaigns yet'}
+                      body={searchQuery ? 'Try a different name.' : 'Create one to start placing calls.'}
+                    />
+                  </Td>
                 </tr>
               )}
 
-            </tbody>
-          </table>
-        </div>
+            </TBody>
+        </Table>
 
-        <div className="px-6 py-3 bg-zinc-50 dark:bg-slate-900 border-t border-zinc-100 dark:border-slate-700 flex items-center justify-between">
-          <span className="text-xs text-[#334155] dark:text-slate-400">
-            {isFs
-              ? `${filteredCampaigns.length} campaign${filteredCampaigns.length !== 1 ? 's' : ''}`
-              : `Showing ${Math.min((page - 1) * PER_PAGE + 1, filteredCampaigns.length)}–${Math.min(page * PER_PAGE, filteredCampaigns.length)} of ${filteredCampaigns.length} campaign${filteredCampaigns.length !== 1 ? 's' : ''}`
-            }
-          </span>
-          {!isFs && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(p - 1, 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-xs border border-zinc-200 dark:border-slate-700 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
-              >Previous</button>
-              <span className="text-xs text-[#334155] dark:text-slate-400">{page} / {totalPages}</span>
-              <button
-                onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                disabled={page === totalPages}
-                className="px-3 py-1 text-xs border border-zinc-200 dark:border-slate-700 rounded hover:bg-zinc-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
-              >Next</button>
-            </div>
-          )}
-        </div>
+        {!isFs && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalRows={filteredCampaigns.length}
+            pageSize={PER_PAGE}
+            onPageChange={setPage}
+            label="campaigns"
+            compact
+          />
+        )}
         </>);
         }}
       </FullscreenTable>
@@ -397,7 +334,7 @@ const Dashboard = () => {
           </div>
         </Modal>
       )}
-    </div>
+    </Page>
   );
 };
 

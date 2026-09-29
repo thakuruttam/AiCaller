@@ -110,7 +110,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     const refreshToken = localStorage.getItem('refreshToken');
-    try { await axios.post(`${BASE()}/api/auth/logout`, { refreshToken }); } catch {}
+    // Best effort: the local session is cleared either way, so a failed
+    // server-side revoke must not block signing out.
+    try { await axios.post(`${BASE()}/api/auth/logout`, { refreshToken }); } catch { /* ignored */ }
     ['accessToken', 'refreshToken', 'user', 'workspaces'].forEach(k => localStorage.removeItem(k));
     setUser(null);
     setWorkspaces([]);
@@ -122,7 +124,7 @@ export function AuthProvider({ children }) {
       const updated = { ...user, name: data.name, avatarUrl: data.avatarUrl };
       setUser(updated);
       localStorage.setItem('user', JSON.stringify(updated));
-    } catch {}
+    } catch { /* stale token — fall through to signed-out state */ }
   };
 
   return (

@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { Button, IconButton } from '../components/ui';
 
 const ROLE_HIERARCHY = {
   SUPER_ADMIN: 4,
@@ -12,7 +13,7 @@ const ROLE_HIERARCHY = {
  * 
  * Usage:
  *   <RoleGate allow={['ADMIN', 'EDITOR']}>
- *     <button>Run Campaign</button>
+ *     <Button variant="ghost" size="md"  icon="play_arrow">Run Campaign</Button>
  *   </RoleGate>
  * 
  * Optional `fallback` prop renders something else for unauthorized users.

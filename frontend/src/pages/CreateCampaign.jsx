@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button, IconButton } from '../components/ui';
 import axios from 'axios';
 import { Upload, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,7 +39,6 @@ const CreateCampaign = () => {
       const campaignId = campRes.data.id;
 
       // Upload contacts
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       await axios.post(`${baseURL}/api/campaigns/${campaignId}/contacts`, {
         contacts
       });
@@ -86,14 +86,14 @@ const CreateCampaign = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={loading}>
+          <Button variant="ghost" size="md" type="submit" style={{ flex: 1, justifyContent: 'center' }} disabled={loading}>
             {loading ? 'Processing...' : (
               <>
                 <PlayCircle size={18} />
                 Launch Campaign
               </>
             )}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

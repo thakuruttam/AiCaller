@@ -15,7 +15,7 @@ function Frame({ step }) {
   // labeled placeholder instead of a broken-image icon.
   if (broken) {
     return (
-      <div className="w-full aspect-video rounded-xl bg-gradient-to-br from-[#0f1729] to-[#0a0f1a] border border-white/10 flex flex-col items-center justify-center gap-2 text-slate-500">
+      <div className="w-full aspect-video rounded-xl bg-gradient-to-br from-[#0f1729] to-[#101010] border border-white/10 flex flex-col items-center justify-center gap-2 text-ink-700">
         <ImageOff size={28} />
         <span className="text-xs">Screenshot coming soon</span>
       </div>
@@ -27,7 +27,7 @@ function Frame({ step }) {
       src={step.image}
       alt={step.title}
       onError={() => setBroken(true)}
-      className="w-full aspect-video object-cover rounded-xl border border-white/10 bg-[#0a0f1a]"
+      className="w-full aspect-video object-cover rounded-xl border border-white/10 bg-[#101010]"
     />
   );
 }
@@ -86,14 +86,14 @@ export function TourModal({ open, onClose }) {
             className="relative w-full max-w-2xl rounded-2xl bg-[#0f1729] border border-white/10 shadow-2xl overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-widest text-ink-800">
                 Product tour · {index + 1} of {TOUR_STEPS.length}
               </span>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close tour"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-ink-800 hover:text-white hover:bg-white/5 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
               >
                 <X size={18} />
               </button>
@@ -110,7 +110,7 @@ export function TourModal({ open, onClose }) {
                 >
                   <Frame step={step} />
                   <h3 className="mt-5 font-display text-lg font-semibold text-white">{step.title}</h3>
-                  <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">{step.body}</p>
+                  <p className="mt-1.5 text-sm text-ink-800 leading-relaxed">{step.body}</p>
                 </MotionDiv>
               </AnimatePresence>
             </div>
@@ -120,7 +120,7 @@ export function TourModal({ open, onClose }) {
                 type="button"
                 onClick={() => setIndex(i => Math.max(i - 1, 0))}
                 disabled={isFirst}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-900 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 <ChevronLeft size={16} />
                 Back
@@ -133,7 +133,7 @@ export function TourModal({ open, onClose }) {
                     type="button"
                     onClick={() => setIndex(i)}
                     aria-label={`Go to step ${i + 1}`}
-                    className={`h-1.5 rounded-full transition-all cursor-pointer ${i === index ? 'w-5 bg-[#0d9488]' : 'w-1.5 bg-white/20 hover:bg-white/40'}`}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${i === index ? 'w-5 bg-[#266df0]' : 'w-1.5 bg-white/20 hover:bg-white/40'}`}
                   />
                 ))}
               </div>
@@ -141,7 +141,7 @@ export function TourModal({ open, onClose }) {
               {isLast ? (
                 <a
                   href="/login"
-                  className="text-sm font-semibold text-white bg-[#0d9488] hover:bg-[#0f766e] transition-colors px-4 py-2 rounded-lg cursor-pointer"
+                  className="text-sm font-semibold text-white bg-[#266df0] hover:bg-[#245bc2] transition-colors px-4 py-2 rounded-lg cursor-pointer"
                 >
                   Get started
                 </a>
@@ -149,7 +149,7 @@ export function TourModal({ open, onClose }) {
                 <button
                   type="button"
                   onClick={() => setIndex(i => Math.min(i + 1, TOUR_STEPS.length - 1))}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-900 hover:text-white transition-colors cursor-pointer"
                 >
                   Next
                   <ChevronRight size={16} />
