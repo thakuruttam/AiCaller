@@ -23,6 +23,7 @@ import InviteAccept from './pages/InviteAccept';
 import Support from './pages/Support';
 import MyTeam from './pages/MyTeam';
 import Billing from './pages/Billing';
+import NotFound from './pages/NotFound';
 import Usage from './pages/Usage';
 import Notifications from './pages/Notifications';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -242,34 +243,45 @@ export const SIDEBAR_WIDTH_COLLAPSED = 76;
 // the item's own edge, which would off-center it relative to the header's
 // hamburger/chevron toggle (whose wrapper carries a matching transparent
 // border-l-4 so both land on the same center).
+// Nav row geometry. The active state is an inset rounded pill rather than a
+// left border: a border pushes the row's content sideways, which meant every
+// row had to carry a matching transparent one just to stay aligned (the
+// Support row didn't, and sat 4px off). With a pill there is nothing to
+// compensate for, and the icon can sit at the same X in both states.
+//
+//   rail collapsed = 76  ->  item inset 8 each side, 60 wide, icon centred at 38
+//   rail expanded  = 280 ->  item inset 8, pl-5 (20), icon box 20 -> centre 38
+const NAV_ICON_BOX = 20;
+
 const NavIcon = ({ children }) => (
-  <span className="shrink-0 flex items-center justify-center" style={{ width: `${SIDEBAR_WIDTH_COLLAPSED - 4}px` }}>
-    <span className="material-symbols-outlined [--icon-size:16px]">{children}</span>
+  <span
+    className="shrink-0 flex items-center justify-center"
+    style={{ width: `${NAV_ICON_BOX}px`, height: `${NAV_ICON_BOX}px` }}
+  >
+    <span className="material-symbols-outlined [--icon-size:20px]">{children}</span>
   </span>
 );
 
 // Always mounted (never conditionally rendered) so the label fades and
-// collapses its own width in sync with the sidebar's width transition,
-// instead of popping in/out instantly — that instant swap was what made the
-// icon beside it look like it "jumped" and made the whole toggle feel choppy,
-// since one axis (label) changed in a single frame while the other (sidebar
-// width) was still 200ms into animating.
+// collapses its own width in step with the sidebar's width transition rather
+// than popping in and out in a single frame.
 const NavLabel = ({ collapsed, children }) => (
   <span
-    className={`whitespace-nowrap overflow-hidden transition-all duration-200 ease-in-out ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]'}`}
+    className={`whitespace-nowrap overflow-hidden transition-all duration-200 ease-in-out ${
+      collapsed ? 'opacity-0 max-w-0 ml-0' : 'opacity-100 max-w-[170px] ml-3'
+    }`}
   >
     {children}
   </span>
 );
 
 // Group heading above a run of nav items. It collapses its own height (not
-// just opacity) on the rail so the icons below don't drift, and its left inset
-// matches where the nav labels start — at px-6 it read as belonging to the
-// sidebar edge rather than to the items beneath it.
+// just opacity) on the rail so the icons below don't drift. The 60px inset is
+// where the row labels start: item inset 8 + pl-5 (20) + icon 20 + ml-3 (12).
 const NavSection = ({ collapsed, children }) => (
   <p
     aria-hidden={collapsed}
-    style={{ paddingLeft: collapsed ? 0 : SIDEBAR_WIDTH_COLLAPSED }}
+    style={{ paddingLeft: collapsed ? 0 : 60 }}
     className={`text-[11px] font-medium text-ink-800 whitespace-nowrap overflow-hidden transition-all duration-200 ease-in-out ${
       collapsed ? 'opacity-0 max-h-0 py-0' : 'opacity-100 max-h-10 pt-5 pb-1.5'
     }`}
@@ -277,6 +289,17 @@ const NavSection = ({ collapsed, children }) => (
     {children}
   </p>
 );
+
+// One row shape for every sidebar destination — links, the support entry and
+// the sign-out button all render through this, so they cannot drift apart.
+const navRowClass = (collapsed, active) => [
+  'group relative flex items-center h-11 mx-2 rounded-control text-sm',
+  'transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
+  collapsed ? 'justify-center px-0' : 'pl-5 pr-3',
+  active
+    ? 'font-medium bg-brand-100 text-brand-600 dark:bg-ink-300 dark:text-white'
+    : 'text-ink-600 dark:text-ink-900 hover:bg-paper-300 dark:hover:bg-ink-300/60 hover:text-ink-100 dark:hover:text-white',
+].join(' ');
 
 function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
   const { user, logout } = useAuth();
@@ -287,10 +310,6 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
     await logout();
     navigate('/login');
   };
-
-  const navItemBase = `flex items-center py-3 transition-colors text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset`;
-  const activeClass = `${navItemBase} font-medium text-brand-600 dark:text-white bg-brand-100 dark:bg-ink-300 border-l-4 border-brand-500`;
-  const inactiveClass = `${navItemBase} text-ink-600 dark:text-ink-900 hover:text-ink-100 dark:hover:text-white hover:bg-paper-300 dark:hover:bg-ink-300/60 border-l-4 border-transparent`;
 
   const isAt = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -332,10 +351,7 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
             on its own row, then nav — matching the reference. */}
         <div className="h-[92px] flex flex-col justify-center">
           {collapsed ? (
-            // border-l-4 (transparent) matches the nav items' active-state accent
-            // border below, so both center within the same reduced content width
-            // and the hamburger lines up exactly with the nav icons under it.
-            <div className="flex flex-col items-center gap-3 border-l-4 border-transparent">
+            <div className="flex flex-col items-center gap-3">
               {logoBadge}
               <IconButton tone="neutral" size="md" title="Expand sidebar" icon="menu" onClick={onToggleCollapse} />
             </div>
@@ -357,7 +373,7 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
 
         <nav className="flex flex-col gap-1">
           {navItems.map(({ to, end, icon, label }) => (
-            <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={isAt(to) ? activeClass : inactiveClass}>
+            <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={navRowClass(collapsed, isAt(to))}>
               <NavIcon>{icon}</NavIcon>
               <NavLabel collapsed={collapsed}>{label}</NavLabel>
             </NavLink>
@@ -365,7 +381,7 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
 
           <NavSection collapsed={collapsed}>Workspace</NavSection>
           {workspaceItems.map(({ to, end, icon, label }) => (
-            <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={isAt(to) ? activeClass : inactiveClass}>
+            <NavLink key={to} to={to} end={end} title={collapsed ? label : undefined} className={navRowClass(collapsed, isAt(to))}>
               <NavIcon>{icon}</NavIcon>
               <NavLabel collapsed={collapsed}>{label}</NavLabel>
             </NavLink>
@@ -373,24 +389,25 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
 
           <RoleGate allow={['SUPER_ADMIN']}>
             <NavSection collapsed={collapsed}>Administration</NavSection>
-            <NavLink to="/admin" title={collapsed ? 'Admin Panel' : undefined} className={isAt('/admin') ? activeClass : inactiveClass}>
+            <NavLink to="/admin" title={collapsed ? 'Admin Panel' : undefined} className={navRowClass(collapsed, isAt('/admin'))}>
               <NavIcon>admin_panel_settings</NavIcon>
               <NavLabel collapsed={collapsed}>Admin Panel</NavLabel>
             </NavLink>
           </RoleGate>
         </nav>
 
-        <div className="px-4">
-          <Button variant="primary" size="lg" onClick={() => navigate('/create-campaign')} title={collapsed ? 'New Campaign' : undefined}>
-            {/* Icon slot is fixed to the collapsed button's own content width
-                (76px rail - 16px*2 wrapper padding = 44px), so it's centered
-                in the collapsed square AND sits at that exact same X once
-                expanded — the label just appears after the slot, so the icon
-                never moves between states. */}
-            <span className="shrink-0 flex items-center justify-center" style={{ width: '44px' }}>
-              <span className="material-symbols-outlined text-[18px]">campaign</span>
-            </span>
-            <NavLabel collapsed={collapsed}>New Campaign</NavLabel>
+        <div className={collapsed ? 'flex justify-center' : 'px-3'}>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth={!collapsed}
+            icon="campaign"
+            onClick={() => navigate('/create-campaign')}
+            title={collapsed ? 'New Campaign' : undefined}
+            aria-label="New Campaign"
+            className={collapsed ? '!w-11 !h-11 !px-0' : ''}
+          >
+            {!collapsed && 'New Campaign'}
           </Button>
         </div>
       </div>
@@ -401,7 +418,7 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
           <NavLink
             to="/support"
             title={collapsed ? 'Support' : undefined}
-            className={({ isActive }) => `flex items-center py-3 transition-colors text-left w-full text-sm ${isActive ? 'font-medium text-brand-600 dark:text-white bg-brand-100 dark:bg-ink-300' : 'text-ink-600 dark:text-ink-900 hover:text-ink-100 dark:hover:text-white hover:bg-paper-300 dark:hover:bg-ink-300/60'}`}
+            className={({ isActive }) => navRowClass(collapsed, isActive)}
           >
             <NavIcon>contact_support</NavIcon>
             <NavLabel collapsed={collapsed}>Support</NavLabel>
@@ -410,7 +427,7 @@ function Sidebar({ collapsed, onToggleCollapse, mobile = false, onNavigate }) {
             <button
               onClick={handleLogout}
               title={collapsed ? 'Sign out' : undefined}
-              className={`${navItemBase} border-l-4 border-transparent text-ink-700 dark:text-ink-800 hover:text-ink-100 dark:hover:text-white hover:bg-paper-300 dark:hover:bg-ink-300/60 text-left w-full`}
+              className={`${navRowClass(collapsed, false)} w-[calc(100%-1rem)]`}
             >
               <NavIcon>logout</NavIcon>
               <NavLabel collapsed={collapsed}>Sign out</NavLabel>
@@ -561,6 +578,7 @@ function AppLayout() {
             <Route path="/usage" element={<Usage />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/support" element={<Support />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </div>

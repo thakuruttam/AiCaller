@@ -7,7 +7,7 @@ export { default as SelectableCard } from './SelectableCard';
 export { default as Checkbox } from './Checkbox';
 export { default as CopyField } from './CopyField';
 export { default as Badge, StatusBadge } from './Badge';
-export { toneForStatus } from './badgeTones';
+export { toneForStatus, statusLabel } from './badgeTones';
 export { default as Input, Textarea, Select, Field } from './Input';
 export { default as Tabs, TabBar } from './Tabs';
 export {

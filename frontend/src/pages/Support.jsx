@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Page, PageHeader, Button, IconButton } from '../components/ui';
+import { Page, PageHeader, Button, IconButton, StatusBadge } from '../components/ui';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,20 +11,6 @@ const CATEGORIES = [
   { value: 'account',   label: 'Account Management' },
   { value: 'general',   label: 'General Question' },
 ];
-
-const STATUS_BADGE = {
-  OPEN:        'bg-brand-100 text-brand-600 border border-brand-100',
-  IN_PROGRESS: 'bg-caution/10 text-caution-dim border border-caution/10',
-  RESOLVED:    'bg-positive/10 text-positive-dim border border-positive/10',
-  CLOSED:      'bg-paper-400 text-ink-700 border border-paper-500',
-};
-
-const STATUS_LABEL = {
-  OPEN: 'Open',
-  IN_PROGRESS: 'In Progress',
-  RESOLVED: 'Resolved',
-  CLOSED: 'Closed',
-};
 
 const FAQS = [
   { q: 'How do I create a new campaign?', a: 'Click "New Campaign" in the left sidebar. The Campaign Wizard guides you through 7 steps: pick a call module, configure settings, define data to collect, set scoring questions, upload contacts, and review before launch.' },
@@ -105,9 +91,7 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
             <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">{ticket.subject}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_BADGE[ticket.status]}`}>
-              {STATUS_LABEL[ticket.status]}
-            </span>
+            <StatusBadge status={ticket.status} />
             {ticket.status === 'CLOSED' ? (
               <Button variant="subtle" size="sm" onClick={() => changeStatus('OPEN')} disabled={statusLoading}>Reopen</Button>
             ) : (
@@ -357,9 +341,7 @@ export default function Support() {
                         </div>
                       </td>
                       <td className="px-7 py-5">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_BADGE[t.status]}`}>
-                          {STATUS_LABEL[t.status]}
-                        </span>
+                        <StatusBadge status={t.status} />
                       </td>
                       <td className="px-7 py-5 text-sm text-ink-700 dark:text-ink-900">
                         {new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -370,7 +352,7 @@ export default function Support() {
                         </span>
                       </td>
                       <td className="px-7 py-5 text-right">
-                        <span className="text-brand-500 dark:text-brand-300 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:underline">
+                        <span className="text-brand-500 dark:text-brand-300 text-xs font-bold opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:underline">
                           View
                         </span>
                       </td>

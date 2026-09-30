@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, IconButton, CopyField, Badge, Page } from '../components/ui';
+import { campaignTypeLabel } from '../components/campaignTypes';
+import { Button, IconButton, CopyField, Badge, StatusBadge, Page, Pagination } from '../components/ui';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import PageLoader from '../components/PageLoader';
@@ -61,22 +62,6 @@ function ShareModal({ campaignId, onClose }) {
     </div>
   );
 }
-
-const STATUS_BADGE = {
-  completed:    'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive',
-  queued:       'bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900',
-  'in-progress':'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution',
-  failed:       'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative',
-  cancelled:    'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution',
-};
-
-const STATUS_DOT = {
-  completed:    'bg-positive',
-  queued:       'bg-paper-900',
-  'in-progress':'bg-caution/100',
-  failed:       'bg-negative-dim',
-  cancelled:    'bg-caution',
-};
 
 const INITIALS_COLORS = [
   'bg-brand-100 text-brand-500 dark:bg-brand-600/30 dark:text-brand-300',
@@ -173,7 +158,7 @@ export default function CampaignDetails() {
           <p className="text-xs text-ink-700 dark:text-ink-900">Campaign Details</p>
           <div className="flex items-center gap-3">
             <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">{campaign.name}</h2>
-            <Badge tone="brand">{(campaign.type || 'Campaign').replace('_', ' ').toLowerCase()}</Badge>
+            <Badge tone="brand" className="whitespace-nowrap">{campaignTypeLabel(campaign.type) || 'Campaign'}</Badge>
           </div>
           <p className="text-sm text-ink-600 dark:text-ink-900 max-w-2xl">
             {campaign.callModule?.callIntro || 'Automated outreach campaign.'}
@@ -279,10 +264,7 @@ export default function CampaignDetails() {
                     </td>
                     <td className="px-7 py-5">
                       {status ? (
-                        <span className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit ${STATUS_BADGE[status] || STATUS_BADGE.queued}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-paper-900'}`}></span>
-                          {status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
-                        </span>
+                        <StatusBadge status={status} />
                       ) : (
                         <span className="text-xs text-ink-700 dark:text-ink-900 italic">No call</span>
                       )}
@@ -315,24 +297,15 @@ export default function CampaignDetails() {
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-paper-400 dark:border-ink-400 flex items-center justify-between">
-          <span className="text-xs text-ink-600 dark:text-ink-900">
-            {isFs ? `${filteredRows.length} entries` : `Showing ${paginated.length} of ${filteredRows.length} entries`}
-          </span>
-          {!isFs && (
-            <div className="flex items-center gap-1">
-              <IconButton tone="neutral" size="md" title="Chevron left" icon="chevron_left" onClick={() => setPage(p => Math.max(1, p-1))} disabled={page <= 1} />
-              {[...Array(Math.min(3, totalPages))].map((_, i) => (
-                <Button variant="primary" size="sm" key={i+1} onClick={() => setPage(i+1)}>{i+1}</Button>
-              ))}
-              {totalPages > 3 && <span className="px-2 text-ink-800 dark:text-ink-800">...</span>}
-              {totalPages > 3 && (
-                <Button variant="primary" size="sm" onClick={() => setPage(totalPages)}>{totalPages}</Button>
-              )}
-              <IconButton tone="neutral" size="md" title="Chevron right" icon="chevron_right" onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} />
-            </div>
-          )}
-        </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalRows={filteredRows.length}
+          pageSize={isFs ? 0 : PER_PAGE}
+          onPageChange={setPage}
+          label="contacts"
+        />
+
         </>);
         }}
       </FullscreenTable>

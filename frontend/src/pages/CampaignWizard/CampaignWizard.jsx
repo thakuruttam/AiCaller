@@ -206,7 +206,7 @@ export default function CampaignWizard() {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Left Step Panel */}
-      <nav className="w-72 bg-brand-100 dark:bg-ink-200/60 border-r border-paper-500/50 dark:border-ink-400 flex flex-col shrink-0">
+      <nav className="hidden lg:flex w-72 bg-brand-100 dark:bg-ink-200/60 border-r border-paper-500/50 dark:border-ink-400 flex-col shrink-0">
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -273,8 +273,20 @@ export default function CampaignWizard() {
       <div className="flex-1 flex flex-col overflow-hidden bg-paper-200 dark:bg-ink-50">
 
         {/* Sticky step header */}
-        <div className="shrink-0 border-b border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 px-8 py-6">
+        <div className="shrink-0 border-b border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 px-5 md:px-8 py-5 md:py-6">
           <div className="max-w-4xl mx-auto">
+            {/* Stands in for the step rail, which is hidden below `lg`. */}
+            <div className="lg:hidden mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-ink-700 dark:text-ink-900">
+                  Step {step} of {steps.length}
+                </span>
+                <span className="text-xs font-medium text-brand-500 dark:text-brand-300">{progress}%</span>
+              </div>
+              <div className="w-full bg-paper-500 dark:bg-ink-300 h-1.5 rounded-full">
+                <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-700" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
             <h3 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 mb-1 tracking-tight">{steps[step - 1]}</h3>
             <p className="text-ink-600 dark:text-ink-900 text-sm">
               {step === 1 && 'Configure the basics of your outbound campaign — name, type, and core script objectives.'}
@@ -288,21 +300,21 @@ export default function CampaignWizard() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-8 py-6">
+          <div className="max-w-4xl mx-auto px-5 md:px-8 py-6">
             {renderStep()}
           </div>
         </div>
 
         {/* Sticky footer — always visible */}
         <div className="shrink-0 border-t border-paper-500 bg-paper-100 dark:bg-ink-200 dark:border-ink-400">
-          <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
-            <Button variant="secondary" size="md" onClick={handleSaveDraft} icon="save">Save as Draft</Button>
-            <div className="flex gap-4">
-              <Button variant="ghost" size="md" onClick={prevStep} disabled={step === 1} icon="arrow_back">Previous Step</Button>
+          <div className="max-w-4xl mx-auto px-5 md:px-8 py-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
+            <Button variant="secondary" size="md" onClick={handleSaveDraft} icon="save" className="w-full sm:!w-auto">Save as Draft</Button>
+            <div className="flex gap-3 sm:gap-4">
+              <Button variant="ghost" size="md" onClick={prevStep} disabled={step === 1} icon="arrow_back" className="flex-1 sm:flex-none">Previous</Button>
               {step < 5 ? (
-                <Button variant="primary" size="md" onClick={nextStep}>{nextLabels[step - 1]}</Button>
+                <Button variant="primary" size="md" onClick={nextStep} className="flex-1 sm:flex-none">{nextLabels[step - 1]}</Button>
               ) : (
-                <Button variant="primary" size="md" onClick={handleLaunch}>{payload.scheduledAt ? 'Schedule Campaign' : (id ? 'Save Changes' : 'Create Campaign')}</Button>
+                <Button variant="primary" size="md" onClick={handleLaunch} className="flex-1 sm:flex-none">{payload.scheduledAt ? 'Schedule Campaign' : (id ? 'Save Changes' : 'Create Campaign')}</Button>
               )}
             </div>
           </div>

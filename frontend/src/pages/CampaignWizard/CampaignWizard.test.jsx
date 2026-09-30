@@ -73,7 +73,9 @@ describe('CampaignWizard — creation mode', () => {
   it('starts on step 1 (Basics) with 20% progress', () => {
     renderWizard();
     expect(screen.getByTestId('step-basics')).toBeInTheDocument();
-    expect(screen.getByText('20%')).toBeInTheDocument();
+    // Rendered twice: once in the desktop step rail, once in the compact
+    // progress strip that replaces it below `lg`.
+    expect(screen.getAllByText('20%')).toHaveLength(2);
   });
 
   it('advances through steps via the Next button', async () => {
@@ -83,9 +85,9 @@ describe('CampaignWizard — creation mode', () => {
     expect(screen.getByTestId('step-contacts')).toBeInTheDocument();
   });
 
-  it('Previous Step is disabled on step 1', () => {
+  it('Previous is disabled on step 1', () => {
     renderWizard();
-    expect(screen.getByRole('button', { name: /previous step/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
   });
 
   it('does not call the API on mount when there is no campaign id', () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { Button, IconButton, Tabs, CopyField } from '../components/ui';
+import { Button, IconButton, Tabs, CopyField, Pagination } from '../components/ui';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
@@ -551,17 +551,14 @@ export default function CampaignReport() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-4 bg-paper-200/50 dark:bg-ink-50/50 flex justify-between items-center border-t border-paper-400 dark:border-ink-400">
-            <p className="text-xs text-ink-600 dark:text-ink-900">
-              {isFs ? `${filteredContacts.length} evaluated calls` : `Showing ${paginated.length} of ${filteredContacts.length} evaluated calls`}
-            </p>
-            {!isFs && (
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Previous</Button>
-                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</Button>
-              </div>
-            )}
-          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalRows={filteredContacts.length}
+            pageSize={isFs ? 0 : PER_PAGE}
+            onPageChange={setPage}
+            label="evaluated calls"
+          />
         </div>
         )}
 
@@ -644,17 +641,14 @@ export default function CampaignReport() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-4 bg-paper-200/50 dark:bg-ink-50/50 flex justify-between items-center border-t border-paper-400 dark:border-ink-400">
-            <p className="text-xs text-ink-600 dark:text-ink-900">
-              {isFs ? `${qContacts.length} contacts` : `Showing ${qPaginated.length} of ${qContacts.length} contacts`}
-            </p>
-            {!isFs && (
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Previous</Button>
-                <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.min(qTotalPages, p + 1))} disabled={page >= qTotalPages}>Next</Button>
-              </div>
-            )}
-          </div>
+          <Pagination
+            page={page}
+            totalPages={qTotalPages}
+            totalRows={qContacts.length}
+            pageSize={isFs ? 0 : PER_PAGE}
+            onPageChange={setPage}
+            label="contacts"
+          />
         </div>
         )}
 

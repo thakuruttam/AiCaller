@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { campaignTypeLabel } from '../components/campaignTypes';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
@@ -7,23 +8,7 @@ import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import Step7Review from './CampaignWizard/components/Step7Review';
-import { Tabs, Button, IconButton } from '../components/ui';
-
-const STATUS_BADGE = {
-  completed:    "bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive",
-  failed:       'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative',
-  cancelled:    "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  "in-progress":"bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
-  queued:       "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
-  scheduled:    "bg-brand-100 text-brand-600 dark:bg-brand-600/30 dark:text-brand-300",
-};
-
-const TICKET_STATUS_BADGE = {
-  OPEN:        "bg-brand-100 text-brand-600 border border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-600",
-  IN_PROGRESS: "bg-caution/10 text-caution-dim border border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15",
-  RESOLVED:    "bg-positive/10 text-positive-dim border border-positive/30 dark:bg-positive/15 dark:text-positive dark:border-positive/15",
-  CLOSED:      "bg-paper-400 text-ink-700 border border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400",
-};
+import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td } from '../components/ui';
 
 export default function AdminDashboard() {
   const [campaigns, setCampaigns] = useState([]);
@@ -238,21 +223,16 @@ export default function AdminDashboard() {
   const filtered = campaigns.filter(c => c.name?.toLowerCase().includes(campaignSearchQuery.toLowerCase()));
 
   return (
-    <div className="p-10 max-w-[1440px] mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-brand-500 text-3xl">shield</span>
-            <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">Admin Dashboard</h2>
-          </div>
-          <p className="text-ink-600 dark:text-ink-900 text-sm">Real-time system oversight and campaign orchestration.</p>
-        </div>
-        <div className="flex gap-3">
+    <Page>
+      <PageHeader
+        icon="shield"
+        title="Admin Dashboard"
+        subtitle="Real-time system oversight and campaign orchestration."
+        actions={<>
           <Button variant="danger" size="md" icon="skull" onClick={() => { if (window.confirm('CRITICAL ACTION: Kill all active campaigns?')) { campaigns.forEach(c => { if ((c.callLogs||[]).some(l => ['queued','in-progress'].includes(l.status))) { handleCampaignAction(c.id, 'kill'); } }); } }}>Kill All</Button>
-          <Button variant="secondary" size="md" icon="download" >Export Logs</Button>
-        </div>
-      </div>
+          <Button variant="secondary" size="md" icon="download">Export Logs</Button>
+        </>}
+      />
 
       {/* Tab Bar */}
       <Tabs
@@ -291,29 +271,29 @@ export default function AdminDashboard() {
 
       {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
-      <div className="grid grid-cols-12 gap-6 mb-6">
-        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Active Channels</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalChannels} / 2,000</h3>
           <div className="w-full bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full mt-3">
             <div className="bg-brand-500 h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
           </div>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Calls per Second</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalCPS} CPS</h3>
           <p className="text-positive-dim text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
           </p>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">System Latency</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">142ms</h3>
           <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
           </p>
         </div>
-        <div className="col-span-12 md:col-span-3 bg-paper-100 dark:bg-ink-200 p-6 rounded-control border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Error Rate</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">0.04%</h3>
           <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
@@ -384,8 +364,8 @@ export default function AdminDashboard() {
                   <div className="w-8 flex-shrink-0">
                     <span className={`material-symbols-outlined text-ink-800 dark:text-ink-800 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
-                  <div className="flex-1 grid grid-cols-12 gap-4 items-center">
-                    <div className="col-span-3">
+                  <div className="flex-1 grid grid-cols-2 lg:grid-cols-12 gap-x-4 gap-y-3 items-center">
+                    <div className="col-span-2 lg:col-span-3">
                       <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{campaign.name}</p>
                       <p className="text-xs text-ink-700 dark:text-ink-900">ID: {campaign.id?.substring(0,12)}</p>
                       {hasScheduled && campaign.scheduledAt && (
@@ -394,20 +374,22 @@ export default function AdminDashboard() {
                         </p>
                       )}
                     </div>
-                    <div className="col-span-3">
+                    <div className="col-span-2 lg:col-span-3">
                       <p className="text-xs text-ink-700 dark:text-ink-900">Workspace</p>
                       <p className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate">{campaign.tenant?.name || '—'}</p>
                       <p className="text-xs text-ink-800 dark:text-ink-800 truncate">{campaign.createdBy?.email || '—'}</p>
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 lg:col-span-2">
                       <p className="text-xs text-ink-700 dark:text-ink-900">Calls</p>
                       <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{logs.length.toLocaleString()}</p>
                     </div>
-                    <div className="col-span-1">
+                    <div className="col-span-1 lg:col-span-1">
                       <p className="text-xs text-ink-700 dark:text-ink-900">Type</p>
-                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200 capitalize">{campaign.type || 'HR'}</p>
+                      <div className="mt-0.5">
+                        <Badge tone="brand" capitalize={false} className="whitespace-nowrap">{campaignTypeLabel(campaign.type || 'HR')}</Badge>
+                      </div>
                     </div>
-                    <div className="col-span-3 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <div className="col-span-2 lg:col-span-3 flex justify-start lg:justify-end gap-2" onClick={e => e.stopPropagation()}>
                       <Button variant="secondary" size="md" onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} title="View">
                         {viewLoadingId === campaign.id
                           ? <Spinner size={14} className="text-ink-600 dark:text-ink-900" />
@@ -444,15 +426,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="overflow-x-auto rounded-field border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card">
-                        <table className="w-full text-left">
-                          <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                            <tr>
-                              {['Contact','Phone','Status','Actions'].map(h => (
-                                <th key={h} className="px-4 py-2 text-xs font-medium text-ink-600 dark:text-ink-900">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-paper-400 dark:divide-ink-400 text-sm">
+                        <Table>
+                          <THead>
+                            <Th icon="person">Contact</Th>
+                            <Th icon="call">Phone</Th>
+                            <Th icon="flag">Status</Th>
+                            <Th align="right">Actions</Th>
+                          </THead>
+                          <TBody>
                             {(() => {
                               // One row per call attempt (callLog), not per contact — a contact
                               // can have multiple logs (re-calls), and keying off contacts with
@@ -471,9 +452,9 @@ export default function AdminDashboard() {
 
                               if (rows.length === 0) {
                                 return (
-                                  <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-ink-800 dark:text-ink-800 italic">
+                                  <tr><Td colSpan={4} className="text-center text-ink-800 dark:text-ink-800">
                                     {logs.length === 0 ? 'No contacts in this campaign.' : 'No call logs match.'}
-                                  </td></tr>
+                                  </Td></tr>
                                 );
                               }
 
@@ -481,26 +462,22 @@ export default function AdminDashboard() {
                                 const cc = contactByContactId.get(log.contactId);
                                 const name = cc?.overrides?.name || cc?.contact?.name || '—';
                                 return (
-                                  <tr key={log.id} className="hover:bg-paper-200 dark:hover:bg-ink-400/50">
-                                    <td className="px-5 py-3 font-medium text-ink-100 dark:text-paper-200">{name}</td>
-                                    <td className="px-5 py-3 text-ink-700 dark:text-ink-900">{cc?.contact?.phone}</td>
-                                    <td className="px-5 py-3">
-                                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[log.status] || STATUS_BADGE.queued}`}>
-                                        {log.status}
-                                      </span>
-                                    </td>
-                                    <td className="px-5 py-3">
-                                      <div className="flex gap-2">
+                                  <Tr key={log.id}>
+                                    <Td className="font-medium">{name}</Td>
+                                    <Td className="text-ink-700 dark:text-ink-900">{cc?.contact?.phone}</Td>
+                                    <Td><StatusBadge status={log.status} /></Td>
+                                    <Td align="right">
+                                      <div className="flex gap-2 justify-end">
                                         <Button variant="secondary" size="sm" onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'}>Eval</Button>
                                         <Button variant="secondary" size="sm" icon="history" onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading}>Re-call</Button>
                                       </div>
-                                    </td>
-                                  </tr>
+                                    </Td>
+                                  </Tr>
                                 );
                               });
                             })()}
-                          </tbody>
-                        </table>
+                          </TBody>
+                        </Table>
                       </div>
                     </div>
                   </div>
@@ -557,7 +534,7 @@ export default function AdminDashboard() {
         </Modal>
       )}
       </>)}
-    </div>
+    </Page>
   );
 }
 
@@ -644,9 +621,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate leading-tight">{t.subject}</p>
-                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}>
-                          {t.status.replace('_', ' ')}
-                        </span>
+                        <StatusBadge status={t.status} className="shrink-0" />
                       </div>
                       <p className="text-xs text-ink-700 dark:text-ink-900 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
                       <div className="flex items-center gap-2 mt-1">

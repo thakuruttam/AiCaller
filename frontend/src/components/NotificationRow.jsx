@@ -27,7 +27,7 @@ export default function NotificationRow({
     <div
       className={[
         'group flex items-start gap-3 transition-colors',
-        compact ? 'px-4 py-3' : 'px-7 py-5 gap-4',
+        compact ? 'px-4 py-3' : 'px-4 py-4 sm:px-7 sm:py-5 sm:gap-4',
         n.isRead ? '' : 'bg-brand-100/40 dark:bg-brand-500/[0.07]',
         'hover:bg-paper-200 dark:hover:bg-ink-300/60',
         className,
@@ -92,8 +92,10 @@ export default function NotificationRow({
         </div>
       </div>
 
+      {/* Revealed on hover on a pointer device; a touch screen has no hover,
+          so below `sm` the actions stay visible or they'd be unreachable. */}
       {actions && (
-        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           {actions}
         </div>
       )}

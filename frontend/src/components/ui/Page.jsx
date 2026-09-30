@@ -5,19 +5,30 @@ import React from 'react';
 export default function Page({ className = '', children }) {
   return (
     <div className="ui-inter bg-paper-300 dark:bg-ink-50 min-h-full">
-      <div className={`p-10 max-w-[1440px] mx-auto animate-fade-in ${className}`}>{children}</div>
+      {/* A 40px gutter is right on a desktop and wasteful on a 390px phone,
+          where it costs a fifth of the width — so it tightens below `md`. */}
+      <div className={`p-5 md:p-10 max-w-[1440px] mx-auto animate-fade-in ${className}`}>{children}</div>
     </div>
   );
 }
 
-export function PageHeader({ title, subtitle, actions, className = '' }) {
+// Below `md` the actions sit under the title instead of beside it. Side by
+// side they used to be pinned right with `shrink-0`, which on a phone squeezed
+// the subtitle into a tall column and pushed the buttons past the right edge,
+// where nothing scrolled to reach them.
+export function PageHeader({ title, subtitle, icon, actions, className = '' }) {
   return (
-    <div className={`flex justify-between items-end gap-6 mb-10 ${className}`}>
-      <div>
-        <h1 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">{title}</h1>
+    <div className={`flex flex-col items-start gap-4 mb-10 md:flex-row md:justify-between md:items-end md:gap-6 ${className}`}>
+      <div className="min-w-0">
+        <h1 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 flex items-center gap-2">
+          {icon && <span className="material-symbols-outlined [--icon-size:26px] text-brand-500 shrink-0">{icon}</span>}
+          {title}
+        </h1>
         {subtitle && <p className="text-sm text-ink-600 dark:text-ink-900 mt-1">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:shrink-0">{actions}</div>
+      )}
     </div>
   );
 }

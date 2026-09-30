@@ -3,6 +3,14 @@ import { BarChart3, TrendingUp, Target, Activity, AlertCircle } from 'lucide-rea
 import axios from 'axios';
 import { EVAL_BASE } from '../api/config';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
+import {
+  Button, Badge, toneForStatus, statusLabel,
+  Table, THead, TBody, Th, Tr, Td,
+} from '../components/ui';
+
+// Sentiment isn't a call status, so it gets its own tone map rather than being
+// forced through `toneForStatus`.
+const SENTIMENT_TONE = { positive: 'positive', negative: 'negative', neutral: 'neutral' };
 
 export default function CampaignEvaluationReport({ campaignId }) {
   const [report, setReport] = useState(null);
@@ -74,13 +82,16 @@ export default function CampaignEvaluationReport({ campaignId }) {
           <Activity size={16} className="text-brand-500" /> Evaluation Analytics
         </h3>
         <div className="flex items-center gap-2">
-          <a
+          <Button
+            as="a"
+            variant="secondary"
+            size="sm"
+            icon="download"
             href={`${EVAL_BASE}/reports/campaign/${campaignId}/export.csv`}
             download
-            className="text-xs font-medium bg-paper-100 dark:bg-ink-300 border border-paper-500 dark:border-ink-400 text-ink-500 dark:text-ink-900 px-3 py-1.5 rounded-control hover:bg-paper-200 dark:hover:bg-ink-400/50 transition-colors shadow-card"
           >
-            Download Full CSV Report
-          </a>
+            Download CSV
+          </Button>
           <FullscreenButton toggle={toggle} isFs={isFs} />
         </div>
       </div>
@@ -115,21 +126,12 @@ export default function CampaignEvaluationReport({ campaignId }) {
           <div className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Sentiment</div>
           <div className="flex flex-col gap-1 mt-1">
             {Object.entries(report.sentimentBreakdown || {}).length > 0 ? (
-              Object.entries(report.sentimentBreakdown).slice(0, 3).map(([sentiment, count]) => {
-                const isPos = sentiment.toLowerCase() === 'positive';
-                const isNeg = sentiment.toLowerCase() === 'negative';
-                const color = isPos
-                  ? 'bg-positive/10 text-positive-dim border-positive/30 dark:bg-positive/15 dark:text-positive dark:border-positive/15'
-                  : isNeg
-                    ? 'bg-negative/10 text-negative-dim border-negative/30 dark:bg-negative/15 dark:text-negative dark:border-negative/15'
-                    : 'bg-paper-400 text-ink-500 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400';
-                return (
-                  <div key={sentiment} className="flex items-center justify-between text-xs leading-tight">
-                    <span className={`px-1.5 py-0.5 rounded border text-xs font-medium uppercase ${color}`}>{sentiment}</span>
-                    <span className="font-bold text-ink-100 dark:text-paper-200">{count}</span>
-                  </div>
-                );
-              })
+              Object.entries(report.sentimentBreakdown).slice(0, 3).map(([sentiment, count]) => (
+                <div key={sentiment} className="flex items-center justify-between gap-2 leading-tight">
+                  <Badge tone={SENTIMENT_TONE[sentiment.toLowerCase()] || 'neutral'}>{sentiment}</Badge>
+                  <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">{count}</span>
+                </div>
+              ))
             ) : (
               <span className="text-xs text-ink-800 dark:text-ink-800 italic">No sentiment data</span>
             )}
@@ -148,50 +150,52 @@ export default function CampaignEvaluationReport({ campaignId }) {
             </span>
           </div>
           <div className="overflow-auto max-h-[400px]">
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="border-b border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
-                  {['Contact', 'Outcome', 'Sentiment', 'Score', 'Extracted Data', 'Summary'].map(h => (
-                    <th key={h} className="px-5 py-3 text-xs font-medium text-ink-700 dark:text-ink-900 ">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
+            <Table>
+              <THead>
+                <Th icon="person">Contact</Th>
+                <Th icon="flag">Outcome</Th>
+                <Th icon="mood">Sentiment</Th>
+                <Th icon="target" align="right">Score</Th>
+                <Th icon="data_object">Extracted data</Th>
+                <Th icon="notes">Summary</Th>
+              </THead>
+              <TBody>
                 {contacts.map((c) => {
                   const extractedEntries = Object.entries(c.extractedFields || {}).filter(([, v]) => v.value != null);
                   return (
-                    <tr key={c.callLogId} className="hover:bg-paper-200/70 dark:hover:bg-ink-400/50 transition-colors">
-                      <td className="px-7 py-5 font-semibold text-ink-100 dark:text-paper-200 whitespace-nowrap">{c.contactName || 'Unknown'}</td>
-                      <td className="px-7 py-5">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          c.outcome === 'COMPLETED'
-                            ? 'bg-positive/10 text-positive-dim ring-1 ring-positive dark:bg-positive/15 dark:text-positive dark:ring-positive/15'
-                            : 'bg-negative/10 text-negative-dim ring-1 ring-negative dark:bg-negative/15 dark:text-negative dark:ring-negative/15'
-                        }`}>
-                          {c.outcome}
-                        </span>
-                      </td>
-                      <td className="px-7 py-5 capitalize text-ink-500 dark:text-ink-900 text-sm">{c.sentiment || '-'}</td>
-                      <td className="px-7 py-5 font-bold text-ink-100 dark:text-paper-200">{c.score !== null ? c.score : '-'}</td>
-                      <td className="px-7 py-5 text-xs">
+                    <Tr key={c.callLogId}>
+                      <Td className="font-medium whitespace-nowrap">{c.contactName || 'Unknown'}</Td>
+                      <Td>
+                        <Badge tone={toneForStatus(c.outcome)}>{statusLabel(c.outcome)}</Badge>
+                      </Td>
+                      <Td>
+                        {c.sentiment
+                          ? <Badge tone={SENTIMENT_TONE[String(c.sentiment).toLowerCase()] || 'neutral'}>{c.sentiment}</Badge>
+                          : <span className="text-ink-800">—</span>}
+                      </Td>
+                      <Td align="right" className="font-semibold">{c.score !== null ? c.score : '—'}</Td>
+                      <Td>
                         {extractedEntries.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
                             {extractedEntries.map(([key, val]) => (
-                              <span key={key} className="bg-paper-400 dark:bg-ink-300 px-1.5 py-0.5 rounded text-ink-600 dark:text-ink-900 border border-paper-500 dark:border-ink-400 text-xs">
-                                <strong>{key}:</strong> {typeof val.value === 'object' ? '...' : val.value}
-                              </span>
+                              <Badge key={key} dot={false} capitalize={false}>
+                                <span className="text-ink-800 dark:text-ink-800">{key}</span>
+                                <span className="text-ink-100 dark:text-paper-200">
+                                  {typeof val.value === 'object' ? '…' : String(val.value)}
+                                </span>
+                              </Badge>
                             ))}
                           </div>
-                        ) : <span className="text-ink-800 dark:text-ink-800 italic">None</span>}
-                      </td>
-                      <td className="px-7 py-5 text-xs text-ink-700 dark:text-ink-900 max-w-[250px] truncate" title={c.reportSummary}>
-                        {c.reportSummary || '-'}
-                      </td>
-                    </tr>
+                        ) : <span className="text-ink-800">None</span>}
+                      </Td>
+                      <Td className="text-ink-600 dark:text-ink-900 max-w-[260px] truncate" title={c.reportSummary}>
+                        {c.reportSummary || '—'}
+                      </Td>
+                    </Tr>
                   );
                 })}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
         </div>
       )}
