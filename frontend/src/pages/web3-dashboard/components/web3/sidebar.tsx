@@ -104,19 +104,12 @@ export function DashboardSidebar() {
                         )}
                       >
                         <Link to={item.to}>
-                          <span
+                          <item.icon
                             className={cn(
-                              "flex items-center justify-center rounded-md",
-                              active ? "bg-gradient-to-br from-brand-450 to-brand-800 p-1 -m-1" : "",
+                              "size-4",
+                              active ? "text-primary" : "",
                             )}
-                          >
-                            <item.icon
-                              className={cn(
-                                "size-4",
-                                active ? "text-white" : "",
-                              )}
-                            />
-                          </span>
+                          />
                           <span>{item.label}</span>
                         </Link>
                       </SidebarMenuButton>
