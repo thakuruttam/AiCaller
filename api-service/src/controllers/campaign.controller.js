@@ -478,7 +478,7 @@ export const getCampaigns = async (req, res) => {
       where: filter,
       include: {
         tenant: { select: { id: true, name: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
         campaignContacts: {
           include: { contact: true }
         },

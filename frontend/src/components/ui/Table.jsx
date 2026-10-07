@@ -11,9 +11,9 @@ export default function Table({ className = '', children }) {
   );
 }
 
-export function THead({ children }) {
+export function THead({ className = '', children }) {
   return (
-    <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
+    <thead className={`bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400 ${className}`}>
       <tr>{children}</tr>
     </thead>
   );

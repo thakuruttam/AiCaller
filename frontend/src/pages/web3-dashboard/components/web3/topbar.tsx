@@ -1,0 +1,144 @@
+import * as React from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronDown, Megaphone, Plus, Search } from "lucide-react";
+
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { SidebarTrigger } from "../../ui/sidebar";
+import { ThemeToggle } from "../../ui/theme-toggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../ui/dropdown-menu";
+import { useAuth } from "../../../../context/AuthContext";
+import { useToast } from "../../../../context/ToastContext";
+import api from "../../../../api/axios";
+
+function WorkspacePicker() {
+  const { user, workspaces, switchWorkspace, refreshWorkspaces } = useAuth();
+  const { addToast } = useToast();
+  const [switching, setSwitching] = React.useState(null);
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [newWsName, setNewWsName] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
+
+  const current = workspaces.find((w) => w.id === user?.workspaceId);
+
+  const handleSwitch = async (workspaceId) => {
+    if (workspaceId === user?.workspaceId) return;
+    setSwitching(workspaceId);
+    try {
+      await switchWorkspace(workspaceId);
+      window.location.reload();
+    } catch {
+      /* ignore */
+    } finally {
+      setSwitching(null);
+    }
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!newWsName.trim()) return;
+    setCreating(true);
+    try {
+      const { data } = await api.post("/api/workspaces", { name: newWsName.trim() });
+      await refreshWorkspaces();
+      await switchWorkspace(data.id);
+      window.location.reload();
+    } catch (err) {
+      addToast(err.response?.data?.error || "Failed to create workspace", "error");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (!current && user?.role !== "SUPER_ADMIN") return null;
+
+  const initials = current?.name?.charAt(0)?.toUpperCase() || "?";
+
+  return (
+    <DropdownMenu onOpenChange={(open) => { if (!open) setShowCreate(false); }}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="bg-muted h-9 w-[190px] justify-between gap-2 shrink-0">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+              {initials}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-left">{current?.name || "No workspace"}</span>
+          </span>
+          <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-64" align="start">
+        <DropdownMenuLabel>{current?.name || "Workspace"}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {workspaces.filter((w) => w.id !== user?.workspaceId).map((w) => (
+          <DropdownMenuItem key={w.id} disabled={!!switching} onClick={() => handleSwitch(w.id)}>
+            <span className="bg-accent text-accent-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+              {switching === w.id ? "…" : w.name.charAt(0).toUpperCase()}
+            </span>
+            {w.name}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        {showCreate ? (
+          <form onSubmit={handleCreate} className="flex items-center gap-2 p-2">
+            <Input
+              autoFocus
+              required
+              value={newWsName}
+              onChange={(e) => setNewWsName(e.target.value)}
+              placeholder="Workspace name…"
+              className="h-8 text-sm"
+            />
+            <Button type="submit" size="sm" disabled={creating || !newWsName.trim()}>
+              {creating ? "…" : "Add"}
+            </Button>
+          </form>
+        ) : (
+          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setShowCreate(true); }}>
+            <Plus className="size-4" />
+            New workspace
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function DashboardTopbar() {
+  const navigate = useNavigate();
+
+  return (
+    <header className="flex min-h-16 items-center justify-between gap-4">
+      <div className="flex w-full max-w-sm items-center gap-2">
+        <SidebarTrigger className="shrink-0 lg:hidden" />
+        <div className="relative flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            aria-label="Search assets"
+            className="border-border bg-muted h-9 w-full rounded-lg pl-9 text-sm"
+            placeholder="search campaigns, calls, contacts..."
+          />
+        </div>
+      </div>
+
+      <div className="hidden items-center gap-2 md:flex">
+        <WorkspacePicker />
+        <ThemeToggle />
+        <Button
+          className="h-9 px-5 shadow-[inset_0_1px_6px_2px_rgba(255,255,255,0.1),inset_0_-1px_6px_2px_rgba(0,0,0,0.1)]"
+          onClick={() => navigate("/create-campaign")}
+        >
+          Create Campaign
+          <Megaphone className="size-4" />
+        </Button>
+      </div>
+    </header>
+  );
+}

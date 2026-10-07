@@ -89,6 +89,61 @@
   --shadow-overlay: 0 16px 48px #0000001f, 0 2px 8px #1c284029;
 }
 
+/* Token-to-utility mapping for the vendored shadcn/ui components under
+   src/pages/web3-dashboard/. These color and radius tokens only have a
+   value inside the .web3-dashboard scope (see dashboard.css), so the
+   utilities they generate (bg-background, text-sidebar-foreground, etc.)
+   are inert everywhere else in the app -- this is additive, not a second
+   palette for the app itself.
+
+   "inline" matters here: these values are var() references into a scope
+   (.web3-dashboard), not literal colors. A plain @theme block registers
+   them as inherited :root custom properties, and the nested var()-in-var()
+   chain that produces does NOT re-resolve against the .web3-dashboard
+   override when read by a descendant (confirmed empirically — a browser
+   limitation around nested custom-property substitution across cascade
+   scopes, not a spec-lazy-resolution thing like you'd expect). "inline"
+   makes Tailwind substitute the var() directly into each generated utility
+   (e.g. ".text-primary { color: var(--primary) }") with no intermediate
+   custom property, which resolves correctly per the scope it's used in. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}
+
 @layer base {
   * {
     border-color: var(--color-paper-500);
