@@ -50,7 +50,7 @@ export default function NotificationDropdown() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-card shadow-[0_8px_30px_rgba(0,0,0,0.12)] bg-paper-100 dark:bg-ink-200 border border-paper-400 dark:border-ink-400 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 bg-card dark:bg-muted rounded-2xl shadow-overlay z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-paper-400 dark:border-ink-400">
             <span className="font-semibold text-sm text-ink-100 dark:text-paper-200">Notifications</span>

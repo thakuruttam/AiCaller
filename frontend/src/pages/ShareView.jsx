@@ -1,18 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
+import { Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, Badge, Button, IconButton, EmptyState, FilterBar } from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 
-const OUTCOME_BADGE = {
-  COMPLETED:    "bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive",
-  NO_ANSWER:    "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
-  INCOMPLETE:   "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  WRONG_PERSON: 'bg-negative/10 text-negative-dim',
-  RESCHEDULE:   "bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
-  BUSY:         "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
-  FAILED:       "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+const OUTCOME_TONE = {
+  COMPLETED:    'positive',
+  NO_ANSWER:    'neutral',
+  INCOMPLETE:   'caution',
+  WRONG_PERSON: 'negative',
+  RESCHEDULE:   'brand',
+  BUSY:         'neutral',
+  FAILED:       'negative',
 };
+
+const NO_CONTACTS = [];
+
+const outcomeLabel = (outcome) => (outcome ? outcome.replace(/_/g, ' ').toLowerCase() : 'pending');
 
 const SENTIMENT_COLOR = {
   positive: 'text-positive',
@@ -38,6 +46,7 @@ export default function ShareView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -65,6 +74,23 @@ export default function ShareView() {
       : 'Shared Campaign Report — AI Caller Pro';
   }, [data]);
 
+  const filtered = (data?.contacts ?? NO_CONTACTS).filter(c =>
+    !search || (c.contactName || '').toLowerCase().includes(search.toLowerCase())
+  );
+  const filters = useFacets(filtered, {
+    outcome: { label: 'Outcome', get: c => c.outcome || 'PENDING', format: v => outcomeLabel(v === 'PENDING' ? null : v) },
+    sentiment: { label: 'Sentiment', get: c => c.sentiment },
+  });
+  const isFiltered = !!search || filters.activeCount > 0;
+  const clearAllFilters = () => { setSearch(''); filters.reset(); };
+
+  const { sorted, sortProps } = useSort(filters.filtered, {
+    contact: c => c.contactName,
+    outcome: c => c.outcome,
+    score: c => c.score,
+    date: c => c.createdAt,
+  });
+
   if (loading) return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50 flex items-center justify-center">
       <div className="text-ink-700 dark:text-ink-900 text-sm">Loading shared report…</div>
@@ -81,9 +107,15 @@ export default function ShareView() {
   );
 
   const { campaign, expiresAt, contacts } = data;
-  const filtered = contacts.filter(c =>
-    !search || (c.contactName || '').toLowerCase().includes(search.toLowerCase())
-  );
+
+  const handleExport = () => exportCsv(`${campaign.name || 'shared-report'}-calls-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Contact', value: c => c.contactName },
+    { header: 'Phone', value: c => c.phone },
+    { header: 'Outcome', value: c => outcomeLabel(c.outcome) },
+    { header: 'Score', value: c => c.score },
+    { header: 'Sentiment', value: c => c.sentiment },
+    { header: 'Date', value: c => c.createdAt && new Date(c.createdAt).toISOString().slice(0, 10) },
+  ], sorted);
 
   const total = contacts.length;
   const completed = contacts.filter(c => c.outcome === 'COMPLETED').length;
@@ -116,87 +148,102 @@ export default function ShareView() {
 
         {/* KPI row */}
         <div className="grid grid-cols-3 gap-5">
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
             <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Total Calls</p>
             <p className="text-2xl font-bold text-ink-100 dark:text-paper-200">{total}</p>
           </div>
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
             <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Completed</p>
             <p className="text-2xl font-bold text-positive-dim">{completed}</p>
           </div>
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
             <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Avg Score</p>
             <p className="text-2xl font-bold text-brand-500">{avgScore != null ? `${avgScore}%` : '—'}</p>
           </div>
         </div>
 
         {/* Search + table */}
-        <FullscreenTable className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
+        <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
           {({ toggle, isFs }) => (<>
-          <div className="px-5 py-4 border-b border-paper-400 dark:border-ink-400 flex items-center gap-3">
-            <span className="material-symbols-outlined text-ink-800 dark:text-ink-800 text-[18px]">search</span>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search contacts…"
-              className="flex-1 text-sm bg-transparent outline-none text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700"
+          <TableToolbar
+            title="Calls"
+            count={sorted.length}
+            actions={<>
+              <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sorted.length} />
+              <FullscreenButton toggle={toggle} isFs={isFs} />
+            </>}
+          >
+            <FilterBar filters={filters} />
+            <div className="flex flex-1 items-center gap-2 md:max-w-xs md:ml-auto h-9 px-3 rounded-control bg-paper-200 dark:bg-white/[0.04] ring-1 ring-inset ring-border focus-within:ring-brand-500/50">
+              <span className="material-symbols-outlined [--icon-size:18px] text-muted-foreground">search</span>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search contacts…"
+                aria-label="Search contacts"
+                className="flex-1 min-w-0 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+          </TableToolbar>
+          {sorted.length === 0 ? (
+            <EmptyState
+              icon="search_off"
+              title="No calls found"
+              body={isFiltered ? 'Try a different name or clear the filters.' : undefined}
+              action={isFiltered && <Button variant="secondary" size="sm" onClick={clearAllFilters}>Clear filters</Button>}
             />
-            <FullscreenButton toggle={toggle} isFs={isFs} />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                <tr>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 dark:text-ink-900 ">Contact</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 dark:text-ink-900 ">Outcome</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 dark:text-ink-900 ">Score</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 dark:text-ink-900 ">Sentiment</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 dark:text-ink-900 ">Date</th>
-                  <th className="px-7 py-4"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-paper-400 dark:divide-ink-400/50">
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-ink-800 dark:text-ink-800 text-sm">No calls found</td></tr>
-                ) : filtered.map(c => (
-                  <tr key={c.callLogId} className="hover:bg-paper-200 dark:hover:bg-ink-400/50 transition-colors">
-                    <td className="px-7 py-5">
-                      <p className="font-medium text-ink-100 dark:text-paper-200">{c.contactName}</p>
-                      <p className="text-xs text-ink-800 dark:text-ink-800">{c.phone}</p>
-                    </td>
-                    <td className="px-7 py-5">
+          ) : (
+            <Table>
+              <THead>
+                <Th {...sortProps('contact')}>Contact</Th>
+                <Th {...sortProps('outcome')}>Outcome</Th>
+                <Th align="right" {...sortProps('score')}>Score</Th>
+                <Th>Sentiment</Th>
+                <Th {...sortProps('date')}>Date</Th>
+                <Th><span className="sr-only">Actions</span></Th>
+              </THead>
+              <TBody>
+                {sorted.map(c => (
+                  <Tr key={c.callLogId} onClick={() => navigate(`/share/${token}/calls/${c.callLogId}`)}>
+                    <Td>
+                      <CellStack title={c.contactName} meta={c.phone} />
+                    </Td>
+                    <Td>
                       {c.outcome ? (
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${OUTCOME_BADGE[c.outcome] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
-                          {c.outcome.replace('_', ' ')}
-                        </span>
+                        <Badge tone={OUTCOME_TONE[c.outcome] || 'neutral'}>
+                          {outcomeLabel(c.outcome)}
+                        </Badge>
                       ) : (
-                        <span className="text-xs text-ink-800 dark:text-ink-800 italic">Pending</span>
+                        <span className="text-xs text-muted-foreground italic">Pending</span>
                       )}
-                    </td>
-                    <td className="px-7 py-5"><ScoreRing score={c.score} /></td>
-                    <td className="px-7 py-5">
+                    </Td>
+                    <Td numeric><ScoreRing score={c.score} /></Td>
+                    <Td>
                       {c.sentiment ? (
-                        <span className={`material-symbols-outlined text-[20px] ${SENTIMENT_COLOR[c.sentiment]}`} style={{fontVariationSettings:"'FILL' 1"}}>
+                        <span className={`material-symbols-outlined [--icon-size:20px] ${SENTIMENT_COLOR[c.sentiment]}`} style={{fontVariationSettings:"'FILL' 1"}}>
                           {SENTIMENT_ICON[c.sentiment]}
                         </span>
-                      ) : <span className="text-xs text-ink-800 dark:text-ink-800">—</span>}
-                    </td>
-                    <td className="px-7 py-5 text-xs text-ink-700 dark:text-ink-900">
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </Td>
+                    <Td muted className="whitespace-nowrap">
                       {new Date(c.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-7 py-5 text-right">
-                      <Link
-                        to={`/share/${token}/calls/${c.callLogId}`}
-                        className="text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors"
-                      >
-                        View →
-                      </Link>
-                    </td>
-                  </tr>
+                    </Td>
+                    <Td align="right">
+                      <RowActions>
+                        <Link
+                          to={`/share/${token}/calls/${c.callLogId}`}
+                          onClick={e => e.stopPropagation()}
+                          className="text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors"
+                        >
+                          View →
+                        </Link>
+                      </RowActions>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TBody>
+            </Table>
+          )}
           </>)}
         </FullscreenTable>
       </main>

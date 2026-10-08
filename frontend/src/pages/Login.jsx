@@ -227,7 +227,7 @@ export default function Login() {
             RIGHT — Login Form
         ════════════════════════════════════════ */}
         <section className="flex-1 flex flex-col items-center px-8 py-10 bg-paper-300 dark:bg-ink-50">
-          <div className={`w-full max-w-[460px] my-auto flex flex-col bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-8 sm:p-10 ${mounted ? 'anim-enter' : 'opacity-0'}`}>
+          <div className={`bg-card dark:bg-muted rounded-2xl shadow-primary w-full max-w-[460px] my-auto flex flex-col p-8 sm:p-10 ${mounted ? 'anim-enter' : 'opacity-0'}`}>
 
             {/* Mobile logo */}
             <div className="lg:hidden flex items-center gap-2.5 mb-10">
@@ -344,7 +344,7 @@ export default function Login() {
 
         {/* Toast — bottom-left, card style matched to this page's own surface/hairline language */}
         {toast && (
-          <div className="fixed z-50 anim-toast flex items-center gap-3 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-raised"
+          <div className="bg-card dark:bg-muted rounded-2xl fixed z-50 anim-toast flex items-center gap-3 shadow-raised"
             style={{
               left: '24px', bottom: '24px',
               minWidth: '300px',

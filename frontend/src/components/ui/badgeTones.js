@@ -9,6 +9,14 @@ export const TONE_DOT = {
   brand:    'bg-brand-500',
 };
 
+export const TONE_PILL = {
+  neutral:  'bg-paper-300/70 text-ink-600 ring-paper-600 dark:bg-white/[0.05] dark:text-ink-900 dark:ring-white/10',
+  positive: 'bg-positive/10 text-positive-dim ring-positive/25 dark:text-positive dark:ring-positive/20',
+  caution:  'bg-caution/10 text-caution-dim ring-caution/30 dark:text-caution dark:ring-caution/20',
+  negative: 'bg-negative/10 text-negative-dim ring-negative/25 dark:text-negative dark:ring-negative/20',
+  brand:    'bg-brand-500/10 text-brand-600 ring-brand-500/25 dark:text-brand-300 dark:ring-brand-500/30',
+};
+
 // Every status string the app uses, mapped once.
 const STATUS_TONE = {
   active: 'positive', completed: 'positive', succeeded: 'positive', sent: 'positive',

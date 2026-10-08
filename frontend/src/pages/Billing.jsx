@@ -1,5 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Page, PageHeader, Button, IconButton, SelectableCard, Badge } from '../components/ui';
+import {
+  Page, PageHeader, Button, IconButton, SelectableCard, Badge,
+  Table, THead, Th, TBody, Tr, Td, TableToolbar, EmptyState, FilterBar,
+} from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 
@@ -14,6 +20,11 @@ const TIER_BADGE = {
   ENTERPRISE_PLUS:'bg-gradient-to-r from-brand-500 to-brand-600 text-white border-transparent',
 };
 
+
+const packLabel = (packId) => {
+  const l = String(packId ?? '').replace(/_/g, ' ').toLowerCase();
+  return l.charAt(0).toUpperCase() + l.slice(1);
+};
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -44,6 +55,26 @@ export default function Billing() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const filters = useFacets(history, {
+    status: { label: 'Status', get: t => t.status, format: packLabel },
+    pack: { label: 'Pack', get: t => t.packId, format: packLabel },
+  });
+
+  const { sorted: sortedHistory, sortProps } = useSort(filters.filtered, {
+    date: t => t.createdAt,
+    pack: t => t.packId,
+    minutes: t => t.minutes || 0,
+  });
+
+  const handleExport = () => exportCsv(`billing-history-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Date', value: t => t.createdAt && new Date(t.createdAt).toISOString().slice(0, 10) },
+    { header: 'Pack', value: t => packLabel(t.packId) },
+    { header: 'Minutes', value: t => t.minutes || 0 },
+    { header: 'Amount', value: t => t.displayAmount },
+    { header: 'Tier unlocked', value: t => t.tierUnlocked?.replace('_', '+') },
+    { header: 'Status', value: t => packLabel(t.status) },
+  ], sortedHistory);
 
   // Load Razorpay checkout script once
   useEffect(() => {
@@ -162,7 +193,7 @@ export default function Billing() {
         </div>
 
         {/* Limits card */}
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-xs font-medium text-ink-600 dark:text-ink-900 mb-4">Plan Limits</p>
           <div className="space-y-3">
             {[
@@ -187,7 +218,7 @@ export default function Billing() {
         </div>
 
         {/* Total spend card */}
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-xs font-medium text-ink-600 dark:text-ink-900 mb-4">Account Summary</p>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -271,51 +302,57 @@ export default function Billing() {
       </div>
 
       {/* Transaction history */}
-      <div>
-        <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-4">Transaction History</h2>
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
-          {history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 gap-2">
-              <span className="material-symbols-outlined text-paper-200 dark:text-ink-500 text-[40px]">receipt_long</span>
-              <p className="text-sm text-ink-800">No transactions yet.</p>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                <tr>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Date</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Pack</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Minutes</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Amount</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Tier Unlocked</th>
-                  <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
-                {history.map((t) => (
-                  <tr key={t.id} className="hover:bg-paper-200/60 dark:hover:bg-ink-100/60 transition-colors">
-                    <td className="px-7 py-5 text-ink-600 dark:text-ink-900">{formatDate(t.createdAt)}</td>
-                    <td className="px-7 py-5 font-semibold text-ink-100 dark:text-paper-200 capitalize">{t.packId.replace('_', ' ')}</td>
-                    <td className="px-7 py-5 text-ink-600 dark:text-ink-900">+{(t.minutes || 0).toLocaleString('en-IN')} min</td>
-                    <td className="px-7 py-5 font-semibold text-ink-100 dark:text-paper-200">{t.displayAmount}</td>
-                    <td className="px-7 py-5">
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${TIER_BADGE[t.tierUnlocked]}`}>
-                        {t.tierUnlocked.replace('_', '+')}
-                      </span>
-                    </td>
-                    <td className="px-7 py-5">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                        t.status === 'SUCCESS' ? 'bg-positive/10 text-positive-dim' : 'bg-paper-400 text-ink-700'
-                      }`}>
-                        {t.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <TableToolbar
+          title="Transaction history"
+          count={history.length ? sortedHistory.length : null}
+          actions={history.length > 0 && (
+            <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedHistory.length} />
           )}
-        </div>
+        >
+          {history.length > 0 && <FilterBar filters={filters} />}
+        </TableToolbar>
+        {history.length === 0 ? (
+          <EmptyState icon="receipt_long" title="No transactions yet" body="Top-ups you make will be listed here." />
+        ) : sortedHistory.length === 0 ? (
+          <EmptyState
+            icon="filter_alt_off"
+            title="No transactions match your filters"
+            body="Try a different status or pack, or clear the filters."
+            action={<Button variant="secondary" onClick={filters.reset}>Clear filters</Button>}
+          />
+        ) : (
+          <Table>
+            <THead>
+              <Th {...sortProps('date')}>Date</Th>
+              <Th {...sortProps('pack')}>Pack</Th>
+              <Th align="right" {...sortProps('minutes')}>Minutes</Th>
+              <Th align="right">Amount</Th>
+              <Th>Tier unlocked</Th>
+              <Th>Status</Th>
+            </THead>
+            <TBody>
+              {sortedHistory.map((t) => (
+                <Tr key={t.id}>
+                  <Td muted className="whitespace-nowrap">{formatDate(t.createdAt)}</Td>
+                  <Td className="font-medium capitalize">{t.packId.replace('_', ' ')}</Td>
+                  <Td numeric muted>+{(t.minutes || 0).toLocaleString('en-IN')} min</Td>
+                  <Td numeric className="font-semibold">{t.displayAmount}</Td>
+                  <Td>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${TIER_BADGE[t.tierUnlocked]}`}>
+                      {t.tierUnlocked.replace('_', '+')}
+                    </span>
+                  </Td>
+                  <Td>
+                    <Badge tone={t.status === 'SUCCESS' ? 'positive' : 'neutral'}>
+                      {t.status.toLowerCase()}
+                    </Badge>
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        )}
       </div>
   </Page>
   );

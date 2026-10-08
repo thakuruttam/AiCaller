@@ -1,17 +1,16 @@
 import React from 'react';
 
-// Surfaces are separated by a hairline, not elevation — shadow-card is barely
-// there on purpose. `padded={false}` is for cards that own their own layout,
+// Same surface as the Dashboard's KPI and table cards: no hairline border, a
+// soft shadow-primary ring and a 16px radius (tokens from web3-dashboard/
+// dashboard.css). `padded={false}` is for cards that own their own layout,
 // like one wrapping a full-bleed table.
 export default function Card({ padded = true, interactive = false, className = '', children, ...props }) {
   return (
     <div
       className={[
-        'bg-paper-100 dark:bg-ink-200',
-        'border border-paper-500 dark:border-ink-400',
-        'rounded-card shadow-card',
-        padded ? 'p-7' : '',
-        interactive ? 'hover:shadow-raised hover:-translate-y-px transition-[box-shadow,transform] duration-200' : '',
+        'bg-card dark:bg-muted rounded-2xl shadow-primary',
+        padded ? 'p-6' : '',
+        interactive ? 'hover:-translate-y-px transition-transform duration-200' : '',
         className,
       ].join(' ')}
       {...props}

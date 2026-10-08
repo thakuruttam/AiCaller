@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Button, IconButton, Tabs } from '../../../components/ui';
+import {
+  Button, IconButton, Tabs, Table, THead, Th, TBody, Tr, Td, RowActions,
+} from '../../../components/ui';
 import { createPortal } from 'react-dom';
 import { Upload, UserPlus, X, AlertTriangle, ArrowLeft } from 'lucide-react';
 import Papa from 'papaparse';
@@ -32,7 +34,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-6">
-      <div className="w-full max-w-3xl bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay flex flex-col overflow-hidden" style={{maxHeight: '90vh'}}>
+      <div className="bg-card dark:bg-muted rounded-2xl w-full max-w-3xl shadow-overlay flex flex-col overflow-hidden" style={{maxHeight: '90vh'}}>
 
         {/* Header — centered */}
         <div className="pt-8 pb-5 px-8 text-center shrink-0">
@@ -88,39 +90,37 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
               <div className="mb-3">
                 <p className="text-xs font-medium text-ink-100 dark:text-paper-200 ">Data Preview</p>
               </div>
-              <div className="rounded-card border border-paper-500 dark:border-ink-400 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-500 dark:border-ink-400">
-                      <th className="px-7 py-4 text-left text-xs font-medium text-ink-800 dark:text-ink-800 ">ID</th>
+              <div className="rounded-xl border border-border overflow-hidden">
+                <Table>
+                  <THead>
+                      <Th align="right" className="w-12">ID</Th>
                       {displayCols.map(h => {
                         const isName  = h === nameCol  && nameCol;
                         const isPhone = h === phoneCol && phoneCol;
                         return (
-                          <th key={h} className={`px-5 py-3 text-left text-xs font-medium  ${isName || isPhone ? 'text-brand-500 dark:text-brand-300' : 'text-ink-800 dark:text-ink-800'}`}>
+                          <Th key={h} className={isName || isPhone ? '!text-brand-500 dark:!text-brand-300' : ''}>
                             {h}
-                          </th>
+                          </Th>
                         );
                       })}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
+                  </THead>
+                  <TBody>
                     {previewRows.map((row, i) => (
-                      <tr key={i} className="bg-paper-100 dark:bg-ink-200">
-                        <td className="px-7 py-5 text-sm text-ink-800 dark:text-ink-800">{baseId + i}</td>
+                      <Tr key={i}>
+                        <Td numeric muted>{baseId + i}</Td>
                         {displayCols.map(h => {
                           const isName  = h === nameCol  && nameCol;
                           const isPhone = h === phoneCol && phoneCol;
                           return (
-                            <td key={h} className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap max-w-[200px] truncate ${isName || isPhone ? 'text-brand-500 dark:text-brand-300' : 'text-ink-600 dark:text-ink-900'}`}>
+                            <Td key={h} muted={!(isName || isPhone)} className={`whitespace-nowrap max-w-[200px] truncate ${isName || isPhone ? 'font-medium !text-brand-500 dark:!text-brand-300' : ''}`}>
                               {String(row[h] ?? '—')}
-                            </td>
+                            </Td>
                           );
                         })}
-                      </tr>
+                      </Tr>
                     ))}
-                  </tbody>
-                </table>
+                  </TBody>
+                </Table>
               </div>
             </div>
           )}
@@ -306,7 +306,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
 
       {/* Manual entry tab */}
       {toggleManual && (
-        <div className="rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card p-6 flex flex-col gap-4">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-ink-500 dark:text-ink-900">Name</label>
@@ -339,55 +339,58 @@ export default function Step5Contacts({ payload, updatePayload }) {
           <h4 className="font-semibold text-ink-100 dark:text-paper-200 text-sm mb-3">
             Current Contacts <span className="text-ink-800 dark:text-ink-800 font-normal text-sm">({payload.contacts.length})</span>
           </h4>
-          <div className="border border-paper-500 dark:border-ink-400 rounded-card overflow-hidden">
-            <div className="overflow-y-auto" style={{maxHeight: '340px'}}>
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-500 dark:border-ink-400">
-                    <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Name</th>
-                    <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Phone</th>
-                    <th className="px-7 py-4 text-left text-xs font-medium text-ink-700 ">Tag</th>
-                    <th className="px-7 py-4 w-10" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-paper-400 dark:divide-ink-400 bg-paper-100 dark:bg-ink-200">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+            {/* Raw <table> rather than <Table>: that one's overflow-x wrapper
+                would become the sticky header's scroll container instead of
+                this maxHeight box, and the header would stop sticking. */}
+            <div className="overflow-auto" style={{maxHeight: '340px'}}>
+              <table className="w-full text-left text-sm">
+                <THead sticky>
+                    <Th>Name</Th>
+                    <Th>Phone</Th>
+                    <Th>Tag</Th>
+                    <Th className="w-10"><span className="sr-only">Actions</span></Th>
+                </THead>
+                <TBody>
                   {payload.contacts.map((c, i) => (
-                    <tr key={i} className="hover:bg-paper-200/60 dark:hover:bg-ink-100/60 transition-colors group">
-                      <td className="px-5 py-3">
+                    <Tr key={i}>
+                      <Td className="!py-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-500 shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-500/15 flex items-center justify-center text-xs font-semibold text-brand-500 dark:text-brand-300 shrink-0">
                             {c.name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <input
                             value={c.name}
                             onChange={e => editContact(i, 'name', e.target.value)}
-                            className="flex-1 font-semibold text-sm text-ink-100 dark:text-paper-200 bg-transparent border border-transparent hover:border-paper-500 dark:hover:border-ink-400 focus:border-brand-500 focus:bg-paper-100 dark:focus:bg-ink-100 rounded-field px-2 py-1 outline-none transition-all min-w-0"
+                            className="flex-1 font-medium text-sm text-foreground bg-transparent border border-transparent hover:border-paper-500 dark:hover:border-ink-400 focus:border-brand-500 focus:bg-paper-100 dark:focus:bg-ink-100 rounded-field px-2 py-1 outline-none transition-all min-w-0"
                           />
                         </div>
-                      </td>
-                      <td className="px-5 py-3">
+                      </Td>
+                      <Td className="!py-2">
                         <input
                           value={c.phone}
                           onChange={e => editContact(i, 'phone', e.target.value)}
-                          className="w-full text-sm text-ink-700 dark:text-ink-900 bg-transparent border border-transparent hover:border-paper-500 dark:hover:border-ink-400 focus:border-brand-500 focus:bg-paper-100 dark:focus:bg-ink-100 rounded-field px-2 py-1 outline-none transition-all"
+                          className="w-full text-sm tabular-nums text-muted-foreground bg-transparent border border-transparent hover:border-paper-500 dark:hover:border-ink-400 focus:border-brand-500 focus:bg-paper-100 dark:focus:bg-ink-100 rounded-field px-2 py-1 outline-none transition-all"
                         />
-                      </td>
-                      <td className="px-5 py-3">
+                      </Td>
+                      <Td className="!py-2">
                         <input
                           value={c.tag || c.overrides?.tag || ''}
                           onChange={e => editContact(i, 'tag', e.target.value)}
                           placeholder="—"
-                          className="w-full text-sm text-ink-700 dark:text-ink-900 bg-transparent border border-transparent hover:border-paper-500 dark:hover:border-ink-400 focus:border-brand-500 focus:bg-paper-100 dark:focus:bg-ink-100 rounded-field px-2 py-1 outline-none transition-all placeholder:text-ink-900"
+                          className="w-full text-sm text-muted-foreground bg-transparent border border-transparent hover:border-paper-500 dark:hover:border-ink-400 focus:border-brand-500 focus:bg-paper-100 dark:focus:bg-ink-100 rounded-field px-2 py-1 outline-none transition-all placeholder:text-ink-900"
                         />
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <Button variant="dangerGhost" size="md" onClick={() => removeContact(i)}>
-                          <X size={15} />
-                        </Button>
-                      </td>
-                    </tr>
+                      </Td>
+                      <Td align="right" className="!py-2">
+                        <RowActions>
+                          <Button variant="dangerGhost" size="sm" onClick={() => removeContact(i)} aria-label={`Remove ${c.name || 'contact'}`}>
+                            <X size={15} />
+                          </Button>
+                        </RowActions>
+                      </Td>
+                    </Tr>
                   ))}
-                </tbody>
+                </TBody>
               </table>
             </div>
           </div>

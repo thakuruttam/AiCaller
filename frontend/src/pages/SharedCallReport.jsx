@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, IconButton } from '../components/ui';
+import { Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar } from '../components/ui';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
@@ -154,23 +154,23 @@ export default function SharedCallReport() {
         {/* Summary KPIs */}
         {report && (
           <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
               <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">Outcome</p>
               <span className={`text-xs font-medium px-2 py-1 rounded-full ${OUTCOME_BADGE[report.outcome] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
                 {(report.outcome || 'Unknown').replace('_', ' ')}
               </span>
             </div>
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
               <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">QA Score</p>
               <p className="text-3xl font-bold text-brand-500">{report.score ?? '—'}<span className="text-ink-800 dark:text-ink-800 text-base font-semibold">/100</span></p>
             </div>
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
               <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">Sentiment</p>
               <span className={`text-xs font-medium px-2 py-1 rounded-full ${SENTIMENT_BADGE[report.sentiment] || "bg-paper-400 text-ink-500 dark:bg-ink-300 dark:text-ink-900"}`}>
                 {report.sentiment ? report.sentiment.charAt(0).toUpperCase() + report.sentiment.slice(1) : '—'}
               </span>
             </div>
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-5 rounded-card shadow-card">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
               <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">Completion</p>
               <p className="text-3xl font-bold text-ink-100 dark:text-paper-200">{completionPercent != null ? `${completionPercent}%` : '—'}</p>
             </div>
@@ -179,7 +179,7 @@ export default function SharedCallReport() {
 
         {/* AI Summary */}
         {report?.reportSummary && (
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-6 mb-6">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 mb-6">
             <div className="flex items-center gap-2 mb-3">
               <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
               <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">AI Summary</h3>
@@ -191,7 +191,7 @@ export default function SharedCallReport() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
           {/* Audio Player */}
           {callLog?.hasRecording && (
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-6">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>mic</span>
                 <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Recording</h3>
@@ -208,7 +208,7 @@ export default function SharedCallReport() {
           )}
 
           {/* Transcript */}
-          <div className={`bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-6 ${callLog?.hasRecording ? '' : 'xl:col-span-2'}`}>
+          <div className={`bg-card dark:bg-muted rounded-2xl shadow-primary p-6 ${callLog?.hasRecording ? '' : 'xl:col-span-2'}`}>
             <div className="flex items-center gap-2 mb-4">
               <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>chat</span>
               <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Transcript</h3>
@@ -234,72 +234,75 @@ export default function SharedCallReport() {
 
         {/* Evaluation Breakdown */}
         {questionResults.length > 0 && (
-          <FullscreenTable className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
+          <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
             {({ toggle, isFs }) => (<>
-            <div className="p-6 border-b border-paper-400 dark:border-ink-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Evaluation Breakdown</h3>
-              <div className="flex items-center gap-2">
-              <div className="flex bg-paper-400 dark:bg-ink-300 p-1 rounded-control">
-                {[['all','All'],['full','Full Score'],['partial','Partial'],['failed','Failed']].map(([key, label]) => (
-                  <Button variant="ghost" size="sm" key={key} onClick={() => setFilterScore(key)}>{label}</Button>
-                ))}
-              </div>
-              <FullscreenButton toggle={toggle} isFs={isFs} />
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                  <tr>
-                    {['Question', 'Answer', 'Scoring Rule', 'Points'].map(h => (
-                      <th key={h} className="px-6 py-3 text-xs font-medium text-ink-700 dark:text-ink-900 ">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-paper-400 dark:divide-ink-400/50">
-                  {filteredQuestions.map(qr => {
-                    const max = qr.weight || 0;
-                    const awarded = qr.questionScore || 0;
-                    const color = max === 0 ? "text-ink-600 dark:text-ink-900" : awarded >= max ? 'text-positive-dim' : awarded === 0 ? 'text-negative-dim' : 'text-caution-dim';
-                    const mainRow = qr.breakdownRows?.find(r => r.rule !== 'Field present') || {};
-                    const confStr = report?.extractedFields?.[mainRow.field]?.confidence || '—';
-                    const conf = CONFIDENCE_BAR[confStr];
+            <TableToolbar
+              title="Evaluation breakdown"
+              count={filteredQuestions.length}
+              actions={<FullscreenButton toggle={toggle} isFs={isFs} />}
+            >
+              <Tabs
+                size="sm"
+                value={filterScore}
+                onChange={setFilterScore}
+                items={[
+                  { value: 'all', label: 'All' },
+                  { value: 'full', label: 'Full score' },
+                  { value: 'partial', label: 'Partial' },
+                  { value: 'failed', label: 'Failed' },
+                ]}
+              />
+            </TableToolbar>
+            <Table>
+              <THead>
+                <Th>Question</Th>
+                <Th>Answer</Th>
+                <Th>Scoring rule</Th>
+                <Th align="right">Points</Th>
+              </THead>
+              <TBody>
+                {filteredQuestions.map(qr => {
+                  const max = qr.weight || 0;
+                  const awarded = qr.questionScore || 0;
+                  const color = max === 0 ? "text-ink-600 dark:text-ink-900" : awarded >= max ? 'text-positive-dim' : awarded === 0 ? 'text-negative-dim' : 'text-caution-dim';
+                  const mainRow = qr.breakdownRows?.find(r => r.rule !== 'Field present') || {};
+                  const confStr = report?.extractedFields?.[mainRow.field]?.confidence || '—';
+                  const conf = CONFIDENCE_BAR[confStr];
 
-                    return (
-                      <tr key={qr.questionId} className="hover:bg-paper-200/70 dark:hover:bg-ink-400/50 transition-colors">
-                        <td className="px-7 py-5 max-w-xs">
-                          <p className="text-sm font-medium text-ink-100 dark:text-paper-200 leading-snug">{qr.questionText || mainRow.questionText || qr.questionId}</p>
-                        </td>
-                        <td className="px-7 py-5">
-                          {qr.answerExtracted ? (
-                            <div>
-                              <p className="text-sm text-ink-100 dark:text-paper-200">{qr.answerExtracted}</p>
-                              {conf && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="w-16 h-1 bg-paper-400 dark:bg-ink-300 rounded-full overflow-hidden">
-                                    <div className={`h-full ${conf.color} rounded-full`} style={{width: conf.pct}} />
-                                  </div>
-                                  <span className="text-[10px] text-ink-800 dark:text-ink-800 uppercase">{confStr}</span>
+                  return (
+                    <Tr key={qr.questionId}>
+                      <Td className="max-w-xs">
+                        <p className="font-medium leading-snug">{qr.questionText || mainRow.questionText || qr.questionId}</p>
+                      </Td>
+                      <Td>
+                        {qr.answerExtracted ? (
+                          <div>
+                            <p>{qr.answerExtracted}</p>
+                            {conf && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <div className="w-16 h-1 bg-paper-400 dark:bg-ink-300 rounded-full overflow-hidden">
+                                  <div className={`h-full ${conf.color} rounded-full`} style={{width: conf.pct}} />
                                 </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-ink-800 dark:text-ink-800 italic">No answer</span>
-                          )}
-                        </td>
-                        <td className="px-7 py-5">
-                          <span className="text-xs text-ink-700 dark:text-ink-900">{mainRow.rule || '—'}</span>
-                          {mainRow.reason && <p className="text-xs text-ink-800 dark:text-ink-800 mt-0.5">{mainRow.reason}</p>}
-                        </td>
-                        <td className={`px-6 py-4 font-bold text-sm ${color}`}>
-                          {awarded}/{max}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                                <span className="text-[10px] text-muted-foreground uppercase">{confStr}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No answer</span>
+                        )}
+                      </Td>
+                      <Td muted>
+                        <span className="text-xs">{mainRow.rule || '—'}</span>
+                        {mainRow.reason && <p className="text-xs mt-0.5">{mainRow.reason}</p>}
+                      </Td>
+                      <Td numeric>
+                        <span className={`font-bold ${color}`}>{awarded}/{max}</span>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </TBody>
+            </Table>
             </>)}
           </FullscreenTable>
         )}

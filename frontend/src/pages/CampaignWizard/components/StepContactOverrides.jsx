@@ -38,7 +38,7 @@ function CallDesignModal({ contact, campaignGoals, campaignMaxDuration, onSave, 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-paper-500 dark:border-ink-400 sticky top-0 bg-paper-100 dark:bg-ink-200 z-10">
           <div>
             <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Customize Call Design</h4>
@@ -138,7 +138,7 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-paper-500 dark:border-ink-400 sticky top-0 bg-paper-100 dark:bg-ink-200 z-10">
           <div>
             <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Customize Setup Questions</h4>
@@ -194,7 +194,7 @@ function ContactRow({ contact, index, campaignGoals, campaignQuestions, campaign
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-3 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 hover:border-brand-300 dark:hover:border-brand-500 transition-colors">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary border border-transparent flex items-center justify-between px-4 py-3 hover:border-brand-300 dark:hover:border-brand-500 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-600">
             {contact.name?.charAt(0)?.toUpperCase() || '?'}

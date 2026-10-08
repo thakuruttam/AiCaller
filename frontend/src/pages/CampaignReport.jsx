@@ -1,10 +1,15 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { Button, IconButton, Tabs, CopyField, Pagination } from '../components/ui';
+import {
+  Button, IconButton, Tabs, CopyField, Pagination, Input,
+  Table, THead, Th, TBody, Tr, Td, CellStack, TableToolbar, FilterBar,
+} from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
-import DebouncedSearch from '../components/DebouncedSearch';
 import PageLoader from '../components/PageLoader';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import { EVAL_BASE } from '../api/config';
@@ -25,7 +30,7 @@ const OUTCOME_BADGE = {
   FAILED:       'bg-negative/10 text-negative-dim',
 };
 
-const OUTCOME_FILTER_KEYS = ['All', 'COMPLETED', 'NO_ANSWER', 'BUSY', 'INCOMPLETE', 'FAILED', 'WRONG_PERSON', 'RESCHEDULE'];
+const outcomeLabel = (outcome) => (outcome || 'unknown').replace(/_/g, ' ').toLowerCase();
 
 function ShareModal({ campaignId, onClose }) {
   const [days, setDays] = useState(7);
@@ -49,7 +54,7 @@ function ShareModal({ campaignId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Share Campaign Report</h3>
           <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
@@ -94,7 +99,6 @@ export default function CampaignReport() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [progress, setProgress] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('All');
   const [page, setPage] = useState(1);
   const [showShare, setShowShare] = useState(false);
   const [viewMode, setViewMode] = useState('contact');
@@ -221,10 +225,30 @@ export default function CampaignReport() {
     return () => clearInterval(intervalId);
   }, [id]);
 
+  // Search, then outcome/sentiment facets, then sort. Both views read the
+  // result, so the "By question" table honours the same filters and order.
+  const filters = useFacets(
+    contacts.filter(c => !searchQuery || (c.contactName || '').toLowerCase().includes(searchQuery.toLowerCase())),
+    {
+      outcome: { label: 'Outcome', get: c => c.outcome, format: outcomeLabel },
+      sentiment: { label: 'Sentiment', get: c => c.sentiment },
+    },
+    { onChange: () => setPage(1) },
+  );
+  const isFiltered = !!searchQuery || filters.activeCount > 0;
+  const clearAllFilters = () => { setSearchQuery(''); filters.reset(); setPage(1); };
+
+  const { sorted: filteredContacts, sortProps } = useSort(filters.filtered, {
+    name: c => c.contactName,
+    outcome: c => c.outcome,
+    sentiment: c => c.sentiment,
+    score: c => (c.score != null ? Number(c.score) : null),
+  });
+
   if (loading) return <PageLoader text="Loading campaign report…" />;
 
   if (error) return (
-    <div className="p-10 max-w-[1200px] mx-auto">
+    <div className="page-gutter pt-3 pb-7 animate-fade-in">
       <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Campaign Details
@@ -237,12 +261,12 @@ export default function CampaignReport() {
   );
 
   if (!metrics || metrics.totalCalls === 0) return (
-    <div className="p-10 max-w-[1200px] mx-auto">
+    <div className="page-gutter pt-3 pb-7 animate-fade-in">
       <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Campaign Details
       </Link>
-      <div className="p-12 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 flex flex-col items-center justify-center text-ink-800 dark:text-ink-800">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-12 flex flex-col items-center justify-center text-ink-800 dark:text-ink-800">
         <span className="material-symbols-outlined text-[48px] mb-3 opacity-20">bar_chart</span>
         <p className="font-semibold text-ink-500 dark:text-ink-900">No Evaluation Data Yet</p>
         <p className="text-sm mt-1">Run AI Evaluation on calls to generate reports.</p>
@@ -258,25 +282,22 @@ export default function CampaignReport() {
   const neuCount = sentiment.neutral || 0;
   const negCount = sentiment.negative || 0;
 
-  const filteredContacts = contacts.filter(c => {
-    const matchSearch = !searchQuery || (c.contactName || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchFilter = activeFilter === 'All' || c.outcome === activeFilter;
-    return matchSearch && matchFilter;
-  });
-
   const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PER_PAGE));
 
-  const outcomeCounts = contacts.reduce((acc, c) => {
-    acc[c.outcome] = (acc[c.outcome] || 0) + 1;
-    return acc;
-  }, {});
+  const handleExportContacts = () => exportCsv(`campaign-${id}-contacts-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Contact', value: c => c.contactName || 'Unknown' },
+    { header: 'Phone', value: c => c.contactPhone },
+    { header: 'Outcome', value: c => outcomeLabel(c.outcome) },
+    { header: 'Sentiment', value: c => c.sentiment },
+    { header: 'AI score', value: c => (c.score != null ? Number(c.score) : null) },
+  ], filteredContacts);
 
   const progressPct = progress && progress.total > 0
     ? Math.round(((progress.completed + progress.failed) / progress.total) * 100)
     : 0;
 
   return (
-    <div className="p-10 max-w-[1200px] mx-auto space-y-8">
+    <div className="page-gutter pt-3 pb-7 animate-fade-in space-y-8">
       {/* Page Header */}
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -290,14 +311,16 @@ export default function CampaignReport() {
           </div>
           <div className="flex items-center gap-3">
             <Button variant="secondary" size="md" icon="share" onClick={() => setShowShare(true)}>Share</Button>
-            <a
+            <Button
+              as="a"
               href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`}
               download
-              className="flex items-center gap-2 px-4 py-2 border border-paper-600 dark:border-ink-400 text-ink-100 dark:text-paper-200 text-sm rounded hover:bg-paper-200 dark:hover:bg-ink-400 transition-all"
+              variant="secondary"
+              size="md"
+              icon="download"
             >
-              <span className="material-symbols-outlined text-[18px]">download</span>
               Export CSV
-            </a>
+            </Button>
             {progress && progress.total > 0 && (
               <div className="bg-paper-500 dark:bg-ink-200 p-4 rounded-card min-w-[280px]">
                 <div className="flex justify-between items-center mb-2">
@@ -320,7 +343,7 @@ export default function CampaignReport() {
 
       {/* KPI Cards */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
           <div className="flex justify-between items-start mb-4">
             <span className="p-2 bg-brand-500/10 dark:bg-brand-500/10 text-brand-500 dark:text-brand-300 rounded-control">
               <span className="material-symbols-outlined">task_alt</span>
@@ -330,7 +353,7 @@ export default function CampaignReport() {
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{total.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
           <div className="flex justify-between items-start mb-4">
             <span className="p-2 bg-brand-100/30 dark:bg-brand-500/10 text-ink-600 dark:text-brand-300 rounded-control">
               <span className="material-symbols-outlined">percent</span>
@@ -340,7 +363,7 @@ export default function CampaignReport() {
           <h3 className="text-2xl font-semibold text-brand-500 dark:text-brand-300">{completionPercent}%</h3>
         </div>
 
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
           <div className="flex justify-between items-start mb-4">
             <span className="p-2 bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive rounded-control">
               <span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>star</span>
@@ -350,7 +373,7 @@ export default function CampaignReport() {
           <h3 className="text-2xl font-semibold text-positive-dim dark:text-positive">{avgScore} / 100</h3>
         </div>
 
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 p-6 rounded-card shadow-card hover:shadow-raised transition-shadow">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
           <p className="text-ink-600 dark:text-ink-900 text-sm mb-4">Sentiment Breakdown</p>
           <div className="flex flex-wrap gap-2">
             {posCount > 0 && (
@@ -376,7 +399,7 @@ export default function CampaignReport() {
       </section>
 
       {/* Results Section — By Contact / By Question */}
-      <FullscreenTable className="flex flex-col gap-4 bg-paper-200/50 dark:bg-ink-50 rounded-card">
+      <FullscreenTable className="flex flex-col gap-4">
       {({ toggle, isFs }) => {
         const paginated = isFs ? filteredContacts : filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -387,102 +410,102 @@ export default function CampaignReport() {
 
         return (<>
         {/* Section header with view toggle */}
-        <section className="bg-brand-100 dark:bg-ink-200/60 p-6 rounded-card border border-paper-500/50 dark:border-ink-400">
-          <div className="flex flex-col gap-4">
-            {/* Tab toggle + search row */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <Tabs
-                value={viewMode}
-                onChange={setViewMode}
-                size="sm"
-                items={[
-                  { value: 'contact', label: 'By contact', icon: 'person' },
-                  { value: 'question', label: 'By question', icon: 'help' },
-                ]}
+        <section className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+          <TableToolbar
+            actions={<>
+              {viewMode === 'contact' && (
+                <IconButton title="Export CSV" icon="download" onClick={handleExportContacts} disabled={!filteredContacts.length} />
+              )}
+              {viewMode === 'question' && selectedQuestions.length > 0 && (
+                <>
+                  <Button variant="secondary" size="sm" icon="download" onClick={() => downloadQuestionView('csv')} title="Download as CSV">CSV</Button>
+                  <Button variant="secondary" size="sm" icon="table_view" onClick={() => downloadQuestionView('excel')} title="Download as Excel">Excel</Button>
+                </>
+              )}
+              <FullscreenButton toggle={toggle} isFs={isFs} />
+            </>}
+          >
+            <Tabs
+              value={viewMode}
+              onChange={setViewMode}
+              size="sm"
+              items={[
+                { value: 'contact', label: 'By contact', icon: 'person', count: filteredContacts.length },
+                { value: 'question', label: 'By question', icon: 'help' },
+              ]}
+            />
+            <FilterBar filters={filters} />
+            <div className="w-full md:w-64 md:ml-auto">
+              <Input
+                icon="search"
+                placeholder="Search contacts..."
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+                className="!h-9"
               />
-              <div className="flex gap-2 items-center flex-wrap">
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-600 dark:text-ink-900">search</span>
-                  <input
-                    className="pl-10 pr-4 py-2.5 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-100 dark:text-paper-200 rounded-control text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all w-64 placeholder:text-ink-700 dark:placeholder:text-ink-700"
-                    placeholder="Search contacts..."
-                    value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                  />
-                </div>
-                {viewMode === 'question' && selectedQuestions.length > 0 && (
-                  <>
-                    <Button variant="secondary" size="sm" icon="download" onClick={() => downloadQuestionView('csv')} title="Download as CSV">CSV</Button>
-                    <Button variant="secondary" size="sm" icon="table_view" onClick={() => downloadQuestionView('excel')} title="Download as Excel">Excel</Button>
-                  </>
-                )}
-                <FullscreenButton toggle={toggle} isFs={isFs} />
+            </div>
+          </TableToolbar>
+
+          {/* Question mode: question picker chips */}
+          {viewMode === 'question' && allQuestions.length > 0 && (
+            <div className="flex flex-col gap-3 px-5 py-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs text-muted-foreground">Select questions to display as columns:</p>
+                <Tabs
+                  value={cellDisplay}
+                  onChange={setCellDisplay}
+                  size="sm"
+                  items={[
+                    { value: 'text', label: 'Text' },
+                    { value: 'score', label: 'Score' },
+                    { value: 'both', label: 'Both' },
+                  ]}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {allQuestions.map(q => {
+                  const active = selectedQuestions.includes(q);
+                  const avg = questionAvgScores[q];
+                  return (
+                    <Button
+                      variant={active ? 'subtle' : 'secondary'}
+                      size="sm"
+                      key={q}
+                      onClick={() => toggleQuestion(q)}
+                      title={q}
+                      aria-pressed={active}
+                      icon={active ? 'check' : undefined}
+                      className={active ? 'ring-1 ring-inset ring-brand-500/40' : ''}
+                    >
+                      <span className="max-w-[180px] truncate">{q.length > 40 ? q.slice(0, 40) + '…' : q}</span>
+                      {avg != null && (
+                        <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${avg >= 70 ? 'bg-positive/10 text-positive-dim dark:text-positive' : avg >= 40 ? 'bg-caution/10 text-caution-dim dark:text-caution' : 'bg-negative/10 text-negative-dim dark:text-negative'}`}>
+                          {avg}%
+                        </span>
+                      )}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
-
-            {/* Contact mode: outcome filter chips */}
-            {viewMode === 'contact' && (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="primary" size="md" onClick={() => { setActiveFilter('All'); setPage(1); }}>
-                  All Results <span className={`px-1.5 rounded text-[10px] ${activeFilter === 'All' ? 'bg-white/20' : 'bg-brand-500/10 dark:bg-brand-500/10 text-brand-500 dark:text-brand-300'}`}>{contacts.length}</span>
-                </Button>
-                {Object.entries(outcomeCounts).map(([outcome, count]) => (
-                  <Button variant="primary" size="md" key={outcome} onClick={() => { setActiveFilter(outcome); setPage(1); }}>
-                    {outcome.replace('_', ' ')}
-                    <span className={`px-1.5 rounded text-[10px] ${activeFilter === outcome ? 'bg-white/20' : 'bg-paper-500 dark:bg-ink-400 text-ink-600 dark:text-ink-900'}`}>{count}</span>
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            {/* Question mode: question picker chips */}
-            {viewMode === 'question' && allQuestions.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <p className="text-xs text-ink-700 dark:text-ink-900">Select questions to display as columns:</p>
-                  <div className="flex items-center gap-1 bg-paper-500 dark:bg-ink-300 p-0.5 rounded-control">
-                    {[['text', 'Text'], ['score', 'Score'], ['both', 'Both']].map(([val, label]) => (
-                      <Button variant="ghost" size="sm" key={val} onClick={() => setCellDisplay(val)}>{label}</Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {allQuestions.map(q => {
-                    const active = selectedQuestions.includes(q);
-                    const avg = questionAvgScores[q];
-                    return (
-                      <Button variant="primary" size="sm" key={q} onClick={() => toggleQuestion(q)} title={q}>
-                        <span className="max-w-[180px] truncate">{q.length > 40 ? q.slice(0, 40) + '…' : q}</span>
-                        {avg != null && (
-                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${active ? 'bg-white/20 text-white' : avg >= 70 ? 'bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive' : avg >= 40 ? 'bg-caution/10 dark:bg-caution/100/10 text-caution-dim dark:text-caution' : 'bg-negative/10 dark:bg-negative/100/10 text-negative-dim dark:text-negative'}`}>
-                            {avg}%
-                          </span>
-                        )}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {viewMode === 'question' && allQuestions.length === 0 && (
-              <p className="text-sm text-ink-700 dark:text-ink-900">No extracted fields found. Make sure evaluation has run for at least one call.</p>
-            )}
-          </div>
+          )}
+          {viewMode === 'question' && allQuestions.length === 0 && (
+            <p className="px-5 py-4 text-sm text-muted-foreground">No extracted fields found. Make sure evaluation has run for at least one call.</p>
+          )}
         </section>
 
         {/* ── By Contact table ── */}
         {viewMode === 'contact' && (
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                  {['Contact / Phone', 'Outcome', 'Sentiment', 'AI Score', 'Action'].map((h, i) => (
-                    <th key={h} className={`px-6 py-4 text-xs font-medium text-ink-600 dark:text-ink-900 ${i === 4 ? 'text-right' : ''}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+          <Table>
+            <THead>
+              <Th {...sortProps('name')}>Contact / Phone</Th>
+              <Th {...sortProps('outcome')}>Outcome</Th>
+              <Th {...sortProps('sentiment')}>Sentiment</Th>
+              <Th {...sortProps('score')}>AI score</Th>
+              <Th align="right">Action</Th>
+            </THead>
+            <TBody>
                 {paginated.map(c => {
                   const sentimentInfo = SENTIMENT_ICON[c.sentiment] || null;
                   const score = c.score != null ? Number(c.score).toFixed(1) : null;
@@ -490,67 +513,68 @@ export default function CampaignReport() {
                   const outcomeBadge = OUTCOME_BADGE[c.outcome] || 'bg-paper-400 text-ink-600';
                   const hasTranscript = c.outcome === 'COMPLETED';
                   return (
-                    <tr key={c.callLogId} className="hover:bg-paper-200/80 dark:hover:bg-ink-400/50 transition-colors group">
-                      <td className="px-7 py-5">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-ink-100 dark:text-paper-200">{c.contactName || 'Unknown'}</span>
-                          <span className="text-xs text-ink-800 dark:text-ink-800">{c.contactPhone || '—'}</span>
-                        </div>
-                      </td>
-                      <td className="px-7 py-5">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold  ${outcomeBadge}`}>
-                          {(c.outcome || 'unknown').replace('_', ' ')}
+                    <Tr key={c.callLogId}>
+                      <Td>
+                        <CellStack title={c.contactName || 'Unknown'} meta={c.contactPhone || '—'} />
+                      </Td>
+                      <Td>
+                        <span className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium capitalize ring-1 ring-inset ring-current/20 ${outcomeBadge}`}>
+                          {outcomeLabel(c.outcome)}
                         </span>
-                      </td>
-                      <td className="px-7 py-5">
+                      </Td>
+                      <Td>
                         {sentimentInfo ? (
                           <div className="flex items-center gap-2">
-                            <span className={`material-symbols-outlined text-[20px] ${sentimentInfo.color}`} style={{fontVariationSettings:"'FILL' 1"}}>{sentimentInfo.icon}</span>
-                            <span className="text-sm text-ink-600 dark:text-ink-900 capitalize">{c.sentiment}</span>
+                            <span className={`material-symbols-outlined [--icon-size:18px] ${sentimentInfo.color}`} style={{fontVariationSettings:"'FILL' 1"}}>{sentimentInfo.icon}</span>
+                            <span className="text-muted-foreground capitalize">{c.sentiment}</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-ink-800 dark:text-ink-800">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
-                      </td>
-                      <td className="px-7 py-5">
+                      </Td>
+                      <Td>
                         {score != null ? (
                           <div className="flex items-center gap-3">
-                            <div className="w-16 bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full overflow-hidden">
+                            <div className="w-16 bg-paper-400 dark:bg-ink-400 h-1.5 rounded-full overflow-hidden">
                               <div className="bg-positive h-full" style={{width: scoreW}} />
                             </div>
-                            <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{score}</span>
+                            <span className="font-medium tabular-nums">{score}</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-ink-800 dark:text-ink-800">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
-                      </td>
-                      <td className="px-7 py-5 text-right">
+                      </Td>
+                      <Td align="right">
                         {hasTranscript ? (
                           <Link
                             to={`/campaign/${id}/calls/${c.callLogId}/report`}
-                            className="text-brand-500 dark:text-brand-300 text-sm hover:underline inline-flex items-center gap-1"
+                            className="text-brand-500 dark:text-brand-300 text-sm hover:underline inline-flex items-center gap-1 whitespace-nowrap"
                           >
-                            View Report <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                            View Report <span className="material-symbols-outlined [--icon-size:16px]">open_in_new</span>
                           </Link>
                         ) : (
-                          <span className="text-brand-500/40 dark:text-brand-300/40 text-sm inline-flex items-center gap-1">
-                            View Report <span className="material-symbols-outlined text-[16px]">lock</span>
+                          <span className="text-muted-foreground/60 text-sm inline-flex items-center gap-1 whitespace-nowrap">
+                            View Report <span className="material-symbols-outlined [--icon-size:16px]">lock</span>
                           </span>
                         )}
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   );
                 })}
                 {filteredContacts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">
-                      {searchQuery || activeFilter !== 'All' ? 'No contacts match your filters.' : 'No data available.'}
+                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                      {isFiltered ? (
+                        <>
+                          No contacts match your search and filters.
+                          <Button variant="link" size="sm" onClick={clearAllFilters} className="ml-2">Clear filters</Button>
+                        </>
+                      ) : 'No data available.'}
                     </td>
                   </tr>
                 )}
-              </tbody>
-            </table>
-          </div>
+            </TBody>
+          </Table>
           <Pagination
             page={page}
             totalPages={totalPages}
@@ -564,18 +588,16 @@ export default function CampaignReport() {
 
         {/* ── By Question table ── */}
         {viewMode === 'question' && selectedQuestions.length > 0 && (
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-max">
-              <thead>
-                <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                  <th className="px-7 py-4 text-xs font-medium text-ink-600 dark:text-ink-900 sticky left-0 bg-paper-200 dark:bg-ink-50 z-10 min-w-[180px]">Contact</th>
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+          <Table className="min-w-max">
+            <THead>
+                  <Th {...sortProps('name')} className="sticky left-0 z-10 min-w-[180px] bg-paper-200 dark:bg-muted">Contact</Th>
                   {selectedQuestions.map(q => {
                     const avg = questionAvgScores[q];
                     return (
-                      <th key={q} className="px-4 py-4 text-xs font-medium text-ink-600 dark:text-ink-900 min-w-[200px] max-w-[240px]">
+                      <Th key={q} className="min-w-[200px] max-w-[240px] !whitespace-normal py-2.5">
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-ink-100 dark:text-paper-200 leading-snug line-clamp-2" title={q}>
+                          <span className="font-medium text-foreground leading-snug line-clamp-2" title={q}>
                             {q.length > 55 ? q.slice(0, 55) + '…' : q}
                           </span>
                           {avg != null && (
@@ -585,31 +607,27 @@ export default function CampaignReport() {
                             </span>
                           )}
                         </div>
-                      </th>
+                      </Th>
                     );
                   })}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
+            </THead>
+            <TBody>
                 {qPaginated.map(c => (
-                  <tr key={c.callLogId} className="hover:bg-paper-200/50 dark:hover:bg-ink-400/50 transition-colors">
-                    <td className="px-7 py-5 sticky left-0 bg-paper-100 dark:bg-ink-200 group-hover:bg-paper-200/50 dark:group-hover:bg-ink-400/50 z-10">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-ink-100 dark:text-paper-200 text-sm">{c.contactName || 'Unknown'}</span>
-                        <span className="text-xs text-ink-800 dark:text-ink-800">{c.contactPhone || '—'}</span>
-                      </div>
-                    </td>
+                  <Tr key={c.callLogId}>
+                    <Td className="sticky left-0 z-10 bg-card dark:bg-muted group-hover/row:bg-paper-200 transition-colors">
+                      <CellStack title={c.contactName || 'Unknown'} meta={c.contactPhone || '—'} />
+                    </Td>
                     {selectedQuestions.map(q => {
                       const field = c.extractedFields?.[q];
                       const sbEntry = (c.scoreBreakdown || []).find(s => s.field === q);
                       const pct = sbEntry && sbEntry.maxPoints ? Math.round((sbEntry.awarded / sbEntry.maxPoints) * 100) : null;
                       const hasData = field || pct != null;
                       return (
-                        <td key={q} className="px-4 py-4 max-w-[240px]">
+                        <Td key={q} className="max-w-[240px]">
                           {hasData ? (
                             <div className="flex flex-col gap-1">
                               {(cellDisplay === 'text' || cellDisplay === 'both') && field && (
-                                <span className="text-sm text-ink-100 dark:text-paper-200 line-clamp-2" title={field.value}>{field.value || '—'}</span>
+                                <span className="line-clamp-2" title={field.value}>{field.value || '—'}</span>
                               )}
                               {(cellDisplay === 'score' || cellDisplay === 'both') && pct != null && (
                                 <div className="flex items-center gap-1.5">
@@ -618,29 +636,33 @@ export default function CampaignReport() {
                                     {pct}%
                                   </span>
                                   {cellDisplay !== 'score' && sbEntry?.reason && (
-                                    <span className="text-[10px] text-ink-800 dark:text-ink-800 truncate max-w-[80px]" title={sbEntry.reason}>{sbEntry.reason}</span>
+                                    <span className="text-[10px] text-muted-foreground truncate max-w-[80px]" title={sbEntry.reason}>{sbEntry.reason}</span>
                                   )}
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <span className="text-sm text-ink-900 dark:text-ink-700">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
-                        </td>
+                        </Td>
                       );
                     })}
-                  </tr>
+                  </Tr>
                 ))}
                 {qContacts.length === 0 && (
                   <tr>
-                    <td colSpan={selectedQuestions.length + 1} className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">
-                      {searchQuery ? 'No contacts match your search.' : 'No data available.'}
+                    <td colSpan={selectedQuestions.length + 1} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                      {isFiltered ? (
+                        <>
+                          No contacts match your search and filters.
+                          <Button variant="link" size="sm" onClick={clearAllFilters} className="ml-2">Clear filters</Button>
+                        </>
+                      ) : 'No data available.'}
                     </td>
                   </tr>
                 )}
-              </tbody>
-            </table>
-          </div>
+            </TBody>
+          </Table>
           <Pagination
             page={page}
             totalPages={qTotalPages}
@@ -653,7 +675,7 @@ export default function CampaignReport() {
         )}
 
         {viewMode === 'question' && selectedQuestions.length === 0 && allQuestions.length > 0 && (
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500/80 dark:border-ink-400 rounded-card p-12 text-center text-sm text-ink-800 dark:text-ink-800">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-12 text-center text-sm text-ink-800 dark:text-ink-800">
             Select at least one question above to see the breakdown.
           </div>
         )}

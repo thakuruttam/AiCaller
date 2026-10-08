@@ -69,7 +69,7 @@ export default function InviteAccept() {
   if (error) {
     return (
       <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
-        <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay max-w-md w-full p-8 text-center">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full p-8 text-center">
           <div className="w-14 h-14 rounded-full bg-negative/10 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-negative">error</span>
           </div>
@@ -84,7 +84,7 @@ export default function InviteAccept() {
   if (done) {
     return (
       <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
-        <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay max-w-md w-full p-8 text-center">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full p-8 text-center">
           <div className="w-14 h-14 rounded-full bg-positive/10 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-positive-dim">check_circle</span>
           </div>
@@ -99,7 +99,7 @@ export default function InviteAccept() {
 
   return (
     <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
-      <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay max-w-md w-full overflow-hidden">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full overflow-hidden">
 
         {/* Header */}
         <div className="bg-brand-500 px-8 py-6 text-center">

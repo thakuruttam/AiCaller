@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Button, IconButton, Tabs } from '../components/ui';
+import {
+  Button, IconButton, Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar,
+} from '../components/ui';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { GripVertical } from 'lucide-react';
@@ -136,7 +138,7 @@ export default function CallReport() {
   if (notFound) return null;
 
   if (error) return (
-    <div className="p-10 max-w-[1200px] mx-auto">
+    <div className="page-gutter pt-3 pb-7 animate-fade-in">
       <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Call
@@ -164,7 +166,7 @@ export default function CallReport() {
   const sentimentIcon = SENTIMENT_ICON[report.sentiment] || 'sentiment_neutral';
 
   return (
-    <div className="p-10 max-w-[1200px] mx-auto">
+    <div className="page-gutter pt-3 pb-7 animate-fade-in">
       {/* Back link */}
       <Link
         to={`/campaigns/${campaignId}/report`}
@@ -187,7 +189,7 @@ export default function CallReport() {
 
       {/* Summary Cards */}
       <section className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-6 rounded-control shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Outcome</p>
           <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${outcomeBadge}`}>
             <span className="material-symbols-outlined text-[18px]">
@@ -222,7 +224,7 @@ export default function CallReport() {
           ) : null}
         </div>
 
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-6 rounded-control shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Sentiment</p>
           <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${sentimentBadge}`}>
             <span className="material-symbols-outlined text-[18px]">{sentimentIcon}</span>
@@ -230,7 +232,7 @@ export default function CallReport() {
           </span>
         </div>
 
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-6 rounded-control shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">QA Score</p>
           <div className="flex items-end gap-1">
             <span className="text-5xl font-bold text-brand-500 leading-none">{report.score ?? '—'}</span>
@@ -238,7 +240,7 @@ export default function CallReport() {
           </div>
         </div>
 
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-6 rounded-control shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Completion</p>
           <div className="flex items-center gap-4">
             <span className="text-5xl font-bold text-ink-100 dark:text-paper-200 leading-none">
@@ -257,7 +259,7 @@ export default function CallReport() {
         {/* AI Summary */}
         {report.reportSummary && (
           <div className="col-span-12">
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control shadow-card p-8">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-8">
               <div className="flex items-center gap-2 mb-6">
                 <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
                 <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">AI Call Summary</h3>
@@ -270,38 +272,35 @@ export default function CallReport() {
         {/* Evaluation Breakdown Table */}
         {(scoreBreakdown.length > 0 || hasExtracted) && (
           <div className="col-span-12">
-            <FullscreenTable className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control shadow-card overflow-hidden h-full">
+            <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden h-full">
               {({ toggle, isFs }) => (<>
-              <div className="p-6 border-b border-paper-400 dark:border-ink-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Evaluation Breakdown</h3>
-
-                <div className="flex items-center gap-2">
-                <Tabs
-                  size="sm"
-                  value={filterScore}
-                  onChange={setFilterScore}
-                  items={[
-                    { value: 'all', label: 'All' },
-                    { value: 'full', label: 'Full score' },
-                    { value: 'partial', label: 'Partial' },
-                    { value: 'failed', label: 'Failed' },
-                  ]}
-                />
-                <FullscreenButton toggle={toggle} isFs={isFs} />
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="text-left table-fixed" style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
+              <TableToolbar
+                title="Evaluation breakdown"
+                actions={<>
+                  <Tabs
+                    size="sm"
+                    value={filterScore}
+                    onChange={setFilterScore}
+                    items={[
+                      { value: 'all', label: 'All' },
+                      { value: 'full', label: 'Full score' },
+                      { value: 'partial', label: 'Partial' },
+                      { value: 'failed', label: 'Failed' },
+                    ]}
+                  />
+                  <FullscreenButton toggle={toggle} isFs={isFs} />
+                </>}
+              />
+                <Table className="table-fixed" style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
                   <colgroup>
                     {BREAKDOWN_COLUMNS.map(c => (
                       <col key={c.key} style={{ width: colWidths[c.key] }} />
                     ))}
                   </colgroup>
-                  <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-                    <tr>
+                  <THead>
                       {BREAKDOWN_COLUMNS.map((c, i) => (
-                        <th key={c.key} className="relative px-6 py-4 text-xs font-medium text-ink-700 dark:text-ink-900 select-none">
-                          <span className="truncate block pr-2">{c.label}</span>
+                        <Th key={c.key} align={c.key === 'points' ? 'right' : 'left'} className="relative">
+                          <span className="truncate pr-2">{c.label}</span>
                           {i < BREAKDOWN_COLUMNS.length - 1 && (
                             <span
                               onMouseDown={handleResizeStart(c.key)}
@@ -314,11 +313,10 @@ export default function CallReport() {
                               />
                             </span>
                           )}
-                        </th>
+                        </Th>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
+                  </THead>
+                  <TBody>
                     {(() => {
                       const filteredQuestions = questionResults.filter(qr => {
                         if (filterScore === 'all') return true;
@@ -339,7 +337,7 @@ export default function CallReport() {
                       if (filteredQuestions.length === 0) {
                         return (
                           <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center text-sm text-ink-800 dark:text-ink-800 italic">
+                            <td colSpan={6} className="px-6 py-12 text-center text-sm text-muted-foreground italic">
                               No questions match the "{filterScore}" filter.
                             </td>
                           </tr>
@@ -373,55 +371,55 @@ export default function CallReport() {
 
                       return (
                         <React.Fragment key={qr.questionId}>
-                          <tr 
-                            className={`hover:bg-paper-200/50 dark:hover:bg-ink-400/50 transition-colors ${hasSubfields ? 'cursor-pointer' : ''}`}
-                            onClick={() => hasSubfields && setExpandedQuestions(p => ({ ...p, [qr.questionId]: !p[qr.questionId] }))}
+                          <Tr
+                            aria-expanded={hasSubfields ? isExpanded : undefined}
+                            onClick={hasSubfields ? () => setExpandedQuestions(p => ({ ...p, [qr.questionId]: !p[qr.questionId] })) : undefined}
                           >
-                            <td className="px-7 py-5 truncate font-medium text-ink-100 dark:text-paper-200" title={qr.questionText}>
+                            <Td className="truncate font-medium" title={qr.questionText}>
                               <div className="flex items-center gap-2">
                                 {hasSubfields && (
-                                  <span className="material-symbols-outlined text-[18px] text-ink-800 dark:text-ink-800">
+                                  <span className="material-symbols-outlined [--icon-size:18px] text-muted-foreground">
                                     {isExpanded ? 'expand_more' : 'chevron_right'}
                                   </span>
                                 )}
                                 <span className="truncate">{qr.questionText}</span>
                               </div>
-                            </td>
-                            <td className="px-7 py-5">
+                            </Td>
+                            <Td>
                               {/* For sub-field questions show the extracted answer; for simple questions show the scored value */}
                               {(() => {
                                 const displayVal = hasSubfields
                                   ? (qr.answerExtracted || `${subRows.filter(r => r.reason === 'present').length}/${subRows.length} fields`)
                                   : (mainRow.fieldValue);
                                 return (
-                                  <span className="bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={String(displayVal || '—')}>
+                                  <span className="bg-positive/10 text-positive-dim ring-1 ring-inset ring-positive/25 dark:text-positive dark:ring-positive/20 px-2 py-0.5 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={String(displayVal || '—')}>
                                     {typeof displayVal === 'object' ? JSON.stringify(displayVal) : String(displayVal || '—')}
                                   </span>
                                 );
                               })()}
-                            </td>
-                            <td className="px-7 py-5">
+                            </Td>
+                            <Td>
                               {confStr !== '—' ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-12 bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full">
                                     <div className={`${conf.color} h-full rounded-full`} style={{width: conf.pct}} />
                                   </div>
-                                  <span className="text-ink-700 dark:text-ink-900 text-xs">{confStr}</span>
+                                  <span className="text-muted-foreground text-xs">{confStr}</span>
                                 </div>
                               ) : (
-                                <span className="text-ink-700 dark:text-ink-900 text-xs">—</span>
+                                <span className="text-muted-foreground text-xs">—</span>
                               )}
-                            </td>
-                            <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900 truncate" title={mainRow.rule}>
+                            </Td>
+                            <Td muted className="truncate" title={mainRow.rule}>
                               {mainRow.rule || '—'}
-                            </td>
-                            <td className="px-7 py-5 text-sm text-ink-700 dark:text-ink-900 truncate" title={mainRow.explanation || ''}>
+                            </Td>
+                            <Td muted className="truncate" title={mainRow.explanation || ''}>
                               {mainRow.explanation || '—'}
-                            </td>
-                            <td className={`px-6 py-4 font-medium whitespace-nowrap ${mainColorClass}`}>
+                            </Td>
+                            <Td numeric className={`font-medium ${mainColorClass}`}>
                               +{qAwarded.toFixed(1)} / {qMax}
-                            </td>
-                          </tr>
+                            </Td>
+                          </Tr>
 
                           {/* Sub-fields Expansion */}
                           {hasSubfields && isExpanded && subRows.map((sub, idx) => {
@@ -430,44 +428,43 @@ export default function CallReport() {
                             const subColorClass = getRowColorClass(sub.awarded, sub.maxPoints);
                             
                             return (
-                              <tr key={`${qr.questionId}-sub-${idx}`} className="bg-paper-200/30 dark:bg-ink-50/30">
-                                <td className={`px-6 py-3 pl-14 truncate text-sm ${subColorClass}`} title={sub.field}>
+                              <Tr key={`${qr.questionId}-sub-${idx}`} className="bg-paper-200/40 dark:bg-white/[0.015]">
+                                <Td className={`!pl-12 truncate ${subColorClass}`} title={sub.field}>
                                   ↳ {sub.field}
-                                </td>
-                                <td className="px-7 py-5">
-                                  <span className="bg-positive/10/50 dark:bg-positive/15 text-positive-dim dark:text-positive px-3 py-1 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={sub.fieldValue}>
+                                </Td>
+                                <Td>
+                                  <span className="bg-positive/10 text-positive-dim ring-1 ring-inset ring-positive/25 dark:text-positive dark:ring-positive/20 px-2 py-0.5 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={sub.fieldValue}>
                                     {typeof sub.fieldValue === 'object' ? JSON.stringify(sub.fieldValue) : String(sub.fieldValue || '—')}
                                   </span>
-                                </td>
-                                <td className="px-7 py-5">
+                                </Td>
+                                <Td>
                                   {subConfStr !== '—' ? (
                                     <div className="flex items-center gap-2">
                                       <div className="w-12 bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full">
                                         <div className={`${subConf.color} h-full rounded-full`} style={{width: subConf.pct}} />
                                       </div>
-                                      <span className="text-ink-700 dark:text-ink-900 text-xs">{subConfStr}</span>
+                                      <span className="text-muted-foreground text-xs">{subConfStr}</span>
                                     </div>
                                   ) : (
-                                    <span className="text-ink-700 dark:text-ink-900 text-xs">—</span>
+                                    <span className="text-muted-foreground text-xs">—</span>
                                   )}
-                                </td>
-                                <td className="px-7 py-5 text-sm text-ink-700 dark:text-ink-900 truncate" title={sub.rule}>
+                                </Td>
+                                <Td muted className="truncate" title={sub.rule}>
                                   {sub.rule || '—'}
-                                </td>
-                                <td className="px-7 py-5 text-sm text-ink-800 dark:text-ink-800">—</td>
-                                <td className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${subColorClass}`}>
+                                </Td>
+                                <Td muted>—</Td>
+                                <Td numeric className={`font-medium ${subColorClass}`}>
                                   +{(sub.awarded ?? 0).toFixed(1)} / {sub.maxPoints ?? 0}
-                                </td>
-                              </tr>
+                                </Td>
+                              </Tr>
                             );
                           })}
                         </React.Fragment>
                       );
                       });
                     })()}
-                  </tbody>
-                </table>
-              </div>
+                  </TBody>
+                </Table>
 
               {/* Compliance info inside the same card if it exists */}
               {Object.keys(compliance).length > 0 && (

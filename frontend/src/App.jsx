@@ -111,7 +111,7 @@ function AppLayout() {
       <PortalContainerProvider>
         <DashboardSidebar />
         <SidebarInset className="bg-paper-300 dark:bg-ink-50 overflow-y-auto">
-          <div className="px-4 lg:px-8">
+          <div className="page-gutter">
             <DashboardTopbar />
           </div>
           <main className="flex-1">
@@ -151,6 +151,18 @@ function AppLayout() {
   );
 }
 
+// Standalone screens render outside AppLayout's .web3-dashboard wrapper, so
+// they need their own copy of that scope for the Dashboard surface tokens
+// (bg-card, shadow-primary, ...) they share with the in-app pages — and their
+// own portal container, so dropdowns opened there land inside it too.
+function ThemeScope({ children }) {
+  return (
+    <div className="web3-dashboard">
+      <PortalContainerProvider>{children}</PortalContainerProvider>
+    </div>
+  );
+}
+
 function RootRoute() {
   const { user, isLoading } = useAuth();
 
@@ -175,11 +187,11 @@ function App() {
           <AuthProvider>
             <NotificationProvider>
               <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/share/:token" element={<ShareView />} />
-                <Route path="/share/:token/calls/:callLogId" element={<SharedCallReport />} />
-                <Route path="/invite/:token" element={<InviteAccept />} />
+                <Route path="/login" element={<ThemeScope><Login /></ThemeScope>} />
+                <Route path="/auth/callback" element={<ThemeScope><AuthCallback /></ThemeScope>} />
+                <Route path="/share/:token" element={<ThemeScope><ShareView /></ThemeScope>} />
+                <Route path="/share/:token/calls/:callLogId" element={<ThemeScope><SharedCallReport /></ThemeScope>} />
+                <Route path="/invite/:token" element={<ThemeScope><InviteAccept /></ThemeScope>} />
                 <Route path="/dashboard/web3-dashboard" element={<Web3Dashboard />} />
                 <Route path="/" element={<RootRoute />} />
                 <Route path="/*" element={

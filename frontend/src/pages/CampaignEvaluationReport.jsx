@@ -48,7 +48,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
 
   if (loading && !report) {
     return (
-      <div className="p-6 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card animate-pulse flex items-center justify-center text-ink-800 dark:text-ink-800 min-h-[150px]">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 animate-pulse flex items-center justify-center text-ink-800 dark:text-ink-800 min-h-[150px]">
         Loading Evaluation Analytics...
       </div>
     );
@@ -64,7 +64,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
 
   if (!report || report.totalCalls === 0) {
     return (
-      <div className="p-6 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card flex flex-col items-center justify-center text-ink-800 dark:text-ink-800 min-h-[150px]">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 flex flex-col items-center justify-center text-ink-800 dark:text-ink-800 min-h-[150px]">
         <BarChart3 size={32} className="mb-2 opacity-20" />
         <p className="text-sm font-medium text-ink-500 dark:text-ink-900">No Evaluation Data Yet</p>
         <p className="text-xs mt-0.5">Once calls are completed and evaluated, analytics will appear here.</p>
@@ -75,7 +75,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
   const completionPercent = Math.round((parseFloat(report.completionRate) || 0) * 100);
 
   return (
-    <FullscreenTable className="rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card overflow-hidden">
+    <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
       {({ toggle, isFs }) => (<>
       <div className="border-b border-paper-500 dark:border-ink-400 px-6 py-4 flex items-center justify-between">
         <h3 className="font-semibold text-sm text-ink-100 dark:text-paper-200 flex items-center gap-2">

@@ -34,10 +34,10 @@ export default function Pagination({
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-4 px-7 py-4
-        bg-paper-200 dark:bg-ink-50 border-t border-paper-400 dark:border-ink-400 ${className}`}
+      className={`flex flex-wrap items-center justify-between gap-4 px-5 py-3
+        border-t border-border ${className}`}
     >
-      <div className="flex items-center gap-4 text-xs text-ink-600 dark:text-ink-900">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span className="tabular">
           {pageSize ? `Showing ${from}–${to} of ${totalRows} ${label}` : `${totalRows} ${label}`}
         </span>
@@ -66,7 +66,7 @@ export default function Pagination({
             onClick={() => goto(page - 1)} disabled={page === 1} />
 
           {compact ? (
-            <span className="px-2 text-xs text-ink-600 dark:text-ink-900 tabular">
+            <span className="px-2 text-xs text-muted-foreground tabular">
               {page} / {pages}
             </span>
           ) : (
@@ -74,7 +74,7 @@ export default function Pagination({
               <Button
                 key={p}
                 size="sm"
-                variant={p === page ? 'primary' : 'ghost'}
+                variant={p === page ? 'secondary' : 'ghost'}
                 aria-current={p === page ? 'page' : undefined}
                 onClick={() => goto(p)}
                 className="!px-0 w-8 tabular"

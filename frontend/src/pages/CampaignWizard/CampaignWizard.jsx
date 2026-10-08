@@ -204,9 +204,9 @@ export default function CampaignWizard() {
   const progress = Math.round((step / steps.length) * 100);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex gap-6 h-[calc(100vh-4rem)] overflow-hidden page-gutter pt-3 pb-7">
       {/* Left Step Panel */}
-      <nav className="hidden lg:flex w-72 bg-brand-100 dark:bg-ink-200/60 border-r border-paper-500/50 dark:border-ink-400 flex-col shrink-0">
+      <nav className="hidden lg:flex w-72 bg-card dark:bg-muted rounded-2xl shadow-primary flex-col shrink-0 overflow-hidden">
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -231,10 +231,10 @@ export default function CampaignWizard() {
                 key={i}
                 className={`px-6 py-4 flex items-center gap-4 transition-colors ${
                   isActive
-                    ? 'bg-paper-100 dark:bg-ink-200 shadow-card'
+                    ? 'bg-paper-200 dark:bg-ink-300/60'
                     : isComplete
-                      ? 'opacity-60 cursor-pointer hover:bg-white/70 dark:hover:bg-ink-400/70'
-                      : 'opacity-60 cursor-pointer hover:bg-white/50 dark:hover:bg-ink-400/50'
+                      ? 'opacity-60 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-300/60'
+                      : 'opacity-60 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-300/60'
                 }`}
                 style={isActive ? {borderLeft: '3px solid #266df0'} : {borderLeft: '3px solid transparent'}}
                 onClick={() => isComplete && setStep(i + 1)}
@@ -261,7 +261,7 @@ export default function CampaignWizard() {
         </div>
 
         {/* AI Logic Confidence Card */}
-        <div className="p-6 border-t border-paper-500 dark:border-ink-400">
+        <div className="p-6 border-t border-border">
           <div className="bg-brand-100 dark:bg-brand-500/10 p-4 rounded-control border border-brand-100 dark:border-brand-600">
             <h4 className="text-sm font-semibold text-brand-600 dark:text-brand-300 mb-1">AI Logic Confidence</h4>
             <p className="text-xs text-brand-600 dark:text-brand-300 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
@@ -270,10 +270,10 @@ export default function CampaignWizard() {
       </nav>
 
       {/* Right Canvas */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-paper-200 dark:bg-ink-50">
+      <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Sticky step header */}
-        <div className="shrink-0 border-b border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 px-5 md:px-8 py-5 md:py-6">
+        <div className="shrink-0 border-b border-border pb-5 md:pb-6">
           <div className="max-w-4xl mx-auto">
             {/* Stands in for the step rail, which is hidden below `lg`. */}
             <div className="lg:hidden mb-4">
@@ -300,14 +300,14 @@ export default function CampaignWizard() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-5 md:px-8 py-6">
+          <div className="max-w-4xl mx-auto py-6">
             {renderStep()}
           </div>
         </div>
 
         {/* Sticky footer — always visible */}
-        <div className="shrink-0 border-t border-paper-500 bg-paper-100 dark:bg-ink-200 dark:border-ink-400">
-          <div className="max-w-4xl mx-auto px-5 md:px-8 py-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="shrink-0 border-t border-border">
+          <div className="max-w-4xl mx-auto pt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
             <Button variant="secondary" size="md" onClick={handleSaveDraft} icon="save" className="w-full sm:!w-auto">Save as Draft</Button>
             <div className="flex gap-3 sm:gap-4">
               <Button variant="ghost" size="md" onClick={prevStep} disabled={step === 1} icon="arrow_back" className="flex-1 sm:flex-none">Previous</Button>

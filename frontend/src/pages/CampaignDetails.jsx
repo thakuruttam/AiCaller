@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { campaignTypeLabel } from '../components/campaignTypes';
-import { Button, IconButton, CopyField, Badge, StatusBadge, Page, Pagination } from '../components/ui';
+import {
+  Button, IconButton, CopyField, Badge, StatusBadge, Page, Pagination, Input,
+  Table, THead, Th, TBody, Tr, Td, TableToolbar, FilterBar, statusLabel,
+} from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import PageLoader from '../components/PageLoader';
@@ -31,7 +37,7 @@ function ShareModal({ campaignId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Share Campaign Report</h3>
           <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
@@ -102,15 +108,8 @@ export default function CampaignDetails() {
     }
   };
 
-  if (loading) return <PageLoader text="Loading campaign…" />;
-  if (loadError || !campaign) return (
-    <div className="flex items-center justify-center h-64 text-sm text-ink-700 dark:text-ink-900">
-      {loadError === 'access-denied' ? "You don't have access to this campaign." : 'Campaign not found.'}
-    </div>
-  );
-
-  const contacts = campaign.campaignContacts || [];
-  const logs = campaign.callLogs || [];
+  const contacts = campaign?.campaignContacts || [];
+  const logs = campaign?.callLogs || [];
   const completed = logs.filter(l => l.status === 'completed').length;
   const avgDuration = logs.filter(l => l.durationMs).length
     ? Math.round(logs.filter(l => l.durationMs).reduce((a,l) => a + l.durationMs, 0) / logs.filter(l => l.durationMs).length / 1000)
@@ -140,7 +139,46 @@ export default function CampaignDetails() {
     );
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PER_PAGE));
+  const filters = useFacets(
+    filteredRows,
+    {
+      status: {
+        label: 'Status',
+        get: ({ log }) => (log ? log.status : 'no-call'),
+        format: v => (v === 'no-call' ? 'No call' : statusLabel(v)),
+      },
+      tag: { label: 'Tag', get: ({ cc }) => cc.overrides?.tag },
+    },
+    { onChange: () => setPage(1) },
+  );
+  const isFiltered = !!searchQuery || filters.activeCount > 0;
+  const clearAllFilters = () => { setSearchQuery(''); filters.reset(); setPage(1); };
+
+  const { sorted: sortedRows, sortProps } = useSort(filters.filtered, {
+    name: ({ cc }) => cc.overrides?.name || cc.contact?.name,
+    phone: ({ cc }) => cc.contact?.phone,
+    calledAt: ({ log }) => log?.createdAt,
+    status: ({ log }) => log?.status,
+    duration: ({ log }) => log?.durationMs,
+  });
+
+  if (loading) return <PageLoader text="Loading campaign…" />;
+  if (loadError || !campaign) return (
+    <div className="flex items-center justify-center h-64 text-sm text-ink-700 dark:text-ink-900">
+      {loadError === 'access-denied' ? "You don't have access to this campaign." : 'Campaign not found.'}
+    </div>
+  );
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PER_PAGE));
+
+  const handleExport = () => exportCsv(`${campaign.name || 'campaign'}-contacts-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Name', value: ({ cc }) => cc.overrides?.name || cc.contact?.name },
+    { header: 'Phone', value: ({ cc }) => cc.contact?.phone },
+    { header: 'Tag', value: ({ cc }) => cc.overrides?.tag },
+    { header: 'Called at', value: ({ log }) => log?.createdAt && new Date(log.createdAt).toISOString().slice(0, 10) },
+    { header: 'Status', value: ({ log }) => (log ? statusLabel(log.status) : 'no call') },
+    { header: 'Duration (s)', value: ({ log }) => (log?.durationMs ? Math.round(log.durationMs / 1000) : null) },
+  ], sortedRows);
 
   return (
     <Page>
@@ -185,7 +223,7 @@ export default function CampaignDetails() {
           { label:'Avg. Duration', value: avgDuration >= 60 ? `${Math.floor(avgDuration/60)}m ${avgDuration%60}s` : `${avgDuration}s`, barColor:'bg-caution/100', barW:'50%' },
           { label:'Success Rate', value: `${successRate}%`, barColor:'bg-brand-500', barW:`${successRate}%` },
         ].map(s => (
-          <div key={s.label} className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 p-6 rounded shadow-card">
+          <div key={s.label} className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
             <p className="text-xs text-ink-600 dark:text-ink-900 mb-2">{s.label}</p>
             <p className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{s.value}</p>
             <div className="mt-2 h-1 w-full bg-paper-400 dark:bg-ink-300 rounded">
@@ -196,37 +234,41 @@ export default function CampaignDetails() {
       </div>
 
       {/* Activity Table */}
-      <FullscreenTable className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded shadow-card overflow-hidden">
+      <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
         {({ toggle, isFs }) => {
-          const paginated = isFs ? filteredRows : filteredRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
+          const paginated = isFs ? sortedRows : sortedRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
           return (<>
-        <div className="px-6 py-4 border-b border-paper-400 dark:border-ink-400 flex items-center justify-between bg-paper-200/50 dark:bg-ink-50/50">
-          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Contact Call Status</h3>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-600 dark:text-ink-900 text-[18px]">filter_list</span>
-              <input
-                className="pl-10 pr-4 py-1.5 border border-paper-600 dark:border-ink-400 rounded text-sm text-ink-100 dark:text-paper-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder:text-ink-700 dark:placeholder:text-ink-700"
-                placeholder="Filter activity..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-              />
-            </div>
-            <IconButton tone="neutral" size="md" title="Download" icon="download"  />
+        <TableToolbar
+          title="Contact call status"
+          count={sortedRows.length}
+          actions={<>
+            <IconButton tone="neutral" size="md" title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedRows.length} />
             <FullscreenButton toggle={toggle} isFs={isFs} />
+          </>}
+        >
+          <FilterBar filters={filters} />
+          <div className="w-full md:w-64 md:ml-auto">
+            <Input
+              icon="filter_list"
+              placeholder="Filter activity..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="!h-9"
+            />
           </div>
-        </div>
+        </TableToolbar>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-paper-200 dark:bg-ink-50 border-b border-paper-400 dark:border-ink-400">
-              <tr>
-                {['Name','Phone','Tags / Overrides','Called At','Status','Duration','Call Details'].map(h => (
-                  <th key={h} className="px-6 py-4 text-xs text-ink-600 dark:text-ink-900 ">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
+          <Table>
+            <THead>
+              <Th {...sortProps('name')}>Name</Th>
+              <Th {...sortProps('phone')}>Phone</Th>
+              <Th>Tags / Overrides</Th>
+              <Th {...sortProps('calledAt')}>Called at</Th>
+              <Th {...sortProps('status')}>Status</Th>
+              <Th align="right" {...sortProps('duration')}>Duration</Th>
+              <Th align="right">Call details</Th>
+            </THead>
+            <TBody>
               {paginated.map(({ cc, log }, i) => {
                 const contact = cc.contact;
                 const name = cc.overrides?.name || contact?.name || '?';
@@ -239,68 +281,72 @@ export default function CampaignDetails() {
                   : '—';
 
                 return (
-                  <tr key={log?.id || cc.id} className="hover:bg-paper-200/80 dark:hover:bg-ink-400/50 transition-colors">
-                    <td className="px-7 py-5">
+                  <Tr key={log?.id || cc.id}>
+                    <Td>
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-xs ${colorClass}`}>{initials}</div>
-                        <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{name}</span>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 ${colorClass}`}>{initials}</div>
+                        <span className="font-medium">{name}</span>
                       </div>
-                    </td>
-                    <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900">
+                    </Td>
+                    <Td muted className="tabular-nums whitespace-nowrap">
                       {contact?.phone || '—'}
-                    </td>
-                    <td className="px-7 py-5">
+                    </Td>
+                    <Td>
                       <div className="flex flex-wrap gap-2">
                         {cc.overrides?.tag && (
-                          <span className="px-2 py-0.5 bg-brand-100/60 dark:bg-brand-500/15 text-brand-500 dark:text-brand-300 rounded-full text-xs border border-brand-300 dark:border-brand-500/30">{cc.overrides.tag}</span>
+                          <Badge tone="brand" dot={false} capitalize={false}>{cc.overrides.tag}</Badge>
                         )}
                         {cc.overrides?.goals && (
-                          <span className="px-2 py-0.5 bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 rounded-full text-xs border border-paper-500 dark:border-ink-400">Script Override</span>
+                          <Badge dot={false} capitalize={false}>Script Override</Badge>
                         )}
                       </div>
-                    </td>
-                    <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900">
+                    </Td>
+                    <Td muted className="whitespace-nowrap">
                       {log?.createdAt ? new Date(log.createdAt).toLocaleString() : '—'}
-                    </td>
-                    <td className="px-7 py-5">
+                    </Td>
+                    <Td>
                       {status ? (
                         <StatusBadge status={status} />
                       ) : (
-                        <span className="text-xs text-ink-700 dark:text-ink-900 italic">No call</span>
+                        <span className="text-xs text-muted-foreground italic">No call</span>
                       )}
-                    </td>
-                    <td className="px-7 py-5 text-sm text-ink-600 dark:text-ink-900">{durationStr}</td>
-                    <td className="px-7 py-5">
+                    </Td>
+                    <Td numeric muted>{durationStr}</Td>
+                    <Td align="right">
                       {log ? (
                         <Link
                           to={`/campaign/${id}/calls/${log.id}`}
-                          className="flex items-center gap-1.5 text-brand-500 hover:text-brand-600 transition-colors"
+                          className="inline-flex items-center gap-1.5 text-brand-500 hover:text-brand-600 transition-colors"
                         >
-                          <span className="material-symbols-outlined text-[18px]">article</span>
+                          <span className="material-symbols-outlined [--icon-size:18px]">article</span>
                           <span className="text-sm">View Call</span>
                         </Link>
                       ) : (
-                        <span className="text-xs text-ink-900 dark:text-ink-700 italic">N/A</span>
+                        <span className="text-xs text-muted-foreground italic">N/A</span>
                       )}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-              {filteredRows.length === 0 && (
+              {sortedRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">
-                    {searchQuery ? 'No contacts match your search.' : 'No contacts in this campaign.'}
+                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    {isFiltered ? (
+                      <>
+                        No contacts match your search and filters.
+                        <Button variant="link" size="sm" onClick={clearAllFilters} className="ml-2">Clear filters</Button>
+                      </>
+                    ) : 'No contacts in this campaign.'}
                   </td>
                 </tr>
               )}
-            </tbody>
-          </table>
-        </div>
+            </TBody>
+          </Table>
 
         <Pagination
           page={page}
           totalPages={totalPages}
-          totalRows={filteredRows.length}
+          totalRows={sortedRows.length}
           pageSize={isFs ? 0 : PER_PAGE}
           onPageChange={setPage}
           label="contacts"

@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Page, PageHeader, Button, IconButton, StatusBadge } from '../components/ui';
+import {
+  Page, PageHeader, Button, IconButton, StatusBadge,
+  Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState,
+  FilterBar, statusLabel,
+} from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -84,7 +91,7 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-2xl flex flex-col max-h-[85vh]">
+      <div className="bg-card dark:bg-muted rounded-2xl relative shadow-overlay w-full max-w-2xl flex flex-col max-h-[85vh]">
         <div className="flex items-start justify-between p-6 border-b border-paper-400 dark:border-ink-400 shrink-0">
           <div>
             <p className="text-xs font-medium text-ink-800 capitalize mb-1">{ticket.category}</p>
@@ -189,6 +196,28 @@ export default function Support() {
 
   useEffect(() => { fetchTickets(); }, []);
 
+  const categoryLabel = (value) => CATEGORIES.find(c => c.value === value)?.label || value;
+
+  const filters = useFacets(tickets, {
+    status: { label: 'Status', get: t => t.status, format: statusLabel },
+    category: { label: 'Category', get: t => t.category, format: categoryLabel },
+  });
+
+  const { sorted: sortedTickets, sortProps } = useSort(filters.filtered, {
+    subject: t => t.subject,
+    status: t => t.status,
+    created: t => t.createdAt,
+    activity: t => t._count?.replies || 0,
+  });
+
+  const handleExport = () => exportCsv(`support-tickets-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Subject', value: t => t.subject },
+    { header: 'Category', value: t => categoryLabel(t.category) },
+    { header: 'Status', value: t => statusLabel(t.status) },
+    { header: 'Created', value: t => t.createdAt && new Date(t.createdAt).toISOString().slice(0, 10) },
+    { header: 'Replies', value: t => t._count?.replies || 0 },
+  ], sortedTickets);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.subject.trim() || !form.message.trim()) {
@@ -250,7 +279,7 @@ export default function Support() {
 
           {/* Form — right 5 cols */}
           <div className="lg:col-span-5">
-            <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card p-8">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-8">
               <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-1">New Support Request</h2>
               <p className="text-xs text-ink-800 mb-6">Average response time: &lt; 2 hours</p>
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -298,69 +327,68 @@ export default function Support() {
         </div>
 
         {/* Recent Tickets */}
-        <section>
-          <div className="flex items-center gap-3 mb-5">
-            <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Recent Tickets</h2>
-            {tickets.length > 0 && (
-              <span className="text-xs bg-paper-400 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-700 font-medium px-2 py-0.5 rounded">
-                {tickets.length} TOTAL
-              </span>
+        <section className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+          <TableToolbar
+            title="Recent tickets"
+            count={tickets.length ? sortedTickets.length : null}
+            actions={tickets.length > 0 && (
+              <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedTickets.length} />
             )}
-          </div>
+          >
+            {tickets.length > 0 && <FilterBar filters={filters} />}
+          </TableToolbar>
 
           {ticketsLoading ? (
-            <div className="border border-paper-500 dark:border-ink-400 rounded-card py-12 text-center text-ink-800 text-sm">Loading…</div>
+            <Table>
+              <TBody>
+                {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} cols={5} />)}
+              </TBody>
+            </Table>
           ) : tickets.length === 0 ? (
-            <div className="border border-paper-500 dark:border-ink-400 rounded-card py-16 text-center">
-              <span className="material-symbols-outlined text-paper-200 dark:text-ink-500 text-[48px] block mb-3">inbox</span>
-              <p className="text-ink-800 text-sm">No tickets yet — fill out the form above and we'll get back to you.</p>
-            </div>
+            <EmptyState icon="inbox" title="No tickets yet" body="Fill out the form above and we'll get back to you." />
+          ) : sortedTickets.length === 0 ? (
+            <EmptyState
+              icon="filter_alt_off"
+              title="No tickets match your filters"
+              body="Try a different status or category, or clear the filters."
+              action={<Button variant="secondary" onClick={filters.reset}>Clear filters</Button>}
+            />
           ) : (
-            <div className="border border-paper-500 dark:border-ink-400 rounded-card overflow-hidden bg-paper-100 dark:bg-ink-200 shadow-card">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-paper-200 dark:bg-ink-50 border-b border-paper-500 dark:border-ink-400">
-                    <th className="px-7 py-4 text-xs font-medium text-ink-700 ">Ticket Details</th>
-                    <th className="px-7 py-4 text-xs font-medium text-ink-700 ">Status</th>
-                    <th className="px-7 py-4 text-xs font-medium text-ink-700 ">Created</th>
-                    <th className="px-7 py-4 text-xs font-medium text-ink-700 text-center">Activity</th>
-                    <th className="px-7 py-4"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-paper-400 dark:divide-ink-400">
-                  {tickets.map(t => (
-                    <tr
-                      key={t.id}
-                      onClick={() => openTicket(t)}
-                      className="hover:bg-paper-200/60 dark:hover:bg-ink-100/60 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-7 py-5">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">{t.subject}</span>
-                          <span className="text-xs text-ink-800 capitalize mt-0.5">{CATEGORIES.find(c => c.value === t.category)?.label || t.category}</span>
-                        </div>
-                      </td>
-                      <td className="px-7 py-5">
-                        <StatusBadge status={t.status} />
-                      </td>
-                      <td className="px-7 py-5 text-sm text-ink-700 dark:text-ink-900">
-                        {new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td className="px-7 py-5 text-center">
-                        <span className="text-xs font-medium text-ink-800">
-                          {t._count?.replies || 0} {t._count?.replies === 1 ? 'reply' : 'replies'}
-                        </span>
-                      </td>
-                      <td className="px-7 py-5 text-right">
-                        <span className="text-brand-500 dark:text-brand-300 text-xs font-bold opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:underline">
-                          View
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <THead>
+                <Th {...sortProps('subject')}>Ticket</Th>
+                <Th {...sortProps('status')}>Status</Th>
+                <Th {...sortProps('created')}>Created</Th>
+                <Th align="right" {...sortProps('activity')}>Activity</Th>
+                <Th><span className="sr-only">Actions</span></Th>
+              </THead>
+              <TBody>
+                {sortedTickets.map(t => (
+                  <Tr key={t.id} onClick={() => openTicket(t)}>
+                    <Td>
+                      <CellStack
+                        title={t.subject}
+                        meta={categoryLabel(t.category)}
+                      />
+                    </Td>
+                    <Td>
+                      <StatusBadge status={t.status} />
+                    </Td>
+                    <Td muted className="whitespace-nowrap">
+                      {new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </Td>
+                    <Td numeric muted>
+                      {t._count?.replies || 0} {t._count?.replies === 1 ? 'reply' : 'replies'}
+                    </Td>
+                    <Td align="right">
+                      <RowActions>
+                        <span className="material-symbols-outlined [--icon-size:18px] text-muted-foreground">chevron_right</span>
+                      </RowActions>
+                    </Td>
+                  </Tr>
+                ))}
+              </TBody>
+            </Table>
           )}
         </section>
 

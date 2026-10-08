@@ -63,13 +63,12 @@ const Modal = ({ isOpen, onClose, title, description, children, footer, size = '
         aria-label={title}
         tabIndex={-1}
         className={`relative flex flex-col w-full max-h-[90vh] outline-none
-          bg-paper-100 dark:bg-ink-200
-          border border-paper-500 dark:border-ink-400
-          rounded-card shadow-overlay animate-scale-in
+          bg-card dark:bg-muted
+          rounded-2xl shadow-overlay animate-scale-in
           ${className || SIZES[size]}`}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-paper-400 dark:border-ink-400 shrink-0">
+          <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-border shrink-0">
             <div className="min-w-0">
               {title && <h3 className="text-base font-semibold text-ink-100 dark:text-paper-200">{title}</h3>}
               {description && <p className="text-[13px] text-ink-700 dark:text-ink-800 mt-0.5">{description}</p>}
@@ -81,7 +80,7 @@ const Modal = ({ isOpen, onClose, title, description, children, footer, size = '
         <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-paper-400 dark:border-ink-400 bg-paper-200 dark:bg-ink-300/40 rounded-b-card shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-paper-200 dark:bg-ink-300/40 rounded-b-2xl shrink-0">
             {footer}
           </div>
         )}

@@ -1,13 +1,13 @@
 import React from 'react';
 
-// Every screen's outer frame: the grey ground the white cards sit on, plus a
-// generous, consistent gutter. Screens should not set their own page padding.
+// Every screen's outer frame: the grey ground the cards sit on, plus the same
+// page-gutter (index.css) as the Dashboard and topbar, so every screen's
+// edges line up with theirs instead of floating in a narrower centred
+// column. Screens should not set their own page padding.
 export default function Page({ className = '', children }) {
   return (
     <div className="ui-inter bg-paper-300 dark:bg-ink-50 min-h-full">
-      {/* A 40px gutter is right on a desktop and wasteful on a 390px phone,
-          where it costs a fifth of the width — so it tightens below `md`. */}
-      <div className={`p-5 md:p-10 max-w-[1440px] mx-auto animate-fade-in ${className}`}>{children}</div>
+      <div className={`page-gutter pt-3 pb-7 animate-fade-in ${className}`}>{children}</div>
     </div>
   );
 }
@@ -18,7 +18,7 @@ export default function Page({ className = '', children }) {
 // where nothing scrolled to reach them.
 export function PageHeader({ title, subtitle, icon, actions, className = '' }) {
   return (
-    <div className={`flex flex-col items-start gap-4 mb-10 md:flex-row md:justify-between md:items-end md:gap-6 ${className}`}>
+    <div className={`flex flex-col items-start gap-4 mb-8 md:flex-row md:justify-between md:items-end md:gap-6 ${className}`}>
       <div className="min-w-0">
         <h1 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 flex items-center gap-2">
           {icon && <span className="material-symbols-outlined [--icon-size:26px] text-brand-500 shrink-0">{icon}</span>}
@@ -39,11 +39,11 @@ export function PageHeader({ title, subtitle, icon, actions, className = '' }) {
 export function EmptyState({ icon = 'inbox', title, body, action, className = '' }) {
   return (
     <div className={`flex flex-col items-center text-center py-16 animate-rise ${className}`}>
-      <div className="w-10 h-10 rounded-chip bg-paper-300 dark:bg-ink-300 flex items-center justify-center mb-3">
-        <span className="material-symbols-outlined [--icon-size:20px] text-ink-800">{icon}</span>
+      <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
+        <span className="material-symbols-outlined [--icon-size:26px] text-muted-foreground">{icon}</span>
       </div>
-      <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{title}</p>
-      {body && <p className="text-[13px] text-ink-700 dark:text-ink-800 mt-1 max-w-sm">{body}</p>}
+      <p className="text-base font-semibold text-foreground">{title}</p>
+      {body && <p className="text-sm text-muted-foreground mt-1 max-w-sm">{body}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );

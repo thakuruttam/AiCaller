@@ -197,7 +197,7 @@ const CallDetails = () => {
         : 'bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900';
 
   return (
-    <div className="p-10 max-w-[1200px] mx-auto">
+    <div className="page-gutter pt-3 pb-7 animate-fade-in">
       {/* Page Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
@@ -233,7 +233,7 @@ const CallDetails = () => {
       </div>
 
       {/* Info Strip */}
-      <div className="grid grid-cols-4 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control p-6 mb-8">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-6 mb-8">
         <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 pr-6">
           <p className="text-xs text-ink-700 dark:text-ink-900 ">Contact Info</p>
           <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{callLog.contact?.phone || '—'}</p>
@@ -295,7 +295,7 @@ const CallDetails = () => {
           </div>
 
           {/* Sentiment Card */}
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control p-6">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
             <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-4">Sentiment &amp; Insights</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -319,7 +319,7 @@ const CallDetails = () => {
 
         {/* Right Column: Transcript */}
         <div className="col-span-12 lg:col-span-7">
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-control flex flex-col" style={{height: 'calc(100vh - 220px)', maxHeight: '800px'}}>
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary flex flex-col" style={{height: 'calc(100vh - 220px)', maxHeight: '800px'}}>
             {/* Transcript Header */}
             <div className="p-4 border-b border-paper-400 dark:border-ink-400 flex justify-between items-center bg-paper-200/50 dark:bg-ink-50/50">
               <div className="flex items-center gap-2">

@@ -188,6 +188,17 @@
   html.dark ::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-500); background-clip: content-box; }
 }
 
+/* The one horizontal gutter for every in-app screen and the topbar above it,
+   so their left/right edges always line up. Fluid rather than stepped: the
+   gutter is 3.5% of the available width (percent padding resolves against
+   the parent, so the sidebar's width is already excluded), clamped to
+   16–64px. Past a 1600px content width the max() switches to centring, so
+   on ultra-wide monitors content sits in a capped column instead of
+   stretching edge to edge. */
+@utility page-gutter {
+  padding-inline: max(clamp(1rem, 3.5%, 4rem), calc((100% - 1600px) / 2));
+}
+
 /* Retained so screens can opt a subtree into the UI type ramp explicitly.
    The body already carries it, so this is mostly a no-op marker now. */
 .ui-inter {

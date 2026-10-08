@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { campaignTypeLabel } from '../components/campaignTypes';
+import CampaignTypeLabel from '../components/CampaignTypeLabel';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
@@ -8,7 +8,10 @@ import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import Step7Review from './CampaignWizard/components/Step7Review';
-import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td } from '../components/ui';
+import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar } from '../components/ui';
+import { campaignTypeLabel } from '../components/campaignTypes';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 
 export default function AdminDashboard() {
   const [campaigns, setCampaigns] = useState([]);
@@ -220,7 +223,28 @@ export default function AdminDashboard() {
   const totalCPS = (campaigns.reduce((a,c) => a + (c.callLogs||[]).filter(isLiveLog).length, 0) * 0.7).toFixed(1);
   const totalChannels = campaigns.reduce((a,c) => a + (c.callLogs||[]).filter(isLiveLog).length, 0);
 
-  const filtered = campaigns.filter(c => c.name?.toLowerCase().includes(campaignSearchQuery.toLowerCase()));
+  const campaignFilters = useFacets(
+    campaigns.filter(c => c.name?.toLowerCase().includes(campaignSearchQuery.toLowerCase())),
+    {
+      type: { label: 'Type', get: c => c.type || 'HR', format: campaignTypeLabel },
+      workspace: { label: 'Workspace', get: c => c.tenant?.name },
+    },
+  );
+  const filtered = campaignFilters.filtered;
+  const isCampaignFiltered = !!campaignSearchQuery || campaignFilters.activeCount > 0;
+  const clearCampaignFilters = () => {
+    setCampaignSearchQuery('');
+    campaignFilters.reset();
+  };
+
+  const handleExportCampaigns = () => exportCsv(`all-campaigns-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Campaign', value: c => c.name },
+    { header: 'ID', value: c => c.id },
+    { header: 'Workspace', value: c => c.tenant?.name },
+    { header: 'Owner email', value: c => c.createdBy?.email },
+    { header: 'Type', value: c => campaignTypeLabel(c.type || 'HR') },
+    { header: 'Calls', value: c => (c.callLogs || []).length },
+  ], filtered);
 
   return (
     <Page>
@@ -272,28 +296,28 @@ export default function AdminDashboard() {
       {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Active Channels</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalChannels} / 2,000</h3>
           <div className="w-full bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full mt-3">
             <div className="bg-brand-500 h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
           </div>
         </div>
-        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Calls per Second</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalCPS} CPS</h3>
           <p className="text-positive-dim text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
           </p>
         </div>
-        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">System Latency</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">142ms</h3>
           <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
           </p>
         </div>
-        <div className="bg-paper-100 dark:bg-ink-200 p-6 rounded-card border border-paper-500 dark:border-ink-400 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
           <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Error Rate</p>
           <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">0.04%</h3>
           <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
@@ -303,33 +327,27 @@ export default function AdminDashboard() {
       </div>
 
       {/* Campaign Table */}
-      <FullscreenTable className="bg-paper-100 dark:bg-ink-200 rounded-control border border-paper-500 dark:border-ink-400 shadow-card overflow-hidden mb-6">
+      <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-6">
         {({ toggle, isFs }) => (<>
-        <div className="px-6 py-4 border-b border-paper-400 dark:border-ink-400 bg-paper-200/50 dark:bg-ink-50/50 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">All Campaigns</h4>
-            <span className="flex items-center gap-1.5 text-xs text-ink-800 dark:text-ink-800">              <span className="inline-block w-1.5 h-1.5 rounded-full bg-positive animate-pulse"></span>
-              {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-positive/10 dark:bg-positive/15 dark:text-positive text-positive-dim">
-              <span className="w-1.5 h-1.5 rounded-full bg-positive mr-1.5"></span>
-              {totalActive} Active
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-caution/10 dark:bg-caution/15 dark:text-caution text-caution-dim">
-              <span className="w-1.5 h-1.5 rounded-full bg-caution/100 mr-1.5"></span>
-              {totalPaused} Paused
-            </span>
+        <TableToolbar
+          title="All Campaigns"
+          count={loading ? null : filtered.length}
+          actions={<>
+            <Badge tone="positive" capitalize={false}>{totalActive} Active</Badge>
+            <Badge tone="caution" capitalize={false}>{totalPaused} Paused</Badge>
+            <IconButton title="Export CSV" icon="download" onClick={handleExportCampaigns} disabled={!filtered.length} />
             <FullscreenButton toggle={toggle} isFs={isFs} />
-          </div>
-        </div>
+          </>}
+        >
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-positive animate-pulse"></span>
+            {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
+          </span>
+          <FilterBar filters={campaignFilters} />
+          <DebouncedSearch value={campaignSearchQuery} onSearch={setCampaignSearchQuery} placeholder="Search campaigns..." className="w-full md:w-72 md:ml-auto" />
+        </TableToolbar>
 
-        <div className="px-6 py-3 border-b border-paper-400 dark:border-ink-400">
-          <DebouncedSearch onSearch={setCampaignSearchQuery} placeholder="Search campaigns..." className="w-72" />
-        </div>
-
-        <div className="divide-y divide-paper-400 dark:divide-ink-400">
+        <div className="divide-y divide-border">
           {loading && (
             <div className="px-6 py-10 flex flex-col items-center gap-3">
               <Spinner size={28} className="text-brand-500" />
@@ -360,14 +378,25 @@ export default function AdminDashboard() {
 
             return (
               <div key={campaign.id} className="group">
-                <div className="flex items-center px-6 py-4 cursor-pointer hover:bg-paper-200/30 dark:hover:bg-ink-400/30 transition-colors" onClick={() => toggleCampaign(campaign.id)}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  className="flex items-center px-5 py-3.5 cursor-pointer outline-none hover:bg-paper-200/80 dark:hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500/40 transition-colors"
+                  onClick={() => toggleCampaign(campaign.id)}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      toggleCampaign(campaign.id);
+                    }
+                  }}
+                >
                   <div className="w-8 flex-shrink-0">
-                    <span className={`material-symbols-outlined text-ink-800 dark:text-ink-800 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                    <span className={`material-symbols-outlined [--icon-size:20px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
                   <div className="flex-1 grid grid-cols-2 lg:grid-cols-12 gap-x-4 gap-y-3 items-center">
                     <div className="col-span-2 lg:col-span-3">
-                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{campaign.name}</p>
-                      <p className="text-xs text-ink-700 dark:text-ink-900">ID: {campaign.id?.substring(0,12)}</p>
+                      <CellStack title={campaign.name} meta={<span className="font-mono">{campaign.id?.substring(0,12)}</span>} />
                       {hasScheduled && campaign.scheduledAt && (
                         <p className="text-xs font-medium text-brand-500 dark:text-brand-300 mt-0.5">
                           Scheduled for {new Date(campaign.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
@@ -375,26 +404,21 @@ export default function AdminDashboard() {
                       )}
                     </div>
                     <div className="col-span-2 lg:col-span-3">
-                      <p className="text-xs text-ink-700 dark:text-ink-900">Workspace</p>
-                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate">{campaign.tenant?.name || '—'}</p>
-                      <p className="text-xs text-ink-800 dark:text-ink-800 truncate">{campaign.createdBy?.email || '—'}</p>
+                      <p className="text-xs text-muted-foreground">Workspace</p>
+                      <CellStack title={campaign.tenant?.name || '—'} meta={campaign.createdBy?.email || '—'} />
                     </div>
                     <div className="col-span-1 lg:col-span-2">
-                      <p className="text-xs text-ink-700 dark:text-ink-900">Calls</p>
-                      <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{logs.length.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Calls</p>
+                      <p className="text-sm font-medium text-foreground tabular-nums">{logs.length.toLocaleString()}</p>
                     </div>
                     <div className="col-span-1 lg:col-span-1">
-                      <p className="text-xs text-ink-700 dark:text-ink-900">Type</p>
+                      <p className="text-xs text-muted-foreground">Type</p>
                       <div className="mt-0.5">
-                        <Badge tone="brand" capitalize={false} className="whitespace-nowrap">{campaignTypeLabel(campaign.type || 'HR')}</Badge>
+                        <CampaignTypeLabel type={campaign.type || 'HR'} />
                       </div>
                     </div>
-                    <div className="col-span-2 lg:col-span-3 flex justify-start lg:justify-end gap-2" onClick={e => e.stopPropagation()}>
-                      <Button variant="secondary" size="md" onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} title="View">
-                        {viewLoadingId === campaign.id
-                          ? <Spinner size={14} className="text-ink-600 dark:text-ink-900" />
-                          : <span className="material-symbols-outlined text-sm">visibility</span>}
-                      </Button>
+                    <div className="col-span-2 lg:col-span-3 flex justify-start lg:justify-end gap-1" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+                      <IconButton tone="neutral" size="md" title="View" icon="visibility" loading={viewLoadingId === campaign.id} onClick={() => openViewModal(campaign.id)} disabled={viewLoadingId === campaign.id} />
                       {(hasDraft || !logs.length) && (
                         <IconButton tone="brand" size="md" title="Start" icon="play_arrow" onClick={() => handleCampaignAction(campaign.id, 'start')} disabled={actionLoading} />
                       )}
@@ -415,23 +439,23 @@ export default function AdminDashboard() {
                 </div>
 
                 {isExpanded && (
-                  <div className="bg-paper-200/80 dark:bg-ink-50/50 px-14 border-t border-paper-400 dark:border-ink-400">
+                  <div className="bg-paper-200/60 dark:bg-black/20 px-5 lg:px-14 border-t border-border">
                     <div className="py-6">
                       <div className="flex justify-between items-center mb-4">
-                        <h5 className="text-sm font-semibold text-ink-500 dark:text-ink-900">Live Call Stream</h5>
-                        <div className="flex items-center gap-3">
+                        <h5 className="text-sm font-semibold text-foreground">Live Call Stream</h5>
+                        <div className="flex flex-wrap items-center gap-3">
                           <DebouncedSearch onSearch={(q) => handleCallSearch(campaign.id, q)} placeholder="Search call logs..." className="w-64" />
                           <Button variant="secondary" size="sm" onClick={() => handleBulkEvaluate(campaign)} disabled={actionLoading}>Evaluate All</Button>
                           <Button variant="secondary" size="sm" onClick={() => handleBulkRecall(campaign)} disabled={actionLoading}>Re-call Failed</Button>
                         </div>
                       </div>
-                      <div className="overflow-x-auto rounded-field border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 shadow-card">
+                      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-x-auto">
                         <Table>
                           <THead>
-                            <Th icon="person">Contact</Th>
-                            <Th icon="call">Phone</Th>
-                            <Th icon="flag">Status</Th>
-                            <Th align="right">Actions</Th>
+                            <Th>Contact</Th>
+                            <Th>Phone</Th>
+                            <Th>Status</Th>
+                            <Th align="right"><span className="sr-only">Actions</span></Th>
                           </THead>
                           <TBody>
                             {(() => {
@@ -452,7 +476,7 @@ export default function AdminDashboard() {
 
                               if (rows.length === 0) {
                                 return (
-                                  <tr><Td colSpan={4} className="text-center text-ink-800 dark:text-ink-800">
+                                  <tr><Td colSpan={4} muted className="py-8 text-center">
                                     {logs.length === 0 ? 'No contacts in this campaign.' : 'No call logs match.'}
                                   </Td></tr>
                                 );
@@ -464,13 +488,13 @@ export default function AdminDashboard() {
                                 return (
                                   <Tr key={log.id}>
                                     <Td className="font-medium">{name}</Td>
-                                    <Td className="text-ink-700 dark:text-ink-900">{cc?.contact?.phone}</Td>
+                                    <Td muted className="tabular-nums whitespace-nowrap">{cc?.contact?.phone}</Td>
                                     <Td><StatusBadge status={log.status} /></Td>
                                     <Td align="right">
-                                      <div className="flex gap-2 justify-end">
-                                        <Button variant="secondary" size="sm" onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'}>Eval</Button>
-                                        <Button variant="secondary" size="sm" icon="history" onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading}>Re-call</Button>
-                                      </div>
+                                      <RowActions className="gap-2">
+                                        <Button variant="secondary" size="xs" onClick={() => handleCallAction(log.id, 'evaluate')} disabled={actionLoading || log.status !== 'completed'}>Eval</Button>
+                                        <Button variant="secondary" size="xs" icon="history" onClick={() => handleCallAction(log.id, 'recall')} disabled={actionLoading}>Re-call</Button>
+                                      </RowActions>
                                     </Td>
                                   </Tr>
                                 );
@@ -487,7 +511,14 @@ export default function AdminDashboard() {
           })}
 
           {!loading && filtered.length === 0 && (
-            <div className="px-6 py-12 text-center text-sm text-ink-700 dark:text-ink-900">No campaigns found.</div>
+            <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+              {isCampaignFiltered ? (
+                <>
+                  No campaigns match your search and filters.
+                  <Button variant="link" size="sm" onClick={clearCampaignFilters} className="ml-2">Clear filters</Button>
+                </>
+              ) : 'No campaigns found.'}
+            </div>
           )}
         </div>
         </>)}
@@ -575,15 +606,15 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
     <div className="space-y-6">
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-5 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
           <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Open</p>
           <p className="text-2xl font-bold text-brand-500">{openCount}</p>
         </div>
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-5 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
           <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">In Progress</p>
           <p className="text-2xl font-bold text-caution-dim">{ipCount}</p>
         </div>
-        <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-5 shadow-card">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
           <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Resolved</p>
           <p className="text-2xl font-bold text-positive-dim">{resolveCount}</p>
         </div>
@@ -591,7 +622,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
 
       <div className="flex gap-5 items-start">
         {/* ── Ticket list ── */}
-        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden`}>
+        <div className={`${selectedTicket ? 'w-[360px] shrink-0' : 'flex-1'} bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden`}>
           <div className="px-4 py-3 border-b border-paper-400 dark:border-ink-400 flex items-center justify-between">
             <div className="flex gap-0.5 bg-paper-400 dark:bg-ink-300 p-0.5 rounded-control">
               {FILTERS.map(f => (
@@ -646,7 +677,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
           <div className="flex-1 flex gap-4 items-start min-w-0">
 
             {/* Sender card */}
-            <div className="w-[220px] shrink-0 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card overflow-hidden">
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary w-[220px] shrink-0 overflow-hidden">
               <div className="px-4 py-3 border-b border-paper-400 dark:border-ink-400">
                 <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Submitted by</p>
               </div>
@@ -736,7 +767,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
             </div>
 
             {/* Conversation panel */}
-            <div className="flex-1 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card shadow-card flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary flex-1 flex flex-col min-w-0" style={{maxHeight: '72vh'}}>
               {/* Header */}
               <div className="px-5 py-4 border-b border-paper-400 dark:border-ink-400 flex items-start justify-between shrink-0">
                 <div className="min-w-0 pr-3">

@@ -111,7 +111,7 @@ export default function Step7Review({ payload, updatePayload }) {
     return sum + (item.weight || 0);
   }, 0);
 
-  const cardCls = "rounded-card border border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 p-6 shadow-card";
+  const cardCls = "bg-card dark:bg-muted rounded-2xl shadow-primary p-6";
 
   return (
     <div className="animate-fade-in flex flex-col gap-8 pb-10">

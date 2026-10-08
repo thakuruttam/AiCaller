@@ -124,7 +124,7 @@ export default function WorkspaceSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left: Avatar card */}
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card flex flex-col items-center text-center gap-4">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 flex flex-col items-center text-center gap-4">
             <div className="relative group mt-2">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-brand-600 flex items-center justify-center ring-4 ring-offset-2 ring-paper-400 dark:ring-ink-400">
                 {avatarPreview
@@ -154,7 +154,7 @@ export default function WorkspaceSettings() {
           </div>
 
           {/* Right: Edit form */}
-          <div className="lg:col-span-2 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-6">
             <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-6">Personal Information</h3>
             <div className="space-y-5 max-w-lg">
               <Field label="Display Name">
@@ -187,7 +187,7 @@ export default function WorkspaceSettings() {
       {/* ── Workspace Tab ─────────────────────────────────────────── */}
       {tab === 'general' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-6">
             <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-6">Workspace Information</h3>
             <div className="space-y-5 max-w-lg">
               <div>
@@ -219,7 +219,7 @@ export default function WorkspaceSettings() {
             </div>
           </div>
 
-          <div className="bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 rounded-card p-6 shadow-card flex flex-col gap-3">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-1">Your Access</h3>
             <p className="text-sm text-ink-600 dark:text-ink-900">Your role determines what you can do in this workspace.</p>
             <span className={`self-start text-xs font-medium px-3 py-1.5 rounded-full border mt-2 ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>

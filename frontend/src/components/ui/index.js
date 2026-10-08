@@ -12,9 +12,10 @@ export { default as Input, Textarea, Select, Field } from './Input';
 export { default as Tabs, TabBar } from './Tabs';
 export {
   default as Table,
-  THead, TBody, Th, Tr, Td, RecordLink, SkeletonRow,
+  THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, RecordLink, SkeletonRow,
 } from './Table';
 export { default as Page, PageHeader, EmptyState, Stat } from './Page';
+export { FacetFilter, FilterBar, ColumnToggle } from './TableControls';
 export { default as Pagination } from './Pagination';
 export {
   Skeleton, SkeletonText, Alert, Progress, Avatar, Tooltip, Divider,

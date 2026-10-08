@@ -6,7 +6,10 @@ import Pagination from '../components/Pagination';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Avatar, Table, THead, TBody, Th, Tr, Td, EmptyState, SkeletonRow } from '../components/ui';
+import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Avatar, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, EmptyState, SkeletonRow, FilterBar } from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { exportCsv } from '../lib/exportCsv';
 
 const ROLE_BADGE = {
   SUPER_ADMIN: 'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30',
@@ -16,6 +19,11 @@ const ROLE_BADGE = {
 };
 
 const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'];
+
+const roleLabel = (role) => {
+  const l = String(role ?? '').replace(/_/g, ' ').toLowerCase();
+  return l.charAt(0).toUpperCase() + l.slice(1);
+};
 
 function InviteModal({ workspaceId, onClose, prefill }) {
   const { addToast } = useToast();
@@ -58,7 +66,7 @@ function InviteModal({ workspaceId, onClose, prefill }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-paper-100 dark:bg-ink-200 rounded-card shadow-overlay w-full max-w-lg p-6">
+      <div className="bg-card dark:bg-muted rounded-2xl relative shadow-overlay w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Add Member</h3>
           <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
@@ -250,17 +258,51 @@ export default function MyTeam() {
     } catch { addToast('Failed to remove member', 'error'); }
   };
 
+  const filters = useFacets(
+    members.filter(m => {
+      const q = searchQuery.toLowerCase();
+      return !q || m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q);
+    }),
+    {
+      role: { label: 'Role', get: m => m.workspaceRole, format: roleLabel },
+      status: { label: 'Active', get: m => m.status, format: v => (v === 'ACTIVE' ? 'Active' : 'Suspended') },
+    },
+    { onChange: () => setPage(1) },
+  );
+  const isFiltered = !!searchQuery || filters.activeCount > 0;
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    filters.reset();
+    setPage(1);
+  };
+
+  const { sorted: filteredMembers, sortProps } = useSort(
+    filters.filtered,
+    {
+      name: m => m.name,
+      email: m => m.email,
+      role: m => m.workspaceRole,
+      invitedBy: m => m.invitedByName,
+      joined: m => m.joinedAt,
+      status: m => m.status,
+    },
+  );
+
   if (!workspaceId) return (
     <Page><EmptyState icon="workspaces" title="No workspace found" body="Pick or create a workspace to manage its members." /></Page>
   );
-
-  const filteredMembers = members.filter(m => {
-    const q = searchQuery.toLowerCase();
-    return !q || m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q);
-  });
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleExport = () => exportCsv(`team-members-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Name', value: m => m.name },
+    { header: 'Email', value: m => m.email },
+    { header: 'Role', value: m => roleLabel(m.workspaceRole) },
+    { header: 'Invited by', value: m => m.invitedByName },
+    { header: 'Joined', value: m => m.joinedAt && new Date(m.joinedAt).toISOString().slice(0, 10) },
+    { header: 'Status', value: m => (m.status === 'ACTIVE' ? 'Active' : 'Suspended') },
+  ], filteredMembers);
 
   return (
     <Page>
@@ -276,18 +318,23 @@ export default function MyTeam() {
       <FullscreenTable className="bg-transparent">
         {({ toggle, isFs }) => (
           <Card padded={false} className="overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-paper-400 dark:border-ink-400">
-              <DebouncedSearch
-                onSearch={(q) => { setSearchQuery(q); setPage(1); }}
-                placeholder="Search members..."
-                className="w-72"
-              />
-              <div className="flex items-center gap-1.5">
+            <TableToolbar
+              title="Members"
+              count={loading ? null : filteredMembers.length}
+              actions={<>
+                <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!filteredMembers.length} />
                 <IconButton title="Refresh" icon="refresh" onClick={loadMembers} />
                 <FullscreenButton toggle={toggle} isFs={isFs} />
-              </div>
-            </div>
+              </>}
+            >
+              <FilterBar filters={filters} />
+              <DebouncedSearch
+                value={searchQuery}
+                onSearch={(q) => { setSearchQuery(q); setPage(1); }}
+                placeholder="Search members..."
+                className="w-full md:w-72 md:ml-auto"
+              />
+            </TableToolbar>
 
             {loading ? (
               <Table>
@@ -303,17 +350,22 @@ export default function MyTeam() {
                 action={isAdmin && <Button icon="person_add" onClick={() => setShowInvite(true)}>Invite member</Button>}
               />
             ) : filteredMembers.length === 0 ? (
-              <EmptyState icon="search_off" title="No members match your search" body="Try a different name or email." />
+              <EmptyState
+                icon="search_off"
+                title={isFiltered && filters.activeCount ? 'No members match your filters' : 'No members match your search'}
+                body="Try a different name or email, or clear the filters."
+                action={isFiltered && <Button variant="secondary" onClick={clearAllFilters}>Clear filters</Button>}
+              />
             ) : (<>
               <Table>
                   <THead>
-                      <Th icon="person">Name</Th>
-                      <Th icon="mail">Email</Th>
-                      <Th icon="key">Role</Th>
-                      <Th icon="person_add">Created by</Th>
-                      <Th icon="calendar_today">Created</Th>
-                      <Th icon="toggle_on">Status</Th>
-                      {isAdmin && <Th align="right">Actions</Th>}
+                      <Th {...sortProps('name')}>Name</Th>
+                      <Th {...sortProps('email')}>Email</Th>
+                      <Th {...sortProps('role')}>Role</Th>
+                      <Th {...sortProps('invitedBy')}>Invited by</Th>
+                      <Th {...sortProps('joined')}>Joined</Th>
+                      <Th {...sortProps('status')}>Active</Th>
+                      {isAdmin && <Th align="right"><span className="sr-only">Actions</span></Th>}
                   </THead>
                   <TBody>
                     {paginatedMembers.map(m => {
@@ -328,15 +380,12 @@ export default function MyTeam() {
                       return (
                         <Tr key={m.id}>
                           <Td>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
                               <Avatar name={m.name} src={m.avatarUrl} size="sm" />
-                              <p className="font-medium text-ink-100 dark:text-paper-200">
-                                {m.name}
-                                {isSelf && <span className="ml-2 text-xs text-ink-800 font-normal">(you)</span>}
-                              </p>
+                              <CellStack title={<>{m.name}{isSelf && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</>} />
                             </div>
                           </Td>
-                          <Td className="!text-ink-700 dark:!text-ink-900">{m.email}</Td>
+                          <Td muted>{m.email}</Td>
                           <Td>
                             {isAdmin && !isSelf ? (
                               <Select
@@ -353,8 +402,8 @@ export default function MyTeam() {
                               </Badge>
                             )}
                           </Td>
-                          <Td className="!text-ink-700 dark:!text-ink-900">{m.invitedByName || '—'}</Td>
-                          <Td className="!text-ink-700 dark:!text-ink-900">{new Date(m.joinedAt).toLocaleDateString()}</Td>
+                          <Td muted>{m.invitedByName || '—'}</Td>
+                          <Td muted className="whitespace-nowrap">{new Date(m.joinedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Td>
                           <Td>
                             <ToggleSwitch
                               checked={m.status === 'ACTIVE'}
@@ -366,12 +415,15 @@ export default function MyTeam() {
                           {isAdmin && (
                             <Td align="right">
                               {!isSelf && (
-                                <IconButton
-                                  tone="danger"
-                                  title={`Remove ${m.name}`}
-                                  icon="person_remove"
-                                  onClick={() => removeMember(m.id, m.name)}
-                                />
+                                <RowActions>
+                                  <IconButton
+                                    tone="danger"
+                                    size="sm"
+                                    title={`Remove ${m.name}`}
+                                    icon="person_remove"
+                                    onClick={() => removeMember(m.id, m.name)}
+                                  />
+                                </RowActions>
                               )}
                             </Td>
                           )}
@@ -394,18 +446,20 @@ export default function MyTeam() {
       </FullscreenTable>
 
       {isAdmin && (
-        <div className="mt-8">
-          <p className="text-sm text-ink-700 dark:text-ink-900 mb-3">
-            {invitesLoading ? 'Loading pending invites…' : `${invites.length} pending invite${invites.length !== 1 ? 's' : ''}`}
-          </p>
-          {!invitesLoading && invites.length > 0 && (
+        <div className="mt-6">
+          {invitesLoading || invites.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {invitesLoading ? 'Loading pending invites…' : 'No pending invites'}
+            </p>
+          ) : (
             <Card padded={false} className="overflow-hidden">
+              <TableToolbar title="Pending invites" count={invites.length} />
               <Table>
                 <THead>
-                    <Th icon="mail">Email</Th>
-                    <Th icon="key">Role</Th>
-                    <Th icon="schedule">Expires</Th>
-                    <Th align="right">Actions</Th>
+                    <Th>Email</Th>
+                    <Th>Role</Th>
+                    <Th>Expires</Th>
+                    <Th align="right"><span className="sr-only">Actions</span></Th>
                 </THead>
                 <TBody>
                   {invites.map(inv => (
@@ -416,19 +470,19 @@ export default function MyTeam() {
                           {inv.role.replace('_', ' ').toLowerCase()}
                         </Badge>
                       </Td>
-                      <Td className="!text-xs !text-ink-800">
-                        {new Date(inv.expiresAt).toLocaleDateString()}
+                      <Td muted className="whitespace-nowrap">
+                        {new Date(inv.expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </Td>
                       <Td align="right">
-                        <div className="flex items-center justify-end gap-1">
-                          <IconButton tone="brand" title="Copy invite link" icon="content_copy"
+                        <RowActions>
+                          <IconButton size="sm" title="Copy invite link" icon="content_copy"
                             onClick={() => copyInviteLink(inv.inviteUrl)} />
-                          <IconButton tone="brand" title="Resend invite" icon="send"
+                          <IconButton size="sm" title="Resend invite" icon="send"
                             onClick={() => resendInvite(inv)} />
-                          <IconButton tone="danger" title="Revoke invite" icon="cancel"
+                          <IconButton size="sm" tone="danger" title="Revoke invite" icon="cancel"
                             disabled={revokingId === inv.id}
                             onClick={() => revokeInvite(inv.id)} />
-                        </div>
+                        </RowActions>
                       </Td>
                     </Tr>
                   ))}

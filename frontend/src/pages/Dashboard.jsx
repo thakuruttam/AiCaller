@@ -6,10 +6,18 @@ import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable
 import DebouncedSearch from '../components/DebouncedSearch';
 import Modal from '../components/Modal';
 import Step7Review from './CampaignWizard/components/Step7Review';
+import CampaignTypeLabel from '../components/CampaignTypeLabel';
+import { campaignTypeLabel } from '../components/campaignTypes';
 import { useToast } from '../context/ToastContext';
 import {
-  Page, Button, IconButton, StatusBadge, Input, Pagination,
+  Button, IconButton, StatusBadge, Input, Pagination,
+  Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow,
+  FilterBar, ColumnToggle, statusLabel,
 } from '../components/ui';
+import { useSort } from '../hooks/useSort';
+import { useFacets } from '../hooks/useFacets';
+import { useColumnVisibility } from '../hooks/useColumnVisibility';
+import { exportCsv } from '../lib/exportCsv';
 import {
   Card as StatCard,
   CardHeader as StatCardHeader,
@@ -28,18 +36,22 @@ import {
   DropdownMenuItem,
 } from '../pages/web3-dashboard/ui/dropdown-menu';
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '../pages/web3-dashboard/ui/table';
-import {
   PhoneCall, CheckCircle2, TrendingUp, Wallet, FolderSearch, MoreVertical,
-  Users, UserPlus, Banknote, MessageSquare, Briefcase,
 } from 'lucide-react';
 import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
+
+// The Type and Actions columns pin to the card's edges when the table scrolls
+// sideways. Pinned cells need an opaque background to cover what slides under
+// them, so the row's translucent hover tint is re-applied as a gradient layer
+// over the card colour instead.
+const STICKY = 'sticky bg-card dark:bg-muted';
+const STICKY_HOVER =
+  'group-hover/row:[background-image:linear-gradient(rgb(0_0_0/0.02),rgb(0_0_0/0.02))] ' +
+  'dark:group-hover/row:[background-image:linear-gradient(rgb(255_255_255/0.03),rgb(255_255_255/0.03))]';
+
+const STICKY_HEAD =
+  'sticky bg-paper-200 dark:bg-muted ' +
+  'dark:[background-image:linear-gradient(rgb(255_255_255/0.02),rgb(255_255_255/0.02))]';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'no-answer', 'busy', 'cancelled']);
 
@@ -51,20 +63,6 @@ function avatarTone(seed) {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   return AVATAR_TONES[hash % AVATAR_TONES.length];
-}
-
-// Real enum (api-service/prisma/schema.prisma CampaignType) — one icon/tone
-// per type so the table reads at a glance instead of everything being the
-// same color.
-const CAMPAIGN_TYPE_META = {
-  HR: { label: 'HR', icon: Briefcase, tone: 'text-sky-500 bg-sky-500/10' },
-  RECRUITER: { label: 'Recruiter', icon: UserPlus, tone: 'text-purple-500 bg-purple-500/10' },
-  SALES: { label: 'Sales', icon: TrendingUp, tone: 'text-emerald-500 bg-emerald-500/10' },
-  LOAN_RECOVERY: { label: 'Loan recovery', icon: Banknote, tone: 'text-orange-500 bg-orange-500/10' },
-  FEEDBACK: { label: 'Feedback', icon: MessageSquare, tone: 'text-pink-500 bg-pink-500/10' },
-};
-function campaignTypeMeta(type) {
-  return CAMPAIGN_TYPE_META[type] || { label: type || 'Campaign', icon: Users, tone: 'text-muted-foreground bg-muted' };
 }
 
 // Latest call log per contact — shared by the progress bar and the status
@@ -93,16 +91,20 @@ function campaignStatus(campaign) {
 // color: exactly on pace (<=1x) is green, up to double is yellow (a contact
 // getting multiple call attempts logged is normal), more than double is red
 // — that ratio blowing out is the actual signal something's wrong.
-function CampaignCostInsight({ campaign }) {
+function contactProgress(campaign) {
   const totalContacts = campaign.campaignContacts?.length || 0;
   const contactsDone = latestLogsByContact(campaign).filter(l => TERMINAL_STATUSES.has(l.status)).length;
-  const ratio = totalContacts > 0 ? contactsDone / totalContacts : 0;
+  return { totalContacts, contactsDone, ratio: totalContacts > 0 ? contactsDone / totalContacts : 0 };
+}
+
+function CampaignCostInsight({ campaign }) {
+  const { totalContacts, contactsDone, ratio } = contactProgress(campaign);
   const pct = Math.min(Math.round(ratio * 100), 100);
   const barColor = ratio > 2 ? '#ff5b59' : ratio > 1 ? '#f5b900' : '#0fc27b';
 
   return (
     <div className="flex flex-col gap-1.5 w-[110px]">
-      <div className="text-xs text-ink-700 dark:text-ink-800">{contactsDone}/{totalContacts} contacts</div>
+      <div className="text-xs text-muted-foreground tabular-nums">{contactsDone}/{totalContacts} contacts</div>
       <div className="h-1.5 bg-paper-500 dark:bg-ink-400 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
@@ -215,8 +217,34 @@ const Dashboard = () => {
   const weekOverWeek = getWeekOverWeekChange();
   const successRate = stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : '0.0';
 
-  const filteredCampaigns = campaigns.filter(c =>
-    c.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filters = useFacets(
+    campaigns.filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase())),
+    {
+      status: { label: 'Status', get: c => campaignStatus(c), format: statusLabel },
+      type: { label: 'Type', get: c => c.type, format: campaignTypeLabel },
+      owner: { label: 'Created by', get: c => c.createdBy?.name },
+    },
+    { onChange: () => setPage(1) },
+  );
+  const columns = useColumnVisibility('dashboard.campaigns.columns', [
+    { key: 'type', label: 'Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'owner', label: 'Created by' },
+    { key: 'progress', label: 'Progress' },
+  ]);
+  const show = columns.isVisible;
+  const isFiltered = !!searchQuery || filters.activeCount > 0;
+  const clearAllFilters = () => { setSearchQuery(''); filters.reset(); setPage(1); };
+
+  const { sorted: filteredCampaigns, sortProps } = useSort(
+    filters.filtered,
+    {
+      type: c => campaignTypeLabel(c.type),
+      name: c => c.name,
+      status: c => campaignStatus(c),
+      owner: c => c.createdBy?.name,
+      progress: c => contactProgress(c).ratio,
+    },
   );
 
   // Rows-per-page tracks the actual vertical gap between the header bar and
@@ -250,8 +278,18 @@ const Dashboard = () => {
 
   const PER_PAGE = rowsPerPage;
 
+  const handleExport = () => exportCsv(`campaigns-${new Date().toISOString().slice(0, 10)}`, [
+    { header: 'Campaign', value: c => c.name },
+    { header: 'Type', value: c => campaignTypeLabel(c.type) },
+    { header: 'Status', value: c => statusLabel(campaignStatus(c)) },
+    { header: 'Created by', value: c => c.createdBy?.name },
+    { header: 'Created', value: c => c.createdAt && new Date(c.createdAt).toISOString().slice(0, 10) },
+    { header: 'Contacts done', value: c => contactProgress(c).contactsDone },
+    { header: 'Contacts total', value: c => contactProgress(c).totalContacts },
+  ], filteredCampaigns);
+
   return (
-    <div className="bg-paper-300 dark:bg-ink-50 h-full px-4 pb-7 lg:px-8 animate-fade-in flex flex-col">
+    <div className="bg-paper-300 dark:bg-ink-50 h-full page-gutter pb-7 animate-fade-in flex flex-col">
       {/* Everything below shares one gap-3 grid rhythm — same vertical gap
           between the KPI row and the table as between the KPI cards
           themselves, matching the Watermelon template's own
@@ -261,9 +299,9 @@ const Dashboard = () => {
           instead of shrink-wrapping around just a few rows. */}
       <div className="flex flex-1 min-h-0 flex-col gap-8 pt-3">
       {/* KPI Strip — matches the Watermelon template's StatGrid exactly:
-          same card shape/shadow, icon-badge layout, and px-4/lg:px-8 gutter
-          as the topbar above it (Page's p-5/md:p-10 gutter doesn't line up
-          with that, so this page intentionally doesn't use <Page>). */}
+          same card shape/shadow, icon-badge layout, and page-gutter
+          as the topbar above it (this page needs a full-height flex layout
+          for the row-fit table, so it doesn't use <Page>). */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard className="min-h-28 rounded-2xl bg-card py-4 ring-0 shadow-primary dark:bg-muted">
           <StatCardHeader className="flex items-center gap-2 px-4 pb-2">
@@ -378,10 +416,18 @@ const Dashboard = () => {
           const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PER_PAGE));
           const paginated = isFs ? filteredCampaigns : filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
           return (<>
-        <div ref={headerBarRef} className="shrink-0 px-6 py-5 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h4 className="text-sm font-semibold text-foreground">Active Campaigns</h4>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="flex-1 md:w-64">
+        <div ref={headerBarRef} className="shrink-0">
+          <TableToolbar
+            title="Active Campaigns"
+            count={loading ? null : filteredCampaigns.length}
+            actions={<>
+              <ColumnToggle visibility={columns} />
+              <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!filteredCampaigns.length} />
+              <FullscreenButton toggle={toggle} isFs={isFs} />
+            </>}
+          >
+            <FilterBar filters={filters} />
+            <div className="w-full md:w-64 md:ml-auto">
               <Input
                 icon="filter_list"
                 placeholder="Filter campaigns..."
@@ -389,9 +435,7 @@ const Dashboard = () => {
                 onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               />
             </div>
-            <Button variant="secondary" size="md" icon="download" aria-label="Export" className="!px-3" />
-            <FullscreenButton toggle={toggle} isFs={isFs} />
-          </div>
+          </TableToolbar>
         </div>
 
         <div className="flex flex-col">
@@ -401,21 +445,21 @@ const Dashboard = () => {
               <FolderSearch className="size-7 text-muted-foreground" />
             </div>
             <p className="text-base font-semibold text-foreground">
-              {searchQuery ? 'No campaigns found' : 'No campaigns yet'}
+              {isFiltered ? 'No campaigns found' : 'No campaigns yet'}
             </p>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              {searchQuery
-                ? "We couldn't find any campaigns matching your search. Try different keywords or clear the filter."
+              {isFiltered
+                ? "We couldn't find any campaigns matching your search and filters. Try different keywords or clear them."
                 : 'Create one to start placing calls.'}
             </p>
-            {searchQuery ? (
+            {isFiltered ? (
               <Button
                 variant="primary"
                 size="md"
                 className="mt-5"
-                onClick={() => { setSearchQuery(''); setPage(1); }}
+                onClick={clearAllFilters}
               >
-                Clear search
+                Clear filters
               </Button>
             ) : (
               <Button
@@ -431,61 +475,47 @@ const Dashboard = () => {
           </div>
         ) : (
         <Table className="table-fixed">
-            <TableHeader className="bg-card dark:bg-muted">
-              <TableRow ref={theadRowRef} className="hover:bg-transparent">
-                <TableHead className="sticky left-0 z-20 bg-card dark:bg-muted w-[10%] px-6 text-muted-foreground">Type</TableHead>
-                <TableHead className="w-[30%] px-5 text-muted-foreground">Campaign</TableHead>
-                <TableHead className="w-[12%] px-5 text-muted-foreground">Status</TableHead>
-                <TableHead className="w-[18%] px-5 text-muted-foreground">Created by</TableHead>
-                <TableHead className="w-[18%] px-5 text-muted-foreground">Progress</TableHead>
-                <TableHead align="right" className="sticky right-0 z-20 bg-card dark:bg-muted w-[12%] text-right px-6 text-muted-foreground">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading && Array.from({ length: 4 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j} className="py-4 px-5">
-                      <div className="h-4 bg-paper-400 dark:bg-ink-400 rounded-field animate-pulse" style={{ width: `${40 + ((j * 17) % 45)}%` }} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+            <THead ref={theadRowRef}>
+              {show('type') && <Th {...sortProps('type')} className={`${STICKY_HEAD} left-0 z-20 w-[12%]`}>Type</Th>}
+              <Th {...sortProps('name')} className="w-[30%]">Campaign</Th>
+              {show('status') && <Th {...sortProps('status')} className="w-[12%]">Status</Th>}
+              {show('owner') && <Th {...sortProps('owner')} className="w-[18%]">Created by</Th>}
+              {show('progress') && <Th {...sortProps('progress')} className="w-[18%]">Progress</Th>}
+              <Th align="right" className={`${STICKY_HEAD} right-0 z-20 w-[10%]`}><span className="sr-only">Actions</span></Th>
+            </THead>
+            <TBody>
+              {loading && Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={columns.visibleCount + 2} />)}
               {!loading && paginated.map((c, i) => {
-                const typeMeta = campaignTypeMeta(c.type);
-                const TypeIcon = typeMeta.icon;
                 return (
-                <TableRow
+                <Tr
                   key={c.id}
                   ref={i === 0 ? firstRowRef : undefined}
                   onClick={() => navigate(`/campaigns/${c.id}/report`)}
-                  className="group cursor-pointer whitespace-normal hover:bg-paper-200 dark:hover:bg-ink-300/60"
                 >
-                  <TableCell className="sticky left-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors px-6 py-5">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${typeMeta.tone}`}>
-                      <TypeIcon className="size-3.5" />
-                      {typeMeta.label}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
+                  {show('type') && (
+                    <Td className={`${STICKY} ${STICKY_HOVER} left-0 z-10`}>
+                      <CampaignTypeLabel type={c.type} />
+                    </Td>
+                  )}
+                  <Td>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate">
-                            {c.name}
-                          </span>
-                          <span className="text-xs text-ink-700 dark:text-ink-800 truncate">
-                            Created {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—'}
-                          </span>
+                        <div className="min-w-0">
+                          <CellStack
+                            title={c.name}
+                            meta={`Created ${c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}`}
+                          />
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom">{c.name}</TooltipContent>
                     </Tooltip>
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
-                    <StatusBadge status={campaignStatus(c)} />
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
+                  </Td>
+                  {show('status') && (
+                    <Td>
+                      <StatusBadge status={campaignStatus(c)} />
+                    </Td>
+                  )}
+                  {show('owner') && <Td muted>
                     {c.createdBy?.name ? (
                       <div className="flex items-center gap-2 min-w-0">
                         {c.createdBy.avatarUrl ? (
@@ -499,26 +529,24 @@ const Dashboard = () => {
                             {c.createdBy.name.charAt(0).toUpperCase()}
                           </span>
                         )}
-                        <span className="text-sm text-ink-600 dark:text-ink-900 truncate max-w-[120px]">
-                          {c.createdBy.name}
-                        </span>
+                        <span className="truncate">{c.createdBy.name}</span>
                       </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
-                    <CampaignCostInsight campaign={c} />
-                  </TableCell>
-                  <TableCell
+                    ) : '—'}
+                  </Td>}
+                  {show('progress') && (
+                    <Td>
+                      <CampaignCostInsight campaign={c} />
+                    </Td>
+                  )}
+                  <Td
                     align="right"
-                    className="sticky right-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors text-right px-6 py-5"
+                    className={`${STICKY} ${STICKY_HOVER} right-0 z-10`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex justify-end">
+                    <RowActions>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <IconButton title="Actions">
+                          <IconButton size="sm" title="Actions">
                             <MoreVertical className="size-4" />
                           </IconButton>
                         </DropdownMenuTrigger>
@@ -548,12 +576,12 @@ const Dashboard = () => {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </RowActions>
+                  </Td>
+                </Tr>
                 );
               })}
-            </TableBody>
+            </TBody>
         </Table>
         )}
         </div>

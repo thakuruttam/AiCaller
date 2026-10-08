@@ -81,7 +81,7 @@ export default function QuestionCard({
 
   return (
     <div
-      className={`rounded-card border bg-paper-100 dark:bg-ink-200 shadow-card transition-all ${isDraggedOver ? 'border-brand-300 ring-1 ring-brand-300' : 'border-paper-500 dark:border-ink-400'}`}
+      className={`bg-card dark:bg-muted rounded-2xl shadow-primary transition-all ${isDraggedOver ? 'ring-1 ring-brand-300' : ''}`}
       draggable
       onDragStart={() => onDragStart(index)}
       onDragOver={e => { e.preventDefault(); onDragOver(index); }}
