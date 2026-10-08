@@ -27,6 +27,7 @@ import {
 } from "../../ui/sidebar";
 import { navSections, utilityItems } from "../../data";
 import { cn } from "../../lib/utils";
+import { WorkspaceSwitcherMenu } from "./topbar";
 
 export function DashboardSidebar() {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ export function DashboardSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="overflow-hidden border-r">
-      <SidebarHeader className="p-3">
+      <SidebarHeader className="gap-3 p-3">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
@@ -87,7 +88,7 @@ export function DashboardSidebar() {
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-1">
+              <SidebarMenu className="gap-1 group-data-[collapsible=icon]:gap-3">
                 {section.items.map((item) => {
                   const active = isAt(item.to);
                   return (
@@ -97,7 +98,7 @@ export function DashboardSidebar() {
                         isActive={active}
                         tooltip={item.label}
                         className={cn(
-                          "h-9 gap-3 rounded-lg px-3 text-sm font-medium",
+                          "h-9 gap-3 rounded-lg px-3 text-sm font-medium group-data-[collapsible=icon]:p-1!",
                           active
                             ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-primary"
                             : "text-muted-foreground",
@@ -106,7 +107,7 @@ export function DashboardSidebar() {
                         <Link to={item.to}>
                           <item.icon
                             className={cn(
-                              "size-4",
+                              "size-4 group-data-[collapsible=icon]:size-5!",
                               active ? "text-primary" : "",
                             )}
                           />
@@ -124,7 +125,7 @@ export function DashboardSidebar() {
       <SidebarSeparator />
 
       <SidebarFooter className="gap-3 px-3 pb-3">
-        <SidebarMenu className="gap-1">
+        <SidebarMenu className="gap-1 group-data-[collapsible=icon]:gap-3">
           {utilityItems.map((item) => {
             const showBadge = item.label === "Notifications" && unreadCount > 0;
             return (
@@ -132,11 +133,11 @@ export function DashboardSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip={item.label}
-                  className="text-muted-foreground h-9 gap-3 rounded-lg px-3 text-sm"
+                  className="text-muted-foreground h-9 gap-3 rounded-lg px-3 text-sm group-data-[collapsible=icon]:p-1!"
                 >
                   <Link to={item.to}>
                     <span className="relative inline-flex">
-                      <item.icon className="size-4" />
+                      <item.icon className="size-4 group-data-[collapsible=icon]:size-5" />
                       {showBadge && (
                         <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none">
                           {unreadCount > 9 ? "9+" : unreadCount}
@@ -175,6 +176,8 @@ export function DashboardSidebar() {
                 sideOffset={16}
               >
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <WorkspaceSwitcherMenu />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={handleLogout}>
                   Logout

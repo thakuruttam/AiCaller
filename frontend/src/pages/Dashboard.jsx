@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import Step7Review from './CampaignWizard/components/Step7Review';
 import { useToast } from '../context/ToastContext';
 import {
-  Page, Button, IconButton, StatusBadge, Input, Pagination,
+  Page, Button, IconButton, Input, Pagination,
 } from '../components/ui';
 import {
   Card as StatCard,
@@ -43,28 +43,30 @@ import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'no-answer', 'busy', 'cancelled']);
 
-// Deterministic accent per campaign/person — same idea as the KPI cards'
-// colored icon badges, gives each row a visual anchor instead of a wall of
-// plain text.
-const AVATAR_TONES = ['bg-sky-400', 'bg-emerald-400', 'bg-orange-400', 'bg-purple-400', 'bg-pink-400', 'bg-indigo-400'];
-function avatarTone(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_TONES[hash % AVATAR_TONES.length];
-}
+// Status reads as plain colored text (no pill). Bespoke to campaignStatus()'s
+// own 4-state vocabulary below rather than the shared app-wide tone map —
+// that map collapses 'active' and 'completed' to the same green "positive"
+// tone, which reads as identical colors here. "In progress" and "done" need
+// to look different at a glance, so active gets its own brand-blue.
+const CAMPAIGN_STATUS_TEXT = {
+  draft: 'text-ink-700 dark:text-ink-800',
+  queued: 'text-ink-700 dark:text-ink-800',
+  active: 'text-brand-500',
+  completed: 'text-positive',
+};
 
 // Real enum (api-service/prisma/schema.prisma CampaignType) — one icon/tone
 // per type so the table reads at a glance instead of everything being the
 // same color.
 const CAMPAIGN_TYPE_META = {
-  HR: { label: 'HR', icon: Briefcase, tone: 'text-sky-500 bg-sky-500/10' },
-  RECRUITER: { label: 'Recruiter', icon: UserPlus, tone: 'text-purple-500 bg-purple-500/10' },
-  SALES: { label: 'Sales', icon: TrendingUp, tone: 'text-emerald-500 bg-emerald-500/10' },
-  LOAN_RECOVERY: { label: 'Loan recovery', icon: Banknote, tone: 'text-orange-500 bg-orange-500/10' },
-  FEEDBACK: { label: 'Feedback', icon: MessageSquare, tone: 'text-pink-500 bg-pink-500/10' },
+  HR: { label: 'HR', icon: Briefcase, tone: 'text-sky-500' },
+  RECRUITER: { label: 'Recruiter', icon: UserPlus, tone: 'text-purple-500' },
+  SALES: { label: 'Sales', icon: TrendingUp, tone: 'text-emerald-500' },
+  LOAN_RECOVERY: { label: 'Loan recovery', icon: Banknote, tone: 'text-orange-500' },
+  FEEDBACK: { label: 'Feedback', icon: MessageSquare, tone: 'text-pink-500' },
 };
 function campaignTypeMeta(type) {
-  return CAMPAIGN_TYPE_META[type] || { label: type || 'Campaign', icon: Users, tone: 'text-muted-foreground bg-muted' };
+  return CAMPAIGN_TYPE_META[type] || { label: type || 'Campaign', icon: Users, tone: 'text-muted-foreground' };
 }
 
 // Latest call log per contact — shared by the progress bar and the status
@@ -123,6 +125,7 @@ const Dashboard = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [loadingCampaignId, setLoadingCampaignId] = useState(null);
   const [cloningId, setCloningId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(6);
   const headerBarRef = useRef(null);
@@ -454,16 +457,17 @@ const Dashboard = () => {
               {!loading && paginated.map((c, i) => {
                 const typeMeta = campaignTypeMeta(c.type);
                 const TypeIcon = typeMeta.icon;
+                const rowOpen = openMenuId === c.id;
                 return (
                 <TableRow
                   key={c.id}
                   ref={i === 0 ? firstRowRef : undefined}
                   onClick={() => navigate(`/campaigns/${c.id}/report`)}
-                  className="group cursor-pointer whitespace-normal hover:bg-paper-200 dark:hover:bg-ink-300/60"
+                  className={`group cursor-pointer whitespace-normal hover:bg-paper-200 dark:hover:bg-ink-300/60 ${rowOpen ? 'bg-paper-200 dark:bg-ink-300/60' : ''}`}
                 >
-                  <TableCell className="sticky left-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors px-6 py-5">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${typeMeta.tone}`}>
-                      <TypeIcon className="size-3.5" />
+                  <TableCell className={`sticky left-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors px-6 py-5 ${rowOpen ? 'bg-paper-200! dark:bg-ink-300/60!' : ''}`}>
+                    <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${typeMeta.tone}`}>
+                      <TypeIcon className="size-4" />
                       {typeMeta.label}
                     </span>
                   </TableCell>
@@ -483,26 +487,15 @@ const Dashboard = () => {
                     </Tooltip>
                   </TableCell>
                   <TableCell className="px-5 py-5">
-                    <StatusBadge status={campaignStatus(c)} />
+                    <span className={`text-sm font-medium capitalize ${CAMPAIGN_STATUS_TEXT[campaignStatus(c)]}`}>
+                      {campaignStatus(c)}
+                    </span>
                   </TableCell>
                   <TableCell className="px-5 py-5">
                     {c.createdBy?.name ? (
-                      <div className="flex items-center gap-2 min-w-0">
-                        {c.createdBy.avatarUrl ? (
-                          <img
-                            src={c.createdBy.avatarUrl}
-                            alt=""
-                            className="size-6 shrink-0 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-black ${avatarTone(c.createdBy.name)}`}>
-                            {c.createdBy.name.charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                        <span className="text-sm text-ink-600 dark:text-ink-900 truncate max-w-[120px]">
-                          {c.createdBy.name}
-                        </span>
-                      </div>
+                      <span className="text-sm text-ink-600 dark:text-ink-900 truncate max-w-[120px]">
+                        {c.createdBy.name}
+                      </span>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
@@ -512,11 +505,11 @@ const Dashboard = () => {
                   </TableCell>
                   <TableCell
                     align="right"
-                    className="sticky right-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors text-right px-6 py-5"
+                    className={`sticky right-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors text-right px-6 py-5 ${rowOpen ? 'bg-paper-200! dark:bg-ink-300/60!' : ''}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-end">
-                      <DropdownMenu>
+                      <DropdownMenu onOpenChange={(open) => setOpenMenuId(open ? c.id : null)}>
                         <DropdownMenuTrigger asChild>
                           <IconButton title="Actions">
                             <MoreVertical className="size-4" />
