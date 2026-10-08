@@ -164,7 +164,7 @@ export default function Billing() {
 
       {/* Razorpay not configured warning */}
       {!razorpayConfigured && (
-        <div className="flex items-start gap-3 bg-caution/10 border border-caution/25 rounded-card px-5 py-4 mb-6">
+        <div className="flex items-start gap-3 bg-caution/10 border border-caution/25 rounded-card px-5 py-4 mb-7">
           <span className="material-symbols-outlined text-caution text-[20px] mt-0.5">warning</span>
           <div>
             <p className="text-sm font-semibold text-caution-dim">Payment gateway not configured</p>
@@ -177,7 +177,7 @@ export default function Billing() {
       )}
 
       {/* Balance + Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
 
         {/* Balance card */}
         <div className="md:col-span-1 bg-gradient-to-br from-brand-450 to-brand-800 rounded-2xl p-5 text-white shadow-primary">
@@ -246,7 +246,7 @@ export default function Billing() {
       {/* Pack grid */}
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-foreground mb-4">Top Up</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
           {packs.map((pack) => {
             const isCurrentTier = pack.tier === billingTier;
             const isSelected = selectedPackId === pack.id;
@@ -274,7 +274,7 @@ export default function Billing() {
       </div>
 
       {/* Confirm bar */}
-      <div className={`mb-6 transition-all duration-200 ${selectedPackId ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`mb-7 transition-all duration-200 ${selectedPackId ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         {(() => {
           const pack = packs.find(p => p.id === selectedPackId);
           if (!pack) return null;

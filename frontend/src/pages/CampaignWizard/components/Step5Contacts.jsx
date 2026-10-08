@@ -53,7 +53,7 @@ function ColumnMapperModal({ headers, preview, totalRows, onApply, onClose }) {
       </>}
     >
       {/* 4-column field mapping row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 mb-7">
         {[
           { label: 'Name Field', value: nameCol, onChange: e => { setNameCol(e.target.value); setError(''); }, options: headers, placeholder: '— select —' },
           { label: 'Phone Field', value: phoneCol, onChange: e => { setPhoneCol(e.target.value); setError(''); }, options: headers, placeholder: '— select —' },
@@ -283,7 +283,7 @@ export default function Step5Contacts({ payload, updatePayload }) {
       {/* Manual entry tab */}
       {toggleManual && (
         <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 flex flex-col gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <Field label="Name">
               <Input type="text" value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && addContact()} placeholder="John Doe" />
             </Field>

@@ -275,7 +275,7 @@ export default function AdminDashboard() {
 
       {/* Tab Bar */}
       <Tabs
-        className="mb-6"
+        className="mb-7"
         value={activeTab}
         onChange={selectTab}
         items={[
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
 
       {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7">
         <StatCard icon="settings_input_antenna" label="Active channels" value={`${totalChannels} / 2,000`}>
           <Progress value={(totalChannels / 2000) * 100} />
         </StatCard>
@@ -325,7 +325,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Campaign Table */}
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-6">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-7">
         <TableToolbar
           title="All Campaigns"
           count={loading ? null : filtered.length}
@@ -598,9 +598,9 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
   const resolveCount = tickets.filter(t => t.status === 'RESOLVED').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {/* KPI strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <StatCard icon="inbox" label="Open" value={openCount} />
         <StatCard icon="pending_actions" label="In progress" value={ipCount} />
         <StatCard icon="task_alt" label="Resolved" value={resolveCount} />

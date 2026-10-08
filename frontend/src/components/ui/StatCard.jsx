@@ -24,9 +24,25 @@ export default function StatCard({
   className = '',
   children,
 }) {
+  const footer = trend ? (
+    <div className={`flex items-center gap-1 text-sm ${TREND_TONES[trend.direction] ?? TREND_TONES.neutral}`}>
+      {trend.direction !== 'neutral' && (
+        <span className="material-symbols-outlined [--icon-size:18px]">
+          {trend.direction === 'down' ? 'arrow_drop_down' : 'arrow_drop_up'}
+        </span>
+      )}
+      <span>{trend.label}</span>
+    </div>
+  ) : hint != null && hint !== '' ? (
+    <div className="text-sm text-muted-foreground">{hint}</div>
+  ) : null;
+
+  // The number sits directly under its label in every tile, so a row of
+  // tiles reads along one baseline; only the hint/trend and extras are
+  // pinned to the bottom, where tiles of unequal content absorb the height.
   return (
-    <div className={`flex min-h-28 flex-col gap-2 rounded-2xl bg-card dark:bg-muted p-5 shadow-primary ${className}`}>
-      <div className="flex items-center gap-2">
+    <div className={`flex min-h-28 flex-col rounded-2xl bg-card dark:bg-muted p-5 shadow-primary ${className}`}>
+      <div className="flex items-center gap-2.5">
         {icon && (
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300">
             {typeof icon === 'string'
@@ -36,22 +52,13 @@ export default function StatCard({
         )}
         <h3 className="text-sm font-medium text-foreground">{label}</h3>
       </div>
-      <div className="mt-auto">
-        <div className={`text-3xl font-normal tracking-wide tabular-nums text-foreground ${valueClassName}`}>{value}</div>
-        {trend ? (
-          <div className={`mt-2 flex items-center gap-1 text-sm ${TREND_TONES[trend.direction] ?? TREND_TONES.neutral}`}>
-            {trend.direction !== 'neutral' && (
-              <span className="material-symbols-outlined [--icon-size:18px]">
-                {trend.direction === 'down' ? 'arrow_drop_down' : 'arrow_drop_up'}
-              </span>
-            )}
-            <span>{trend.label}</span>
-          </div>
-        ) : hint != null && (
-          <div className="mt-2 text-sm text-muted-foreground">{hint}</div>
-        )}
-        {children && <div className="mt-3">{children}</div>}
-      </div>
+      <div className={`mt-3 text-3xl font-normal tracking-wide tabular-nums text-foreground ${valueClassName}`}>{value}</div>
+      {(footer || children) && (
+        <div className="mt-auto flex flex-col gap-3 pt-3">
+          {footer}
+          {children}
+        </div>
+      )}
     </div>
   );
 }

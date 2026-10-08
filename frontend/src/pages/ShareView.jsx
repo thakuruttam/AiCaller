@@ -138,7 +138,7 @@ export default function ShareView() {
         </div>
       </header>
 
-      <main className="p-8 max-w-[1100px] mx-auto space-y-6">
+      <main className="p-8 max-w-[1100px] mx-auto space-y-7">
         {/* Campaign title */}
         <div>
           <h2 className="text-[22px] font-semibold text-foreground tracking-tight">{campaign.name}</h2>

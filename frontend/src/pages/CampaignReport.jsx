@@ -178,14 +178,14 @@ export default function CampaignReport() {
 
   if (error) return (
     <Page>
-      <BackLink to={`/campaigns/${id}`} className="mb-6">Back to campaign details</BackLink>
+      <BackLink to={`/campaigns/${id}`} className="mb-7">Back to campaign details</BackLink>
       <Alert tone="negative" title="Could not load report">{error}</Alert>
     </Page>
   );
 
   if (!metrics || metrics.totalCalls === 0) return (
     <Page>
-      <BackLink to={`/campaigns/${id}`} className="mb-6">Back to campaign details</BackLink>
+      <BackLink to={`/campaigns/${id}`} className="mb-7">Back to campaign details</BackLink>
       <Card padded={false}>
         <EmptyState
           icon="bar_chart"
@@ -226,9 +226,8 @@ export default function CampaignReport() {
   const qTotalPages = Math.max(1, Math.ceil(qContacts.length / PER_PAGE));
 
   return (
-    <Page className="space-y-6">
+    <Page className="space-y-7">
       <PageHeader
-        className="!mb-0"
         back={{ to: `/campaigns/${id}`, label: 'Back to campaign details' }}
         title="Campaign performance report"
         subtitle="AI evaluation analytics & extracted data"
@@ -238,19 +237,19 @@ export default function CampaignReport() {
             Export CSV
           </Button>
           {progress && progress.total > 0 && (
-            <Card padded={false} className="min-w-[260px] px-4 py-3">
-              <Progress
-                value={progressPct}
-                label={`AI evaluation · ${progress.completed + progress.failed} / ${progress.total}`}
-                showValue
-              />
-            </Card>
+            <div className="flex h-9 items-center gap-3 rounded-control border border-border bg-card dark:bg-white/[0.04] px-3 shadow-xs">
+              <span className="whitespace-nowrap text-xs text-muted-foreground">
+                AI evaluation · {progress.completed + progress.failed}/{progress.total}
+              </span>
+              <Progress value={progressPct} className="w-20" />
+              <span className="text-xs font-medium tabular-nums text-foreground">{progressPct}%</span>
+            </div>
           )}
         </>}
       />
 
       {/* KPI Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <StatCard icon="task_alt" label="Total evaluated" value={total.toLocaleString()} />
         <StatCard icon="percent" label="Completion rate" value={`${completionPercent}%`}>
           <Progress value={Number(completionPercent) || 0} />

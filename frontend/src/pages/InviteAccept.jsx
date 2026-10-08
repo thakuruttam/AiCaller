@@ -74,7 +74,7 @@ export default function InviteAccept() {
             <span className="material-symbols-outlined text-[28px] text-negative">error</span>
           </div>
           <h2 className="text-[22px] font-semibold tracking-tight text-foreground mb-2">Invalid Invite</h2>
-          <p className="text-muted-foreground text-sm mb-6">{error}</p>
+          <p className="text-muted-foreground text-sm mb-7">{error}</p>
           <Button variant="primary" size="md" onClick={() => navigate('/login')}>Go to Login</Button>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function InviteAccept() {
 
         <div className="px-8 py-6">
           {/* Invite details */}
-          <div className="bg-paper-200 dark:bg-ink-50 border border-paper-400 dark:border-ink-400 rounded-card p-4 mb-6">
+          <div className="bg-paper-200 dark:bg-ink-50 border border-paper-400 dark:border-ink-400 rounded-card p-4 mb-7">
             <p className="text-xs font-medium text-muted-foreground mb-3">Invite Details</p>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">

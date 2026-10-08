@@ -189,7 +189,7 @@ export default function Usage() {
       />
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-7">
         <StatCard
           icon="timer"
           label="Total minutes billed"

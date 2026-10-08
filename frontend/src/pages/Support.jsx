@@ -119,7 +119,7 @@ function TicketModal({ ticket: initial, onClose, onRefresh }) {
         )}
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-7">
         <div className="flex gap-3">
           <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
             {ticket.user?.avatarUrl
@@ -247,7 +247,7 @@ export default function Support() {
         />
 
         {/* 2-column: FAQ + Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-7">
 
           {/* FAQ — left 7 cols */}
           <div className="lg:col-span-7">
@@ -269,8 +269,8 @@ export default function Support() {
           <div className="lg:col-span-5">
             <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
               <h2 className="text-sm font-semibold text-foreground mb-1">New Support Request</h2>
-              <p className="text-xs text-muted-foreground mb-6">Average response time: &lt; 2 hours</p>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <p className="text-xs text-muted-foreground mb-7">Average response time: &lt; 2 hours</p>
+              <form onSubmit={handleSubmit} className="space-y-7">
                 <Field label="Subject">
                   <Input
                     value={form.subject}

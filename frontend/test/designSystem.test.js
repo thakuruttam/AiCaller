@@ -69,8 +69,8 @@ describe('design system', () => {
     )).toEqual([]);
   });
 
-  it('keeps layout spacing on the scale (sections 6, grids 4)', () => {
-    expect(violations(/(?<![\w:-])(?:space-y|mb|mt|gap)-(?:7|8|9|10|11|12|14|16)\b/, [
+  it('keeps layout spacing on the scale (sections 7, grids 5)', () => {
+    expect(violations(/(?<![\w:-])(?:space-y|mb|mt|gap)-(?:8|9|10|11|12|14|16)\b/, [
       ['pages/Login.jsx'],
     ])).toEqual([]);
   });

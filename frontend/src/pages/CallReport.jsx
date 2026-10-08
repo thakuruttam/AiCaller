@@ -140,8 +140,8 @@ export default function CallReport() {
   if (notFound) return null;
 
   if (error) return (
-    <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      <BackLink to={`/campaign/${campaignId}/calls/${id}`} className="mb-6">Back to Call</BackLink>
+    <div className="page-gutter pt-5 pb-10 animate-fade-in">
+      <BackLink to={`/campaign/${campaignId}/calls/${id}`} className="mb-7">Back to Call</BackLink>
       <Alert tone="negative" title="Report unavailable">{error}</Alert>
     </div>
   );
@@ -161,17 +161,17 @@ export default function CallReport() {
   const sentimentIcon = SENTIMENT_ICON[report.sentiment] || 'sentiment_neutral';
 
   return (
-    <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      <BackLink to={`/campaigns/${campaignId}/report`} className="mb-6">Back to Campaign Report</BackLink>
+    <div className="page-gutter pt-5 pb-10 animate-fade-in">
+      <BackLink to={`/campaigns/${campaignId}/report`} className="mb-7">Back to Campaign Report</BackLink>
 
       {identityConfirmed === false && (
-        <Alert tone="negative" title="Identity Not Confirmed — Wrong Person" className="mb-6">
+        <Alert tone="negative" title="Identity Not Confirmed — Wrong Person" className="mb-7">
           The person who answered denied being {report.contactName || 'the intended contact'}. The call was ended with an apology. No questions were collected.
         </Alert>
       )}
 
       {/* Summary Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-7">
         <StatCard
           icon={report.outcome === 'COMPLETED' ? 'check_circle' : 'cancel'}
           tone={outcomeTone === 'positive' ? 'emerald' : outcomeTone === 'negative' ? 'pink' : 'orange'}
@@ -446,7 +446,7 @@ export default function CallReport() {
       </div>
 
       {/* Footer meta */}
-      <div className="mt-6 text-xs text-muted-foreground text-center">
+      <div className="mt-7 text-xs text-muted-foreground text-center">
         Model: {report.modelVersion || '—'} · Schema: {report.schemaVersion || '—'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '—'}
       </div>
     </div>

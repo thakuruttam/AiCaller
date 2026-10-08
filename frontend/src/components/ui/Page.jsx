@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 export default function Page({ className = '', children }) {
   return (
     <div className="bg-paper-300 dark:bg-ink-50 min-h-full">
-      <div className={`page-gutter pt-3 pb-7 animate-fade-in ${className}`}>{children}</div>
+      <div className={`page-gutter pt-5 pb-10 animate-fade-in ${className}`}>{children}</div>
     </div>
   );
 }
@@ -36,7 +36,7 @@ export function BackLink({ to, children, className = '' }) {
 // label above the title (e.g. the record type).
 export function PageHeader({ title, subtitle, icon, actions, back, eyebrow, className = '' }) {
   return (
-    <div className={`mb-6 ${className}`}>
+    <div className={`mb-7 ${className}`}>
       {back && <BackLink to={back.to} className="mb-4">{back.label}</BackLink>}
       <div className="flex flex-col items-start gap-4 md:flex-row md:justify-between md:items-end md:gap-6">
         <div className="min-w-0">

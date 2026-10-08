@@ -110,7 +110,7 @@ export default function WorkspaceSettings() {
 
       {/* Tabs */}
       <TabBar
-        className="mb-6"
+        className="mb-7"
         value={tab}
         onChange={setTab}
         items={[
@@ -121,7 +121,7 @@ export default function WorkspaceSettings() {
 
       {/* ── Profile Tab ─────────────────────────────────────────── */}
       {tab === 'profile' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* Left: Avatar card */}
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 flex flex-col items-center text-center gap-4">
@@ -155,8 +155,8 @@ export default function WorkspaceSettings() {
 
           {/* Right: Edit form */}
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-6">Personal Information</h3>
-            <div className="space-y-6 max-w-lg">
+            <h3 className="text-sm font-semibold text-foreground mb-7">Personal Information</h3>
+            <div className="space-y-7 max-w-lg">
               <Field label="Display Name">
                 <Input
                   value={profileName}
@@ -168,7 +168,7 @@ export default function WorkspaceSettings() {
                 <Input value={user?.email || ''} readOnly className="text-muted-foreground" />
               </Field>
             </div>
-            <div className="mt-6 pt-5 border-t border-paper-400 dark:border-ink-400">
+            <div className="mt-7 pt-5 border-t border-paper-400 dark:border-ink-400">
               <Button variant="primary" size="md" onClick={saveProfile} loading={savingProfile}>
                 {savingProfile ? 'Saving…' : 'Save changes'}
               </Button>
@@ -179,10 +179,10 @@ export default function WorkspaceSettings() {
 
       {/* ── Workspace Tab ─────────────────────────────────────────── */}
       {tab === 'general' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-6">Workspace Information</h3>
-            <div className="space-y-6 max-w-lg">
+            <h3 className="text-sm font-semibold text-foreground mb-7">Workspace Information</h3>
+            <div className="space-y-7 max-w-lg">
               <Field label="Workspace Name" htmlFor="workspace-name">
                 <div className="flex gap-3">
                   <div className="flex-1">

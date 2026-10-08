@@ -425,7 +425,7 @@ export default function MyTeam() {
           </Card>
 
       {isAdmin && (
-        <div className="mt-6">
+        <div className="mt-7">
           {invitesLoading || invites.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {invitesLoading ? 'Loading pending invites…' : 'No pending invites'}

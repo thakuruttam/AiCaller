@@ -140,7 +140,7 @@ const Modal = ({
         <div className="sm:hidden mx-auto mt-2 h-1 w-10 rounded-full bg-paper-600 dark:bg-white/15" aria-hidden="true" />
 
         {(title || description) && (
-          <div className="flex items-start gap-3 px-6 pt-5 pb-4 shrink-0">
+          <div className="flex items-start gap-3 px-6 pt-6 pb-5 shrink-0">
             {headerIcon && (
               <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${toneMeta?.chip ?? 'bg-paper-300 dark:bg-white/[0.06] text-muted-foreground'}`}>
                 <span className="material-symbols-outlined [--icon-size:20px]">{headerIcon}</span>
@@ -157,7 +157,7 @@ const Modal = ({
         )}
 
         {children != null && children !== false && (
-          <div className={`px-6 overflow-y-auto flex-1 ${title || description ? 'pb-5' : 'py-5'}`}>{children}</div>
+          <div className={`px-6 overflow-y-auto flex-1 ${title || description ? 'pb-6' : 'py-6'}`}>{children}</div>
         )}
 
         {footer && (

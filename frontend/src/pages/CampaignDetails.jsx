@@ -98,7 +98,7 @@ export default function CampaignDetails() {
   if (loading) return <PageLoader text="Loading campaign…" />;
   if (loadError || !campaign) return (
     <Page>
-      <BackLink to="/" className="mb-6">Back to Dashboard</BackLink>
+      <BackLink to="/" className="mb-7">Back to Dashboard</BackLink>
       <Card padded={false}>
         <EmptyState
           icon={loadError === 'access-denied' ? 'lock' : 'search_off'}
@@ -139,7 +139,7 @@ export default function CampaignDetails() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7">
         <StatCard icon="group" label="Total contacts" value={contacts.length.toLocaleString()} />
         <StatCard icon="call" label="Calls completed" value={completed.toLocaleString()}>
           <Progress tone="positive" value={logs.length ? (completed / logs.length) * 100 : 0} />

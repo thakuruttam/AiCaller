@@ -116,7 +116,7 @@ export function Td({ align = 'left', muted = false, numeric = false, className =
   const right = numeric || align === 'right';
   return (
     <td
-      className={`${CELL_X} py-3 align-middle ${muted ? 'text-muted-foreground' : 'text-foreground'}
+      className={`${CELL_X} py-3.5 align-middle ${muted ? 'text-muted-foreground' : 'text-foreground'}
         ${right ? 'text-right' : ''} ${numeric ? 'tabular-nums whitespace-nowrap' : ''} ${className}`}
       {...props}
     >
@@ -197,7 +197,7 @@ export function SkeletonRow({ cols = 5 }) {
   return (
     <tr>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className={`${CELL_X} py-3.5`}>
+        <td key={i} className={`${CELL_X} py-4`}>
           <Skeleton height="0.875rem" width={`${40 + ((i * 17) % 45)}%`} />
         </td>
       ))}

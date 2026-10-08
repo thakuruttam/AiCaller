@@ -204,7 +204,7 @@ export default function CampaignWizard() {
   const progress = Math.round((step / steps.length) * 100);
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-4rem)] overflow-hidden page-gutter pt-3 pb-7">
+    <div className="flex gap-7 h-[calc(100vh-4rem)] overflow-hidden page-gutter pt-5 pb-7">
       {/* Left Step Panel */}
       <nav className="hidden lg:flex w-72 bg-card dark:bg-muted rounded-2xl shadow-primary flex-col shrink-0 overflow-hidden">
         {/* Progress */}

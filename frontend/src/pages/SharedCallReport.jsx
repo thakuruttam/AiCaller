@@ -146,7 +146,7 @@ export default function SharedCallReport() {
 
         {/* Summary KPIs */}
         {report && (
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7">
             <StatCard
               icon="flag"
               label="Outcome"
@@ -174,13 +174,13 @@ export default function SharedCallReport() {
 
         {/* AI Summary */}
         {report?.reportSummary && (
-          <Card className="mb-6">
+          <Card className="mb-7">
             <CardHeader title="AI Summary" icon="auto_awesome" />
             <p className="text-sm text-muted-foreground leading-relaxed">{report.reportSummary}</p>
           </Card>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-7">
           {/* Audio Player */}
           {callLog?.hasRecording && (
             <Card>

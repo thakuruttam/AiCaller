@@ -115,7 +115,7 @@ export default function Step7Review({ payload, updatePayload }) {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6 pb-10">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
 
         {/* Billing Estimate */}
         <div className="xl:col-span-2 rounded-card border border-brand-500/25 bg-brand-500/10 p-5">
@@ -125,7 +125,7 @@ export default function Step7Review({ payload, updatePayload }) {
             </div>
             <h4 className="font-semibold text-sm text-foreground">Billing Estimate</h4>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
             <div>
               <p className="text-xs font-medium text-muted-foreground ">Contacts</p>
               <p className="text-xl font-bold text-foreground mt-0.5">{(contacts || []).length}</p>
@@ -216,7 +216,7 @@ export default function Step7Review({ payload, updatePayload }) {
         {/* Call Design */}
         <div className={`${cardCls} xl:col-span-2`}>
           <SectionHeader icon={PhoneCall} title="Call Design" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <ReviewField label="Primary Goal" value={goals?.goal} />
             <ReviewField label="Call Introduction" value={goals?.callIntro} />
             <ReviewField label="Call Sign-off" value={goals?.callSignOff} />

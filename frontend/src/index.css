@@ -203,9 +203,11 @@
                    or text-muted-foreground, surfaces bg-card dark:bg-muted,
                    lines border-border. No sky/emerald/orange/... hues.
    Spacing — Tailwind's 4px scale, these steps only at layout level:
-     6 (24px)  between page sections, page header → content, modal padding
-     4 (16px)  between cards in a grid, between groups inside a card
-     5 (20px)  padding inside cards, stat tiles, table toolbars
+     7 (28px)  between page sections, page header → content
+     5 (20px)  between cards in a grid; padding inside cards, stat tiles,
+               table toolbars/edges
+     6 (24px)  modal padding
+     4 (16px)  between groups inside a card
      1.5 (6px) label → control
    Shape — controls rounded-control (8px), cards/modals rounded-2xl,
    pills rounded-full. Control heights 32/36/40px (Button sm/md/lg = Input).
@@ -213,13 +215,13 @@
 
 /* The one horizontal gutter for every in-app screen and the topbar above it,
    so their left/right edges always line up. Fluid rather than stepped: the
-   gutter is 3.5% of the available width (percent padding resolves against
+   gutter is 4% of the available width (percent padding resolves against
    the parent, so the sidebar's width is already excluded), clamped to
-   16–64px. Past a 1600px content width the max() switches to centring, so
+   16–72px. Past a 1600px content width the max() switches to centring, so
    on ultra-wide monitors content sits in a capped column instead of
    stretching edge to edge. */
 @utility page-gutter {
-  padding-inline: max(clamp(1rem, 3.5%, 4rem), calc((100% - 1600px) / 2));
+  padding-inline: max(clamp(1rem, 4%, 4.5rem), calc((100% - 1600px) / 2));
 }
 
 /* Scrolls when content genuinely overflows (e.g. a short viewport with

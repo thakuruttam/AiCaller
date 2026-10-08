@@ -192,7 +192,7 @@ const CallDetails = () => {
   const campaignPath = `/campaigns/${campaignId || callLog.campaignId}`;
 
   return (
-    <div className="page-gutter pt-3 pb-7 animate-fade-in">
+    <div className="page-gutter pt-5 pb-10 animate-fade-in">
       <PageHeader
         back={{ to: campaignPath, label: 'Back to Campaign' }}
         eyebrow={
@@ -214,7 +214,7 @@ const CallDetails = () => {
       />
 
       {/* Info Strip */}
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-5 mb-6">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-5 mb-7">
         <div className="space-y-1 border-r border-border pr-6">
           <p className="text-xs text-muted-foreground">Contact Info</p>
           <p className="text-sm font-medium text-foreground tabular-nums">{callLog.contact?.phone || '—'}</p>
@@ -242,11 +242,11 @@ const CallDetails = () => {
       {/* Main Grid */}
       <div className="grid grid-cols-12 gap-6">
         {/* Left Column */}
-        <div className="col-span-12 lg:col-span-5 space-y-6">
+        <div className="col-span-12 lg:col-span-5 space-y-7">
           {/* Audio Card */}
           <div className="bg-ink-200 text-white rounded-control p-8 shadow-overlay relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-brand-500" />
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-7">
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 <span className="material-symbols-outlined text-brand-300">graphic_eq</span>
                 Call Recording
@@ -255,18 +255,18 @@ const CallDetails = () => {
             </div>
             <WaveformBars progress={0.45} />
             {callLog.recordingUrl ? (
-              <div className="mt-6">
+              <div className="mt-7">
                 <AudioPlayer
                   src={callLog.recordingUrl}
                   onTimeUpdate={(currentTime, duration) => setPlayback({ currentTime, duration: duration || 0 })}
                 />
               </div>
             ) : isRetrying ? (
-              <div className="mt-6 flex items-center justify-center">
+              <div className="mt-7 flex items-center justify-center">
                 <p className="text-sm italic text-muted-foreground">Checking for recording…</p>
               </div>
             ) : (
-              <div className="mt-6 flex flex-col items-center gap-4">
+              <div className="mt-7 flex flex-col items-center gap-4">
                 <p className="text-sm italic text-muted-foreground">No recording found for this call.</p>
                 {callLog.status === 'completed' && (
                   <Button variant="ghost" size="md" onClick={() => syncRecording()} disabled={isRetrying}>Retry Sync</Button>
@@ -316,7 +316,7 @@ const CallDetails = () => {
             </div>
 
             {/* Transcript Body */}
-            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-6 bg-paper-200/30 dark:bg-ink-50/30">
+            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-7 bg-paper-200/30 dark:bg-ink-50/30">
               {callLog.transcript ? (
                 turns.map((turn, i) => {
                   const isActive = i === activeTurnIndex;

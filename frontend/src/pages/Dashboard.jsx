@@ -280,7 +280,7 @@ const Dashboard = () => {
   const paginated = filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
-    <div className="bg-paper-300 dark:bg-ink-50 h-full page-gutter pb-7 animate-fade-in flex flex-col">
+    <div className="bg-paper-300 dark:bg-ink-50 h-full page-gutter pb-8 animate-fade-in flex flex-col">
       {/* Everything below shares one gap-3 grid rhythm — same vertical gap
           between the KPI row and the table as between the KPI cards
           themselves, matching the Watermelon template's own
@@ -288,12 +288,12 @@ const Dashboard = () => {
           table below stretches all the way to the bottom of the viewport
           (minus this page's own bottom padding) regardless of row count,
           instead of shrink-wrapping around just a few rows. */}
-      <div className="flex flex-1 min-h-0 flex-col gap-6 pt-3">
+      <div className="flex flex-1 min-h-0 flex-col gap-7 pt-5">
       {/* KPI Strip — matches the Watermelon template's StatGrid exactly:
           same card shape/shadow, icon-badge layout, and page-gutter
           as the topbar above it (this page needs a full-height flex layout
           for the row-fit table, so it doesn't use <Page>). */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={<PhoneCall className="size-5" />}
           label="Total calls queued"
