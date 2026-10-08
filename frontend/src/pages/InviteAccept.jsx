@@ -5,9 +5,9 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
 const ROLE_COLOR = {
-  ADMIN:  "bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30",
-  EDITOR: "bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15",
-  VIEWER: "bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400",
+  ADMIN:  "bg-brand-500/10 text-brand-500 border-brand-500/25 dark:text-brand-300",
+  EDITOR: "bg-caution/10 text-caution-dim border-caution/25 dark:text-caution",
+  VIEWER: "bg-paper-400 text-muted-foreground border-paper-500 dark:bg-ink-300 dark:border-ink-400",
 };
 
 export default function InviteAccept() {
@@ -60,7 +60,7 @@ export default function InviteAccept() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-brand-500/10 dark:bg-ink-50 flex items-center justify-center">
         <span className="material-symbols-outlined text-[40px] text-brand-500 animate-spin">progress_activity</span>
       </div>
     );
@@ -68,13 +68,13 @@ export default function InviteAccept() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full p-8 text-center">
+      <div className="min-h-screen bg-brand-500/10 dark:bg-ink-50 flex items-center justify-center px-4">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full p-5 text-center">
           <div className="w-14 h-14 rounded-full bg-negative/10 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-negative">error</span>
           </div>
-          <h2 className="text-[22px] font-semibold tracking-tight text-ink-100 dark:text-paper-200 mb-2">Invalid Invite</h2>
-          <p className="text-ink-700 dark:text-ink-900 text-sm mb-6">{error}</p>
+          <h2 className="text-[22px] font-semibold tracking-tight text-foreground mb-2">Invalid Invite</h2>
+          <p className="text-muted-foreground text-sm mb-6">{error}</p>
           <Button variant="primary" size="md" onClick={() => navigate('/login')}>Go to Login</Button>
         </div>
       </div>
@@ -83,13 +83,13 @@ export default function InviteAccept() {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full p-8 text-center">
+      <div className="min-h-screen bg-brand-500/10 dark:bg-ink-50 flex items-center justify-center px-4">
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full p-5 text-center">
           <div className="w-14 h-14 rounded-full bg-positive/10 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-[28px] text-positive-dim">check_circle</span>
           </div>
-          <h2 className="text-[22px] font-semibold tracking-tight text-ink-100 dark:text-paper-200 mb-2">You're in!</h2>
-          <p className="text-ink-700 dark:text-ink-900 text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
+          <h2 className="text-[22px] font-semibold tracking-tight text-foreground mb-2">You're in!</h2>
+          <p className="text-muted-foreground text-sm">Joined <strong>{invite?.workspaceName}</strong>. Redirecting…</p>
         </div>
       </div>
     );
@@ -98,7 +98,7 @@ export default function InviteAccept() {
   const emailMismatch = user && user.email.toLowerCase() !== invite.email.toLowerCase();
 
   return (
-    <div className="min-h-screen bg-brand-100 dark:bg-ink-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-brand-500/10 dark:bg-ink-50 flex items-center justify-center px-4">
       <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay max-w-md w-full overflow-hidden">
 
         {/* Header */}
@@ -113,31 +113,31 @@ export default function InviteAccept() {
         <div className="px-8 py-6">
           {/* Invite details */}
           <div className="bg-paper-200 dark:bg-ink-50 border border-paper-400 dark:border-ink-400 rounded-card p-4 mb-6">
-            <p className="text-xs font-medium text-ink-800 dark:text-ink-800 mb-3">Invite Details</p>
+            <p className="text-xs font-medium text-muted-foreground mb-3">Invite Details</p>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-ink-700 dark:text-ink-900">Workspace</span>
-                <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">{invite.workspaceName}</span>
+                <span className="text-sm text-muted-foreground">Workspace</span>
+                <span className="text-sm font-semibold text-foreground">{invite.workspaceName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-ink-700 dark:text-ink-900">Invited email</span>
-                <span className="text-sm text-ink-500 dark:text-ink-900">{invite.email}</span>
+                <span className="text-sm text-muted-foreground">Invited email</span>
+                <span className="text-sm text-muted-foreground">{invite.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-ink-700 dark:text-ink-900">Your role</span>
+                <span className="text-sm text-muted-foreground">Your role</span>
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${ROLE_COLOR[invite.role] || ROLE_COLOR.VIEWER}`}>
                   {invite.role}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-ink-700 dark:text-ink-900">Expires</span>
-                <span className="text-sm text-ink-700 dark:text-ink-900">{new Date(invite.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                <span className="text-sm text-muted-foreground">Expires</span>
+                <span className="text-sm text-muted-foreground">{new Date(invite.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
             </div>
           </div>
 
           {emailMismatch && (
-            <div className="mb-4 p-3 bg-caution/10 border border-caution/30 rounded-card text-xs font-medium text-caution-dim">
+            <div className="mb-4 p-3 bg-caution/10 border border-caution/25 rounded-card text-xs font-medium text-caution-dim">
               <strong>Wrong account.</strong> You're signed in as <strong>{user.email}</strong> but this invite is for <strong>{invite.email}</strong>. Sign out and use the correct Google account.
             </div>
           )}
@@ -145,12 +145,12 @@ export default function InviteAccept() {
           {/* Action buttons */}
           {!user ? (
             <div className="space-y-3">
-              <p className="text-sm text-ink-700 dark:text-ink-900 text-center mb-4">
+              <p className="text-sm text-muted-foreground text-center mb-4">
                 Sign in with the Google account for <strong>{invite.email}</strong> to join this workspace.
               </p>
               <Button variant="secondary" size="lg" onClick={handleGoogleLogin}>
                 <svg width="18" height="18" viewBox="0 0 18 18">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
                   <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
                   <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
                   <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z"/>

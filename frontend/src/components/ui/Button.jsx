@@ -5,43 +5,52 @@ import Spinner from '../Spinner';
 // contract — fill, hairline, hover, disabled and focus ring — so no screen has
 // to restate it, and so the focus ring can never be forgotten.
 const VARIANTS = {
-  // Solid accent. One per view, on the primary action.
+  // The brand gradient + inset gloss from the topbar's Create Campaign button,
+  // so every primary action in the app reads as the same control. One per
+  // view, on the primary action.
   primary:
-    'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-600 ' +
-    'disabled:bg-paper-500 disabled:text-ink-800 dark:disabled:bg-ink-400 dark:disabled:text-ink-700',
-  // Bordered surface. The default for everything that isn't the main action.
-  // In dark mode this sits one step ABOVE the card surface (ink-300 vs the
-  // card's ink-200). At the same value it vanished into any card it was
-  // placed on, leaving only the hairline to suggest a control was there.
+    'bg-gradient-to-br from-brand-450 to-brand-800 text-white ' +
+    'shadow-[inset_0_1px_6px_2px_rgba(255,255,255,0.1),inset_0_-1px_6px_2px_rgba(0,0,0,0.1),0_1px_2px_rgba(16,24,40,0.12)] ' +
+    'hover:brightness-110 active:brightness-95 ' +
+    'disabled:from-paper-500 disabled:to-paper-500 disabled:text-ink-800 disabled:shadow-none disabled:brightness-100 ' +
+    'dark:disabled:from-ink-400 dark:disabled:to-ink-400 dark:disabled:text-ink-700',
+  // Bordered surface on the card colour. The default for everything that
+  // isn't the main action. In dark mode it sits one step above the card
+  // (white/5 over bg-muted) so it never vanishes into the surface it's on.
   secondary:
-    'bg-paper-100 dark:bg-ink-300 text-ink-100 dark:text-paper-200 ' +
-    'border border-paper-500 dark:border-ink-400 ' +
-    'hover:bg-paper-300 dark:hover:bg-ink-400 hover:border-paper-600 dark:hover:border-ink-500',
+    'bg-card dark:bg-white/[0.05] text-foreground border border-border shadow-xs ' +
+    'hover:bg-paper-200 dark:hover:bg-white/[0.09] ' +
+    'disabled:text-ink-800 dark:disabled:text-ink-700 disabled:shadow-none',
   // Tinted, no border — for accent actions that shouldn't compete with primary.
   subtle:
-    'bg-brand-100 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300 hover:bg-brand-200 dark:hover:bg-brand-500/25',
+    'bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/15 dark:hover:bg-brand-500/20',
   // No chrome until hovered. Toolbars, table rows, dismissals.
   ghost:
-    'text-ink-600 dark:text-ink-900 hover:bg-paper-300 dark:hover:bg-ink-300 hover:text-ink-100 dark:hover:text-white',
-  // Destructive. Deliberately quiet until hovered so it isn't the loudest
-  // thing on screen just because it's dangerous.
+    'text-muted-foreground hover:bg-paper-300/70 dark:hover:bg-white/[0.06] hover:text-foreground',
+  // Destructive confirmation. Solid, so "delete" is never mistaken for
+  // "cancel" in a dialog footer.
   danger:
-    'bg-negative text-white hover:bg-negative-dim',
+    'bg-negative text-white shadow-[inset_0_1px_4px_1px_rgba(255,255,255,0.12),0_1px_2px_rgba(16,24,40,0.12)] ' +
+    'hover:bg-negative-dim',
+  // Destructive but quiet until hovered, so it isn't the loudest thing on
+  // screen just because it's dangerous.
   dangerGhost:
-    'text-ink-600 dark:text-ink-900 hover:bg-negative/10 hover:text-negative-dim',
+    'text-muted-foreground hover:bg-negative/10 hover:text-negative-dim',
   // Reads as a link, behaves as a button.
   link:
-    'text-brand-500 hover:text-brand-600 hover:underline underline-offset-[3px] !px-0 !h-auto',
+    'text-brand-500 dark:text-brand-300 hover:underline underline-offset-[3px] !px-0 !h-auto',
 };
 
+// One height scale shared with Input/Select (CONTROL_HEIGHT in Input.jsx), so
+// a button next to a field lines up without per-screen nudging.
 const SIZES = {
-  xs: 'h-7 px-2.5 text-xs gap-1',
-  sm: 'h-8 px-3 text-xs gap-1.5',
-  md: 'h-10 px-4 text-sm gap-2',
-  lg: 'h-12 px-6 text-sm gap-2',
+  xs: 'h-7 px-2.5 text-xs gap-1 rounded-field',
+  sm: 'h-8 px-3 text-xs gap-1.5 rounded-control',
+  md: 'h-9 px-4 text-sm gap-2 rounded-control',
+  lg: 'h-10 px-5 text-sm gap-2 rounded-control',
 };
 
-const ICON_SIZE = { xs: 14, sm: 15, md: 17, lg: 18 };
+const ICON_SIZE = { xs: 14, sm: 15, md: 16, lg: 18 };
 
 const Button = React.forwardRef(function Button({
   as: As = 'button',
@@ -69,11 +78,10 @@ const Button = React.forwardRef(function Button({
       disabled={As === 'button' ? isDisabled : undefined}
       aria-disabled={As !== 'button' && isDisabled ? true : undefined}
       className={[
-        'inline-flex items-center justify-center rounded-control font-semibold whitespace-nowrap',
-        'transition-colors outline-none cursor-pointer select-none',
-        'focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
-        'focus-visible:ring-offset-paper-100 dark:focus-visible:ring-offset-ink-100',
-        'disabled:cursor-not-allowed disabled:opacity-100 active:scale-[0.98]',
+        'inline-flex items-center justify-center font-medium whitespace-nowrap',
+        'transition-[color,background-color,border-color,filter,transform] duration-150 outline-none cursor-pointer select-none',
+        'focus-visible:ring-[3px] focus-visible:ring-brand-500/30',
+        'disabled:cursor-not-allowed disabled:opacity-100 enabled:active:scale-[0.98]',
         VARIANTS[variant] ?? VARIANTS.primary,
         SIZES[size],
         fullWidth ? 'w-full' : '',
@@ -93,10 +101,12 @@ export default Button;
 // Square, label-less action — table row controls, toolbar affordances. `title`
 // is required by convention and doubles as the accessible name: an icon with
 // no name is not a usable control.
+// Square, and the same heights as Button's sm/md/lg so icon and text buttons
+// in one toolbar sit on a single line.
 const ICON_BUTTON_SIZES = {
-  sm: 'p-1.5 [--icon-size:16px]',
-  md: 'p-2 [--icon-size:20px]',
-  lg: 'p-2.5 [--icon-size:22px]',
+  sm: 'size-8 [--icon-size:16px] [&_svg]:size-4',
+  md: 'size-9 [--icon-size:18px] [&_svg]:size-[18px]',
+  lg: 'size-10 [--icon-size:20px] [&_svg]:size-5',
 };
 
 export const IconButton = React.forwardRef(function IconButton({
@@ -112,9 +122,9 @@ export const IconButton = React.forwardRef(function IconButton({
 }, ref) {
   const As = asProp;
   const TONES = {
-    neutral: 'text-ink-600 dark:text-ink-900 hover:bg-paper-300 dark:hover:bg-ink-400 hover:text-ink-100 dark:hover:text-white',
-    brand:   'text-brand-500 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-500/15',
-    danger:  'text-ink-600 dark:text-ink-900 hover:bg-negative/10 hover:text-negative-dim',
+    neutral: 'text-muted-foreground hover:bg-paper-300/70 dark:hover:bg-white/[0.06] hover:text-foreground',
+    brand:   'text-brand-500 dark:text-brand-300 hover:bg-brand-500/10',
+    danger:  'text-muted-foreground hover:bg-negative/10 hover:text-negative-dim',
   };
 
   return (
@@ -123,9 +133,10 @@ export const IconButton = React.forwardRef(function IconButton({
       title={title}
       aria-label={title}
       className={[
-        'inline-flex items-center justify-center rounded-control transition-colors',
-        'outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
-        'disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
+        'inline-flex shrink-0 items-center justify-center rounded-control transition-colors',
+        'outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30',
+        'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent cursor-pointer',
+        'aria-expanded:bg-paper-300/70 dark:aria-expanded:bg-white/[0.06] aria-expanded:text-foreground',
         ICON_BUTTON_SIZES[size],
         TONES[tone] ?? TONES.neutral,
         className,
@@ -144,9 +155,9 @@ export const IconButton = React.forwardRef(function IconButton({
 export function ButtonGroup({ className = '', children }) {
   return (
     <div
-      className={`inline-flex items-center rounded-control border border-paper-500 dark:border-ink-400 overflow-hidden
-        [&>*]:rounded-none [&>*]:border-0 [&>*]:focus-visible:ring-inset
-        [&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-paper-500 dark:[&>*:not(:last-child)]:border-ink-400
+      className={`inline-flex items-center rounded-control border border-border shadow-xs overflow-hidden
+        [&>*]:rounded-none [&>*]:border-0 [&>*]:shadow-none [&>*]:focus-visible:ring-inset
+        [&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-border
         ${className}`}
     >
       {children}

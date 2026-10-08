@@ -24,15 +24,14 @@ export default function SelectableCard({
       disabled={disabled}
       onClick={onSelect}
       className={[
-        'relative flex flex-col text-left rounded-card border w-full',
+        'relative flex flex-col text-left rounded-xl border w-full',
         compact ? 'p-3 gap-0.5' : 'p-5',
         'transition-[border-color,box-shadow,background-color] duration-200',
-        'outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2',
-        'focus-visible:ring-offset-paper-300 dark:focus-visible:ring-offset-ink-50',
+        'outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30',
         'disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
         selected
-          ? 'border-brand-500 bg-brand-100 dark:bg-brand-500/15 shadow-raised'
-          : 'border-paper-500 dark:border-ink-400 bg-paper-100 dark:bg-ink-200 hover:border-paper-700 dark:hover:border-ink-500 hover:shadow-card',
+          ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500'
+          : 'border-border bg-card dark:bg-white/[0.03] shadow-xs hover:border-paper-800 dark:hover:border-white/20',
         className,
       ].join(' ')}
       {...props}
@@ -44,7 +43,7 @@ export default function SelectableCard({
         <span
           aria-hidden="true"
           className={`absolute top-3 left-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-            selected ? 'border-brand-500 bg-brand-500' : 'border-paper-600 dark:border-ink-400'
+            selected ? 'border-brand-500 bg-brand-500' : 'border-paper-800 dark:border-white/25'
           }`}
         >
           {selected && (

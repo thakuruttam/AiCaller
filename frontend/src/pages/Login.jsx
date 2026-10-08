@@ -178,7 +178,7 @@ export default function Login() {
         }
       `}</style>
 
-      <main className="login-page ui-inter flex min-h-screen overflow-x-hidden">
+      <main className="login-page flex min-h-screen overflow-x-hidden">
 
         {/* ════════════════════════════════════════
             LEFT — Dark Info Panel
@@ -201,7 +201,7 @@ export default function Login() {
           </div>
 
           {/* Main content */}
-          <div className="relative z-10 space-y-12 max-w-sm">
+          <div className="relative z-10 space-y-6 max-w-sm">
 
             {/* Headline */}
             <div>
@@ -230,7 +230,7 @@ export default function Login() {
           <div className={`bg-card dark:bg-muted rounded-2xl shadow-primary w-full max-w-[460px] my-auto flex flex-col p-8 sm:p-10 ${mounted ? 'anim-enter' : 'opacity-0'}`}>
 
             {/* Mobile logo */}
-            <div className="lg:hidden flex items-center gap-2.5 mb-10">
+            <div className="lg:hidden flex items-center gap-2.5 mb-6">
               <div className="w-8 h-8 rounded-chip flex items-center justify-center" style={{ background: LOGO_BADGE_BG }}>
                 <LogoIcon size={17} />
               </div>
@@ -238,7 +238,7 @@ export default function Login() {
             </div>
 
             {/* Heading */}
-            <div className="mb-8">
+            <div className="mb-6">
               <h1 className="text-[22px] font-semibold text-ink-100 dark:text-white leading-tight mb-1.5">
                 Login
               </h1>
@@ -247,7 +247,7 @@ export default function Login() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
 
               <Field label="Email" htmlFor="email">
                 <Input
@@ -332,7 +332,7 @@ export default function Login() {
               </Tooltip>
             </div>
 
-            <p className="mt-8 text-center text-[12px] text-ink-700 dark:text-ink-800">
+            <p className="mt-6 text-center text-[12px] text-ink-700 dark:text-ink-800">
               New to AI Caller?{' '}
               <a href="#" className="font-semibold text-brand-500 hover:text-brand-600 transition-colors">
                 Start free trial

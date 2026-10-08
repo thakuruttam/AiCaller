@@ -9,7 +9,7 @@ export default function Card({ padded = true, interactive = false, className = '
     <div
       className={[
         'bg-card dark:bg-muted rounded-2xl shadow-primary',
-        padded ? 'p-6' : '',
+        padded ? 'p-5' : '',
         interactive ? 'hover:-translate-y-px transition-transform duration-200' : '',
         className,
       ].join(' ')}
@@ -24,12 +24,12 @@ export default function Card({ padded = true, interactive = false, className = '
 // affordances on the right.
 export function CardHeader({ title, icon, action, className = '' }) {
   return (
-    <div className={`flex items-center justify-between mb-5 ${className}`}>
+    <div className={`flex items-center justify-between mb-4 ${className}`}>
       <div className="flex items-center gap-2">
         {icon && (
-          <span className="material-symbols-outlined [--icon-size:16px] text-ink-800">{icon}</span>
+          <span className="material-symbols-outlined [--icon-size:16px] text-muted-foreground">{icon}</span>
         )}
-        <h3 className="text-[13px] font-medium text-ink-700 dark:text-ink-800">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       </div>
       {action}
     </div>

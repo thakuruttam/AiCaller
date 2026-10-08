@@ -2,25 +2,24 @@ import React from 'react';
 import { Briefcase, UserPlus, TrendingUp, Banknote, MessageSquare, Users } from 'lucide-react';
 import { campaignTypeLabel } from './campaignTypes';
 
-// One icon/tone per CampaignType enum value (api-service/prisma/schema.prisma)
-// so a table's type column reads at a glance instead of everything being the
-// same colour. Plain coloured icon + label, no pill background — a column of
-// filled pills next to a status column competed for attention. Shared by
-// every screen that lists campaigns.
-const TYPE_META = {
-  HR: { icon: Briefcase, tone: 'text-sky-500' },
-  RECRUITER: { icon: UserPlus, tone: 'text-purple-500' },
-  SALES: { icon: TrendingUp, tone: 'text-emerald-500' },
-  LOAN_RECOVERY: { icon: Banknote, tone: 'text-orange-500' },
-  FEEDBACK: { icon: MessageSquare, tone: 'text-pink-500' },
+// One icon per CampaignType enum value (api-service/prisma/schema.prisma), so
+// a type column reads at a glance by shape. Deliberately monochrome: colour in
+// this app is reserved for brand and status, and a column of five hues next
+// to a status column made both harder to read. Shared by every screen that
+// lists campaigns.
+const TYPE_ICON = {
+  HR: Briefcase,
+  RECRUITER: UserPlus,
+  SALES: TrendingUp,
+  LOAN_RECOVERY: Banknote,
+  FEEDBACK: MessageSquare,
 };
-const FALLBACK = { icon: Users, tone: 'text-muted-foreground' };
 
 export default function CampaignTypeLabel({ type, className = '' }) {
-  const { icon: Icon, tone } = TYPE_META[type] || FALLBACK;
+  const Icon = TYPE_ICON[type] || Users;
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium ${tone} ${className}`}>
-      <Icon className="size-4" />
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-foreground ${className}`}>
+      <Icon className="size-4 text-muted-foreground" />
       {campaignTypeLabel(type) || 'Campaign'}
     </span>
   );

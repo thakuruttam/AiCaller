@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Page, PageHeader, Table, THead, Th, TBody, Tr, Td, CellStack, StatusBadge, TableToolbar, EmptyState,
-  Button, IconButton, FilterBar,
+  Button, IconButton, FilterBar, StatCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
@@ -29,21 +29,6 @@ function formatDate(iso) {
 
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-}
-
-function StatCard({ icon, label, value, sub }) {
-  return (
-    <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 flex items-start gap-4">
-      <div className="w-10 h-10 rounded-card bg-brand-100 dark:bg-brand-500/15 flex items-center justify-center shrink-0">
-        <span className="material-symbols-outlined text-brand-500 text-[20px]">{icon}</span>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-ink-800 ">{label}</p>
-        <p className="text-2xl font-bold text-ink-100 dark:text-paper-200 mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-ink-800 mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
 }
 
 function CallRow({ call, campaignId }) {
@@ -168,7 +153,7 @@ export default function Usage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-ink-800 text-sm">
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
         <span className="material-symbols-outlined animate-spin text-[20px] mr-2">progress_activity</span>
         Loading usage…
       </div>
@@ -177,7 +162,7 @@ export default function Usage() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-64 text-ink-800 text-sm">
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
         Could not load usage data. Make sure the api-service is running.
       </div>
     );
@@ -204,24 +189,24 @@ export default function Usage() {
       />
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatCard
           icon="timer"
           label="Total minutes billed"
           value={totalMinutes.toLocaleString('en-IN')}
-          sub="across all campaigns"
+          hint="Across all campaigns"
         />
         <StatCard
           icon="call"
           label="Total calls made"
           value={totalCalls.toLocaleString('en-IN')}
-          sub={`across ${campaignsWithCalls} campaign${campaignsWithCalls !== 1 ? 's' : ''}`}
+          hint={`Across ${campaignsWithCalls} campaign${campaignsWithCalls !== 1 ? 's' : ''}`}
         />
         <StatCard
           icon="currency_rupee"
           label="Estimated spend"
           value={totalCost > 0 ? `₹${totalCost.toLocaleString('en-IN')}` : '₹0'}
-          sub="at ₹5 / min"
+          hint="At ₹5 / min"
         />
       </div>
 

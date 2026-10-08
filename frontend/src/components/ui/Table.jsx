@@ -99,7 +99,7 @@ export function Tr({ selected = false, onClick, className = '', children, ...pro
       } : undefined}
       aria-selected={selected || undefined}
       className={`group/row transition-colors
-        ${selected ? 'bg-brand-500/[0.06] dark:bg-brand-500/10' : 'hover:bg-paper-200/80 dark:hover:bg-white/[0.03]'}
+        ${selected ? 'bg-brand-500/10' : 'hover:bg-paper-200/80 dark:hover:bg-white/[0.03]'}
         ${interactive ? 'cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500/40' : ''}
         ${className}`}
       {...props}
@@ -185,7 +185,7 @@ export function RecordLink({ as: asProp = 'a', className = '', children, ...prop
   const As = asProp;
   return (
     <As
-      className={`text-sm font-medium text-ink-100 dark:text-paper-200 underline decoration-paper-800 dark:decoration-ink-600 underline-offset-[3px] hover:decoration-ink-600 dark:hover:decoration-ink-800 transition-colors ${className}`}
+      className={`text-sm font-medium text-foreground underline decoration-paper-800 dark:decoration-ink-600 underline-offset-[3px] hover:decoration-ink-600 dark:hover:decoration-ink-800 transition-colors ${className}`}
       {...props}
     >
       {children}

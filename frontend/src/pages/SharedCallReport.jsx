@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar } from '../components/ui';
-import { useParams, Link } from 'react-router-dom';
+import {
+  Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar,
+  PageHeader, BackLink, EmptyState, Badge, Card, CardHeader, StatCard, Progress, statusLabel,
+} from '../components/ui';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
+import PageLoader from '../components/PageLoader';
 
 function parseTranscript(raw) {
   if (!raw) return [];
@@ -33,26 +37,26 @@ function parseTranscript(raw) {
   return turns;
 }
 
-const OUTCOME_BADGE = {
-  COMPLETED:    "bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive",
-  NO_ANSWER:    "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
-  INCOMPLETE:   "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  WRONG_PERSON: 'bg-negative/10 text-negative-dim',
-  RESCHEDULE:   "bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
-  BUSY:         "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
-  FAILED:       "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+const OUTCOME_TONE = {
+  COMPLETED:    'positive',
+  NO_ANSWER:    'neutral',
+  INCOMPLETE:   'caution',
+  WRONG_PERSON: 'negative',
+  RESCHEDULE:   'brand',
+  BUSY:         'neutral',
+  FAILED:       'negative',
 };
 
-const SENTIMENT_BADGE = {
-  positive: "bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
-  neutral:  "bg-paper-400 text-ink-500 dark:bg-ink-300 dark:text-ink-900",
-  negative: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+const SENTIMENT_TONE = {
+  positive: 'brand',
+  neutral:  'neutral',
+  negative: 'negative',
 };
 
 const CONFIDENCE_BAR = {
   high:   { color: 'bg-positive', pct: '95%' },
-  medium: { color: 'bg-caution/100', pct: '70%' },
-  low:    { color: "bg-paper-900 dark:bg-ink-700", pct: "40%" },
+  medium: { color: 'bg-caution', pct: '70%' },
+  low:    { color: 'bg-paper-900 dark:bg-ink-700', pct: '40%' },
 };
 
 export default function SharedCallReport() {
@@ -85,17 +89,17 @@ export default function SharedCallReport() {
 
   if (loading) return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50 flex items-center justify-center">
-      <div className="text-ink-700 dark:text-ink-900 text-sm">Loading…</div>
+      <PageLoader text="Loading…" />
     </div>
   );
 
   if (error) return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50 flex items-center justify-center">
-      <div className="text-center">
-        <span className="material-symbols-outlined text-[48px] text-ink-900 dark:text-ink-700 block mb-3">link_off</span>
-        <p className="text-ink-600 dark:text-ink-900 font-semibold">{error}</p>
-        <Link to={`/share/${token}`} className="text-sm text-brand-500 mt-3 block">← Back to Report</Link>
-      </div>
+      <EmptyState
+        icon="link_off"
+        title={error}
+        action={<BackLink to={`/share/${token}`}>Back to Report</BackLink>}
+      />
     </div>
   );
 
@@ -119,82 +123,68 @@ export default function SharedCallReport() {
   return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50">
       {/* Header */}
-      <header className="bg-ink-100 px-8 py-5 flex items-center gap-4 shadow-card">
-        <div className="w-9 h-9 bg-brand-600 rounded flex items-center justify-center shrink-0">
+      <header className="bg-ink-100 page-gutter py-5 flex items-center gap-4 shadow-card">
+        <div className="w-9 h-9 bg-brand-500 rounded flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined text-white text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
         </div>
         <div>
           <h1 className="text-white font-bold text-base leading-tight">AI Caller Pro</h1>
-          <p className="text-ink-800 text-xs font-medium ">Shared Call Report</p>
+          <p className="text-muted-foreground text-xs font-medium ">Shared Call Report</p>
         </div>
       </header>
 
-      <main className="p-10 max-w-[1200px] mx-auto">
-        <Link
-          to={`/share/${token}`}
-          className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
-        >
-          <span className="material-symbols-outlined">arrow_back</span>
-          Back to Campaign Report
-        </Link>
-
-        <div className="flex items-start justify-between mb-6 gap-4">
-          <div>
-            <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 tracking-tight">{callLog?.contact?.name || report?.contactName || 'Unknown'}</h2>
-            <p className="text-ink-700 dark:text-ink-900 text-sm mt-0.5">{callLog?.contact?.phone} · {new Date(callLog?.createdAt || report?.createdAt).toLocaleString()}</p>
-          </div>
-          {callLog?.durationMs && (
-            <span className="text-xs bg-paper-400 dark:bg-ink-300 text-ink-600 dark:text-ink-900 px-3 py-1.5 rounded-full shrink-0">
-              {Math.round(callLog.durationMs / 1000)}s
-            </span>
+      <main className="page-gutter pt-6 pb-10">
+        <PageHeader
+          back={{ to: `/share/${token}`, label: 'Back to Campaign Report' }}
+          title={callLog?.contact?.name || report?.contactName || 'Unknown'}
+          subtitle={`${callLog?.contact?.phone || ''} · ${new Date(callLog?.createdAt || report?.createdAt).toLocaleString()}`}
+          actions={callLog?.durationMs && (
+            <Badge tone="neutral" dot={false} capitalize={false}>{Math.round(callLog.durationMs / 1000)}s</Badge>
           )}
-        </div>
+          className="!mb-6"
+        />
 
         {/* Summary KPIs */}
         {report && (
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">Outcome</p>
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${OUTCOME_BADGE[report.outcome] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
-                {(report.outcome || 'Unknown').replace('_', ' ')}
-              </span>
-            </div>
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">QA Score</p>
-              <p className="text-3xl font-bold text-brand-500">{report.score ?? '—'}<span className="text-ink-800 dark:text-ink-800 text-base font-semibold">/100</span></p>
-            </div>
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">Sentiment</p>
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${SENTIMENT_BADGE[report.sentiment] || "bg-paper-400 text-ink-500 dark:bg-ink-300 dark:text-ink-900"}`}>
-                {report.sentiment ? report.sentiment.charAt(0).toUpperCase() + report.sentiment.slice(1) : '—'}
-              </span>
-            </div>
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mb-2">Completion</p>
-              <p className="text-3xl font-bold text-ink-100 dark:text-paper-200">{completionPercent != null ? `${completionPercent}%` : '—'}</p>
-            </div>
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <StatCard
+              icon="flag"
+              label="Outcome"
+              value={<Badge tone={OUTCOME_TONE[report.outcome] || 'neutral'}>{statusLabel(report.outcome || 'Unknown')}</Badge>}
+            />
+            <StatCard
+              icon="star"
+              label="QA score"
+              value={<>{report.score ?? '—'}<span className="text-lg text-muted-foreground"> /100</span></>}
+            />
+            <StatCard
+              icon="sentiment_satisfied"
+              label="Sentiment"
+              value={<Badge tone={SENTIMENT_TONE[report.sentiment] || 'neutral'}>{report.sentiment || '—'}</Badge>}
+            />
+            <StatCard
+              icon="percent"
+              label="Completion"
+              value={completionPercent != null ? `${completionPercent}%` : '—'}
+            >
+              {completionPercent != null && <Progress value={completionPercent} />}
+            </StatCard>
           </section>
         )}
 
         {/* AI Summary */}
         {report?.reportSummary && (
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
-              <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">AI Summary</h3>
-            </div>
-            <p className="text-ink-500 dark:text-ink-900 leading-relaxed">{report.reportSummary}</p>
-          </div>
+          <Card className="mb-6">
+            <CardHeader title="AI Summary" icon="auto_awesome" />
+            <p className="text-sm text-muted-foreground leading-relaxed">{report.reportSummary}</p>
+          </Card>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
           {/* Audio Player */}
           {callLog?.hasRecording && (
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>mic</span>
-                <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Recording</h3>
-              </div>
+            <Card>
+              <CardHeader title="Recording" icon="mic" />
               <audio
                 controls
                 className="w-full"
@@ -203,32 +193,29 @@ export default function SharedCallReport() {
               >
                 Your browser does not support audio playback.
               </audio>
-            </div>
+            </Card>
           )}
 
           {/* Transcript */}
-          <div className={`bg-card dark:bg-muted rounded-2xl shadow-primary p-6 ${callLog?.hasRecording ? '' : 'xl:col-span-2'}`}>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>chat</span>
-              <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Transcript</h3>
-            </div>
+          <Card className={callLog?.hasRecording ? '' : 'xl:col-span-2'}>
+            <CardHeader title="Transcript" icon="chat" />
             {turns.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                 {turns.map((t, i) => (
                   <div key={i} className={`flex gap-3 ${t.isAI ? 'flex-row' : 'flex-row-reverse'}`}>
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${t.isAI ? "bg-brand-600 text-white" : "bg-paper-500 dark:bg-ink-400 text-ink-600 dark:text-ink-900"}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${t.isAI ? "bg-brand-500 text-white" : "bg-paper-400 dark:bg-white/10 text-muted-foreground"}`}>
                       {t.isAI ? 'AI' : 'U'}
                     </div>
-                    <div className={`px-4 py-2.5 rounded-card max-w-[80%] text-sm leading-relaxed ${t.isAI ? "bg-brand-100 dark:bg-brand-500/15 text-ink-100 dark:text-paper-200 rounded-tl-sm" : "bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 rounded-tr-sm"}`}>
+                    <div className={`px-4 py-2.5 rounded-xl max-w-[80%] text-sm leading-relaxed ${t.isAI ? 'bg-brand-500/10 text-foreground rounded-tl-sm' : 'bg-paper-200 dark:bg-white/[0.04] text-foreground rounded-tr-sm'}`}>
                       {t.text}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-ink-800 dark:text-ink-800 italic">No transcript available.</p>
+              <p className="text-sm text-muted-foreground italic">No transcript available.</p>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Evaluation Breakdown */}
@@ -261,7 +248,7 @@ export default function SharedCallReport() {
                 {filteredQuestions.map(qr => {
                   const max = qr.weight || 0;
                   const awarded = qr.questionScore || 0;
-                  const color = max === 0 ? "text-ink-600 dark:text-ink-900" : awarded >= max ? 'text-positive-dim' : awarded === 0 ? 'text-negative-dim' : 'text-caution-dim';
+                  const color = max === 0 ? 'text-muted-foreground' : awarded >= max ? 'text-positive-dim' : awarded === 0 ? 'text-negative-dim' : 'text-caution-dim';
                   const mainRow = qr.breakdownRows?.find(r => r.rule !== 'Field present') || {};
                   const confStr = report?.extractedFields?.[mainRow.field]?.confidence || '—';
                   const conf = CONFIDENCE_BAR[confStr];
@@ -277,7 +264,7 @@ export default function SharedCallReport() {
                             <p>{qr.answerExtracted}</p>
                             {conf && (
                               <div className="flex items-center gap-2 mt-1">
-                                <div className="w-16 h-1 bg-paper-400 dark:bg-ink-300 rounded-full overflow-hidden">
+                                <div className="w-16 h-1 bg-paper-400 dark:bg-white/10 rounded-full overflow-hidden">
                                   <div className={`h-full ${conf.color} rounded-full`} style={{width: conf.pct}} />
                                 </div>
                                 <span className="text-[10px] text-muted-foreground uppercase">{confStr}</span>
@@ -293,7 +280,7 @@ export default function SharedCallReport() {
                         {mainRow.reason && <p className="text-xs mt-0.5">{mainRow.reason}</p>}
                       </Td>
                       <Td numeric>
-                        <span className={`font-bold ${color}`}>{awarded}/{max}</span>
+                        <span className={`font-semibold ${color}`}>{awarded}/{max}</span>
                       </Td>
                     </Tr>
                   );

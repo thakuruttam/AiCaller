@@ -17,7 +17,7 @@ import Button, { IconButton } from './Button';
 
 const PILL =
   'inline-flex h-8 items-center gap-1.5 rounded-control border border-dashed border-paper-700 dark:border-white/15 ' +
-  'px-2.5 text-xs font-medium text-ink-600 dark:text-ink-900 hover:bg-paper-200 dark:hover:bg-white/[0.04] ' +
+  'px-2.5 text-xs font-medium text-muted-foreground hover:bg-paper-200 dark:hover:bg-white/[0.04] ' +
   'hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40';
 
 // The selected values show inside the pill (up to two, then "N selected"),

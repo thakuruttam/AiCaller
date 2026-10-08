@@ -9,12 +9,14 @@ export { default as CopyField } from './CopyField';
 export { default as Badge, StatusBadge } from './Badge';
 export { toneForStatus, statusLabel } from './badgeTones';
 export { default as Input, Textarea, Select, Field } from './Input';
+export { default as WordLimitTextarea } from './WordLimitTextarea';
 export { default as Tabs, TabBar } from './Tabs';
 export {
   default as Table,
   THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, RecordLink, SkeletonRow,
 } from './Table';
-export { default as Page, PageHeader, EmptyState, Stat } from './Page';
+export { default as Page, PageHeader, BackLink, EmptyState, Stat } from './Page';
+export { default as StatCard } from './StatCard';
 export { FacetFilter, FilterBar, ColumnToggle } from './TableControls';
 export { default as Pagination } from './Pagination';
 export {

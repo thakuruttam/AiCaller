@@ -1,32 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Button, IconButton } from '../../../components/ui';
+import { Button, IconButton, Input, WordLimitTextarea } from '../../../components/ui';
 import { Plus, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
 import QuestionCard from './QuestionCard';
 import { emptyItem, uid } from './questionModel';
 import { useToast } from '../../../context/ToastContext';
-
-function WordLimitTextarea({ value, onChange, limit, placeholder, className = '', rows = 2 }) {
-  const count = value?.trim().split(/\s+/).filter(Boolean).length || 0;
-  const over  = count > limit;
-  return (
-    <div className="relative flex flex-col w-full">
-      <textarea
-        rows={rows}
-        value={value || ''}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 pt-2 pb-6 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors
-          ${over
-            ? 'border-negative focus:ring-negative/20'
-            : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
-          } ${className}`}
-      />
-      <div className={`absolute bottom-2 right-6 text-xs font-medium pointer-events-none tabular-nums bg-white/90 dark:bg-ink-300/90 px-1 backdrop-blur-sm rounded ${over ? 'text-negative font-semibold' : 'text-ink-800 dark:text-ink-800'}`}>
-        {count} / {limit} words{over ? ' — over limit' : ''}
-      </div>
-    </div>
-  );
-}
 
 export default function Step3DataToCollect({ payload, updatePayload }) {
   const { addToast } = useToast();
@@ -156,7 +133,7 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       {/* Question list */}
       <div className="flex flex-col gap-3">
         {items.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-ink-800 dark:text-ink-800 bg-paper-200 dark:bg-ink-50">
+          <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-muted-foreground bg-paper-200 dark:bg-ink-50">
             <MessageSquare size={32} className="mb-2 opacity-40" />
             <p className="text-sm">No questions yet. Add one below.</p>
           </div>
@@ -192,9 +169,9 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
         const exact = total === 100;
         return (
           <div className={`flex items-center justify-between px-4 py-2.5 rounded-control border text-sm font-medium
-            ${over  ? 'border-negative/40 bg-negative/10 text-negative-dim'
+            ${over  ? 'border-negative/25 bg-negative/10 text-negative-dim'
             : exact ? 'border-positive bg-positive/10 text-positive-dim'
-            :         'border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 text-ink-700 dark:text-ink-900'}`}
+            :         'border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 text-muted-foreground'}`}
           >
             <span>Total Call Score Weight</span>
             <span className="tabular-nums">{total}%
@@ -212,16 +189,17 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       </Button>
 
       {/* End Call If */}
-      <div className="flex flex-col gap-3 p-4 rounded-card border border-negative/30 bg-negative/10">
+      <div className="flex flex-col gap-3 p-4 rounded-card border border-negative/25 bg-negative/10">
         <div className="flex items-center gap-2">
           <AlertCircle size={15} className="text-negative-dim" />
-          <h4 className="text-sm font-semibold text-negative-dim">End Call If</h4>
+          <label htmlFor="end-call-if" className="text-sm font-semibold text-negative-dim">End Call If</label>
           <span className="text-xs font-medium text-negative">(max 500 words)</span>
         </div>
         <p className="text-xs font-medium text-negative-dim/80 leading-relaxed">
           Describe any condition(s) under which the bot should immediately end the call. For example: <em>"If the contact says they are not interested at any point, immediately end the call."</em>
         </p>
         <WordLimitTextarea
+          id="end-call-if"
           value={endCallIf}
           onChange={setEndCallIf}
           limit={500}
@@ -234,22 +212,25 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
       <div className="flex flex-col gap-3 p-4 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
         <div className="flex items-center gap-2">
           <CheckCircle2 size={15} className="text-positive-dim" />
-          <h4 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Success Score Threshold</h4>
+          <label htmlFor="success-score" className="text-sm font-semibold text-foreground">Success Score Threshold</label>
         </div>
-        <p className="text-xs font-medium text-ink-700 dark:text-ink-900 leading-relaxed">
+        <p className="text-xs font-medium text-muted-foreground leading-relaxed">
           Calls whose final score falls below this threshold will be marked as <strong>Failed</strong> in reports.
         </p>
         <div className="flex flex-col gap-2 mt-1">
           <div className="flex items-center gap-4">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              className="flex h-9 w-24 rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm text-ink-100 dark:text-paper-200 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-              value={payload.rules?.successScore ?? 50}
-              onChange={(e) => updatePayload({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value))) } })}
-            />
-            <span className="text-sm text-ink-700 dark:text-ink-900">/ 100</span>
+            <div className="w-24">
+              <Input
+                id="success-score"
+                type="number"
+                min={0}
+                max={100}
+                className="text-center tabular-nums"
+                value={payload.rules?.successScore ?? 50}
+                onChange={(e) => updatePayload({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value))) } })}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground">/ 100</span>
           </div>
           <div className="relative h-2 rounded-full bg-paper-500 dark:bg-ink-300 overflow-hidden w-full max-w-sm mt-1">
             <div
@@ -257,8 +238,8 @@ export default function Step3DataToCollect({ payload, updatePayload }) {
               style={{ width: `${payload.rules?.successScore ?? 50}%` }}
             />
           </div>
-          <p className="text-xs font-medium text-ink-700 dark:text-ink-900">
-            Current threshold: <strong className="text-ink-500 dark:text-ink-900">{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
+          <p className="text-xs font-medium text-muted-foreground">
+            Current threshold: <strong className="text-muted-foreground">{payload.rules?.successScore ?? 50}%</strong>. Calls scoring below this are unsuccessful.
           </p>
         </div>
       </div>

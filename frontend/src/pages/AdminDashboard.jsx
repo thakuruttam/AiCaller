@@ -3,11 +3,12 @@ import CampaignTypeLabel from '../components/CampaignTypeLabel';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import Step7Review from './CampaignWizard/components/Step7Review';
-import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar } from '../components/ui';
+import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar, StatCard, Progress, Select } from '../components/ui';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
@@ -53,6 +54,8 @@ export default function AdminDashboard() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewLoadingId, setViewLoadingId] = useState(null);
   const { addToast } = useToast();
+  const confirm = useConfirm();
+
   const wasFailingRef = useRef(false);
 
   const fetchTickets = async () => {
@@ -150,6 +153,19 @@ export default function AdminDashboard() {
       setActionLoading(false);
       setIsConfirmOpen(false);
     }
+  };
+
+  const killAll = async () => {
+    const live = campaigns.filter(c => (c.callLogs || []).some(l => ['queued', 'in-progress'].includes(l.status)));
+    const ok = await confirm({
+      title: 'Kill all active campaigns?',
+      body: live.length
+        ? `This immediately stops ${live.length} running campaign${live.length !== 1 ? 's' : ''} across every workspace. Calls in progress are cut off.`
+        : 'No campaigns are running right now.',
+      confirmLabel: 'Kill all',
+      tone: 'danger',
+    });
+    if (ok) live.forEach(c => handleCampaignAction(c.id, 'kill'));
   };
 
   const handleCallAction = async (callId, actionStr) => {
@@ -252,7 +268,7 @@ export default function AdminDashboard() {
         title="Admin Dashboard"
         subtitle="Real-time system oversight and campaign orchestration."
         actions={<>
-          <Button variant="danger" size="md" icon="skull" onClick={() => { if (window.confirm('CRITICAL ACTION: Kill all active campaigns?')) { campaigns.forEach(c => { if ((c.callLogs||[]).some(l => ['queued','in-progress'].includes(l.status))) { handleCampaignAction(c.id, 'kill'); } }); } }}>Kill All</Button>
+          <Button variant="danger" size="md" icon="skull" onClick={killAll}>Kill All</Button>
           <Button variant="secondary" size="md" icon="download">Export Logs</Button>
         </>}
       />
@@ -294,35 +310,18 @@ export default function AdminDashboard() {
 
       {activeTab === 'campaigns' && (<>
       {/* Metrics Bento */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Active Channels</p>
-          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalChannels} / 2,000</h3>
-          <div className="w-full bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full mt-3">
-            <div className="bg-brand-500 h-1.5 rounded-full" style={{width:`${Math.min(100, (totalChannels/2000)*100)}%`}}></div>
-          </div>
-        </div>
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Calls per Second</p>
-          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{totalCPS} CPS</h3>
-          <p className="text-positive-dim text-xs flex items-center gap-1 mt-2">
-            <span className="material-symbols-outlined text-sm">trending_up</span> Live feed
-          </p>
-        </div>
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">System Latency</p>
-          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">142ms</h3>
-          <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
-            <span className="material-symbols-outlined text-sm">check_circle</span> Within SLA
-          </p>
-        </div>
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-xs text-ink-600 dark:text-ink-900 mb-1 ">Error Rate</p>
-          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">0.04%</h3>
-          <p className="text-ink-700 dark:text-ink-900 text-xs flex items-center gap-1 mt-2">
-            <span className="material-symbols-outlined text-sm">info</span> Low impact
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <StatCard icon="settings_input_antenna" label="Active channels" value={`${totalChannels} / 2,000`}>
+          <Progress value={(totalChannels / 2000) * 100} />
+        </StatCard>
+        <StatCard
+          icon="speed"
+          label="Calls per second"
+          value={`${totalCPS} CPS`}
+          trend={{ direction: 'up', label: 'Live feed' }}
+        />
+        <StatCard icon="timer" label="System latency" value="142ms" hint="Within SLA" />
+        <StatCard icon="error" label="Error rate" value="0.04%" hint="Low impact" />
       </div>
 
       {/* Campaign Table */}
@@ -348,7 +347,7 @@ export default function AdminDashboard() {
           {loading && (
             <div className="px-6 py-10 flex flex-col items-center gap-3">
               <Spinner size={28} className="text-brand-500" />
-              <p className="text-sm text-ink-700 dark:text-ink-900">Loading campaigns…</p>
+              <p className="text-sm text-muted-foreground">Loading campaigns…</p>
             </div>
           )}
           {!loading && filtered.map(campaign => {
@@ -533,31 +532,29 @@ export default function AdminDashboard() {
           </>
         }
       >
-        <p className="text-sm text-ink-600 dark:text-ink-900 leading-relaxed">
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Are you sure? Every contact will be re-queued for a fresh call. Recordings and transcripts from previous completed calls are kept — only pending or in-progress calls are cleared.
         </p>
       </Modal>
 
       {/* View Modal */}
       {selectedCampaign && (
-        <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Campaign Details" className="max-w-5xl w-full">
-          <div className="max-h-[70vh] overflow-y-auto">
-            <Step7Review payload={{
-              name: selectedCampaign.name,
-              type: selectedCampaign.type,
-              goals: {
-                goal: selectedCampaign.callModule?.goal || '',
-                callIntro: selectedCampaign.callModule?.callIntro || '',
-                callSignOff: selectedCampaign.callModule?.callSignOff || ''
-              },
-              dataToCollect: selectedCampaign.dataToCollect || [],
-              callSettings: selectedCampaign.callSettings || {},
-              contacts: selectedCampaign.campaignContacts || [],
-              endCallIf: selectedCampaign.endCallIf || '',
-              rules: selectedCampaign.rules || {},
-              scheduledAt: selectedCampaign.scheduledAt || null
-            }} />
-          </div>
+        <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Campaign Details" size="2xl">
+          <Step7Review payload={{
+            name: selectedCampaign.name,
+            type: selectedCampaign.type,
+            goals: {
+              goal: selectedCampaign.callModule?.goal || '',
+              callIntro: selectedCampaign.callModule?.callIntro || '',
+              callSignOff: selectedCampaign.callModule?.callSignOff || ''
+            },
+            dataToCollect: selectedCampaign.dataToCollect || [],
+            callSettings: selectedCampaign.callSettings || {},
+            contacts: selectedCampaign.campaignContacts || [],
+            endCallIf: selectedCampaign.endCallIf || '',
+            rules: selectedCampaign.rules || {},
+            scheduledAt: selectedCampaign.scheduledAt || null
+          }} />
         </Modal>
       )}
       </>)}
@@ -565,23 +562,25 @@ export default function AdminDashboard() {
   );
 }
 
-const ROLE_BADGE = {
-  SUPER_ADMIN: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
-  ADMIN:       "bg-brand-500/10 text-brand-500 dark:bg-brand-500/15 dark:text-brand-300",
-  EDITOR:      "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  VIEWER:      "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900",
+const ROLE_TONE = {
+  SUPER_ADMIN: 'negative',
+  ADMIN:       'brand',
+  EDITOR:      'caution',
+  VIEWER:      'neutral',
 };
 
-const STATUS_USER_BADGE = {
-  ACTIVE:    "bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive",
-  PENDING:   "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  SUSPENDED: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+const USER_STATUS_TONE = {
+  ACTIVE:    'positive',
+  PENDING:   'caution',
+  SUSPENDED: 'negative',
 };
+
+const enumLabel = (v) => String(v ?? '').replace(/_/g, ' ').toLowerCase();
 
 function Avatar({ user, size = 'md' }) {
   const dim = size === 'lg' ? 'w-14 h-14 text-base' : size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-xs';
   return (
-    <div className={`${dim} rounded-full bg-brand-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
+    <div className={`${dim} rounded-full bg-brand-500 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
       {user?.avatarUrl
         ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
         : user?.name?.charAt(0)?.toUpperCase() || '?'}
@@ -601,19 +600,10 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
   return (
     <div className="space-y-6">
       {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-          <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Open</p>
-          <p className="text-2xl font-bold text-brand-500">{openCount}</p>
-        </div>
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-          <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">In Progress</p>
-          <p className="text-2xl font-bold text-caution-dim">{ipCount}</p>
-        </div>
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-          <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Resolved</p>
-          <p className="text-2xl font-bold text-positive-dim">{resolveCount}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard icon="inbox" label="Open" value={openCount} />
+        <StatCard icon="pending_actions" label="In progress" value={ipCount} />
+        <StatCard icon="task_alt" label="Resolved" value={resolveCount} />
       </div>
 
       <div className="flex gap-5 items-start">
@@ -629,11 +619,11 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
           </div>
 
           {loading ? (
-            <div className="px-5 py-10 text-center text-ink-800 dark:text-ink-800 text-sm">Loading…</div>
+            <div className="px-5 py-10 text-center text-muted-foreground text-sm">Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <span className="material-symbols-outlined text-paper-200 dark:text-ink-700 text-[40px] block mb-2">inbox</span>
-              <p className="text-ink-800 dark:text-ink-800 text-sm">No tickets</p>
+              <span className="material-symbols-outlined text-muted-foreground/40 [--icon-size:40px] block mb-2">inbox</span>
+              <p className="text-muted-foreground text-sm">No tickets</p>
             </div>
           ) : (
             <div className="divide-y divide-paper-400 dark:divide-ink-400/50 max-h-[65vh] overflow-y-auto">
@@ -647,17 +637,17 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <Avatar user={t.user} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-ink-100 dark:text-paper-200 truncate leading-tight">{t.subject}</p>
+                        <p className="text-sm font-medium text-foreground truncate leading-tight">{t.subject}</p>
                         <StatusBadge status={t.status} className="shrink-0" />
                       </div>
-                      <p className="text-xs text-ink-700 dark:text-ink-900 mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.user?.name} · {t.tenant?.name || 'No workspace'}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-ink-800 dark:text-ink-800 capitalize">{t.category}</span>
-                        <span className="text-xs text-ink-900 dark:text-ink-700">·</span>
-                        <span className="text-xs text-ink-800 dark:text-ink-800">{new Date(t.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{t.category}</span>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>
                         {t._count?.replies > 0 && <>
-                          <span className="text-xs text-ink-900 dark:text-ink-700">·</span>
-                          <span className="text-xs text-ink-800 dark:text-ink-800">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-xs text-muted-foreground">{t._count.replies} {t._count.replies === 1 ? 'reply' : 'replies'}</span>
                         </>}
                       </div>
                     </div>
@@ -675,26 +665,26 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
             {/* Sender card */}
             <div className="bg-card dark:bg-muted rounded-2xl shadow-primary w-[220px] shrink-0 overflow-hidden">
               <div className="px-4 py-3 border-b border-paper-400 dark:border-ink-400">
-                <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Submitted by</p>
+                <p className="text-xs font-semibold text-muted-foreground ">Submitted by</p>
               </div>
               <div className="p-4 space-y-4">
                 {/* Avatar + name */}
                 <div className="flex flex-col items-center text-center gap-2">
                   <Avatar user={selectedTicket.user} size="lg" />
                   <div>
-                    <p className="text-sm font-semibold text-ink-100 dark:text-paper-200 leading-tight">{selectedTicket.user?.name}</p>
-                    <p className="text-xs text-ink-800 dark:text-ink-800 mt-0.5 break-all">{selectedTicket.user?.email}</p>
+                    <p className="text-sm font-semibold text-foreground leading-tight">{selectedTicket.user?.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 break-all">{selectedTicket.user?.email}</p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-1">
                     {selectedTicket.user?.role && (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user.role] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
-                        {selectedTicket.user.role.replace('_', ' ')}
-                      </span>
+                      <Badge tone={ROLE_TONE[selectedTicket.user.role] || 'neutral'}>
+                        {enumLabel(selectedTicket.user.role)}
+                      </Badge>
                     )}
                     {selectedTicket.user?.status && (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_USER_BADGE[selectedTicket.user.status] || "bg-paper-400 text-ink-700 dark:bg-ink-300 dark:text-ink-900"}`}>
-                        {selectedTicket.user.status}
-                      </span>
+                      <Badge tone={USER_STATUS_TONE[selectedTicket.user.status] || 'neutral'}>
+                        {enumLabel(selectedTicket.user.status)}
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -703,34 +693,34 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 <div className="space-y-2.5 border-t border-paper-400 dark:border-ink-400 pt-3">
                   {selectedTicket.tenant?.name && (
                     <div>
-                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Workspace</p>
-                      <p className="text-xs text-ink-500 dark:text-ink-900 font-medium mt-0.5">{selectedTicket.tenant.name}</p>
+                      <p className="text-xs font-semibold text-muted-foreground ">Workspace</p>
+                      <p className="text-xs text-muted-foreground font-medium mt-0.5">{selectedTicket.tenant.name}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceRole && (
                     <div>
-                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Workspace Role</p>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block ${ROLE_BADGE[selectedTicket.submitterContext.workspaceRole] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
-                        {selectedTicket.submitterContext.workspaceRole}
-                      </span>
+                      <p className="text-xs font-semibold text-muted-foreground ">Workspace Role</p>
+                      <Badge tone={ROLE_TONE[selectedTicket.submitterContext.workspaceRole] || 'neutral'} className="mt-0.5">
+                        {enumLabel(selectedTicket.submitterContext.workspaceRole)}
+                      </Badge>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.workspaceMemberSince && (
                     <div>
-                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Member Since</p>
-                      <p className="text-xs text-ink-600 dark:text-ink-900 mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
+                      <p className="text-xs font-semibold text-muted-foreground ">Member Since</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(selectedTicket.submitterContext.workspaceMemberSince).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.user?.createdAt && (
                     <div>
-                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Account Created</p>
-                      <p className="text-xs text-ink-600 dark:text-ink-900 mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs font-semibold text-muted-foreground ">Account Created</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(selectedTicket.user.createdAt).toLocaleDateString()}</p>
                     </div>
                   )}
                   {selectedTicket.submitterContext?.totalTickets != null && (
                     <div>
-                      <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Total Tickets</p>
-                      <p className="text-xs font-semibold text-ink-500 dark:text-ink-900 mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
+                      <p className="text-xs font-semibold text-muted-foreground ">Total Tickets</p>
+                      <p className="text-xs font-semibold text-muted-foreground mt-0.5">{selectedTicket.submitterContext.totalTickets}</p>
                     </div>
                   )}
                 </div>
@@ -738,25 +728,26 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                 {/* Ticket meta */}
                 <div className="space-y-2.5 border-t border-paper-400 dark:border-ink-400 pt-3">
                   <div>
-                    <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Category</p>
-                    <p className="text-xs text-ink-500 dark:text-ink-900 capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
+                    <p className="text-xs font-semibold text-muted-foreground ">Category</p>
+                    <p className="text-xs text-muted-foreground capitalize mt-0.5">{selectedTicket.category.replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Opened</p>
-                    <p className="text-xs text-ink-600 dark:text-ink-900 mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                    <p className="text-xs font-semibold text-muted-foreground ">Opened</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-ink-800 dark:text-ink-800 ">Status</p>
-                    <select
+                    <p className="text-xs font-semibold text-muted-foreground ">Status</p>
+                    <Select
                       value={selectedTicket.status}
                       onChange={e => onUpdateStatus(selectedTicket.id, e.target.value)}
                       disabled={statusLoading}
-                      className="mt-0.5 w-full text-xs border border-paper-500 dark:border-ink-400 rounded-control px-2 py-1.5 bg-paper-100 dark:bg-ink-300 dark:text-paper-200 outline-none focus:ring-2 focus:ring-brand-500"
+                      aria-label="Ticket status"
+                      className="!h-8 !text-xs mt-0.5"
                     >
                       {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
                         <option key={s} value={s}>{s.replace('_', ' ')}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -767,8 +758,8 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
               {/* Header */}
               <div className="px-5 py-4 border-b border-paper-400 dark:border-ink-400 flex items-start justify-between shrink-0">
                 <div className="min-w-0 pr-3">
-                  <p className="text-xs text-ink-800 dark:text-ink-800 capitalize">{selectedTicket.category.replace('_', ' ')}</p>
-                  <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mt-0.5 leading-snug">{selectedTicket.subject}</h3>
+                  <p className="text-xs text-muted-foreground capitalize">{selectedTicket.category.replace('_', ' ')}</p>
+                  <h3 className="text-sm font-semibold text-foreground mt-0.5 leading-snug">{selectedTicket.subject}</h3>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {selectedTicket.status === 'CLOSED' ? (
@@ -787,13 +778,15 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                   <Avatar user={selectedTicket.user} size="sm" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <p className="text-xs font-semibold text-ink-100 dark:text-paper-200">{selectedTicket.user?.name}</p>
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[selectedTicket.user?.role] || "bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900"}`}>
-                        {selectedTicket.user?.role?.replace('_', ' ')}
-                      </span>
-                      <p className="text-xs text-ink-800 dark:text-ink-800 ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                      <p className="text-xs font-semibold text-foreground">{selectedTicket.user?.name}</p>
+                      {selectedTicket.user?.role && (
+                        <Badge tone={ROLE_TONE[selectedTicket.user.role] || 'neutral'}>
+                          {enumLabel(selectedTicket.user.role)}
+                        </Badge>
+                      )}
+                      <p className="text-xs text-muted-foreground ml-auto">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
                     </div>
-                    <div className="bg-paper-200 dark:bg-ink-50 rounded-card rounded-tl-sm p-4 text-sm text-ink-500 dark:text-ink-900 leading-relaxed whitespace-pre-wrap">
+                    <div className="bg-paper-200 dark:bg-white/[0.04] rounded-xl rounded-tl-sm p-4 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                       {selectedTicket.message}
                     </div>
                   </div>
@@ -805,13 +798,13 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                     <Avatar user={r.user} size="sm" />
                     <div className={`flex-1 ${r.isAdmin ? 'items-end' : ''}`}>
                       <div className={`flex items-center gap-2 mb-1.5 ${r.isAdmin ? 'flex-row-reverse' : ''}`}>
-                        <p className="text-xs font-semibold text-ink-100 dark:text-paper-200">{r.user?.name}</p>
+                        <p className="text-xs font-semibold text-foreground">{r.user?.name}</p>
                         {r.isAdmin && (
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-brand-500/10 text-brand-500">Support</span>
+                          <Badge tone="brand" dot={false}>Support</Badge>
                         )}
-                        <p className="text-xs text-ink-800 dark:text-ink-800">{new Date(r.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</p>
                       </div>
-                      <div className={`rounded-card p-4 text-sm leading-relaxed whitespace-pre-wrap ${r.isAdmin ? 'bg-brand-100 dark:bg-brand-500/15 text-brand-500 dark:text-brand-300 rounded-tr-sm' : 'bg-paper-200 dark:bg-ink-50 text-ink-500 dark:text-ink-900 rounded-tl-sm'}`}>
+                      <div className={`rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground ${r.isAdmin ? 'bg-brand-500/10 rounded-tr-sm' : 'bg-paper-200 dark:bg-white/[0.04] rounded-tl-sm'}`}>
                         {r.message}
                       </div>
                     </div>
@@ -828,7 +821,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
                       onChange={e => setTicketReply(e.target.value)}
                       placeholder="Reply to this ticket…"
                       rows={3}
-                      className="flex-1 text-sm bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-card px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-brand-500 text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700"
+                      className="flex-1 text-sm bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-card px-4 py-3 resize-none outline-none focus:ring-2 focus:ring-brand-500 text-foreground placeholder:text-muted-foreground"
                     />
                     <Button variant="primary" size="md" onClick={onSendReply} disabled={replyLoading || !ticketReply.trim()}>{replyLoading ? 'Sending…' : 'Reply'}</Button>
                   </div>

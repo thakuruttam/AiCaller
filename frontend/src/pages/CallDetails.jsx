@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Button, IconButton } from '../components/ui';
+import { Button, PageHeader, StatusBadge, Badge, EmptyState } from '../components/ui';
 import api from '../api/axios';
 import { useParams, Link } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
@@ -51,7 +51,8 @@ function WaveformBars({ progress = 0.5 }) {
       {bars.map((b, i) => (
         <div
           key={i}
-          style={{ height: `${b.h}%`, width: '2px', background: b.active ? '#94b9ff' : '#505967', transition: 'height 0.2s ease' }}
+          className={`w-[2px] transition-[height] duration-200 ${b.active ? 'bg-brand-500' : 'bg-paper-700 dark:bg-ink-500'}`}
+          style={{ height: `${b.h}%` }}
         />
       ))}
     </div>
@@ -175,7 +176,7 @@ const CallDetails = () => {
 
   if (loading) return <PageLoader text="Loading call details…" />;
   if (!callLog) return (
-    <div className="flex items-center justify-center h-64 text-ink-700 dark:text-ink-900">Call log not found.</div>
+    <EmptyState icon="call" title="Call log not found" body="It may have been removed, or the link is wrong." />
   );
 
   const contactName = callLog.contact?.name || 'Unknown';
@@ -188,73 +189,53 @@ const CallDetails = () => {
     ? new Date(callLog.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—';
 
-  const statusColor = callLog.status === 'completed'
-    ? 'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive'
-    : callLog.status === 'failed'
-      ? 'bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative'
-      : callLog.status === 'in-progress'
-        ? 'bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution'
-        : 'bg-paper-400 text-ink-600 dark:bg-ink-300 dark:text-ink-900';
+  const campaignPath = `/campaigns/${campaignId || callLog.campaignId}`;
 
   return (
     <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      {/* Page Header */}
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${statusColor}`}>
-              <span className="material-symbols-outlined text-[14px]" style={{fontVariationSettings:"'FILL' 1"}}>
-                {callLog.status === 'completed' ? 'check_circle' : callLog.status === 'failed' ? 'cancel' : 'radio_button_checked'}
-              </span>
-              {callLog.status ? callLog.status.charAt(0).toUpperCase() + callLog.status.slice(1) : 'Pending'}
-            </span>
-            <span className="text-ink-700 dark:text-ink-900 text-xs">
-              ID: {callLog.id?.substring(0, 12).toUpperCase() || '—'}
-            </span>
-          </div>
-          <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200">Call Details: {contactName}</h2>
-        </div>
-        <div className="flex gap-3">
-          <Link
-            to={`/campaigns/${campaignId || callLog.campaignId}`}
-            className="flex items-center gap-2 px-4 py-2 border border-paper-600 dark:border-ink-400 text-ink-100 dark:text-paper-200 text-sm rounded hover:bg-paper-200 dark:hover:bg-ink-400/50 transition-all"
-          >
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-            Back to Campaign
-          </Link>
-          <Link
+      <PageHeader
+        back={{ to: campaignPath, label: 'Back to Campaign' }}
+        eyebrow={
+          <span className="inline-flex items-center gap-3">
+            <StatusBadge status={callLog.status || 'pending'} />
+            <span>ID: {callLog.id?.substring(0, 12).toUpperCase() || '—'}</span>
+          </span>
+        }
+        title={`Call Details: ${contactName}`}
+        actions={
+          <Button
+            as={Link}
             to={`/campaign/${campaignId || callLog.campaignId}/calls/${id}/report`}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white text-sm rounded hover:bg-brand-600 transition-all shadow-card"
+            icon="analytics"
           >
-            <span className="material-symbols-outlined text-[20px]">analytics</span>
             View Report
-          </Link>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
       {/* Info Strip */}
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-6 mb-8">
-        <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 pr-6">
-          <p className="text-xs text-ink-700 dark:text-ink-900 ">Contact Info</p>
-          <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{callLog.contact?.phone || '—'}</p>
-          <p className="text-sm text-ink-600 dark:text-ink-900">{contactName}</p>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-5 mb-6">
+        <div className="space-y-1 border-r border-border pr-6">
+          <p className="text-xs text-muted-foreground">Contact Info</p>
+          <p className="text-sm font-medium text-foreground tabular-nums">{callLog.contact?.phone || '—'}</p>
+          <p className="text-sm text-muted-foreground">{contactName}</p>
         </div>
-        <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 px-6">
-          <p className="text-xs text-ink-700 dark:text-ink-900 ">Campaign</p>
-          <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{campaignName}</p>
-          <p className="text-sm text-ink-600 dark:text-ink-900 capitalize">{callLog.status || '—'}</p>
+        <div className="space-y-1 border-r border-border px-6">
+          <p className="text-xs text-muted-foreground">Campaign</p>
+          <p className="text-sm font-medium text-foreground">{campaignName}</p>
+          <p className="text-sm text-muted-foreground capitalize">{callLog.status || '—'}</p>
         </div>
-        <div className="space-y-1 border-r border-paper-400 dark:border-ink-400/50 px-6">
-          <p className="text-xs text-ink-700 dark:text-ink-900 ">Call Timing</p>
-          <p className="text-sm font-medium text-ink-100 dark:text-paper-200">{callDate}</p>
-          <p className="text-sm text-ink-600 dark:text-ink-900">Duration: {durationStr}</p>
+        <div className="space-y-1 border-r border-border px-6">
+          <p className="text-xs text-muted-foreground">Call Timing</p>
+          <p className="text-sm font-medium text-foreground">{callDate}</p>
+          <p className="text-sm text-muted-foreground">Duration: {durationStr}</p>
         </div>
         <div className="space-y-1 pl-6">
-          <p className="text-xs text-ink-700 dark:text-ink-900 ">AI Outcome</p>
-          <p className="text-sm font-bold text-brand-500">
+          <p className="text-xs text-muted-foreground">AI Outcome</p>
+          <p className="text-sm font-semibold text-brand-500 dark:text-brand-300">
             {callLog.status === 'completed' ? 'Call Completed' : callLog.status === 'failed' ? 'Call Failed' : 'In Progress'}
           </p>
-          <p className="text-sm text-ink-600 dark:text-ink-900">Status: {callLog.status || '—'}</p>
+          <p className="text-sm text-muted-foreground">Status: {callLog.status || '—'}</p>
         </div>
       </div>
 
@@ -264,13 +245,13 @@ const CallDetails = () => {
         <div className="col-span-12 lg:col-span-5 space-y-6">
           {/* Audio Card */}
           <div className="bg-ink-200 text-white rounded-control p-8 shadow-overlay relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 to-brand-300" />
-            <div className="flex justify-between items-center mb-10">
+            <div className="absolute top-0 left-0 w-full h-1 bg-brand-500" />
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 <span className="material-symbols-outlined text-brand-300">graphic_eq</span>
                 Call Recording
               </h3>
-              <span className="text-sm text-ink-800">{durationStr}</span>
+              <span className="text-sm text-muted-foreground">{durationStr}</span>
             </div>
             <WaveformBars progress={0.45} />
             {callLog.recordingUrl ? (
@@ -282,11 +263,11 @@ const CallDetails = () => {
               </div>
             ) : isRetrying ? (
               <div className="mt-6 flex items-center justify-center">
-                <p className="text-sm italic text-ink-800">Checking for recording…</p>
+                <p className="text-sm italic text-muted-foreground">Checking for recording…</p>
               </div>
             ) : (
               <div className="mt-6 flex flex-col items-center gap-4">
-                <p className="text-sm italic text-ink-800">No recording found for this call.</p>
+                <p className="text-sm italic text-muted-foreground">No recording found for this call.</p>
                 {callLog.status === 'completed' && (
                   <Button variant="ghost" size="md" onClick={() => syncRecording()} disabled={isRetrying}>Retry Sync</Button>
                 )}
@@ -295,21 +276,21 @@ const CallDetails = () => {
           </div>
 
           {/* Sentiment Card */}
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-4">Sentiment &amp; Insights</h3>
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Sentiment &amp; Insights</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-ink-600 dark:text-ink-900">Caller Sentiment</span>
+                <span className="text-sm text-muted-foreground">Caller Sentiment</span>
                 <span className="text-xs font-medium text-positive-dim">Positive</span>
               </div>
               <div className="w-full bg-paper-400 dark:bg-ink-300 h-2 rounded-full overflow-hidden">
                 <div className="bg-positive h-full w-[72%]" />
               </div>
               <div className="pt-2">
-                <p className="text-xs text-ink-700 dark:text-ink-900 mb-2 ">Keywords Detected</p>
+                <p className="text-xs text-muted-foreground mb-2">Keywords Detected</p>
                 <div className="flex flex-wrap gap-2">
                   {['Call', 'Campaign', 'Outreach'].map(kw => (
-                    <span key={kw} className="bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 px-2 py-1 rounded text-xs">{kw}</span>
+                    <Badge key={kw} tone="neutral" dot={false}>{kw}</Badge>
                   ))}
                 </div>
               </div>
@@ -321,10 +302,10 @@ const CallDetails = () => {
         <div className="col-span-12 lg:col-span-7">
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary flex flex-col" style={{height: 'calc(100vh - 220px)', maxHeight: '800px'}}>
             {/* Transcript Header */}
-            <div className="p-4 border-b border-paper-400 dark:border-ink-400 flex justify-between items-center bg-paper-200/50 dark:bg-ink-50/50">
+            <div className="px-5 py-3.5 border-b border-border flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-ink-800 dark:text-ink-800">description</span>
-                <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Transcript</h3>
+                <span className="material-symbols-outlined [--icon-size:18px] text-muted-foreground">description</span>
+                <h3 className="text-sm font-semibold text-foreground">Transcript</h3>
               </div>
               {callLog.transcript && (
                 <div className="flex gap-2">
@@ -335,7 +316,7 @@ const CallDetails = () => {
             </div>
 
             {/* Transcript Body */}
-            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-8 bg-paper-200/30 dark:bg-ink-50/30">
+            <div ref={transcriptContainerRef} className="flex-1 overflow-y-auto p-8 space-y-6 bg-paper-200/30 dark:bg-ink-50/30">
               {callLog.transcript ? (
                 turns.map((turn, i) => {
                   const isActive = i === activeTurnIndex;
@@ -344,7 +325,7 @@ const CallDetails = () => {
                       <div
                         key={i}
                         ref={el => turnRefs.current[i] = el}
-                        className={`text-sm text-ink-600 dark:text-ink-900 whitespace-pre-line leading-relaxed transition-colors duration-100 rounded-control p-2 ${isActive ? 'bg-caution dark:bg-caution/30' : 'bg-transparent'}`}
+                        className={`text-sm text-muted-foreground whitespace-pre-line leading-relaxed transition-colors duration-100 rounded-control p-2 ${isActive ? 'bg-caution dark:bg-caution/30' : 'bg-transparent'}`}
                       >
                         {turn.text}
                       </div>
@@ -358,9 +339,9 @@ const CallDetails = () => {
                         </div>
                         <div className="space-y-1 max-w-[85%]">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{turn.speaker}</span>
+                            <span className="text-sm font-medium text-foreground">{turn.speaker}</span>
                           </div>
-                          <div className={`border p-4 rounded-r-lg rounded-bl-lg text-sm text-ink-600 dark:text-ink-900 dark:text-ink-900 leading-relaxed transition-colors duration-100 ${isActive ? 'bg-caution dark:bg-caution/30 border-caution' : 'bg-paper-100 dark:bg-ink-300 border-paper-500 dark:border-ink-400'}`}>
+                          <div className={`border p-4 rounded-r-xl rounded-bl-xl text-sm text-foreground leading-relaxed transition-colors duration-100 ${isActive ? 'bg-caution/10 border-caution/25' : 'bg-paper-200 dark:bg-white/[0.04] border-border'}`}>
                             {turn.text}
                           </div>
                         </div>
@@ -369,14 +350,14 @@ const CallDetails = () => {
                   }
                   return (
                     <div key={i} ref={el => turnRefs.current[i] = el} className="flex gap-4 flex-row-reverse">
-                      <div className="w-10 h-10 rounded-full bg-ink-300 flex-shrink-0 flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-paper-400 dark:bg-white/10 flex-shrink-0 flex items-center justify-center text-muted-foreground">
                         <span className="material-symbols-outlined text-[20px]">person</span>
                       </div>
                       <div className="space-y-1 max-w-[85%] text-right">
                         <div className="flex items-center gap-2 justify-end">
-                          <span className="text-sm font-medium text-ink-100 dark:text-paper-200">{turn.speaker}</span>
+                          <span className="text-sm font-medium text-foreground">{turn.speaker}</span>
                         </div>
-                        <div className={`p-4 rounded-l-lg rounded-br-lg text-sm leading-relaxed text-left transition-colors duration-100 ${isActive ? 'bg-caution dark:bg-caution/30 text-ink-100' : 'bg-ink-300 text-white'}`}>
+                        <div className={`border p-4 rounded-l-xl rounded-br-xl text-sm leading-relaxed text-left text-foreground transition-colors duration-100 ${isActive ? 'bg-caution/10 border-caution/25' : 'bg-brand-500/10 border-brand-500/25'}`}>
                           {turn.text}
                         </div>
                       </div>
@@ -384,7 +365,7 @@ const CallDetails = () => {
                   );
                 })
               ) : (
-                <div className="flex items-center justify-center h-full text-sm text-ink-800 dark:text-ink-800 italic">
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground italic">
                   No transcript available for this call.
                 </div>
               )}

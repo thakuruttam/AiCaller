@@ -1,27 +1,29 @@
 import React, { useState } from 'react';
 import { CONDITIONS, uid } from './questionModel';
-import { Button, IconButton, Tabs } from '../../../components/ui';
+import { Button, IconButton, Tabs, Badge, Field, Input, Select, Textarea } from '../../../components/ui';
+import ToggleSwitch from '../../../components/ToggleSwitch';
 import {
-  GripVertical, ChevronDown, ChevronUp, MessageSquare, Info,
+  GripVertical, ChevronDown, ChevronUp,
   X, ArrowRight, SkipForward, PhoneOff, Database, Plus, Brain
 } from 'lucide-react';
 
-const selectCls = 'h-8 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 py-1 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500';
-const inputCls  = 'h-8 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500';
+// Rule rows inside a question card are denser than a form, so their controls
+// use the 32px (Button sm) height rather than the default 36px.
+const DENSE = '!h-8 !text-xs';
 
-export function ConditionSelect({ value, onChange, className = '' }) {
+export function ConditionSelect({ value, onChange, className = '', ...props }) {
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} className={`${selectCls} ${className}`}>
+    <Select value={value} onChange={e => onChange(e.target.value)} className={`${DENSE} ${className}`} {...props}>
       {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-    </select>
+    </Select>
   );
 }
 
-export function GenericSelect({ value, onChange, options, className = '' }) {
+export function GenericSelect({ value, onChange, options, className = '', ...props }) {
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} className={`${selectCls} ${className}`}>
+    <Select value={value} onChange={e => onChange(e.target.value)} className={`${DENSE} ${className}`} {...props}>
       {options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}
-    </select>
+    </Select>
   );
 }
 
@@ -88,49 +90,48 @@ export default function QuestionCard({
       onDrop={() => onDrop(index)}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-paper-500 dark:border-ink-400 select-none">
-        <span className="cursor-grab text-ink-800 dark:text-ink-800 hover:text-ink-600 dark:hover:text-ink-800 transition-colors" title="Drag to reorder">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-border select-none">
+        <span className="cursor-grab text-muted-foreground hover:text-foreground transition-colors" title="Drag to reorder">
           <GripVertical size={16} />
         </span>
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-bold shrink-0">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-brand-450 to-brand-800 text-white text-xs font-semibold shrink-0">
           {index + 1}
         </span>
 
         {/* Type toggle */}
-        <div className="flex bg-paper-400 dark:bg-ink-300 p-0.5 rounded-control border border-paper-500 dark:border-ink-400 text-xs">
-          <Button variant="ghost" size="sm" type="button" onClick={() => update({ itemType: 'question' })}>
-            <MessageSquare size={11} /> Question
-          </Button>
-          <Button variant="ghost" size="sm" type="button" onClick={() => update({ itemType: 'information' })}>
-            <Info size={11} /> Information
-          </Button>
-        </div>
+        <Tabs
+          size="sm"
+          value={item.itemType}
+          onChange={(itemType) => update({ itemType })}
+          items={[
+            { value: 'question', label: 'Question', icon: 'chat' },
+            { value: 'information', label: 'Information', icon: 'info' },
+          ]}
+        />
 
         {item.is_mandatory && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-100 text-brand-600 px-2 py-0.5 text-xs font-medium">
-            Mandatory
-          </span>
+          <Badge tone="brand" capitalize={false}>Mandatory</Badge>
         )}
 
         {hasSubFields && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-100 text-brand-600 px-2 py-0.5 text-xs font-medium">
+          <Badge tone="brand" dot={false} capitalize={false}>
             <Database size={10} /> {fieldsToExtract.length} field{fieldsToExtract.length !== 1 ? 's' : ''}
-          </span>
+          </Badge>
         )}
 
         {scoringCriteria.trim() && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-positive/30 bg-positive/10 text-positive-dim dark:border-positive/15 dark:bg-positive/15 dark:text-positive px-2 py-0.5 text-xs font-medium">
+          <Badge tone="positive" dot={false} capitalize={false}>
             <Brain size={10} /> Semantic
-          </span>
+          </Badge>
         )}
 
         <div className="flex items-center gap-1 ml-auto">
-          <Button variant="ghost" size="md" type="button" onClick={() => setExpanded(v => !v)}>
+          <IconButton type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(v => !v)}>
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </Button>
-          <Button variant="dangerGhost" size="md" type="button" onClick={onRemove}>
+          </IconButton>
+          <IconButton tone="danger" type="button" title="Remove item" onClick={onRemove}>
             <X size={16} />
-          </Button>
+          </IconButton>
         </div>
       </div>
 
@@ -138,24 +139,19 @@ export default function QuestionCard({
       {expanded && (
         <div className="p-4 flex flex-col gap-4">
           {/* Text */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-ink-700 dark:text-ink-900">
-              {item.itemType === 'question' ? 'Question text' : 'Information to convey'}
-            </label>
-            <textarea rows={2} value={item.text}
+          <Field
+            label={item.itemType === 'question' ? 'Question text' : 'Information to convey'}
+            error={item.itemType === 'question' && !item.text?.trim()
+              ? 'Question text is required — the bot will skip this item.'
+              : undefined}
+          >
+            <Textarea rows={2} value={item.text}
               onChange={e => update({ text: e.target.value })}
               placeholder={item.itemType === 'question'
                 ? 'e.g. What is your current CTC?'
                 : 'e.g. This call is regarding your pending EMI of ₹5,000.'}
-              className={`w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors ${
-                item.itemType === 'question' && !item.text?.trim()
-                  ? 'border-negative focus:ring-negative/20 focus:border-negative'
-                  : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
-              }`} />
-            {item.itemType === 'question' && !item.text?.trim() && (
-              <p className="text-xs font-medium text-negative mt-0.5">Question text is required — the bot will skip this item.</p>
-            )}
-          </div>
+              className="resize-y" />
+          </Field>
 
           {/* Question-only fields */}
           {item.itemType === 'question' && (
@@ -163,7 +159,7 @@ export default function QuestionCard({
               {/* Expected answer — Condition | Semantic tabs */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-ink-700 dark:text-ink-900">Expected answer</label>
+                  <span className="text-[13px] font-medium text-foreground">Expected answer</span>
                   <Tabs
                     size="sm"
                     value={answerTab}
@@ -177,26 +173,30 @@ export default function QuestionCard({
 
                 {answerTab === 'condition' && (
                   <div className="flex gap-2 flex-wrap">
-                    <ConditionSelect value={expectedAnswer.condition} onChange={v => updateAns({ condition: v })} className="w-40" />
+                    <ConditionSelect value={expectedAnswer.condition} onChange={v => updateAns({ condition: v })} className="w-40" aria-label="Expected answer condition" />
                     {expectedAnswer.condition !== 'is any value' && (
-                      <input type="text" value={expectedAnswer.value}
-                        onChange={e => updateAns({ value: e.target.value })}
-                        placeholder="Expected value…"
-                        className={`flex-1 min-w-[160px] ${inputCls}`} />
+                      <div className="flex-1 min-w-[160px]">
+                        <Input type="text" value={expectedAnswer.value}
+                          onChange={e => updateAns({ value: e.target.value })}
+                          placeholder="Expected value…"
+                          aria-label="Expected value"
+                          className={DENSE} />
+                      </div>
                     )}
                   </div>
                 )}
 
                 {answerTab === 'semantic' && (
                   <div className="flex flex-col gap-1.5">
-                    <textarea
+                    <Textarea
                       rows={3}
                       value={scoringCriteria}
                       onChange={e => update({ scoringCriteria: e.target.value })}
                       placeholder={"Describe what a good answer looks like in plain English.\n\ne.g. Should have an engineering degree and Node.js experience. Give 0 if no experience, proportional marks for 1–4 years, full marks for 5+ years."}
-                      className="w-full rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-y"
+                      aria-label="Semantic scoring criteria"
+                      className="resize-y"
                     />
-                    <p className="text-xs font-medium text-ink-800 dark:text-ink-800">
+                    <p className="text-xs text-muted-foreground">
                       AI uses this to score the answer in reports. Describe criteria and scoring thresholds in plain English. This tab must stay selected for it to govern scoring — switching back to Condition uses that rule instead, even if this is filled in.
                     </p>
                   </div>
@@ -205,7 +205,7 @@ export default function QuestionCard({
 
               {/* On Answer action */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-medium text-ink-700 dark:text-ink-900">Action after answer</label>
+                <span className="text-[13px] font-medium text-foreground">Action after answer</span>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { value: 'continue',      label: 'Continue',      icon: ArrowRight },
@@ -231,9 +231,9 @@ export default function QuestionCard({
 
                 {/* Skip / end-call details */}
                 {(onAnswer.action === 'skip_question' || onAnswer.action === 'end_call') && (
-                  <div className="flex flex-col gap-2 mt-1 p-3 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
+                  <div className="flex flex-col gap-2 mt-1 p-3 rounded-xl border border-border bg-paper-200/60 dark:bg-white/[0.03]">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-ink-700 dark:text-ink-900 font-medium">
+                      <p className="text-xs text-muted-foreground font-medium">
                         {onAnswer.action === 'end_call' ? 'End call condition' : 'Skip condition'} — if current answer…
                       </p>
                       <Tabs
@@ -249,28 +249,32 @@ export default function QuestionCard({
 
                     {skipConditionTab === 'condition' && (
                       <div className="flex gap-2 flex-wrap">
-                        <ConditionSelect value={onAnswer.skipCondition.condition} onChange={v => updateSkip({ condition: v })} className="w-40" />
+                        <ConditionSelect value={onAnswer.skipCondition.condition} onChange={v => updateSkip({ condition: v })} className="w-40" aria-label="Skip condition" />
                         {onAnswer.skipCondition.condition !== 'is any value' && (
-                          <input type="text" value={onAnswer.skipCondition.value}
-                            onChange={e => updateSkip({ value: e.target.value })}
-                            placeholder="condition value…"
-                            className={`flex-1 min-w-[140px] ${inputCls}`} />
+                          <div className="flex-1 min-w-[140px]">
+                            <Input type="text" value={onAnswer.skipCondition.value}
+                              onChange={e => updateSkip({ value: e.target.value })}
+                              placeholder="condition value…"
+                              aria-label="Skip condition value"
+                              className={DENSE} />
+                          </div>
                         )}
                       </div>
                     )}
 
                     {skipConditionTab === 'semantic' && (
                       <div className="flex flex-col gap-1.5">
-                        <textarea
+                        <Textarea
                           rows={2}
                           value={skipSemanticCondition}
                           onChange={e => updateOnAns({ skipSemanticCondition: e.target.value })}
                           placeholder={onAnswer.action === 'end_call'
                             ? 'e.g. If user says they are not interested or busy'
                             : 'e.g. If user has less than 2 years of experience'}
-                          className="w-full rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-y"
+                          aria-label="Semantic skip condition"
+                          className="resize-y"
                         />
-                        <p className="text-xs font-medium text-ink-800 dark:text-ink-800">
+                        <p className="text-xs text-muted-foreground">
                           AI evaluates this live during the call against the user's answer.
                         </p>
                       </div>
@@ -278,8 +282,9 @@ export default function QuestionCard({
 
                     {onAnswer.action === 'skip_question' && (
                       <>
-                        <p className="text-xs text-ink-700 dark:text-ink-900 font-medium mt-1">Then JUMP directly to:</p>
+                        <p className="text-xs text-muted-foreground font-medium mt-1">Then JUMP directly to:</p>
                         <GenericSelect
+                          aria-label="Jump to question"
                           value={onAnswer.skipToId}
                           onChange={v => updateOnAns({ skipToId: v })}
                           options={[
@@ -301,10 +306,10 @@ export default function QuestionCard({
               <div className="flex flex-col gap-2 pt-2 border-t border-paper-400 dark:border-ink-400/50">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-ink-500 dark:text-ink-900 flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                       <Database size={12} className="text-brand-500" /> Fields to Extract
                     </span>
-                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800">
+                    <span className="text-xs font-medium text-muted-foreground">
                       {hasSubFields
                         ? 'Each sub-field weight counts toward the call score when that value is extracted'
                         : 'Default: extracts the full answer. Add specific fields for per-field weight scoring.'}
@@ -318,46 +323,56 @@ export default function QuestionCard({
                 {hasSubFields && (
                   <div className="flex flex-col gap-2">
                     {fieldsToExtract.map((sf) => (
-                      <div key={sf.id} className="flex items-center gap-2 p-2.5 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
-                        <input
-                          type="text"
-                          value={sf.field}
-                          onChange={e => updateSubField(sf.id, { field: e.target.value })}
-                          placeholder="Field name (e.g. notice_period)"
-                          className="flex-1 h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30 focus:border-brand-500"
-                        />
-                        <select
+                      <div key={sf.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-paper-200/60 dark:bg-white/[0.03]">
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            type="text"
+                            value={sf.field}
+                            onChange={e => updateSubField(sf.id, { field: e.target.value })}
+                            placeholder="Field name (e.g. notice_period)"
+                            aria-label="Field name"
+                            className={DENSE}
+                          />
+                        </div>
+                        <Select
                           value={sf.type}
                           onChange={e => updateSubField(sf.id, { type: e.target.value })}
-                          className="h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
+                          aria-label="Field type"
+                          className={`${DENSE} !w-auto`}
                         >
                           <option value="string">Text</option>
                           <option value="number">Number</option>
                           <option value="boolean">Yes/No</option>
                           <option value="array">List</option>
-                        </select>
-                        <input
-                          type="text"
-                          value={sf.unit || ''}
-                          onChange={e => updateSubField(sf.id, { unit: e.target.value })}
-                          placeholder="Unit (e.g. years)"
-                          className="w-24 h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-xs text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
-                        />
-                        <div className="flex items-center gap-1 shrink-0">
-                          <input
-                            type="number" min={0} max={100}
-                            value={sf.weight ?? 0}
-                            onChange={e => updateSubField(sf.id, {
-                              weight: Math.min(100, Math.max(0, Number(e.target.value))),
-                              isWeightManuallySet: true
-                            })}
-                            className="w-12 h-7 rounded-field border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-1 text-xs text-center tabular-nums text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
+                        </Select>
+                        <div className="w-24 shrink-0">
+                          <Input
+                            type="text"
+                            value={sf.unit || ''}
+                            onChange={e => updateSubField(sf.id, { unit: e.target.value })}
+                            placeholder="Unit (e.g. years)"
+                            aria-label="Unit"
+                            className={DENSE}
                           />
-                          <span className="text-xs font-medium text-ink-800 dark:text-ink-800">%</span>
                         </div>
-                        <Button variant="dangerGhost" size="md" type="button" onClick={() => removeSubField(sf.id)}>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <div className="w-14">
+                            <Input
+                              type="number" min={0} max={100}
+                              value={sf.weight ?? 0}
+                              onChange={e => updateSubField(sf.id, {
+                                weight: Math.min(100, Math.max(0, Number(e.target.value))),
+                                isWeightManuallySet: true
+                              })}
+                              aria-label="Field weight"
+                              className={`${DENSE} !px-1 text-center tabular-nums`}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground">%</span>
+                        </div>
+                        <IconButton tone="danger" size="sm" type="button" title="Remove field" onClick={() => removeSubField(sf.id)}>
                           <X size={13} />
-                        </Button>
+                        </IconButton>
                       </div>
                     ))}
                   </div>
@@ -368,30 +383,35 @@ export default function QuestionCard({
               <div className="flex items-center justify-between gap-6 pt-2 border-t border-paper-400 dark:border-ink-400/50 flex-wrap">
                 <div className="flex items-center justify-between flex-1 min-w-[200px]">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-ink-500 dark:text-ink-900">Mandatory</span>
-                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800">Bot retries if no valid answer received</span>
+                    <span className="text-xs font-medium text-foreground">Mandatory</span>
+                    <span className="text-xs text-muted-foreground">Bot retries if no valid answer received</span>
                   </div>
-                  <Button variant="primary" size="md" type="button" role="switch" aria-checked={item.is_mandatory} onClick={() => update({ is_mandatory: !item.is_mandatory })}>
-                    <span className={`pointer-events-none block h-4 w-4 rounded-full bg-paper-100 shadow-raised ring-0 transition-transform ${item.is_mandatory ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </Button>
+                  <ToggleSwitch
+                    checked={!!item.is_mandatory}
+                    onChange={(checked) => update({ is_mandatory: checked })}
+                    title="Mandatory"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-ink-500 dark:text-ink-900 text-right">Call Score Weight</span>
-                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800">
+                    <span className="text-xs font-medium text-muted-foreground text-right">Call Score Weight</span>
+                    <span className="text-xs font-medium text-muted-foreground">
                       {hasSubFields ? 'Sub-fields split this equally' : 'Contribution to success score'}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <input type="number" min={0} max={100} value={item.weight ?? 0}
-                      onChange={e => update({
-                        weight: Math.min(100, Math.max(0, Number(e.target.value))),
-                        isWeightManuallySet: true,
-                        fieldsToExtract: (item.fieldsToExtract || []).map(sf => ({ ...sf, isWeightManuallySet: false }))
-                      })}
-                      className="w-16 h-8 rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-2 text-sm text-center tabular-nums text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
-                    <span className="text-xs font-medium text-ink-800 dark:text-ink-800 font-medium">%</span>
+                    <div className="w-16">
+                      <Input type="number" min={0} max={100} value={item.weight ?? 0}
+                        onChange={e => update({
+                          weight: Math.min(100, Math.max(0, Number(e.target.value))),
+                          isWeightManuallySet: true,
+                          fieldsToExtract: (item.fieldsToExtract || []).map(sf => ({ ...sf, isWeightManuallySet: false }))
+                        })}
+                        aria-label="Call score weight"
+                        className="!h-8 !px-2 text-center tabular-nums" />
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">%</span>
                   </div>
                 </div>
               </div>

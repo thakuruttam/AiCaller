@@ -11,18 +11,12 @@ import { useToast } from '../context/ToastContext';
 import {
   Button, IconButton, Input, Pagination,
   Table, THead, TBody, Th, Tr, Td, CellStack, TableToolbar, SkeletonRow,
-  FilterBar, ColumnToggle, statusLabel,
+  FilterBar, ColumnToggle, StatCard, statusLabel,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { exportCsv } from '../lib/exportCsv';
-import {
-  Card as StatCard,
-  CardHeader as StatCardHeader,
-  CardTitle as StatCardTitle,
-  CardContent as StatCardContent,
-} from '../pages/web3-dashboard/ui/card';
 import {
   Tooltip,
   TooltipTrigger,
@@ -31,7 +25,6 @@ import {
 import {
   PhoneCall, CheckCircle2, TrendingUp, Wallet, FolderSearch, Eye, Pencil, Copy,
 } from 'lucide-react';
-import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
 
 // The Type and Actions columns pin to the card's edges when the table scrolls
 // sideways. Pinned cells need an opaque background to cover what slides under
@@ -54,8 +47,8 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed', 'no-answer', 'busy', '
 // tone, which reads as identical colors here. "In progress" and "done" need
 // to look different at a glance, so active gets its own brand-blue.
 const CAMPAIGN_STATUS_TEXT = {
-  draft: 'text-ink-700 dark:text-ink-800',
-  queued: 'text-ink-700 dark:text-ink-800',
+  draft: 'text-muted-foreground',
+  queued: 'text-muted-foreground',
   active: 'text-brand-500',
   completed: 'text-positive',
 };
@@ -95,15 +88,15 @@ function contactProgress(campaign) {
 function CampaignCostInsight({ campaign }) {
   const { totalContacts, contactsDone, ratio } = contactProgress(campaign);
   const pct = Math.min(Math.round(ratio * 100), 100);
-  const barColor = ratio > 2 ? '#ff5b59' : ratio > 1 ? '#f5b900' : '#0fc27b';
+  const barColor = ratio > 2 ? 'bg-negative' : ratio > 1 ? 'bg-caution' : 'bg-positive';
 
   return (
     <div className="flex flex-col gap-1.5 w-[110px]">
       <div className="text-xs text-muted-foreground tabular-nums">{contactsDone}/{totalContacts} contacts</div>
-      <div className="h-1.5 bg-paper-500 dark:bg-ink-400 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-paper-400 dark:bg-white/10 rounded-full overflow-hidden">
         <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, background: barColor }}
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
@@ -295,87 +288,45 @@ const Dashboard = () => {
           table below stretches all the way to the bottom of the viewport
           (minus this page's own bottom padding) regardless of row count,
           instead of shrink-wrapping around just a few rows. */}
-      <div className="flex flex-1 min-h-0 flex-col gap-8 pt-3">
+      <div className="flex flex-1 min-h-0 flex-col gap-6 pt-3">
       {/* KPI Strip — matches the Watermelon template's StatGrid exactly:
           same card shape/shadow, icon-badge layout, and page-gutter
           as the topbar above it (this page needs a full-height flex layout
           for the row-fit table, so it doesn't use <Page>). */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard className="min-h-28 rounded-2xl bg-card py-4 ring-0 shadow-primary dark:bg-muted">
-          <StatCardHeader className="flex items-center gap-2 px-4 pb-2">
-            <div className="rounded-full shadow-[inset_0_1px_8px_1px_rgba(255,255,255,0.6),inset_0_-1px_8px_2px_rgba(0,0,0,0.3)] flex items-center justify-center p-2 bg-sky-400">
-              <PhoneCall className="size-5 text-black" />
-            </div>
-            <StatCardTitle className="text-sm font-medium">Total calls queued</StatCardTitle>
-          </StatCardHeader>
-          <StatCardContent className="px-4 flex flex-col mt-auto">
-            <div className="text-3xl font-normal tracking-wide">
-              {loading ? '—' : stats.total.toLocaleString()}
-            </div>
-            {loading || !weekOverWeek ? (
-              <div className="mt-2 text-sm text-muted-foreground">
-                {loading ? ' ' : 'No calls last week'}
-              </div>
-            ) : weekOverWeek.pct === null ? (
-              <div className="mt-2 flex items-center gap-1 text-sm text-emerald-400">
-                <GoTriangleUp className="size-4 fill-current" />
-                <span>{weekOverWeek.label}</span>
-              </div>
-            ) : (
-              <div className={`mt-2 flex items-center gap-1 text-sm ${weekOverWeek.pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {weekOverWeek.pct >= 0
-                  ? <GoTriangleUp className="size-4 fill-current" />
-                  : <GoTriangleDown className="size-4 fill-current" />}
-                <span>{weekOverWeek.label} this week</span>
-              </div>
-            )}
-          </StatCardContent>
-        </StatCard>
-
-        <StatCard className="min-h-28 rounded-2xl bg-card py-4 ring-0 shadow-primary dark:bg-muted">
-          <StatCardHeader className="flex items-center gap-2 px-4 pb-2">
-            <div className="rounded-full shadow-[inset_0_1px_8px_1px_rgba(255,255,255,0.6),inset_0_-1px_8px_2px_rgba(0,0,0,0.3)] flex items-center justify-center p-2 bg-emerald-400">
-              <CheckCircle2 className="size-5 text-black" />
-            </div>
-            <StatCardTitle className="text-sm font-medium">Completed calls</StatCardTitle>
-          </StatCardHeader>
-          <StatCardContent className="px-4 flex flex-col mt-auto">
-            <div className="text-3xl font-normal tracking-wide">
-              {loading ? '—' : stats.completed.toLocaleString()}
-            </div>
-            <div className="mt-2 text-sm text-muted-foreground">On track</div>
-          </StatCardContent>
-        </StatCard>
-
-        <StatCard className="min-h-28 rounded-2xl bg-card py-4 ring-0 shadow-primary dark:bg-muted">
-          <StatCardHeader className="flex items-center gap-2 px-4 pb-2">
-            <div className="rounded-full shadow-[inset_0_1px_8px_1px_rgba(255,255,255,0.6),inset_0_-1px_8px_2px_rgba(0,0,0,0.3)] flex items-center justify-center p-2 bg-orange-400">
-              <TrendingUp className="size-5 text-black" />
-            </div>
-            <StatCardTitle className="text-sm font-medium">Success rate</StatCardTitle>
-          </StatCardHeader>
-          <StatCardContent className="px-4 flex flex-col mt-auto">
-            <div className="text-3xl font-normal tracking-wide">
-              {loading ? '—' : `${successRate}%`}
-            </div>
-            <div className="mt-2 text-sm text-muted-foreground">Target 92%</div>
-          </StatCardContent>
-        </StatCard>
-
-        <StatCard className="min-h-28 rounded-2xl bg-card py-4 ring-0 shadow-primary dark:bg-muted">
-          <StatCardHeader className="flex items-center gap-2 px-4 pb-2">
-            <div className="rounded-full shadow-[inset_0_1px_8px_1px_rgba(255,255,255,0.6),inset_0_-1px_8px_2px_rgba(0,0,0,0.3)] flex items-center justify-center p-2 bg-lime-400">
-              <Wallet className="size-5 text-black" />
-            </div>
-            <StatCardTitle className="text-sm font-medium">Total spent</StatCardTitle>
-          </StatCardHeader>
-          <StatCardContent className="px-4 flex flex-col mt-auto">
-            <div className="text-3xl font-normal tracking-wide">
-              {loading ? '—' : `₹${stats.totalSpent.toLocaleString('en-IN')}`}
-            </div>
-            <div className="mt-2 text-sm text-muted-foreground">Across all campaigns</div>
-          </StatCardContent>
-        </StatCard>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={<PhoneCall className="size-5" />}
+          label="Total calls queued"
+          value={loading ? '—' : stats.total.toLocaleString()}
+          {...(loading
+            ? { hint: ' ' }
+            : !weekOverWeek
+              ? { hint: 'No calls last week' }
+              : {
+                  trend: {
+                    direction: weekOverWeek.pct === null || weekOverWeek.pct >= 0 ? 'up' : 'down',
+                    label: weekOverWeek.pct === null ? weekOverWeek.label : `${weekOverWeek.label} this week`,
+                  },
+                })}
+        />
+        <StatCard
+          icon={<CheckCircle2 className="size-5" />}
+          label="Completed calls"
+          value={loading ? '—' : stats.completed.toLocaleString()}
+          hint="On track"
+        />
+        <StatCard
+          icon={<TrendingUp className="size-5" />}
+          label="Success rate"
+          value={loading ? '—' : `${successRate}%`}
+          hint="Target 92%"
+        />
+        <StatCard
+          icon={<Wallet className="size-5" />}
+          label="Total spent"
+          value={loading ? '—' : `₹${stats.totalSpent.toLocaleString('en-IN')}`}
+          hint="Across all campaigns"
+        />
       </div>
 
       {/* Genuinely zero campaigns (not just a search with no matches) — no
@@ -575,23 +526,21 @@ const Dashboard = () => {
 
       {/* View Modal */}
       {selectedCampaign && (
-        <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Campaign Details" className="max-w-5xl w-full">
-          <div className="max-h-[70vh] overflow-y-auto">
-            <Step7Review payload={{
-              name: selectedCampaign.name,
-              type: selectedCampaign.type,
-              goals: {
-                goal: selectedCampaign.callModule?.goal || '',
-                callIntro: selectedCampaign.callModule?.callIntro || '',
-                callSignOff: selectedCampaign.callModule?.callSignOff || ''
-              },
-              dataToCollect: selectedCampaign.dataToCollect || [],
-              callSettings: selectedCampaign.callSettings || {},
-              contacts: selectedCampaign.campaignContacts || [],
-              endCallIf: selectedCampaign.endCallIf || '',
-              rules: selectedCampaign.rules || {}
-            }} />
-          </div>
+        <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Campaign Details" size="2xl">
+          <Step7Review payload={{
+            name: selectedCampaign.name,
+            type: selectedCampaign.type,
+            goals: {
+              goal: selectedCampaign.callModule?.goal || '',
+              callIntro: selectedCampaign.callModule?.callIntro || '',
+              callSignOff: selectedCampaign.callModule?.callSignOff || ''
+            },
+            dataToCollect: selectedCampaign.dataToCollect || [],
+            callSettings: selectedCampaign.callSettings || {},
+            contacts: selectedCampaign.campaignContacts || [],
+            endCallIf: selectedCampaign.endCallIf || '',
+            rules: selectedCampaign.rules || {}
+          }} />
         </Modal>
       )}
     </div>

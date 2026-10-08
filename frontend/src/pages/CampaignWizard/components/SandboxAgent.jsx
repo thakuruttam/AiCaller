@@ -110,7 +110,7 @@ export default function SandboxAgent({ campaign }) {
       {session ? (
         <div className="p-6 flex flex-col gap-5">
           {error && (
-            <div className="text-sm font-medium text-negative-dim p-3 bg-negative/10 border border-negative/30 rounded-control">
+            <div className="text-sm font-medium text-negative-dim p-3 bg-negative/10 border border-negative/25 rounded-control">
               {error}
             </div>
           )}
@@ -118,16 +118,16 @@ export default function SandboxAgent({ campaign }) {
           <div className="bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-card p-4 min-h-[200px] max-h-[300px] overflow-y-auto flex flex-col gap-3">
             {messages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <span className="text-xs uppercase font-medium text-ink-800 dark:text-ink-800 mb-1">
+                <span className="text-xs uppercase font-medium text-muted-foreground mb-1">
                   {m.role === 'user' ? 'You (Microphone)' : 'AI Voice Agent'}
                 </span>
-                <div className={`p-3 rounded-card text-sm max-w-[80%] ${m.role === 'user' ? 'bg-brand-500 text-white' : 'bg-paper-100 dark:bg-ink-200 border border-paper-500 dark:border-ink-400 text-ink-100 dark:text-paper-200 shadow-card'}`}>
+                <div className={`p-3 rounded-xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-brand-500 text-white rounded-tr-sm' : 'bg-paper-200 dark:bg-white/[0.04] border border-border text-foreground rounded-tl-sm'}`}>
                   {m.text}
                 </div>
               </div>
             ))}
             {loading && !isListening && (
-              <div className="flex items-center gap-2 text-ink-800 dark:text-ink-800 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 size={14} className="animate-spin" /> Thinking...
               </div>
             )}
@@ -137,7 +137,7 @@ export default function SandboxAgent({ campaign }) {
             <Button variant="danger" size="md" onMouseDown={toggleListen} disabled={loading && !isListening}>
               {isListening ? <Mic size={28} /> : <MicOff size={24} />}
             </Button>
-            <p className="text-xs font-medium text-ink-800 dark:text-ink-800">Click to talk, click to stop.</p>
+            <p className="text-xs font-medium text-muted-foreground">Click to talk, click to stop.</p>
           </div>
 
           <div className="flex justify-end">
@@ -147,15 +147,15 @@ export default function SandboxAgent({ campaign }) {
       ) : (
         <div className="p-8 flex flex-col items-center justify-center text-center gap-5">
           {error && (
-            <div className="text-sm font-medium text-negative-dim p-3 bg-negative/10 border border-negative/30 rounded-control w-full">
+            <div className="text-sm font-medium text-negative-dim p-3 bg-negative/10 border border-negative/25 rounded-control w-full">
               {error}
             </div>
           )}
-          <div className="h-16 w-16 bg-brand-100 rounded-card flex items-center justify-center">
+          <div className="h-16 w-16 bg-brand-500/10 rounded-card flex items-center justify-center">
             <Volume2 size={28} className="text-brand-500" />
           </div>
           <div className="max-w-sm">
-            <p className="text-sm text-ink-600 dark:text-ink-900 leading-relaxed mb-4">
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
               Use this sandbox to talk directly to your LLM configuration for this campaign before deploying to real phone numbers.
             </p>
             <Button variant="primary" size="md" onClick={startSession} disabled={loading}>

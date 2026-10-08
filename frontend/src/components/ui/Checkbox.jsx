@@ -16,11 +16,11 @@ export default function Checkbox({ className = '', indeterminate = false, ...pro
       <input
         ref={ref}
         type="checkbox"
-        className="peer appearance-none w-4 h-4 m-0 rounded-[4px] cursor-pointer bg-paper-100 dark:bg-ink-300 border border-paper-700 dark:border-ink-400
+        className="peer appearance-none w-4 h-4 m-0 rounded-[4px] cursor-pointer bg-card dark:bg-white/[0.04] border border-paper-800 dark:border-white/25 shadow-xs
                    checked:bg-brand-500 checked:border-brand-500
                    indeterminate:bg-brand-500 indeterminate:border-brand-500
                    hover:border-brand-500
-                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40
+                   focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30
                    disabled:opacity-50 disabled:cursor-not-allowed
                    transition-colors"
         {...props}

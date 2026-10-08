@@ -1,24 +1,27 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  Button, IconButton, Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar,
+  Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar,
+  BackLink, Alert, Badge, Card, CardHeader, StatCard, Progress, statusLabel,
 } from '../components/ui';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { GripVertical } from 'lucide-react';
 import { EVAL_BASE } from '../api/config';
 import PageLoader from '../components/PageLoader';
 
-const OUTCOME_BADGE = {
-  COMPLETED:    'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive',
-  NO_ANSWER:    "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  INCOMPLETE:   "bg-caution/10 text-caution-dim dark:bg-caution/15 dark:text-caution",
-  WRONG_PERSON: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+// Badge tones for the eval outcome. NO_ANSWER reads as caution here (the
+// call didn't get its answers), unlike the neutral it gets in call lists.
+const OUTCOME_TONE = {
+  COMPLETED:    'positive',
+  NO_ANSWER:    'caution',
+  INCOMPLETE:   'caution',
+  WRONG_PERSON: 'negative',
 };
 
-const SENTIMENT_BADGE = {
-  positive: "bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
-  neutral:  "bg-paper-400 text-ink-500 dark:bg-ink-300 dark:text-ink-900",
-  negative: "bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative",
+const SENTIMENT_TONE = {
+  positive: 'brand',
+  neutral:  'neutral',
+  negative: 'negative',
 };
 
 const SENTIMENT_ICON = {
@@ -29,8 +32,8 @@ const SENTIMENT_ICON = {
 
 const CONFIDENCE_BAR = {
   high:   { color: 'bg-positive', pct: '95%' },
-  medium: { color: 'bg-caution/100', pct: '70%' },
-  low:    { color: "bg-paper-900 dark:bg-ink-700", pct: "40%" },
+  medium: { color: 'bg-caution', pct: '70%' },
+  low:    { color: 'bg-paper-900 dark:bg-ink-700', pct: '40%' },
 };
 
 const BREAKDOWN_COLUMNS = [
@@ -138,14 +141,8 @@ export default function CallReport() {
 
   if (error) return (
     <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      <Link to={`/campaign/${campaignId}/calls/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-        Back to Call
-      </Link>
-      <div className="p-5 rounded-card border border-negative/10 dark:border-negative/15 bg-negative/10/30 dark:bg-negative/15 flex items-center gap-3 text-negative-dim dark:text-negative text-sm">
-        <span className="material-symbols-outlined">error</span>
-        {error}
-      </div>
+      <BackLink to={`/campaign/${campaignId}/calls/${id}`} className="mb-6">Back to Call</BackLink>
+      <Alert tone="negative" title="Report unavailable">{error}</Alert>
     </div>
   );
 
@@ -157,114 +154,68 @@ export default function CallReport() {
   const completionPercent = report.completionRate != null ? Math.round(report.completionRate * 100) : null;
   const missingFields = report.missingFields || [];
 
-  const completionW = completionPercent != null ? `${completionPercent}%` : '0%';
   const identityConfirmed = report.reportData?.identityConfirmed;
 
-  const outcomeBadge = OUTCOME_BADGE[report.outcome] || "bg-paper-400 text-ink-500 dark:bg-ink-300 dark:text-ink-900";
-  const sentimentBadge = SENTIMENT_BADGE[report.sentiment] || "bg-paper-400 text-ink-500 dark:bg-ink-300 dark:text-ink-900";
+  const outcomeTone = OUTCOME_TONE[report.outcome] || 'neutral';
+  const sentimentTone = SENTIMENT_TONE[report.sentiment] || 'neutral';
   const sentimentIcon = SENTIMENT_ICON[report.sentiment] || 'sentiment_neutral';
 
   return (
     <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      {/* Back link */}
-      <Link
-        to={`/campaigns/${campaignId}/report`}
-        className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-all hover:-translate-x-1 font-bold mb-6 text-sm"
-      >
-        <span className="material-symbols-outlined">arrow_back</span>
-        Back to Campaign Report
-      </Link>
+      <BackLink to={`/campaigns/${campaignId}/report`} className="mb-6">Back to Campaign Report</BackLink>
 
-      {/* Wrong person banner */}
       {identityConfirmed === false && (
-        <div className="mb-6 p-4 rounded-card border border-negative-dim/30 dark:border-negative/15 bg-negative/10/40 dark:bg-negative/15 flex items-center gap-3">
-          <span className="material-symbols-outlined text-negative-dim dark:text-negative text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>gpp_bad</span>
-          <div>
-            <p className="text-sm font-semibold text-negative-dim dark:text-negative">Identity Not Confirmed — Wrong Person</p>
-            <p className="text-xs text-negative-dim/80 dark:text-negative/70 mt-0.5">The person who answered denied being {report.contactName || 'the intended contact'}. The call was ended with an apology. No questions were collected.</p>
-          </div>
-        </div>
+        <Alert tone="negative" title="Identity Not Confirmed — Wrong Person" className="mb-6">
+          The person who answered denied being {report.contactName || 'the intended contact'}. The call was ended with an apology. No questions were collected.
+        </Alert>
       )}
 
       {/* Summary Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Outcome</p>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${outcomeBadge}`}>
-            <span className="material-symbols-outlined text-[18px]">
-              {report.outcome === 'COMPLETED' ? 'check_circle' : 'cancel'}
-            </span>
-            {(report.outcome || 'Unknown').replace('_', ' ')}
-          </span>
-          {report.failureReason && (
-            <p className="text-xs text-ink-700 dark:text-ink-900 mt-2 truncate" title={report.failureReason}>{report.failureReason}</p>
-          )}
-        </div>
-
-        <div className={`p-6 rounded-control shadow-card border ${identityConfirmed === false ? "bg-negative/10/40 dark:bg-negative/15 border-negative-dim/30 dark:border-negative/15" : identityConfirmed === true ? "bg-positive/10/60 dark:bg-positive/15 border-positive/30 dark:border-positive/15" : "bg-paper-100 dark:bg-ink-200 border-paper-500 dark:border-ink-400"}`}>
-          <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Identity Verified</p>
-          {identityConfirmed === true && (
-            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive">
-              <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>verified_user</span>
-              Confirmed
-            </span>
-          )}
-          {identityConfirmed === false && (
-            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-negative/10 text-negative-dim dark:bg-negative/15 dark:text-negative">
-              <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>gpp_bad</span>
-              Wrong Person
-            </span>
-          )}
-          {identityConfirmed === null || identityConfirmed === undefined ? (
-            <span className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit bg-paper-400 text-ink-700 dark:bg-ink-300 dark:text-ink-900">
-              <span className="material-symbols-outlined text-[18px]">help</span>
-              Unknown
-            </span>
-          ) : null}
-        </div>
-
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Sentiment</p>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 w-fit ${sentimentBadge}`}>
-            <span className="material-symbols-outlined text-[18px]">{sentimentIcon}</span>
-            {report.sentiment ? report.sentiment.charAt(0).toUpperCase() + report.sentiment.slice(1) : '—'}
-          </span>
-        </div>
-
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">QA Score</p>
-          <div className="flex items-end gap-1">
-            <span className="text-5xl font-bold text-brand-500 leading-none">{report.score ?? '—'}</span>
-            <span className="text-ink-800 dark:text-ink-800 text-2xl font-semibold pb-1">/100</span>
-          </div>
-        </div>
-
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-ink-700 dark:text-ink-900 text-xs font-medium mb-4 ">Completion</p>
-          <div className="flex items-center gap-4">
-            <span className="text-5xl font-bold text-ink-100 dark:text-paper-200 leading-none">
-              {completionPercent != null ? `${completionPercent}%` : '—'}
-            </span>
-            {completionPercent != null && (
-              <div className="flex-1 bg-paper-400 dark:bg-ink-300 h-2 rounded-full overflow-hidden">
-                <div className="bg-brand-500 h-full" style={{width: completionW}} />
-              </div>
-            )}
-          </div>
-        </div>
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        <StatCard
+          icon={report.outcome === 'COMPLETED' ? 'check_circle' : 'cancel'}
+          tone={outcomeTone === 'positive' ? 'emerald' : outcomeTone === 'negative' ? 'pink' : 'orange'}
+          label="Outcome"
+          value={<Badge tone={outcomeTone}>{statusLabel(report.outcome || 'Unknown')}</Badge>}
+          hint={report.failureReason && <span className="block truncate" title={report.failureReason}>{report.failureReason}</span>}
+        />
+        <StatCard
+          icon={identityConfirmed === false ? 'gpp_bad' : identityConfirmed === true ? 'verified_user' : 'help'}
+          tone={identityConfirmed === false ? 'pink' : identityConfirmed === true ? 'emerald' : 'sky'}
+          label="Identity verified"
+          value={
+            identityConfirmed === true ? <Badge capitalize={false}>Confirmed</Badge>
+              : identityConfirmed === false ? <Badge tone="negative" capitalize={false}>Wrong Person</Badge>
+                : <Badge tone="neutral" capitalize={false}>Unknown</Badge>
+          }
+        />
+        <StatCard
+          icon={sentimentIcon}
+          label="Sentiment"
+          value={<Badge tone={sentimentTone}>{report.sentiment || '—'}</Badge>}
+        />
+        <StatCard
+          icon="star"
+          label="QA score"
+          value={<>{report.score ?? '—'}<span className="text-lg text-muted-foreground"> /100</span></>}
+        />
+        <StatCard
+          icon="percent"
+          label="Completion"
+          value={completionPercent != null ? `${completionPercent}%` : '—'}
+        >
+          {completionPercent != null && <Progress value={completionPercent} />}
+        </StatCard>
       </section>
 
       <div className="grid grid-cols-12 gap-6">
         {/* AI Summary */}
         {report.reportSummary && (
           <div className="col-span-12">
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-8">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="material-symbols-outlined text-brand-500" style={{fontVariationSettings:"'FILL' 1"}}>auto_awesome</span>
-                <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">AI Call Summary</h3>
-              </div>
-              <p className="text-sm text-ink-600 dark:text-ink-900 leading-relaxed">{report.reportSummary}</p>
-            </div>
+            <Card>
+              <CardHeader title="AI Call Summary" icon="auto_awesome" />
+              <p className="text-sm text-muted-foreground leading-relaxed">{report.reportSummary}</p>
+            </Card>
           </div>
         )}
 
@@ -306,7 +257,7 @@ export default function CallReport() {
                             >
                               <GripVertical
                                 size={14}
-                                className="text-ink-800 dark:text-ink-800 group-hover:text-brand-500 transition-colors shrink-0"
+                                className="text-muted-foreground group-hover:text-brand-500 transition-colors shrink-0"
                               />
                             </span>
                           )}
@@ -355,7 +306,7 @@ export default function CallReport() {
                       const conf = CONFIDENCE_BAR[confStr] || CONFIDENCE_BAR.low;
 
                       const getRowColorClass = (awarded = 0, maxPoints = 0) => {
-                        if (maxPoints === 0) return "text-ink-600 dark:text-ink-900";
+                        if (maxPoints === 0) return 'text-muted-foreground';
                         if (awarded >= maxPoints) return 'text-positive-dim';
                         if (awarded === 0) return 'text-negative-dim';
                         return 'text-caution-dim';
@@ -389,16 +340,18 @@ export default function CallReport() {
                                   ? (qr.answerExtracted || `${subRows.filter(r => r.reason === 'present').length}/${subRows.length} fields`)
                                   : (mainRow.fieldValue);
                                 return (
-                                  <span className="bg-positive/10 text-positive-dim ring-1 ring-inset ring-positive/25 dark:text-positive dark:ring-positive/20 px-2 py-0.5 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={String(displayVal || '—')}>
-                                    {typeof displayVal === 'object' ? JSON.stringify(displayVal) : String(displayVal || '—')}
-                                  </span>
+                                  <Badge tone="positive" dot={false} capitalize={false} className="max-w-full overflow-hidden align-middle">
+                                    <span className="truncate" title={String(displayVal || '—')}>
+                                      {typeof displayVal === 'object' ? JSON.stringify(displayVal) : String(displayVal || '—')}
+                                    </span>
+                                  </Badge>
                                 );
                               })()}
                             </Td>
                             <Td>
                               {confStr !== '—' ? (
                                 <div className="flex items-center gap-2">
-                                  <div className="w-12 bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full">
+                                  <div className="w-12 bg-paper-400 dark:bg-white/10 h-1.5 rounded-full">
                                     <div className={`${conf.color} h-full rounded-full`} style={{width: conf.pct}} />
                                   </div>
                                   <span className="text-muted-foreground text-xs">{confStr}</span>
@@ -430,14 +383,16 @@ export default function CallReport() {
                                   ↳ {sub.field}
                                 </Td>
                                 <Td>
-                                  <span className="bg-positive/10 text-positive-dim ring-1 ring-inset ring-positive/25 dark:text-positive dark:ring-positive/20 px-2 py-0.5 rounded-full text-xs font-medium max-w-full truncate inline-block align-middle" title={sub.fieldValue}>
-                                    {typeof sub.fieldValue === 'object' ? JSON.stringify(sub.fieldValue) : String(sub.fieldValue || '—')}
-                                  </span>
+                                  <Badge tone="positive" dot={false} capitalize={false} className="max-w-full overflow-hidden align-middle">
+                                    <span className="truncate" title={sub.fieldValue}>
+                                      {typeof sub.fieldValue === 'object' ? JSON.stringify(sub.fieldValue) : String(sub.fieldValue || '—')}
+                                    </span>
+                                  </Badge>
                                 </Td>
                                 <Td>
                                   {subConfStr !== '—' ? (
                                     <div className="flex items-center gap-2">
-                                      <div className="w-12 bg-paper-400 dark:bg-ink-300 h-1.5 rounded-full">
+                                      <div className="w-12 bg-paper-400 dark:bg-white/10 h-1.5 rounded-full">
                                         <div className={`${subConf.color} h-full rounded-full`} style={{width: subConf.pct}} />
                                       </div>
                                       <span className="text-muted-foreground text-xs">{subConfStr}</span>
@@ -465,17 +420,11 @@ export default function CallReport() {
 
               {/* Compliance info inside the same card if it exists */}
               {Object.keys(compliance).length > 0 && (
-                <div className="p-6 border-t border-paper-400 dark:border-ink-400 bg-paper-200/50 dark:bg-ink-50/50">
-                  <div className="bg-brand-100 dark:bg-brand-500/15 p-4 rounded-control flex items-start gap-3 w-fit">
-                    <span className="material-symbols-outlined text-brand-500 dark:text-brand-300 mt-0.5">info</span>
-                    <div>
-                      <p className="text-xs font-medium text-brand-600 dark:text-brand-300 mb-1">Compliance Notes</p>
-                      <p className="text-xs text-brand-600 dark:text-brand-300">
-                        Script adherence: {compliance.scriptAdherenceScore ?? '—'}% &middot;
-                        Coverage: {compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '—'}
-                      </p>
-                    </div>
-                  </div>
+                <div className="px-5 py-4 border-t border-border">
+                  <Alert tone="info" title="Compliance Notes" className="w-fit">
+                    Script adherence: {compliance.scriptAdherenceScore ?? '—'}% &middot;
+                    Coverage: {compliance.questionCoverage != null ? `${Math.round(compliance.questionCoverage * 100)}%` : '—'}
+                  </Alert>
                 </div>
               )}
             </div>
@@ -485,23 +434,19 @@ export default function CallReport() {
         {/* Missing Fields */}
         {missingFields.length > 0 && (
           <div className="col-span-12">
-            <div className="rounded-card border border-caution/30 dark:border-caution/15 bg-caution/10 dark:bg-caution/15 p-5">
-              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-caution-dim dark:text-caution">
-                <span className="material-symbols-outlined text-[18px]">warning</span>
-                Missing Fields
-              </h3>
-              <div className="flex flex-wrap gap-2">
+            <Alert tone="caution" title="Missing Fields">
+              <div className="flex flex-wrap gap-2 mt-2">
                 {missingFields.map((f, i) => (
-                  <span key={i} className="bg-caution/10 dark:bg-caution/15 text-caution-dim dark:text-caution border border-caution/30 dark:border-caution/15 px-3 py-1 rounded-control text-xs font-medium">{f}</span>
+                  <Badge key={i} tone="caution" dot={false} capitalize={false}>{f}</Badge>
                 ))}
               </div>
-            </div>
+            </Alert>
           </div>
         )}
       </div>
 
       {/* Footer meta */}
-      <div className="mt-8 text-xs text-ink-800 dark:text-ink-800 text-center">
+      <div className="mt-6 text-xs text-muted-foreground text-center">
         Model: {report.modelVersion || '—'} · Schema: {report.schemaVersion || '—'} · Generated: {report.updatedAt ? new Date(report.updatedAt).toLocaleString() : '—'}
       </div>
     </div>

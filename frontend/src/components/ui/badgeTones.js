@@ -10,7 +10,7 @@ export const TONE_DOT = {
 };
 
 export const TONE_PILL = {
-  neutral:  'bg-paper-300/70 text-ink-600 ring-paper-600 dark:bg-white/[0.05] dark:text-ink-900 dark:ring-white/10',
+  neutral:  'bg-paper-300/70 text-muted-foreground ring-paper-600 dark:bg-white/[0.05] dark:ring-white/10',
   positive: 'bg-positive/10 text-positive-dim ring-positive/25 dark:text-positive dark:ring-positive/20',
   caution:  'bg-caution/10 text-caution-dim ring-caution/30 dark:text-caution dark:ring-caution/20',
   negative: 'bg-negative/10 text-negative-dim ring-negative/25 dark:text-negative dark:ring-negative/20',
@@ -26,6 +26,8 @@ const STATUS_TONE = {
   failed: 'negative', error: 'negative', rejected: 'negative',
   // Support ticket lifecycle — same vocabulary, same colours.
   open: 'brand', scheduled: 'brand', resolved: 'positive', closed: 'neutral',
+  // Evaluation-service call outcomes.
+  incomplete: 'caution', 'wrong-person': 'negative', reschedule: 'brand',
 };
 
 // Statuses reach us in several shapes for the same thing — `NO_ANSWER` from

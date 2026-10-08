@@ -1,5 +1,5 @@
 import React, { useState, forwardRef } from 'react';
-import { Button, IconButton } from '../../../components/ui';
+import { Button, IconButton, Badge } from '../../../components/ui';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
@@ -18,7 +18,7 @@ const CalendarButton = forwardRef(function CalendarButton({ value, onClick }, re
   return (
     <Button variant="secondary" size="md" type="button" onClick={onClick} ref={ref}>
       <span>{value}</span>
-      <CalendarClock size={16} className="text-ink-800 shrink-0" />
+      <CalendarClock size={16} className="text-muted-foreground shrink-0" />
     </Button>
   );
 });
@@ -63,12 +63,12 @@ function SectionHeader({ icon, title, count }) {
   const Icon = icon;
   return (
     <div className="flex items-center gap-2 mb-4">
-      <div className="p-2 rounded-control bg-brand-100 text-brand-500">
+      <div className="p-2 rounded-control bg-brand-500/10 text-brand-500">
         <Icon size={16} />
       </div>
-      <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">{title}</h4>
+      <h4 className="font-semibold text-sm text-foreground">{title}</h4>
       {count !== undefined && (
-        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-paper-400 dark:bg-ink-300 border border-paper-500 dark:border-ink-400 text-ink-600 dark:text-ink-900">
+        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-paper-400 dark:bg-ink-300 border border-paper-500 dark:border-ink-400 text-muted-foreground">
           {count}
         </span>
       )}
@@ -79,8 +79,8 @@ function SectionHeader({ icon, title, count }) {
 function ReviewField({ label, value }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-xs font-medium text-ink-700 dark:text-ink-900 ">{label}</div>
-      <div className="text-sm font-medium text-ink-100 dark:text-paper-200">{value || '-'}</div>
+      <div className="text-xs font-medium text-muted-foreground ">{label}</div>
+      <div className="text-sm font-medium text-foreground">{value || '-'}</div>
     </div>
   );
 }
@@ -111,37 +111,37 @@ export default function Step7Review({ payload, updatePayload }) {
     return sum + (item.weight || 0);
   }, 0);
 
-  const cardCls = "bg-card dark:bg-muted rounded-2xl shadow-primary p-6";
+  const cardCls = "bg-card dark:bg-muted rounded-2xl shadow-primary p-5";
 
   return (
-    <div className="animate-fade-in flex flex-col gap-8 pb-10">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+    <div className="animate-fade-in flex flex-col gap-6 pb-10">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
         {/* Billing Estimate */}
-        <div className="xl:col-span-2 rounded-card border border-brand-200 bg-gradient-to-r from-brand-100 to-brand-100 dark:from-brand-600/20 dark:to-brand-600/20 dark:border-brand-500/30 p-5">
+        <div className="xl:col-span-2 rounded-card border border-brand-500/25 bg-brand-500/10 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 rounded-control bg-brand-100 dark:bg-brand-600/50 text-brand-500">
+            <div className="p-1.5 rounded-control bg-brand-500/10 text-brand-500">
               <Database size={14} />
             </div>
-            <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Billing Estimate</h4>
+            <h4 className="font-semibold text-sm text-foreground">Billing Estimate</h4>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Contacts</p>
-              <p className="text-xl font-bold text-ink-100 dark:text-paper-200 mt-0.5">{(contacts || []).length}</p>
+              <p className="text-xs font-medium text-muted-foreground ">Contacts</p>
+              <p className="text-xl font-bold text-foreground mt-0.5">{(contacts || []).length}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Max / call</p>
-              <p className="text-xl font-bold text-ink-100 dark:text-paper-200 mt-0.5">{maxDurationMin} min</p>
+              <p className="text-xs font-medium text-muted-foreground ">Max / call</p>
+              <p className="text-xl font-bold text-foreground mt-0.5">{maxDurationMin} min</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Est. minutes</p>
-              <p className="text-xl font-bold text-ink-100 dark:text-paper-200 mt-0.5">{estimatedMinutes.toLocaleString('en-IN')}</p>
+              <p className="text-xs font-medium text-muted-foreground ">Est. minutes</p>
+              <p className="text-xl font-bold text-foreground mt-0.5">{estimatedMinutes.toLocaleString('en-IN')}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-ink-700 dark:text-ink-900 ">Est. cost</p>
+              <p className="text-xs font-medium text-muted-foreground ">Est. cost</p>
               <p className="text-xl font-bold text-brand-600 dark:text-brand-300 mt-0.5">₹{estimatedCost.toLocaleString('en-IN')}</p>
-              <p className="text-xs font-medium text-ink-800 mt-0.5">at ₹5/min</p>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">at ₹5/min</p>
             </div>
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function Step7Review({ payload, updatePayload }) {
 
               {scheduledAt && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-ink-700 dark:text-ink-900 ">
+                  <label className="text-xs font-medium text-muted-foreground ">
                     Date &amp; Time (India Standard Time)
                   </label>
                   <DatePicker
@@ -176,7 +176,7 @@ export default function Step7Review({ payload, updatePayload }) {
                     portalId="datepicker-portal"
                     wrapperClassName="w-full max-w-xs"
                   />
-                  <p className="text-xs text-ink-700 dark:text-ink-900">
+                  <p className="text-xs text-muted-foreground">
                     Calls will start automatically on {formatISTLabel(scheduledAt)} IST — no manual action needed.
                   </p>
                 </div>
@@ -216,7 +216,7 @@ export default function Step7Review({ payload, updatePayload }) {
         {/* Call Design */}
         <div className={`${cardCls} xl:col-span-2`}>
           <SectionHeader icon={PhoneCall} title="Call Design" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ReviewField label="Primary Goal" value={goals?.goal} />
             <ReviewField label="Call Introduction" value={goals?.callIntro} />
             <ReviewField label="Call Sign-off" value={goals?.callSignOff} />
@@ -244,19 +244,19 @@ export default function Step7Review({ payload, updatePayload }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`text-xs font-medium  px-1.5 py-0.5 rounded border ${q.itemType === 'question' ? 'bg-brand-100 text-brand-600 border-brand-200' : 'bg-brand-100 text-brand-600 border-brand-200'}`}>
+                          <Badge tone="brand" dot={false}>
                             {q.itemType}
-                          </span>
+                          </Badge>
                           {q.is_mandatory && (
-                            <span className="text-xs font-medium px-1.5 py-0.5 rounded border bg-caution/10 text-caution-dim border-caution/30">Mandatory</span>
+                            <span className="text-xs font-medium px-1.5 py-0.5 rounded border bg-caution/10 text-caution-dim border-caution/25">Mandatory</span>
                           )}
                           {q.itemType === 'question' && (
-                            <span className="text-xs font-medium text-ink-800 dark:text-ink-800">
+                            <span className="text-xs font-medium text-muted-foreground">
                               Weight: {effectiveWeight}%
                             </span>
                           )}
                         </div>
-                        <p className="text-sm font-medium text-ink-100 dark:text-paper-200 leading-relaxed">{q.text}</p>
+                        <p className="text-sm font-medium text-foreground leading-relaxed">{q.text}</p>
 
                         {q.itemType === 'question' && (
                           <div className="mt-2 flex flex-col gap-2">
@@ -268,18 +268,18 @@ export default function Step7Review({ payload, updatePayload }) {
 
                                 if (!hasSemantic && !hasCondition) {
                                   return (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-200 dark:bg-ink-200/50 border border-paper-500 dark:border-ink-400 text-ink-800 dark:text-ink-800 font-medium italic">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-200 dark:bg-ink-200/50 border border-paper-500 dark:border-ink-400 text-muted-foreground font-medium italic">
                                       Any response accepted
                                     </span>
                                   );
                                 }
 
                                 const activeBadge = semanticActive ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-positive/10 dark:bg-positive/15 border border-positive/30 dark:border-positive/15 text-positive-dim dark:text-positive font-semibold shadow-card">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-positive/10 border border-positive/25 text-positive-dim dark:text-positive font-semibold shadow-card">
                                     <strong>Semantic (active):</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
                                   </span>
                                 ) : hasCondition ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-400 dark:bg-ink-300 border border-paper-600 dark:border-ink-400 text-ink-100 dark:text-paper-200 font-semibold shadow-card">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-400 dark:bg-ink-300 border border-paper-600 dark:border-ink-400 text-foreground font-semibold shadow-card">
                                     <strong>{hasSemantic ? 'Condition (active): ' : 'Expected: '}</strong>{q.expectedAnswer.condition} "{q.expectedAnswer.value}"
                                   </span>
                                 ) : null;
@@ -287,11 +287,11 @@ export default function Step7Review({ payload, updatePayload }) {
                                 // Whichever rule ISN'T active but was still filled in — surface it so
                                 // reviewers aren't blindsided by a rule that's saved but silent.
                                 const inactiveBadge = semanticActive && hasCondition ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-200 dark:bg-ink-200/50 border border-dashed border-paper-600 dark:border-ink-400 text-ink-700 dark:text-ink-900 font-medium">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-200 dark:bg-ink-200/50 border border-dashed border-paper-600 dark:border-ink-400 text-muted-foreground font-medium">
                                     <strong>Condition (not active):</strong> {q.expectedAnswer.condition} "{q.expectedAnswer.value}"
                                   </span>
                                 ) : !semanticActive && hasCondition && hasSemantic ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-200 dark:bg-ink-200/50 border border-dashed border-paper-600 dark:border-ink-400 text-ink-700 dark:text-ink-900 font-medium">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-paper-200 dark:bg-ink-200/50 border border-dashed border-paper-600 dark:border-ink-400 text-muted-foreground font-medium">
                                     <strong>Semantic (not active):</strong> {q.scoringCriteria.length > 80 ? q.scoringCriteria.slice(0, 80) + '…' : q.scoringCriteria}
                                   </span>
                                 ) : null;
@@ -314,7 +314,7 @@ export default function Step7Review({ payload, updatePayload }) {
                                   actionText = 'END CALL';
                                 } else return null;
                                 return (
-                                  <span key="action" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control font-bold border shadow-card ${isEnd ? 'bg-negative/10 border-negative/30 text-negative-dim' : 'bg-brand-100 border-brand-200 text-brand-600'}`}>
+                                  <span key="action" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control font-semibold border ${isEnd ? 'bg-negative/10 border-negative/25 text-negative-dim dark:text-negative' : 'bg-brand-500/10 border-brand-500/25 text-brand-600 dark:text-brand-300'}`}>
                                     ↳{' '}
                                     {useSemanticSkip && semanticText?.trim()
                                       ? <>If <strong>semantic</strong> "{semanticText.length > 60 ? semanticText.slice(0, 60) + '…' : semanticText}" → <strong className="underline">{actionText}</strong></>
@@ -329,12 +329,12 @@ export default function Step7Review({ payload, updatePayload }) {
 
                             {hasSubFields && (
                               <div className="flex flex-col gap-1 mt-1">
-                                <span className="text-xs uppercase font-medium text-ink-800 dark:text-ink-800 flex items-center gap-1">
+                                <span className="text-xs uppercase font-medium text-muted-foreground flex items-center gap-1">
                                   <Database size={9} /> Extract {sfs.length} field{sfs.length !== 1 ? 's' : ''}
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {sfs.map((sf, si) => (
-                                    <span key={si} className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-100 text-brand-600 px-2 py-0.5 text-xs font-medium">
+                                    <span key={si} className="inline-flex items-center gap-1 rounded-full border border-brand-500/25 bg-brand-500/10 text-brand-600 px-2 py-0.5 text-xs font-medium">
                                       {sf.field} <span className="opacity-60">({sf.type})</span> <span className="font-bold">{sf.weight}%</span>
                                     </span>
                                   ))}
@@ -350,14 +350,14 @@ export default function Step7Review({ payload, updatePayload }) {
               </div>
 
               {/* Weight total */}
-              <div className="flex items-center gap-2 p-3 rounded-card border border-dashed border-paper-500 dark:border-ink-400 text-xs font-medium text-ink-700 dark:text-ink-900">
-                <CheckCircle2 size={13} className={totalWeight === 100 ? 'text-positive' : 'text-ink-800'} />
-                Total Call Score Weight: <strong className="text-ink-500 dark:text-ink-900">{totalWeight}%</strong>
+              <div className="flex items-center gap-2 p-3 rounded-card border border-dashed border-paper-500 dark:border-ink-400 text-xs font-medium text-muted-foreground">
+                <CheckCircle2 size={13} className={totalWeight === 100 ? 'text-positive' : 'text-muted-foreground'} />
+                Total Call Score Weight: <strong className="text-muted-foreground">{totalWeight}%</strong>
                 {totalWeight !== 100 && <span className="text-negative font-medium ml-1">(Weight does not sum to 100%)</span>}
               </div>
 
               {endCallIf && (
-                <div className="p-4 rounded-card border border-negative/30 bg-negative/10">
+                <div className="p-4 rounded-card border border-negative/25 bg-negative/10">
                   <div className="text-xs font-medium text-negative-dim mb-1 flex items-center gap-1.5">
                     <AlertCircle size={11} /> Global "End Call If" Condition
                   </div>
@@ -366,7 +366,7 @@ export default function Step7Review({ payload, updatePayload }) {
               )}
             </div>
           ) : (
-            <p className="text-sm text-ink-800 dark:text-ink-800 py-4 text-center border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card">No specific questions defined.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card">No specific questions defined.</p>
           )}
         </div>
 
@@ -375,21 +375,21 @@ export default function Step7Review({ payload, updatePayload }) {
           <SectionHeader icon={Users} title="Audience & Personalization" count={contacts?.length} />
           <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-card bg-paper-400 dark:bg-ink-300 text-ink-600 dark:text-ink-900">
+              <div className="p-3 rounded-card bg-paper-400 dark:bg-ink-300 text-muted-foreground">
                 <Users size={22} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{contacts?.length} Contacts Queued</p>
-                <p className="text-xs font-medium text-ink-700 dark:text-ink-900">The bot will dial these numbers sequentially.</p>
+                <p className="text-sm font-semibold text-foreground">{contacts?.length} Contacts Queued</p>
+                <p className="text-xs font-medium text-muted-foreground">The bot will dial these numbers sequentially.</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-card ${overrideCount > 0 ? 'bg-positive/10 text-positive-dim' : 'bg-paper-400 text-ink-800'}`}>
+              <div className={`p-3 rounded-full ${overrideCount > 0 ? 'bg-positive/10 text-positive-dim dark:text-positive' : 'bg-paper-400 dark:bg-white/10 text-muted-foreground'}`}>
                 <CheckCircle2 size={22} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{overrideCount} Overrides Set</p>
-                <p className="text-xs font-medium text-ink-700 dark:text-ink-900">Contacts with personalized call logic.</p>
+                <p className="text-sm font-semibold text-foreground">{overrideCount} Overrides Set</p>
+                <p className="text-xs font-medium text-muted-foreground">Contacts with personalized call logic.</p>
               </div>
             </div>
           </div>

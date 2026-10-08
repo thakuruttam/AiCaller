@@ -210,7 +210,7 @@ export default function CampaignWizard() {
         {/* Progress */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-medium text-ink-700 dark:text-ink-900">Progress</span>
+            <span className="text-xs font-medium text-muted-foreground">Progress</span>
             <span className="text-sm font-medium text-brand-500 dark:text-brand-300">{progress}%</span>
           </div>
           <div className="w-full bg-paper-500 dark:bg-ink-300 h-1.5 rounded-full">
@@ -229,29 +229,28 @@ export default function CampaignWizard() {
             return (
               <div
                 key={i}
-                className={`px-6 py-4 flex items-center gap-4 transition-colors ${
+                className={`px-6 py-4 flex items-center gap-4 transition-colors border-l-[3px] ${
                   isActive
-                    ? 'bg-paper-200 dark:bg-ink-300/60'
+                    ? 'border-brand-500 bg-paper-200 dark:bg-ink-300/60'
                     : isComplete
-                      ? 'opacity-60 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-300/60'
-                      : 'opacity-60 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-300/60'
+                      ? 'border-transparent opacity-60 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-300/60'
+                      : 'border-transparent opacity-60 cursor-pointer hover:bg-paper-200 dark:hover:bg-ink-300/60'
                 }`}
-                style={isActive ? {borderLeft: '3px solid #266df0'} : {borderLeft: '3px solid transparent'}}
                 onClick={() => isComplete && setStep(i + 1)}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-medium ${
                   isActive
                     ? 'bg-brand-500 text-white'
                     : isComplete
-                      ? 'bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive border border-positive/30 dark:border-positive/15'
-                      : 'border border-paper-600 dark:border-ink-400 text-ink-700 dark:text-ink-900'
+                      ? 'bg-positive/10 text-positive-dim dark:text-positive border border-positive/25'
+                      : 'border border-paper-600 dark:border-ink-400 text-muted-foreground'
                 }`}>
                   {isComplete ? (
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   ) : stepNums[i]}
                 </div>
                 <span className={`text-sm ${
-                  isActive ? 'font-semibold text-brand-500 dark:text-brand-300' : 'text-ink-600 dark:text-ink-900'
+                  isActive ? 'font-semibold text-brand-500 dark:text-brand-300' : 'text-muted-foreground'
                 }`}>
                   {s}
                 </span>
@@ -262,7 +261,7 @@ export default function CampaignWizard() {
 
         {/* AI Logic Confidence Card */}
         <div className="p-6 border-t border-border">
-          <div className="bg-brand-100 dark:bg-brand-500/10 p-4 rounded-control border border-brand-100 dark:border-brand-600">
+          <div className="bg-brand-500/10 p-4 rounded-control border border-brand-500/25">
             <h4 className="text-sm font-semibold text-brand-600 dark:text-brand-300 mb-1">AI Logic Confidence</h4>
             <p className="text-xs text-brand-600 dark:text-brand-300 leading-tight">Current structure allows for 92% accurate data extraction based on selected fields.</p>
           </div>
@@ -278,7 +277,7 @@ export default function CampaignWizard() {
             {/* Stands in for the step rail, which is hidden below `lg`. */}
             <div className="lg:hidden mb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-ink-700 dark:text-ink-900">
+                <span className="text-xs font-medium text-muted-foreground">
                   Step {step} of {steps.length}
                 </span>
                 <span className="text-xs font-medium text-brand-500 dark:text-brand-300">{progress}%</span>
@@ -287,8 +286,8 @@ export default function CampaignWizard() {
                 <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-700" style={{ width: `${progress}%` }} />
               </div>
             </div>
-            <h3 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 mb-1 tracking-tight">{steps[step - 1]}</h3>
-            <p className="text-ink-600 dark:text-ink-900 text-sm">
+            <h3 className="text-[22px] font-semibold text-foreground mb-1 tracking-tight">{steps[step - 1]}</h3>
+            <p className="text-muted-foreground text-sm">
               {step === 1 && 'Configure the basics of your outbound campaign — name, type, and core script objectives.'}
               {step === 2 && 'Upload or manage the contacts list that will be included in this campaign.'}
               {step === 3 && 'Define the structured sequence of inquiry the AI agent should follow. Add logic conditions to handle complex lead responses.'}

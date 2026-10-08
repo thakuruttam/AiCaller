@@ -12,12 +12,12 @@ import { useToast } from '../context/ToastContext';
 const TIER_ORDER = ['TRIAL', 'BASIC', 'STANDARD', 'PROFESSIONAL', 'ENTERPRISE', 'ENTERPRISE_PLUS'];
 
 const TIER_BADGE = {
-  TRIAL:          'bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400',
-  BASIC:          'bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15',
-  STANDARD:       'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-600',
-  PROFESSIONAL:   'bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30',
-  ENTERPRISE:     'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30',
-  ENTERPRISE_PLUS:'bg-gradient-to-r from-brand-500 to-brand-600 text-white border-transparent',
+  TRIAL:          'bg-paper-400 text-muted-foreground border-paper-500 dark:bg-ink-300 dark:border-ink-400',
+  BASIC:          'bg-caution/10 text-caution-dim border-caution/25 dark:text-caution',
+  STANDARD:       'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
+  PROFESSIONAL:   'bg-brand-500/10 text-brand-500 border-brand-500/25 dark:text-brand-300',
+  ENTERPRISE:     'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
+  ENTERPRISE_PLUS:'bg-gradient-to-br from-brand-450 to-brand-800 text-white border-transparent',
 };
 
 
@@ -136,7 +136,7 @@ export default function Billing() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-ink-800 text-sm">
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
         <span className="material-symbols-outlined animate-spin text-[20px] mr-2">progress_activity</span>
         Loading billing…
       </div>
@@ -145,7 +145,7 @@ export default function Billing() {
 
   if (!billing) {
     return (
-      <div className="flex items-center justify-center h-64 text-ink-800 text-sm">
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
         Could not load billing info. Make sure the api-service is running.
       </div>
     );
@@ -164,7 +164,7 @@ export default function Billing() {
 
       {/* Razorpay not configured warning */}
       {!razorpayConfigured && (
-        <div className="flex items-start gap-3 bg-caution/10 border border-caution/30 rounded-card px-5 py-4 mb-6">
+        <div className="flex items-start gap-3 bg-caution/10 border border-caution/25 rounded-card px-5 py-4 mb-6">
           <span className="material-symbols-outlined text-caution text-[20px] mt-0.5">warning</span>
           <div>
             <p className="text-sm font-semibold text-caution-dim">Payment gateway not configured</p>
@@ -177,10 +177,10 @@ export default function Billing() {
       )}
 
       {/* Balance + Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
         {/* Balance card */}
-        <div className="md:col-span-1 bg-gradient-to-br from-brand-500 to-brand-600 rounded-card p-6 text-white shadow-raised">
+        <div className="md:col-span-1 bg-gradient-to-br from-brand-450 to-brand-800 rounded-2xl p-5 text-white shadow-primary">
           <p className="text-sm font-semibold opacity-80 mb-1">Minute Balance</p>
           <p className="text-5xl font-bold tracking-tight">{minuteBalance.toLocaleString('en-IN')}</p>
           <p className="text-sm opacity-70 mt-1">≈ ₹{balanceRupees.toLocaleString('en-IN')} value</p>
@@ -193,8 +193,8 @@ export default function Billing() {
         </div>
 
         {/* Limits card */}
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-xs font-medium text-ink-600 dark:text-ink-900 mb-4">Plan Limits</p>
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
+          <p className="text-xs font-medium text-muted-foreground mb-4">Plan Limits</p>
           <div className="space-y-3">
             {[
               { label: 'Team members', value: limits.teamMembers },
@@ -202,41 +202,41 @@ export default function Billing() {
               { label: 'Contacts / campaign', value: limits.contacts },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center">
-                <span className="text-sm text-ink-600 dark:text-ink-900">{label}</span>
-                <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <span className="text-sm font-semibold text-foreground">
                   {value === -1 ? 'Unlimited' : value.toLocaleString('en-IN')}
                 </span>
               </div>
             ))}
             <div className="flex justify-between items-center">
-              <span className="text-sm text-ink-600 dark:text-ink-900">API access</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${limits.api ? 'bg-positive/10 text-positive-dim' : 'bg-paper-400 text-ink-700'}`}>
+              <span className="text-sm text-muted-foreground">API access</span>
+              <Badge tone={limits.api ? 'positive' : 'neutral'} capitalize={false}>
                 {limits.api ? 'Enabled' : 'Not included'}
-              </span>
+              </Badge>
             </div>
           </div>
         </div>
 
         {/* Total spend card */}
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6">
-          <p className="text-xs font-medium text-ink-600 dark:text-ink-900 mb-4">Account Summary</p>
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
+          <p className="text-xs font-medium text-muted-foreground mb-4">Account Summary</p>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-ink-600 dark:text-ink-900">Minutes purchased</span>
-              <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">
+              <span className="text-sm text-muted-foreground">Minutes purchased</span>
+              <span className="text-sm font-semibold text-foreground">
                 {totalMinutesPurchased.toLocaleString('en-IN')}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-ink-600 dark:text-ink-900">Top-ups</span>
-              <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">{history.length}</span>
+              <span className="text-sm text-muted-foreground">Top-ups</span>
+              <span className="text-sm font-semibold text-foreground">{history.length}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-ink-600 dark:text-ink-900">Rate</span>
-              <span className="text-sm font-semibold text-ink-100 dark:text-paper-200">₹5.00 / min</span>
+              <span className="text-sm text-muted-foreground">Rate</span>
+              <span className="text-sm font-semibold text-foreground">₹5.00 / min</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-ink-600 dark:text-ink-900">Balance expires</span>
+              <span className="text-sm text-muted-foreground">Balance expires</span>
               <span className="text-sm font-semibold text-positive-dim">Never</span>
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function Billing() {
 
       {/* Pack grid */}
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-4">Top Up</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-4">Top Up</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {packs.map((pack) => {
             const isCurrentTier = pack.tier === billingTier;
@@ -261,12 +261,12 @@ export default function Billing() {
                   <Badge tone="positive">Current</Badge>
                 )}
               >
-                <p className="text-xs font-medium text-ink-600 dark:text-ink-900 mb-1">{pack.label}</p>
-                <p className={`text-2xl font-semibold tabular ${isSelected ? 'text-brand-500' : 'text-ink-100 dark:text-paper-200'}`}>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{pack.label}</p>
+                <p className={`text-2xl font-semibold tabular ${isSelected ? 'text-brand-500' : 'text-foreground'}`}>
                   {pack.displayAmount}
                 </p>
                 <p className="text-sm text-brand-500 font-semibold mt-1 tabular">{pack.minutes.toLocaleString('en-IN')} min</p>
-                <p className="text-xs text-ink-800 mt-0.5 tabular">{pack.rateDisplay}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 tabular">{pack.rateDisplay}</p>
               </SelectableCard>
             );
           })}
@@ -274,17 +274,17 @@ export default function Billing() {
       </div>
 
       {/* Confirm bar */}
-      <div className={`mb-8 transition-all duration-200 ${selectedPackId ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`mb-6 transition-all duration-200 ${selectedPackId ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         {(() => {
           const pack = packs.find(p => p.id === selectedPackId);
           if (!pack) return null;
           return (
-            <div className="flex items-center justify-between bg-brand-100 dark:bg-brand-500/15 border border-brand-500/30 rounded-card px-6 py-4">
+            <div className="flex items-center justify-between bg-brand-500/10 border border-brand-500/25 rounded-card px-6 py-4">
               <div className="flex items-center gap-4">
                 <span className="material-symbols-outlined text-brand-500 text-[22px]">shopping_cart</span>
                 <div>
-                  <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{pack.label} — {pack.displayAmount}</p>
-                  <p className="text-xs text-ink-600 dark:text-ink-900">{pack.minutes.toLocaleString('en-IN')} minutes at {pack.rateDisplay}</p>
+                  <p className="text-sm font-semibold text-foreground">{pack.label} — {pack.displayAmount}</p>
+                  <p className="text-xs text-muted-foreground">{pack.minutes.toLocaleString('en-IN')} minutes at {pack.rateDisplay}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

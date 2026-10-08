@@ -25,10 +25,10 @@ export default function CopyField({ value, label, className = '', onCopy }) {
   return (
     <div className={className}>
       {label && (
-        <label className="block text-xs font-medium text-ink-700 dark:text-ink-800 mb-1.5">{label}</label>
+        <label className="block text-[13px] font-medium text-foreground mb-1.5">{label}</label>
       )}
-      <div className="flex items-center gap-2 p-3 rounded-card border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50">
-        <span className="text-xs text-ink-600 dark:text-ink-900 flex-1 break-all font-mono">{value}</span>
+      <div className="flex items-center gap-2 py-1.5 pl-3 pr-1.5 rounded-control border border-border bg-paper-200/70 dark:bg-white/[0.03]">
+        <span className="text-xs text-muted-foreground flex-1 break-all font-mono">{value}</span>
         <IconButton
           size="sm"
           tone={copied ? 'brand' : 'neutral'}

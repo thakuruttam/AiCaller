@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Page, PageHeader, Button, IconButton, TabBar, Field } from '../components/ui';
+import { Page, PageHeader, Button, IconButton, TabBar, Field, Input, CopyField } from '../components/ui';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: 'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30',
-  ADMIN:       'bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30',
-  EDITOR:      'bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15',
-  VIEWER:      'bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400',
+  SUPER_ADMIN: 'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
+  ADMIN:       'bg-brand-500/10 text-brand-500 border-brand-500/25 dark:text-brand-300',
+  EDITOR:      'bg-caution/10 text-caution-dim border-caution/25 dark:text-caution',
+  VIEWER:      'bg-paper-400 text-muted-foreground border-paper-500 dark:bg-ink-300 dark:border-ink-400',
 };
 
 
@@ -98,7 +98,7 @@ export default function WorkspaceSettings() {
   };
 
   if (!workspaceId) return (
-    <div className="p-8 text-ink-800 text-sm">No workspace found.</div>
+    <div className="p-8 text-muted-foreground text-sm">No workspace found.</div>
   );
 
   return (
@@ -110,7 +110,7 @@ export default function WorkspaceSettings() {
 
       {/* Tabs */}
       <TabBar
-        className="mb-8"
+        className="mb-6"
         value={tab}
         onChange={setTab}
         items={[
@@ -121,12 +121,12 @@ export default function WorkspaceSettings() {
 
       {/* ── Profile Tab ─────────────────────────────────────────── */}
       {tab === 'profile' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Left: Avatar card */}
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 flex flex-col items-center text-center gap-4">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 flex flex-col items-center text-center gap-4">
             <div className="relative group mt-2">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-brand-600 flex items-center justify-center ring-4 ring-offset-2 ring-paper-400 dark:ring-ink-400">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-brand-500 flex items-center justify-center ring-4 ring-offset-2 ring-paper-400 dark:ring-ink-400">
                 {avatarPreview
                   ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   : <span className="text-3xl font-bold text-white">{user?.name?.charAt(0)?.toUpperCase() || '?'}</span>
@@ -136,8 +136,8 @@ export default function WorkspaceSettings() {
               <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{user?.name}</p>
-              <p className="text-sm text-ink-600 dark:text-ink-900 mt-0.5">{user?.email}</p>
+              <p className="text-sm font-semibold text-foreground">{user?.name}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{user?.email}</p>
             </div>
             <div className="flex flex-col items-center gap-2 w-full">
               <Button variant="subtle" size="md" onClick={() => avatarRef.current?.click()}>Change photo</Button>
@@ -146,7 +146,7 @@ export default function WorkspaceSettings() {
               )}
             </div>
             <div className="w-full pt-4 border-t border-paper-400 dark:border-ink-400">
-              <p className="text-xs font-medium text-ink-600 mb-2">Workspace Role</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Workspace Role</p>
               <span className={`text-xs font-medium px-3 py-1.5 rounded-full border ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
                 {user?.workspaceRole || user?.role}
               </span>
@@ -154,30 +154,23 @@ export default function WorkspaceSettings() {
           </div>
 
           {/* Right: Edit form */}
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-6">
-            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-6">Personal Information</h3>
-            <div className="space-y-5 max-w-lg">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-6">Personal Information</h3>
+            <div className="space-y-6 max-w-lg">
               <Field label="Display Name">
-                <input
+                <Input
                   value={profileName}
                   onChange={e => setProfileName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full h-10 px-3 border border-paper-500 dark:border-ink-400 rounded-control text-sm bg-paper-100 dark:bg-ink-50 text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </Field>
-              <Field label="Email">
-                <div className="h-10 px-3 flex items-center bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control text-sm text-ink-600 dark:text-ink-900 select-all">
-                  {user?.email}
-                </div>
-                <p className="text-xs text-ink-800 mt-1">Email cannot be changed here.</p>
+              <Field label="Email" hint="Email cannot be changed here.">
+                <Input value={user?.email || ''} readOnly className="text-muted-foreground" />
               </Field>
             </div>
-            <div className="mt-8 pt-5 border-t border-paper-400 dark:border-ink-400">
-              <Button variant="primary" size="md" onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile
-                  ? <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span> Saving…</>
-                  : 'Save changes'
-                }
+            <div className="mt-6 pt-5 border-t border-paper-400 dark:border-ink-400">
+              <Button variant="primary" size="md" onClick={saveProfile} loading={savingProfile}>
+                {savingProfile ? 'Saving…' : 'Save changes'}
               </Button>
             </div>
           </div>
@@ -186,42 +179,35 @@ export default function WorkspaceSettings() {
 
       {/* ── Workspace Tab ─────────────────────────────────────────── */}
       {tab === 'general' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-6">
-            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-6">Workspace Information</h3>
-            <div className="space-y-5 max-w-lg">
-              <div>
-                <label className="block text-xs font-medium text-ink-600 mb-2">Workspace Name</label>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary lg:col-span-2 p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-6">Workspace Information</h3>
+            <div className="space-y-6 max-w-lg">
+              <Field label="Workspace Name" htmlFor="workspace-name">
                 <div className="flex gap-3">
-                  <input
-                    value={workspaceName}
-                    onChange={e => setWorkspaceName(e.target.value)}
-                    disabled={!isAdmin}
-                    className="flex-1 h-10 px-3 border border-paper-500 dark:border-ink-400 rounded-control text-sm bg-paper-100 dark:bg-ink-50 text-ink-100 dark:text-paper-200 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-paper-200 disabled:text-ink-800"
-                  />
+                  <div className="flex-1">
+                    <Input
+                      id="workspace-name"
+                      value={workspaceName}
+                      onChange={e => setWorkspaceName(e.target.value)}
+                      disabled={!isAdmin}
+                    />
+                  </div>
                   {isAdmin && (
-                    <Button variant="primary" size="md" onClick={saveName} disabled={savingName || workspaceName === currentWorkspace?.name}>{savingName ? 'Saving…' : 'Save'}</Button>
+                    <Button variant="primary" size="md" onClick={saveName} loading={savingName} disabled={workspaceName === currentWorkspace?.name}>{savingName ? 'Saving…' : 'Save'}</Button>
                   )}
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-ink-600 mb-2">Workspace ID</label>
-                <div className="h-10 px-3 flex items-center bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control text-xs text-ink-600 select-all">
-                  {workspaceId}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-ink-600 mb-2">Slug</label>
-                <div className="h-10 px-3 flex items-center bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control text-sm text-ink-600">
-                  {currentWorkspace?.slug || '—'}
-                </div>
-              </div>
+              </Field>
+              <CopyField label="Workspace ID" value={workspaceId} />
+              <Field label="Slug">
+                <Input value={currentWorkspace?.slug || '—'} readOnly className="text-muted-foreground" />
+              </Field>
             </div>
           </div>
 
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200 mb-1">Your Access</h3>
-            <p className="text-sm text-ink-600 dark:text-ink-900">Your role determines what you can do in this workspace.</p>
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-foreground mb-1">Your Access</h3>
+            <p className="text-sm text-muted-foreground">Your role determines what you can do in this workspace.</p>
             <span className={`self-start text-xs font-medium px-3 py-1.5 rounded-full border mt-2 ${ROLE_BADGE[user?.workspaceRole || user?.role]}`}>
               {user?.workspaceRole || user?.role}
             </span>

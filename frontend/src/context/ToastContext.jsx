@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Button, IconButton } from '../components/ui';
+import { IconButton } from '../components/ui';
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
 const ToastContext = createContext(null);
@@ -65,13 +65,18 @@ const ToastItem = ({ message, type, onRemove }) => {
   const Icon = c.icon;
 
   return (
-    <div className={`pointer-events-auto relative flex items-start gap-3 rounded-card border px-4 py-3.5 shadow-overlay shadow-black/20 overflow-hidden animate-slide-in-right ${c.wrapper}`}>
+    <div role="status" className={`pointer-events-auto relative flex items-start gap-3 rounded-xl border pl-4 pr-2 py-3 shadow-overlay shadow-black/20 overflow-hidden animate-slide-in-right ${c.wrapper}`}>
       <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${c.bar}`} />
       <Icon size={16} className={`shrink-0 mt-0.5 ${c.icon_cls}`} />
       <p className={`flex-1 text-sm leading-relaxed font-medium ${c.text}`}>{message}</p>
-      <Button variant="ghost" size="md" onClick={onRemove}>
+      <IconButton
+        size="sm"
+        title="Dismiss"
+        onClick={onRemove}
+        className="-my-1 text-ink-800 hover:!text-white hover:!bg-white/10"
+      >
         <X size={14} />
-      </Button>
+      </IconButton>
     </div>
   );
 };

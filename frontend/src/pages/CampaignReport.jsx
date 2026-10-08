@@ -1,94 +1,24 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
-  Button, IconButton, Tabs, CopyField, Pagination, Input,
-  Table, THead, Th, TBody, Tr, Td, CellStack, TableToolbar, FilterBar,
+  Button, IconButton, Tabs, Pagination, Input, Table, THead, Th, TBody, Tr, Td, CellStack, TableToolbar, FilterBar,
+  StatCard, Progress, Badge, StatusBadge, Page, PageHeader, BackLink, Card, EmptyState, Alert, statusLabel,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import api from '../api/axios';
-import { useToast } from '../context/ToastContext';
 import PageLoader from '../components/PageLoader';
+import ShareCampaignModal from '../components/ShareCampaignModal';
 import { EVAL_BASE } from '../api/config';
 
 const SENTIMENT_ICON = {
   positive: { icon: 'sentiment_satisfied', color: 'text-positive' },
-  neutral:  { icon: 'sentiment_neutral', color: 'text-ink-800' },
+  neutral:  { icon: 'sentiment_neutral', color: 'text-muted-foreground' },
   negative: { icon: 'sentiment_dissatisfied', color: 'text-negative-dim' },
 };
 
-const OUTCOME_BADGE = {
-  COMPLETED:    'bg-positive/10 text-positive-dim',
-  NO_ANSWER:    'bg-paper-400 text-ink-600',
-  INCOMPLETE:   'bg-caution/10 text-caution-dim',
-  WRONG_PERSON: 'bg-negative/10 text-negative-dim',
-  RESCHEDULE:   'bg-brand-100 text-brand-600',
-  BUSY:         'bg-paper-400 text-ink-600',
-  FAILED:       'bg-negative/10 text-negative-dim',
-};
-
-const outcomeLabel = (outcome) => (outcome || 'unknown').replace(/_/g, ' ').toLowerCase();
-
-function ShareModal({ campaignId, onClose }) {
-  const [days, setDays] = useState(7);
-  const [link, setLink] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const { addToast } = useToast();
-
-  const generate = async () => {
-    setLoading(true);
-    try {
-      const res = await api.post(`/api/share/campaigns/${campaignId}`, { validityDays: days });
-      const url = `${window.location.origin}/share/${res.data.token}`;
-      setLink({ url, expiresAt: res.data.expiresAt });
-    } catch {
-      addToast('Failed to generate link', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Share Campaign Report</h3>
-          <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
-        </div>
-
-        {!link ? (
-          <>
-            <p className="text-sm text-ink-700 dark:text-ink-900 mb-5">
-              Generate a public link to share all call reports for this campaign. No login required.
-            </p>
-            <div className="mb-5">
-              <label className="block text-xs font-medium text-ink-600 dark:text-ink-900 mb-2">Link Valid For</label>
-              <div className="flex gap-2">
-                {[3, 7, 14, 30].map(d => (
-                  <Button variant="primary" size="md" key={d} onClick={() => setDays(d)}>{d}d</Button>
-                ))}
-              </div>
-            </div>
-            <Button variant="primary" size="lg" onClick={generate} disabled={loading}>
-              {loading ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Generating…</> : <><span className="material-symbols-outlined text-[18px]">link</span> Generate Link</>}
-            </Button>
-          </>
-        ) : (
-          <>
-            <p className="text-xs text-ink-700 dark:text-ink-900 mb-3">
-              Expires on <strong>{new Date(link.expiresAt).toLocaleDateString()}</strong>
-            </p>
-            <CopyField value={link.url} className="mb-4" />
-            <Button variant="secondary" size="md" onClick={() => setLink(null)}>Generate Another</Button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+const outcomeLabel = (outcome) => statusLabel(outcome || 'unknown');
 
 export default function CampaignReport() {
   const { id } = useParams();
@@ -141,7 +71,7 @@ export default function CampaignReport() {
     if (pct == null) return 'bg-paper-700';
     if (pct >= 70) return 'bg-positive';
     if (pct >= 40) return 'bg-caution';
-    return 'bg-negative/100';
+    return 'bg-negative';
   };
 
   const downloadQuestionView = (format) => {
@@ -247,30 +177,23 @@ export default function CampaignReport() {
   if (loading) return <PageLoader text="Loading campaign report…" />;
 
   if (error) return (
-    <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-        Back to Campaign Details
-      </Link>
-      <div className="p-5 rounded-card border border-negative/10 dark:border-negative/15 bg-negative/10/30 dark:bg-negative/15 flex items-center gap-3 text-negative-dim dark:text-negative text-sm">
-        <span className="material-symbols-outlined">error</span>
-        {error}
-      </div>
-    </div>
+    <Page>
+      <BackLink to={`/campaigns/${id}`} className="mb-6">Back to campaign details</BackLink>
+      <Alert tone="negative" title="Could not load report">{error}</Alert>
+    </Page>
   );
 
   if (!metrics || metrics.totalCalls === 0) return (
-    <div className="page-gutter pt-3 pb-7 animate-fade-in">
-      <Link to={`/campaigns/${id}`} className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-6">
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-        Back to Campaign Details
-      </Link>
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-12 flex flex-col items-center justify-center text-ink-800 dark:text-ink-800">
-        <span className="material-symbols-outlined text-[48px] mb-3 opacity-20">bar_chart</span>
-        <p className="font-semibold text-ink-500 dark:text-ink-900">No Evaluation Data Yet</p>
-        <p className="text-sm mt-1">Run AI Evaluation on calls to generate reports.</p>
-      </div>
-    </div>
+    <Page>
+      <BackLink to={`/campaigns/${id}`} className="mb-6">Back to campaign details</BackLink>
+      <Card padded={false}>
+        <EmptyState
+          icon="bar_chart"
+          title="No evaluation data yet"
+          body="Run AI evaluation on calls to generate reports."
+        />
+      </Card>
+    </Page>
   );
 
   const completionPercent = Math.round((parseFloat(metrics.completionRate) || 0) * 100);
@@ -303,111 +226,51 @@ export default function CampaignReport() {
   const qTotalPages = Math.max(1, Math.ceil(qContacts.length / PER_PAGE));
 
   return (
-    <div className="page-gutter pt-3 pb-7 animate-fade-in space-y-8">
-      {/* Page Header */}
-      <section className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <Link to="/" className="flex items-center gap-2 text-ink-600 dark:text-ink-900 hover:text-brand-500 transition-colors text-sm mb-3">
-              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-              Back to Active Campaigns
-            </Link>
-            <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 mb-1">Campaign Performance Report</h2>
-            <p className="text-ink-600 dark:text-ink-900">AI evaluation analytics &amp; extracted data</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="secondary" size="md" icon="share" onClick={() => setShowShare(true)}>Share</Button>
-            <Button
-              as="a"
-              href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`}
-              download
-              variant="secondary"
-              size="md"
-              icon="download"
-            >
-              Export CSV
-            </Button>
-            {progress && progress.total > 0 && (
-              <div className="bg-paper-500 dark:bg-ink-200 p-4 rounded-card min-w-[280px]">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-ink-100 dark:text-paper-200">AI Evaluation Progress</span>
-                  <span className="text-xs text-brand-500 dark:text-brand-300">
-                    {progress.completed + progress.failed} / {progress.total} Evaluated
-                  </span>
-                </div>
-                <div className="w-full bg-paper-500 dark:bg-ink-300 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-brand-500 h-full transition-all duration-1000"
-                    style={{width: `${progressPct}%`}}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+    <Page className="space-y-6">
+      <PageHeader
+        className="!mb-0"
+        back={{ to: `/campaigns/${id}`, label: 'Back to campaign details' }}
+        title="Campaign performance report"
+        subtitle="AI evaluation analytics & extracted data"
+        actions={<>
+          <Button variant="secondary" icon="share" onClick={() => setShowShare(true)}>Share</Button>
+          <Button as="a" href={`${EVAL_BASE}/reports/campaign/${id}/export.csv`} download variant="secondary" icon="download">
+            Export CSV
+          </Button>
+          {progress && progress.total > 0 && (
+            <Card padded={false} className="min-w-[260px] px-4 py-3">
+              <Progress
+                value={progressPct}
+                label={`AI evaluation · ${progress.completed + progress.failed} / ${progress.total}`}
+                showValue
+              />
+            </Card>
+          )}
+        </>}
+      />
 
       {/* KPI Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
-          <div className="flex justify-between items-start mb-4">
-            <span className="p-2 bg-brand-500/10 dark:bg-brand-500/10 text-brand-500 dark:text-brand-300 rounded-control">
-              <span className="material-symbols-outlined">task_alt</span>
-            </span>
-          </div>
-          <p className="text-ink-600 dark:text-ink-900 text-sm mb-1">Total Evaluated</p>
-          <h3 className="text-2xl font-semibold text-ink-100 dark:text-paper-200">{total.toLocaleString()}</h3>
-        </div>
-
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
-          <div className="flex justify-between items-start mb-4">
-            <span className="p-2 bg-brand-100/30 dark:bg-brand-500/10 text-ink-600 dark:text-brand-300 rounded-control">
-              <span className="material-symbols-outlined">percent</span>
-            </span>
-          </div>
-          <p className="text-ink-600 dark:text-ink-900 text-sm mb-1">Completion Rate</p>
-          <h3 className="text-2xl font-semibold text-brand-500 dark:text-brand-300">{completionPercent}%</h3>
-        </div>
-
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
-          <div className="flex justify-between items-start mb-4">
-            <span className="p-2 bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive rounded-control">
-              <span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1"}}>star</span>
-            </span>
-          </div>
-          <p className="text-ink-600 dark:text-ink-900 text-sm mb-1">Avg Score</p>
-          <h3 className="text-2xl font-semibold text-positive-dim dark:text-positive">{avgScore} / 100</h3>
-        </div>
-
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-6 hover:shadow-raised transition-shadow">
-          <p className="text-ink-600 dark:text-ink-900 text-sm mb-4">Sentiment Breakdown</p>
-          <div className="flex flex-wrap gap-2">
-            {posCount > 0 && (
-              <span className="px-3 py-1 bg-positive/10 dark:bg-positive/10 text-positive-dim dark:text-positive rounded-full text-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-positive/15 dark:bg-positive rounded-full" />
-                {Math.round((posCount / total) * 100)}% Pos
-              </span>
-            )}
-            {neuCount > 0 && (
-              <span className="px-3 py-1 bg-paper-400 dark:bg-ink-300 text-ink-500 dark:text-ink-900 rounded-full text-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-ink-700 dark:bg-paper-900 rounded-full" />
-                {Math.round((neuCount / total) * 100)}% Neu
-              </span>
-            )}
-            {negCount > 0 && (
-              <span className="px-3 py-1 bg-negative/10 dark:bg-negative/100/10 text-negative-dim dark:text-negative rounded-full text-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-negative-dim dark:bg-negative rounded-full" />
-                {Math.round((negCount / total) * 100)}% Neg
-              </span>
-            )}
-          </div>
-        </div>
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard icon="task_alt" label="Total evaluated" value={total.toLocaleString()} />
+        <StatCard icon="percent" label="Completion rate" value={`${completionPercent}%`}>
+          <Progress value={Number(completionPercent) || 0} />
+        </StatCard>
+        <StatCard icon="star" label="Avg score" value={`${avgScore} / 100`} />
+        <StatCard icon="sentiment_satisfied" label="Sentiment" value={total ? `${Math.round((posCount / total) * 100)}%` : '—'} hint={total ? 'Positive' : 'No evaluations yet'}>
+          {total > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <Badge tone="positive" capitalize={false}>{Math.round((posCount / total) * 100)}% Pos</Badge>
+              <Badge tone="neutral" capitalize={false}>{Math.round((neuCount / total) * 100)}% Neu</Badge>
+              <Badge tone="negative" capitalize={false}>{Math.round((negCount / total) * 100)}% Neg</Badge>
+            </div>
+          )}
+        </StatCard>
       </section>
 
       {/* Results Section — By Contact / By Question */}
       <div className="flex flex-col gap-4">
         {/* Section header with view toggle */}
-        <section className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <Card padded={false} className="overflow-hidden">
           <TableToolbar
             actions={<>
               {viewMode === 'contact' && (
@@ -437,7 +300,6 @@ export default function CampaignReport() {
                 placeholder="Search contacts..."
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                className="!h-9"
               />
             </div>
           </TableToolbar>
@@ -488,11 +350,11 @@ export default function CampaignReport() {
           {viewMode === 'question' && allQuestions.length === 0 && (
             <p className="px-5 py-4 text-sm text-muted-foreground">No extracted fields found. Make sure evaluation has run for at least one call.</p>
           )}
-        </section>
+        </Card>
 
         {/* ── By Contact table ── */}
         {viewMode === 'contact' && (
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <Card padded={false} className="overflow-hidden">
           <Table>
             <THead>
               <Th {...sortProps('name')}>Contact / Phone</Th>
@@ -505,8 +367,6 @@ export default function CampaignReport() {
                 {paginated.map(c => {
                   const sentimentInfo = SENTIMENT_ICON[c.sentiment] || null;
                   const score = c.score != null ? Number(c.score).toFixed(1) : null;
-                  const scoreW = score ? `${Math.min(100, parseFloat(score) * 10)}%` : '0%';
-                  const outcomeBadge = OUTCOME_BADGE[c.outcome] || 'bg-paper-400 text-ink-600';
                   const hasTranscript = c.outcome === 'COMPLETED';
                   return (
                     <Tr key={c.callLogId}>
@@ -514,9 +374,7 @@ export default function CampaignReport() {
                         <CellStack title={c.contactName || 'Unknown'} meta={c.contactPhone || '—'} />
                       </Td>
                       <Td>
-                        <span className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium capitalize ring-1 ring-inset ring-current/20 ${outcomeBadge}`}>
-                          {outcomeLabel(c.outcome)}
-                        </span>
+                        <StatusBadge status={c.outcome || 'unknown'} />
                       </Td>
                       <Td>
                         {sentimentInfo ? (
@@ -531,9 +389,7 @@ export default function CampaignReport() {
                       <Td>
                         {score != null ? (
                           <div className="flex items-center gap-3">
-                            <div className="w-16 bg-paper-400 dark:bg-ink-400 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-positive h-full" style={{width: scoreW}} />
-                            </div>
+                            <Progress tone="positive" value={parseFloat(score) * 10} className="w-16" />
                             <span className="font-medium tabular-nums">{score}</span>
                           </div>
                         ) : (
@@ -542,16 +398,13 @@ export default function CampaignReport() {
                       </Td>
                       <Td align="right">
                         {hasTranscript ? (
-                          <Link
-                            to={`/campaign/${id}/calls/${c.callLogId}/report`}
-                            className="text-brand-500 dark:text-brand-300 text-sm hover:underline inline-flex items-center gap-1 whitespace-nowrap"
-                          >
-                            View Report <span className="material-symbols-outlined [--icon-size:16px]">open_in_new</span>
-                          </Link>
+                          <Button as={Link} to={`/campaign/${id}/calls/${c.callLogId}/report`} variant="ghost" size="sm" iconRight="open_in_new">
+                            View report
+                          </Button>
                         ) : (
-                          <span className="text-muted-foreground/60 text-sm inline-flex items-center gap-1 whitespace-nowrap">
-                            View Report <span className="material-symbols-outlined [--icon-size:16px]">lock</span>
-                          </span>
+                          <Button variant="ghost" size="sm" iconRight="lock" disabled title="Available once the call is completed">
+                            View report
+                          </Button>
                         )}
                       </Td>
                     </Tr>
@@ -559,13 +412,17 @@ export default function CampaignReport() {
                 })}
                 {filteredContacts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={5}>
                       {isFiltered ? (
-                        <>
-                          No contacts match your search and filters.
-                          <Button variant="link" size="sm" onClick={clearAllFilters} className="ml-2">Clear filters</Button>
-                        </>
-                      ) : 'No data available.'}
+                        <EmptyState
+                          icon="search_off"
+                          title="No contacts match your filters"
+                          body="Try a different search, or clear the filters."
+                          action={<Button variant="secondary" size="sm" onClick={clearAllFilters}>Clear filters</Button>}
+                        />
+                      ) : (
+                        <EmptyState icon="bar_chart" title="No evaluated calls yet" />
+                      )}
                     </td>
                   </tr>
                 )}
@@ -579,12 +436,12 @@ export default function CampaignReport() {
             onPageChange={setPage}
             label="evaluated calls"
           />
-        </div>
+        </Card>
         )}
 
         {/* ── By Question table ── */}
         {viewMode === 'question' && selectedQuestions.length > 0 && (
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <Card padded={false} className="overflow-hidden">
           <Table className="min-w-max">
             <THead>
                   <Th {...sortProps('name')} className="sticky left-0 z-10 min-w-[180px] bg-paper-200 dark:bg-muted">Contact</Th>
@@ -647,13 +504,17 @@ export default function CampaignReport() {
                 ))}
                 {qContacts.length === 0 && (
                   <tr>
-                    <td colSpan={selectedQuestions.length + 1} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={selectedQuestions.length + 1}>
                       {isFiltered ? (
-                        <>
-                          No contacts match your search and filters.
-                          <Button variant="link" size="sm" onClick={clearAllFilters} className="ml-2">Clear filters</Button>
-                        </>
-                      ) : 'No data available.'}
+                        <EmptyState
+                          icon="search_off"
+                          title="No contacts match your filters"
+                          body="Try a different search, or clear the filters."
+                          action={<Button variant="secondary" size="sm" onClick={clearAllFilters}>Clear filters</Button>}
+                        />
+                      ) : (
+                        <EmptyState icon="bar_chart" title="No evaluated calls yet" />
+                      )}
                     </td>
                   </tr>
                 )}
@@ -667,17 +528,17 @@ export default function CampaignReport() {
             onPageChange={setPage}
             label="contacts"
           />
-        </div>
+        </Card>
         )}
 
         {viewMode === 'question' && selectedQuestions.length === 0 && allQuestions.length > 0 && (
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-12 text-center text-sm text-ink-800 dark:text-ink-800">
-            Select at least one question above to see the breakdown.
-          </div>
+          <Card padded={false}>
+            <EmptyState icon="checklist" title="No questions selected" body="Select at least one question above to see the breakdown." />
+          </Card>
         )}
       </div>
 
-      {showShare && <ShareModal campaignId={id} onClose={() => setShowShare(false)} />}
-    </div>
+      <ShareCampaignModal campaignId={id} isOpen={showShare} onClose={() => setShowShare(false)} />
+    </Page>
   );
 }

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Megaphone, Plus, Search } from "lucide-react";
+import { Megaphone, Plus } from "lucide-react";
 
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../../../../context/AuthContext";
 import { useToast } from "../../../../context/ToastContext";
 import api from "../../../../api/axios";
+import { Button as AppButton, Input as AppInput } from "../../../../components/ui";
 
 // Tucked inside the account dropdown (as a submenu) rather than its own
 // persistent sidebar row — switching workspace is rare enough that it
@@ -113,24 +114,20 @@ export function DashboardTopbar() {
     <header className="flex min-h-16 items-center justify-between gap-4">
       <div className="flex w-full max-w-sm items-center gap-2">
         <SidebarTrigger className="shrink-0 lg:hidden" />
-        <div className="relative flex-1">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-          <Input
-            aria-label="Search assets"
-            className="border-border bg-muted h-9 w-full rounded-lg pl-9 text-sm"
-            placeholder="search campaigns, calls, contacts..."
+        <div className="flex-1">
+          <AppInput
+            icon="search"
+            aria-label="Search campaigns, calls and contacts"
+            placeholder="Search campaigns, calls, contacts..."
           />
         </div>
       </div>
 
       <div className="hidden items-center gap-2 md:flex">
-        <Button
-          className="h-9 px-5 shadow-[inset_0_1px_6px_2px_rgba(255,255,255,0.1),inset_0_-1px_6px_2px_rgba(0,0,0,0.1)]"
-          onClick={() => navigate("/create-campaign")}
-        >
+        <AppButton className="px-5" onClick={() => navigate("/create-campaign")}>
           Create Campaign
           <Megaphone className="size-4" />
-        </Button>
+        </AppButton>
       </div>
     </header>
   );

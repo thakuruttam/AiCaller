@@ -23,7 +23,7 @@ const outcomeLabel = (outcome) => (outcome ? outcome.replace(/_/g, ' ').toLowerC
 
 const SENTIMENT_COLOR = {
   positive: 'text-positive',
-  neutral:  "text-ink-800 dark:text-ink-800",
+  neutral:  "text-muted-foreground",
   negative: 'text-negative',
 };
 
@@ -34,7 +34,7 @@ const SENTIMENT_ICON = {
 };
 
 function ScoreRing({ score }) {
-  if (score == null) return <span className="text-xs text-ink-800 dark:text-ink-800">—</span>;
+  if (score == null) return <span className="text-xs text-muted-foreground">—</span>;
   const color = score >= 70 ? 'text-positive-dim' : score >= 40 ? 'text-caution-dim' : 'text-negative-dim';
   return <span className={`text-sm font-bold ${color}`}>{score}%</span>;
 }
@@ -92,15 +92,15 @@ export default function ShareView() {
 
   if (loading) return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50 flex items-center justify-center">
-      <div className="text-ink-700 dark:text-ink-900 text-sm">Loading shared report…</div>
+      <div className="text-muted-foreground text-sm">Loading shared report…</div>
     </div>
   );
 
   if (error) return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50 flex items-center justify-center">
       <div className="text-center">
-        <span className="material-symbols-outlined text-[48px] text-ink-900 dark:text-ink-700 block mb-3">link_off</span>
-        <p className="text-ink-600 dark:text-ink-900 font-semibold">{error}</p>
+        <span className="material-symbols-outlined text-[48px] text-muted-foreground block mb-3">link_off</span>
+        <p className="text-muted-foreground font-semibold">{error}</p>
       </div>
     </div>
   );
@@ -126,37 +126,37 @@ export default function ShareView() {
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50">
       {/* Header */}
       <header className="bg-ink-100 px-8 py-5 flex items-center gap-4 shadow-card">
-        <div className="w-9 h-9 bg-brand-600 rounded flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 bg-brand-500 rounded flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined text-white text-[18px]" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
         </div>
         <div>
           <h1 className="text-white font-bold text-base leading-tight">AI Caller Pro</h1>
-          <p className="text-ink-800 text-xs font-medium ">Shared Campaign Report</p>
+          <p className="text-muted-foreground text-xs font-medium ">Shared Campaign Report</p>
         </div>
         <div className="ml-auto text-right">
-          <p className="text-xs text-ink-800">Expires {new Date(expiresAt).toLocaleDateString()}</p>
+          <p className="text-xs text-muted-foreground">Expires {new Date(expiresAt).toLocaleDateString()}</p>
         </div>
       </header>
 
-      <main className="p-8 max-w-[1100px] mx-auto space-y-8">
+      <main className="p-8 max-w-[1100px] mx-auto space-y-6">
         {/* Campaign title */}
         <div>
-          <h2 className="text-[22px] font-semibold text-ink-100 dark:text-paper-200 tracking-tight">{campaign.name}</h2>
-          <p className="text-ink-700 dark:text-ink-900 text-sm mt-1 capitalize">{campaign.type?.toLowerCase().replace('_', ' ')} campaign · {total} calls</p>
+          <h2 className="text-[22px] font-semibold text-foreground tracking-tight">{campaign.name}</h2>
+          <p className="text-muted-foreground text-sm mt-1 capitalize">{campaign.type?.toLowerCase().replace('_', ' ')} campaign · {total} calls</p>
         </div>
 
         {/* KPI row */}
         <div className="grid grid-cols-3 gap-5">
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-            <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Total Calls</p>
-            <p className="text-2xl font-bold text-ink-100 dark:text-paper-200">{total}</p>
+            <p className="text-xs text-muted-foreground mb-1">Total Calls</p>
+            <p className="text-2xl font-bold text-foreground">{total}</p>
           </div>
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-            <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Completed</p>
+            <p className="text-xs text-muted-foreground mb-1">Completed</p>
             <p className="text-2xl font-bold text-positive-dim">{completed}</p>
           </div>
           <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5">
-            <p className="text-xs text-ink-700 dark:text-ink-900 mb-1">Avg Score</p>
+            <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
             <p className="text-2xl font-bold text-brand-500">{avgScore != null ? `${avgScore}%` : '—'}</p>
           </div>
         </div>

@@ -42,7 +42,7 @@ export default function NotificationDropdown() {
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-negative/100 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-negative text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -53,7 +53,7 @@ export default function NotificationDropdown() {
         <div className="absolute right-0 mt-2 w-80 bg-card dark:bg-muted rounded-2xl shadow-overlay z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-paper-400 dark:border-ink-400">
-            <span className="font-semibold text-sm text-ink-100 dark:text-paper-200">Notifications</span>
+            <span className="font-semibold text-sm text-foreground">Notifications</span>
             {unreadCount > 0 && (
               <Button variant="ghost" size="sm" onClick={markAllRead} icon="mark_email_read">Mark all read</Button>
             )}
@@ -62,10 +62,10 @@ export default function NotificationDropdown() {
           {/* List */}
           <div className="max-h-96 overflow-y-auto divide-y divide-paper-400 dark:divide-ink-400">
             {loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-ink-800 dark:text-ink-800">Loading…</div>
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</div>
             )}
             {!loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-ink-800 dark:text-ink-800">No notifications yet</div>
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications yet</div>
             )}
             {notifications.map(n => (
               <NotificationRow

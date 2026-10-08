@@ -1,31 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Button, IconButton } from '../../../components/ui';
+import { Button, Field, Input, WordLimitTextarea } from '../../../components/ui';
 import {
-  PhoneIncoming, MessageSquare, X,
+  PhoneIncoming, MessageSquare,
   CheckCircle, AlertCircle, PhoneOff,
   User, Plus
 } from 'lucide-react';
 import QuestionCard from './QuestionCard';
 import { emptyItem } from './questionModel';
 import { useToast } from '../../../context/ToastContext';
-
-function wordCount(t) { return t?.trim().split(/\s+/).filter(Boolean).length || 0; }
-
-function WordLimitTextarea({ value, onChange, limit, placeholder, rows = 2 }) {
-  const count = wordCount(value);
-  const over  = count > limit;
-  return (
-    <div className="flex flex-col gap-0.5 w-full">
-      <textarea rows={rows} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className={`w-full rounded-control border bg-paper-100 dark:bg-ink-300 px-3 py-2 text-sm text-ink-100 dark:text-paper-200 placeholder:text-ink-800 dark:placeholder:text-ink-700 focus:outline-none focus:ring-2 resize-y transition-colors
-          ${over
-            ? 'border-negative focus:ring-negative/20'
-            : 'border-paper-600 dark:border-ink-400 focus:border-brand-500 focus:ring-brand-500/20'
-          }`} />
-      <span className={`text-xs text-right tabular-nums ${over ? 'text-negative font-semibold' : 'text-ink-800'}`}>{count}/{limit} words</span>
-    </div>
-  );
-}
+import Modal from '../../../components/Modal';
 
 // ── Call Design Modal ─────────────────────────────────────────────────────────
 function CallDesignModal({ contact, campaignGoals, campaignMaxDuration, onSave, onClose }) {
@@ -37,56 +20,50 @@ function CallDesignModal({ contact, campaignGoals, campaignMaxDuration, onSave, 
   const set = (k, v) => setLocal(p => ({ ...p, [k]: v }));
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-paper-500 dark:border-ink-400 sticky top-0 bg-paper-100 dark:bg-ink-200 z-10">
-          <div>
-            <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Customize Call Design</h4>
-            <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mt-0.5">Overrides for <span className="font-medium text-ink-100 dark:text-paper-200">{contact.name}</span> only</p>
-          </div>
-          <Button variant="ghost" size="md" onClick={onClose}><X size={16} /></Button>
-        </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      size="lg"
+      title="Customize Call Design"
+      description={<>Overrides for <span className="font-medium text-foreground">{contact.name}</span> only</>}
+      footer={<>
+        <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" size="md" onClick={() => { const durSec = maxDurationMin !== '' ? parseInt(maxDurationMin) * 60 : undefined; onSave({ goals: local, ...(durSec ? { maxCallDurationSec: durSec } : { maxCallDurationSec: undefined }) }); onClose(); }}>Save Overrides</Button>
+      </>}
+    >
+      <div className="flex flex-col gap-5">
+        <Field label={<span className="flex items-center gap-1"><MessageSquare size={11} /> Campaign Goal <span className="font-normal text-muted-foreground">(max 100 words)</span></span>}>
+          <WordLimitTextarea value={local.goal} onChange={v => set('goal', v)} limit={100} placeholder="Override the campaign goal for this contact…" rows={2} />
+        </Field>
+        <Field label={<span className="flex items-center gap-1"><PhoneIncoming size={11} /> Call Introduction <span className="font-normal text-muted-foreground">(max 300 words)</span></span>}>
+          <WordLimitTextarea value={local.callIntro} onChange={v => set('callIntro', v)} limit={300} placeholder="Custom opening script for this contact…" rows={3} />
+        </Field>
+        <Field label={<span className="flex items-center gap-1"><PhoneOff size={11} /> Call Sign-off <span className="font-normal text-muted-foreground">(max 300 words)</span></span>}>
+          <WordLimitTextarea value={local.callSignOff} onChange={v => set('callSignOff', v)} limit={300} placeholder="Custom closing script for this contact…" rows={3} />
+        </Field>
 
-        <div className="p-6 flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-ink-600 dark:text-ink-900 flex items-center gap-1"><MessageSquare size={11} /> Campaign Goal <span className="font-normal text-ink-800 dark:text-ink-800">(max 100 words)</span></label>
-            <WordLimitTextarea value={local.goal} onChange={v => set('goal', v)} limit={100} placeholder="Override the campaign goal for this contact…" rows={2} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-ink-600 dark:text-ink-900 flex items-center gap-1"><PhoneIncoming size={11} /> Call Introduction <span className="font-normal text-ink-800 dark:text-ink-800">(max 300 words)</span></label>
-            <WordLimitTextarea value={local.callIntro} onChange={v => set('callIntro', v)} limit={300} placeholder="Custom opening script for this contact…" rows={3} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-ink-600 dark:text-ink-900 flex items-center gap-1"><PhoneOff size={11} /> Call Sign-off <span className="font-normal text-ink-800 dark:text-ink-800">(max 300 words)</span></label>
-            <WordLimitTextarea value={local.callSignOff} onChange={v => set('callSignOff', v)} limit={300} placeholder="Custom closing script for this contact…" rows={3} />
-          </div>
-
-          {/* Per-contact max duration override */}
-          <div className="flex flex-col gap-1.5 pt-4 border-t border-paper-400 dark:border-ink-400">
-            <label className="text-xs font-medium text-ink-600 dark:text-ink-900">Max Call Duration (override)</label>
-            <p className="text-xs font-medium text-ink-800">Leave blank to use campaign default ({campaignMaxDuration} min)</p>
-            <div className="flex items-center gap-2">
-              <input
+        {/* Per-contact max duration override */}
+        <div className="flex flex-col gap-1.5 pt-4 border-t border-border">
+          <label htmlFor="override-max-duration" className="text-[13px] font-medium text-foreground">Max Call Duration (override)</label>
+          <p className="text-xs text-muted-foreground">Leave blank to use campaign default ({campaignMaxDuration} min)</p>
+          <div className="flex items-center gap-2">
+            <div className="w-24">
+              <Input
+                id="override-max-duration"
                 type="number" min="1" max="60"
                 value={maxDurationMin}
                 onChange={e => setMaxDurationMin(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                 placeholder={String(campaignMaxDuration)}
-                className="h-9 w-24 rounded-control border border-paper-600 dark:border-ink-400 bg-paper-100 dark:bg-ink-300 px-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
-              <span className="text-sm text-ink-700">minutes</span>
-              {maxDurationMin !== '' && (
-                <span className="text-xs font-medium text-ink-800">≈ ₹{parseInt(maxDurationMin) * 5} est. cost</span>
-              )}
             </div>
+            <span className="text-sm text-muted-foreground">minutes</span>
+            {maxDurationMin !== '' && (
+              <span className="text-xs font-medium text-muted-foreground">≈ ₹{parseInt(maxDurationMin) * 5} est. cost</span>
+            )}
           </div>
         </div>
-
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-paper-500 dark:border-ink-400 sticky bottom-0 bg-paper-100 dark:bg-ink-200">
-          <Button variant="secondary" size="md" onClick={onClose} icon="close">Cancel</Button>
-          <Button variant="primary" size="md" onClick={() => { const durSec = maxDurationMin !== '' ? parseInt(maxDurationMin) * 60 : undefined; onSave({ goals: local, ...(durSec ? { maxCallDurationSec: durSec } : { maxCallDurationSec: undefined }) }); onClose(); }}>Save Overrides</Button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -137,51 +114,46 @@ function QuestionsModal({ contact, campaignQuestions, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-overlay w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-paper-500 dark:border-ink-400 sticky top-0 bg-paper-100 dark:bg-ink-200 z-10">
-          <div>
-            <h4 className="font-semibold text-sm text-ink-100 dark:text-paper-200">Customize Setup Questions</h4>
-            <p className="text-xs font-medium text-ink-700 dark:text-ink-900 mt-0.5">Overrides for <span className="font-medium text-ink-100 dark:text-paper-200">{contact.name}</span> only</p>
-          </div>
-          <Button variant="ghost" size="md" onClick={onClose}><X size={16} /></Button>
+    <Modal
+      isOpen
+      onClose={onClose}
+      size="lg"
+      title="Customize Setup Questions"
+      description={<>Overrides for <span className="font-medium text-foreground">{contact.name}</span> only</>}
+      footer={<>
+        <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" size="md" onClick={() => { onSave({ dataToCollect: local }); onClose(); }}>Save Overrides</Button>
+      </>}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          {local.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-muted-foreground bg-paper-200 dark:bg-ink-50">
+              <MessageSquare size={32} className="mb-2 opacity-40" />
+              <p className="text-sm">No questions yet. Add one below.</p>
+            </div>
+          )}
+          {local.map((item, idx) => (
+            <QuestionCard
+              key={item.id}
+              item={item}
+              allItems={local}
+              index={idx}
+              onUpdate={(updated) => update(item.id, updated)}
+              onRemove={() => remove(item.id)}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              isDraggedOver={dragOver === idx}
+            />
+          ))}
         </div>
 
-        <div className="p-6 flex flex-col gap-4">
-          <div className="flex flex-col gap-3">
-            {local.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-ink-800 dark:text-ink-800 bg-paper-200 dark:bg-ink-50">
-                <MessageSquare size={32} className="mb-2 opacity-40" />
-                <p className="text-sm">No questions yet. Add one below.</p>
-              </div>
-            )}
-            {local.map((item, idx) => (
-              <QuestionCard
-                key={item.id}
-                item={item}
-                allItems={local}
-                index={idx}
-                onUpdate={(updated) => update(item.id, updated)}
-                onRemove={() => remove(item.id)}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                isDraggedOver={dragOver === idx}
-              />
-            ))}
-          </div>
-
-          <Button variant="subtle" size="sm" type="button" onClick={addItem}>
-            <Plus size={14} /> Add Question / Information
-          </Button>
-        </div>
-
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-paper-500 dark:border-ink-400 sticky bottom-0 bg-paper-100 dark:bg-ink-200">
-          <Button variant="secondary" size="md" onClick={onClose} icon="close">Cancel</Button>
-          <Button variant="primary" size="md" onClick={() => { onSave({ dataToCollect: local }); onClose(); }}>Save Overrides</Button>
-        </div>
+        <Button variant="subtle" size="sm" type="button" onClick={addItem}>
+          <Plus size={14} /> Add Question / Information
+        </Button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -194,18 +166,18 @@ function ContactRow({ contact, index, campaignGoals, campaignQuestions, campaign
 
   return (
     <>
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary border border-transparent flex items-center justify-between px-4 py-3 hover:border-brand-300 dark:hover:border-brand-500 transition-colors">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary border border-transparent flex items-center justify-between px-4 py-3 hover:border-brand-500/50 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-600">
+          <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center text-xs font-bold text-brand-600">
             {contact.name?.charAt(0)?.toUpperCase() || '?'}
           </div>
           <div>
-            <p className="text-sm font-semibold text-ink-100 dark:text-paper-200">{contact.name}</p>
-            <p className="text-xs text-ink-700 dark:text-ink-900">{contact.phone}</p>
+            <p className="text-sm font-semibold text-foreground">{contact.name}</p>
+            <p className="text-xs text-muted-foreground">{contact.phone}</p>
           </div>
           <div className="flex gap-1 ml-2">
-            {hasDesignOverride    && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-brand-200 bg-brand-100 text-brand-600">Design ✓</span>}
-            {hasQuestionsOverride && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-brand-200 bg-brand-100 text-brand-600">Questions ✓</span>}
+            {hasDesignOverride    && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-brand-500/25 bg-brand-500/10 text-brand-600">Design ✓</span>}
+            {hasQuestionsOverride && <span className="text-xs font-medium px-2 py-0.5 rounded-full border border-brand-500/25 bg-brand-500/10 text-brand-600">Questions ✓</span>}
           </div>
         </div>
 
@@ -250,14 +222,14 @@ export default function StepContactOverrides({ payload, updatePayload }) {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       {overrideCount > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-control border border-brand-300 bg-brand-100 text-brand-600 text-sm font-medium">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-control border border-brand-500/25 bg-brand-500/10 text-brand-600 dark:text-brand-300 text-sm font-medium">
           <CheckCircle size={14} />
           {overrideCount} contact{overrideCount > 1 ? 's have' : ' has'} custom overrides
         </div>
       )}
 
       {contacts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-14 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-ink-800 dark:text-ink-800 bg-paper-200 dark:bg-ink-50">
+        <div className="flex flex-col items-center justify-center py-14 border-2 border-dashed border-paper-500 dark:border-ink-400 rounded-card text-muted-foreground bg-paper-200 dark:bg-ink-50">
           <User size={32} className="mb-2 opacity-40" />
           <p className="text-sm">No contacts uploaded yet. Go back to Step 2 to add contacts.</p>
         </div>
@@ -277,8 +249,8 @@ export default function StepContactOverrides({ payload, updatePayload }) {
         </div>
       )}
 
-      <div className="flex items-start gap-2 p-3 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 text-xs font-medium text-ink-700 dark:text-ink-900">
-        <AlertCircle size={12} className="mt-0.5 shrink-0 text-ink-800 dark:text-ink-800" />
+      <div className="flex items-start gap-2 p-3 rounded-control border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-50 text-xs font-medium text-muted-foreground">
+        <AlertCircle size={12} className="mt-0.5 shrink-0 text-muted-foreground" />
         <span>Overrides are saved locally in the wizard. When the campaign is launched, each contact's call will use its custom settings if set, falling back to campaign defaults otherwise.</span>
       </div>
     </div>

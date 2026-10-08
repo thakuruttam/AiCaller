@@ -5,11 +5,11 @@ import { metaFor, timeAgo } from './notificationMeta';
 // notifications page. `compact` is the dropdown density; `leading` and
 // `actions` are slots the page fills with its checkbox and row controls.
 const TONE_ICON = {
-  brand:    'bg-brand-100 dark:bg-brand-500/15 text-brand-500',
-  positive: 'bg-positive/10 dark:bg-positive/15 text-positive-dim',
-  caution:  'bg-caution/10 dark:bg-caution/15 text-caution-dim',
-  negative: 'bg-negative/10 dark:bg-negative/15 text-negative-dim',
-  neutral:  'bg-paper-400 dark:bg-ink-300 text-ink-700 dark:text-ink-800',
+  brand:    'bg-brand-500/10 text-brand-500',
+  positive: 'bg-positive/10 text-positive-dim',
+  caution:  'bg-caution/10 text-caution-dim',
+  negative: 'bg-negative/10 text-negative-dim',
+  neutral:  'bg-paper-400 dark:bg-ink-300 text-muted-foreground',
 };
 
 export default function NotificationRow({
@@ -28,7 +28,7 @@ export default function NotificationRow({
       className={[
         'group flex items-start gap-3 transition-colors',
         compact ? 'px-4 py-3' : 'px-4 py-4 sm:px-7 sm:py-5 sm:gap-4',
-        n.isRead ? '' : 'bg-brand-100/40 dark:bg-brand-500/[0.07]',
+        n.isRead ? '' : 'bg-brand-500/10',
         'hover:bg-paper-200 dark:hover:bg-ink-300/60',
         className,
       ].join(' ')}
@@ -63,26 +63,26 @@ export default function NotificationRow({
           <p
             className={`text-sm truncate ${
               n.isRead
-                ? 'font-medium text-ink-600 dark:text-ink-900'
-                : 'font-semibold text-ink-100 dark:text-paper-200'
+                ? 'font-medium text-muted-foreground'
+                : 'font-semibold text-foreground'
             }`}
           >
             {n.title}
           </p>
           {!compact && (
-            <span className="inline-flex items-center rounded-field border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-300/50 px-2 py-0.5 text-[11px] font-medium text-ink-600 dark:text-ink-900">
+            <span className="inline-flex items-center rounded-field border border-paper-500 dark:border-ink-400 bg-paper-200 dark:bg-ink-300/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {meta.label}
             </span>
           )}
         </div>
 
-        <p className={`text-ink-700 dark:text-ink-800 mt-0.5 ${compact ? 'text-xs line-clamp-2' : 'text-[13px] mt-1'}`}>
+        <p className={`text-muted-foreground mt-0.5 ${compact ? 'text-xs line-clamp-2' : 'text-[13px] mt-1'}`}>
           {n.body}
         </p>
 
         <div className="flex items-center gap-3 mt-1.5">
           <time
-            className="text-xs text-ink-800"
+            className="text-xs text-muted-foreground"
             dateTime={n.createdAt}
             title={new Date(n.createdAt).toLocaleString()}
           >

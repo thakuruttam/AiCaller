@@ -27,28 +27,28 @@ export function SkeletonText({ lines = 3, className = '' }) {
 
 // ── Alert ───────────────────────────────────────────────────────────────────
 const ALERT_TONES = {
-  info:     { wrap: 'bg-brand-100 dark:bg-brand-500/10 border-brand-200 dark:border-brand-500/30', icon: 'info',         fg: 'text-brand-600 dark:text-brand-300' },
-  positive: { wrap: 'bg-positive/10 border-positive/30',  icon: 'check_circle', fg: 'text-positive-dim' },
-  caution:  { wrap: 'bg-caution/10 border-caution/30',    icon: 'warning',      fg: 'text-caution-dim' },
-  negative: { wrap: 'bg-negative/10 border-negative/30',  icon: 'error',        fg: 'text-negative-dim' },
+  info:     { wrap: 'bg-brand-500/10 border-brand-500/25', icon: 'info',         fg: 'text-brand-600 dark:text-brand-300' },
+  positive: { wrap: 'bg-positive/10 border-positive/25',  icon: 'check_circle', fg: 'text-positive-dim' },
+  caution:  { wrap: 'bg-caution/10 border-caution/25',    icon: 'warning',      fg: 'text-caution-dim' },
+  negative: { wrap: 'bg-negative/10 border-negative/25',  icon: 'error',        fg: 'text-negative-dim' },
 };
 
 export function Alert({ tone = 'info', title, children, action, onDismiss, className = '' }) {
   const t = ALERT_TONES[tone] ?? ALERT_TONES.info;
 
   return (
-    <div role="status" className={`flex items-start gap-3 rounded-card border px-4 py-3.5 ${t.wrap} ${className}`}>
+    <div role="status" className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 ${t.wrap} ${className}`}>
       <span className={`material-symbols-outlined [--icon-size:18px] shrink-0 mt-0.5 ${t.fg}`}>{t.icon}</span>
       <div className="min-w-0 flex-1">
-        {title && <p className="text-[13px] font-semibold text-ink-100 dark:text-paper-200">{title}</p>}
-        {children && <div className="text-[13px] text-ink-600 dark:text-ink-900 mt-0.5">{children}</div>}
+        {title && <p className="text-[13px] font-semibold text-foreground">{title}</p>}
+        {children && <div className="text-[13px] text-muted-foreground mt-0.5">{children}</div>}
       </div>
       {action}
       {onDismiss && (
         <button
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="shrink-0 text-ink-700 hover:text-ink-100 dark:hover:text-white transition-colors cursor-pointer"
+          className="shrink-0 rounded-field text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30"
         >
           <span className="material-symbols-outlined [--icon-size:16px]">close</span>
         </button>
@@ -69,8 +69,8 @@ export function Progress({ value = 0, tone = 'brand', className = '', showValue 
     <div className={className}>
       {(label || showValue) && (
         <div className="flex items-center justify-between mb-1.5">
-          {label && <span className="text-xs text-ink-700 dark:text-ink-800">{label}</span>}
-          {showValue && <span className="text-xs font-medium text-ink-600 dark:text-ink-900 tabular">{pct}%</span>}
+          {label && <span className="text-xs text-muted-foreground">{label}</span>}
+          {showValue && <span className="text-xs font-medium text-foreground tabular">{pct}%</span>}
         </div>
       )}
       <div
@@ -78,7 +78,7 @@ export function Progress({ value = 0, tone = 'brand', className = '', showValue 
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
-        className="h-1.5 w-full rounded-full bg-paper-500 dark:bg-ink-400 overflow-hidden"
+        className="h-1.5 w-full rounded-full bg-paper-400 dark:bg-white/10 overflow-hidden"
       >
         <div
           className={`h-full rounded-full transition-[width] duration-500 ease-out ${TONES[tone]}`}
@@ -99,7 +99,7 @@ export function Avatar({ name, src, size = 'md', className = '' }) {
     <span
       title={name}
       className={`inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden
-                  bg-brand-500 text-white font-semibold ${AVATAR_SIZES[size]} ${className}`}
+                  bg-gradient-to-br from-brand-450 to-brand-800 text-white font-semibold ${AVATAR_SIZES[size]} ${className}`}
     >
       {src ? <img src={src} alt={name || ''} className="w-full h-full object-cover" /> : initials}
     </span>
@@ -123,7 +123,7 @@ export function Tooltip({ label, side = 'top', children, className = '' }) {
       <span
         role="tooltip"
         className={`pointer-events-none absolute z-50 whitespace-nowrap rounded-field
-                    bg-ink-100 dark:bg-ink-400 px-2 py-1 text-xs font-medium text-white
+                    bg-foreground px-2 py-1 text-xs font-medium text-background shadow-overlay
                     opacity-0 scale-95 transition-all duration-150
                     group-hover/tip:opacity-100 group-hover/tip:scale-100
                     group-focus-within/tip:opacity-100 group-focus-within/tip:scale-100
@@ -137,13 +137,13 @@ export function Tooltip({ label, side = 'top', children, className = '' }) {
 
 // ── Divider ─────────────────────────────────────────────────────────────────
 export function Divider({ label, className = '' }) {
-  if (!label) return <hr className={`border-t border-paper-400 dark:border-ink-400 ${className}`} />;
+  if (!label) return <hr className={`border-t border-border ${className}`} />;
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <hr className="flex-1 border-t border-paper-400 dark:border-ink-400" />
-      <span className="text-[11px] font-medium text-ink-700 dark:text-ink-800">{label}</span>
-      <hr className="flex-1 border-t border-paper-400 dark:border-ink-400" />
+      <hr className="flex-1 border-t border-border" />
+      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      <hr className="flex-1 border-t border-border" />
     </div>
   );
 }

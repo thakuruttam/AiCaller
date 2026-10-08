@@ -32,7 +32,7 @@ export default defineConfig([
       'react-refresh/only-export-components': [
         'error',
         { allowConstantExport: true, allowExportNames: [
-          'useAuth', 'useToast', 'useTheme', 'useNotifications',
+          'useAuth', 'useToast', 'useTheme', 'useNotifications', 'useConfirm',
         ] },
       ],
 

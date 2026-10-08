@@ -185,7 +185,7 @@ export default function Notifications() {
             {STATUS_TABS.map(tab => (
               <Button variant="ghost" size="sm" key={tab.value} onClick={() => { setStatus(tab.value); setPage(1); }} aria-pressed={status === tab.value}>
                 {tab.label}
-                <span className="ml-1.5 tabular text-ink-800">{counts[tab.value] ?? 0}</span>
+                <span className="ml-1.5 tabular text-muted-foreground">{counts[tab.value] ?? 0}</span>
               </Button>
             ))}
           </div>
@@ -213,8 +213,8 @@ export default function Notifications() {
 
         {/* Bulk action bar — only present when there is a selection */}
         {visibleSelected.length > 0 && (
-          <div className="px-7 py-3 bg-brand-100 dark:bg-brand-500/10 border-b border-paper-400 dark:border-ink-400 flex items-center justify-between gap-4">
-            <span className="text-[13px] font-medium text-ink-100 dark:text-paper-200">
+          <div className="px-7 py-3 bg-brand-500/10 border-b border-paper-400 dark:border-ink-400 flex items-center justify-between gap-4">
+            <span className="text-[13px] font-medium text-foreground">
               {visibleSelected.length} selected
             </span>
             <div className="flex items-center gap-2">
@@ -243,14 +243,14 @@ export default function Notifications() {
               onChange={toggleSelectAll}
               aria-label="Select all notifications on this page"
             />
-            <span className="text-xs text-ink-700 dark:text-ink-800">
+            <span className="text-xs text-muted-foreground">
               {allVisibleSelected ? 'All on this page selected' : 'Select all on this page'}
             </span>
           </div>
         )}
 
         {loading && items.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-ink-700">
+          <div className="flex items-center justify-center py-20 text-muted-foreground">
             <Spinner size={22} />
           </div>
         ) : items.length === 0 ? (
@@ -272,7 +272,7 @@ export default function Notifications() {
           <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
             {grouped.map(({ label, rows }) => (
               <section key={label}>
-                <h2 className="px-7 py-2 bg-paper-200 dark:bg-ink-50 text-[11px] font-medium text-ink-700 dark:text-ink-800 border-b border-paper-400 dark:border-ink-400">
+                <h2 className="px-7 py-2 bg-paper-200 dark:bg-ink-50 text-[11px] font-medium text-muted-foreground border-b border-paper-400 dark:border-ink-400">
                   {label}
                 </h2>
                 <ul className="divide-y divide-paper-400 dark:divide-ink-400">

@@ -1,20 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import DebouncedSearch from '../components/DebouncedSearch';
 import ToggleSwitch from '../components/ToggleSwitch';
 import Pagination from '../components/Pagination';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Avatar, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, EmptyState, SkeletonRow, FilterBar } from '../components/ui';
+import { useConfirm } from '../context/ConfirmContext';
+import Modal from '../components/Modal';
+import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Input, Field, CopyField, Avatar, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, EmptyState, SkeletonRow, FilterBar } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 
 const ROLE_BADGE = {
-  SUPER_ADMIN: 'bg-brand-100 text-brand-600 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30',
-  ADMIN:       'bg-brand-100 text-brand-500 border-brand-500/20 dark:bg-brand-600/30 dark:text-brand-300 dark:border-brand-500/30',
-  EDITOR:      'bg-caution/10 text-caution-dim border-caution/30 dark:bg-caution/15 dark:text-caution dark:border-caution/15',
-  VIEWER:      'bg-paper-400 text-ink-600 border-paper-500 dark:bg-ink-300 dark:text-ink-900 dark:border-ink-400',
+  SUPER_ADMIN: 'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
+  ADMIN:       'bg-brand-500/10 text-brand-500 border-brand-500/25 dark:text-brand-300',
+  EDITOR:      'bg-caution/10 text-caution-dim border-caution/25 dark:text-caution',
+  VIEWER:      'bg-paper-400 text-muted-foreground border-paper-500 dark:bg-ink-300 dark:border-ink-400',
 };
 
 const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'];
@@ -37,6 +39,7 @@ function InviteModal({ workspaceId, onClose, prefill }) {
   const [inviteUrl, setInviteUrl] = useState('');
   const [error, setError] = useState('');
   const [emailWarning, setEmailWarning] = useState(false);
+  const formId = useId();
 
   const setField = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
   const canSubmit = form.email.trim() && form.firstName.trim() && form.lastName.trim() && form.role;
@@ -53,110 +56,87 @@ function InviteModal({ workspaceId, onClose, prefill }) {
     } finally { setLoading(false); }
   };
 
-  const copy = () => {
-    navigator.clipboard.writeText(inviteUrl);
-    addToast('Invite link copied!', 'success');
-  };
-
-  const inputClass = "w-full h-7 px-0.5 pb-1 bg-transparent border-0 border-b-[1.5px] border-paper-500 dark:border-white/[0.14] rounded-none text-[0.9rem] leading-none text-ink-100 dark:text-white placeholder:text-ink-800 dark:placeholder:text-ink-600 focus:outline-none focus:border-brand-500 transition-colors";
-  const selectClass = `${inputClass} appearance-none`;
-  const labelClass = "block text-xs font-medium text-ink-700  mb-1.5";
+  const required = (label) => <>{label} <span className="text-negative">*</span></>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-card dark:bg-muted rounded-2xl relative shadow-overlay w-full max-w-lg p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-ink-100 dark:text-paper-200">Add Member</h3>
-          <IconButton tone="neutral" size="md" title="Close" icon="close" onClick={onClose} />
-        </div>
-
-        {!inviteUrl ? (
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <label className={labelClass}>Email <span className="text-negative">*</span></label>
-              <input
-                type="email" required
-                value={form.email}
-                onChange={setField('email')}
-                placeholder="member@company.com"
-                className={inputClass}
+    <Modal
+      isOpen
+      onClose={onClose}
+      size="lg"
+      icon="person_add"
+      title="Add member"
+      description={inviteUrl
+        ? (emailWarning ? 'Invite link generated — email not sent' : `Invite link generated! Share it with ${form.email}`)
+        : 'They get an invite link to join this workspace.'}
+      dismissible={!loading}
+      footer={inviteUrl ? (
+        <Button variant="secondary" size="md" onClick={onClose} icon="check">Done</Button>
+      ) : (<>
+        <Button variant="secondary" size="md" onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button variant="primary" size="md" type="submit" form={formId} loading={loading} disabled={!canSubmit}>
+          {loading ? 'Generating…' : 'Create'}
+        </Button>
+      </>)}
+    >
+      {!inviteUrl ? (
+        <form id={formId} onSubmit={submit} className="space-y-4">
+          <Field label={required('Email')}>
+            <Input
+              type="email" required
+              value={form.email}
+              onChange={setField('email')}
+              placeholder="member@company.com"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label={required('First Name')}>
+              <Input
+                type="text" required
+                value={form.firstName}
+                onChange={setField('firstName')}
+                placeholder="Jane"
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>First Name <span className="text-negative">*</span></label>
-                <input
-                  type="text" required
-                  value={form.firstName}
-                  onChange={setField('firstName')}
-                  placeholder="Jane"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Last Name <span className="text-negative">*</span></label>
-                <input
-                  type="text" required
-                  value={form.lastName}
-                  onChange={setField('lastName')}
-                  placeholder="Doe"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Contact No.</label>
-                <input
-                  type="tel"
-                  value={form.contact}
-                  onChange={setField('contact')}
-                  placeholder="Optional"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Role <span className="text-negative">*</span></label>
-                <select
-                  value={form.role}
-                  onChange={setField('role')}
-                  className={selectClass}
-                >
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-            </div>
-            {error && <p className="text-xs text-negative">{error}</p>}
-            <Button variant="primary" size="md" type="submit" disabled={loading || !canSubmit}>
-              {loading
-                ? <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span> Generating…</>
-                : 'Create'
-              }
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-ink-600 dark:text-ink-900">
-              {emailWarning
-                ? 'Invite link generated — email not sent'
-                : `Invite link generated! Share it with ${form.email}`}
-            </p>
-            <div className="flex items-center gap-2 bg-paper-200 dark:bg-ink-50 border border-paper-500 dark:border-ink-400 rounded-control px-3 py-2.5">
-              <span className="text-xs text-ink-600 dark:text-ink-900 truncate flex-1">{inviteUrl}</span>
-              <IconButton tone="neutral" size="md" title="Content copy" icon="content_copy" onClick={copy} />
-            </div>
-            <Button variant="secondary" size="md" onClick={onClose} icon="check">Done</Button>
+            </Field>
+            <Field label={required('Last Name')}>
+              <Input
+                type="text" required
+                value={form.lastName}
+                onChange={setField('lastName')}
+                placeholder="Doe"
+              />
+            </Field>
           </div>
-        )}
-      </div>
-    </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Contact No.">
+              <Input
+                type="tel"
+                value={form.contact}
+                onChange={setField('contact')}
+                placeholder="Optional"
+              />
+            </Field>
+            <Field label={required('Role')}>
+              <Select
+                value={form.role}
+                onChange={setField('role')}
+              >
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </Select>
+            </Field>
+          </div>
+          {error && <p className="text-xs text-negative-dim dark:text-negative">{error}</p>}
+        </form>
+      ) : (
+        <CopyField value={inviteUrl} onCopy={() => addToast('Invite link copied!', 'success')} />
+      )}
+    </Modal>
   );
 }
 
 export default function MyTeam() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const confirm = useConfirm();
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -249,7 +229,12 @@ export default function MyTeam() {
   };
 
   const removeMember = async (memberId, name) => {
-    if (!confirm(`Remove ${name} from this workspace?`)) return;
+    if (!(await confirm({
+      title: `Remove ${name}?`,
+      body: 'They lose access to this workspace immediately. You can invite them again later.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    }))) return;
     try {
       await api.delete(`/api/workspaces/${workspaceId}/members/${memberId}`);
       setMembers(ms => ms.filter(m => m.id !== memberId));

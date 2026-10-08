@@ -1,36 +1,44 @@
+/* The shadcn token names the vendored components read, pointed at the app's
+   own palette in index.css (paper/ink neutrals, brand blue) — previously
+   they carried the template's neutral oklch greys, so screens mixed two grey
+   families. Values are the palette's hex so each line maps to one swatch:
+   paper-300 #f3f4f6, ink-100 #1c1d1f, paper-400 #edeff3, ink-700 #6f7988,
+   paper-500 #e4e7ec · dark: ink-50 #101010, paper-200 #fafafb, ink-200
+   #202124, ink-300 #232529, ink-400 #2e3238, ink-500 #383e47, ink-800
+   #8f99a8. Charts use the brand ramp. */
 .web3-dashboard {
 
-  --background: oklch(0.975 0.002 247.839);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --background: #f3f4f6;
+  --foreground: #1c1d1f;
+  --card: #ffffff;
+  --card-foreground: #1c1d1f;
+  --popover: #ffffff;
+  --popover-foreground: #1c1d1f;
   --primary: #266df0;
   --primary-foreground: #ffffff;
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --secondary: #f3f4f6;
+  --secondary-foreground: #1c1d1f;
+  --muted: #edeff3;
+  --muted-foreground: #6f7988;
+  --accent: #f3f4f6;
+  --accent-foreground: #1c1d1f;
+  --destructive: #f65351;
+  --border: #e4e7ec;
+  --input: #e4e7ec;
   --ring: #266df0;
-  --chart-1: oklch(0.897 0.196 126.665);
-  --chart-2: oklch(0.768 0.233 130.85);
-  --chart-3: oklch(0.648 0.2 131.684);
-  --chart-4: oklch(0.532 0.157 131.589);
-  --chart-5: oklch(0.453 0.124 130.933);
+  --chart-1: #94b9ff;
+  --chart-2: #709ff5;
+  --chart-3: #266df0;
+  --chart-4: #245bc2;
+  --chart-5: #1a2233;
   --radius: 0.625rem;
-  --sidebar: oklch(0.99 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: #fafafb;
+  --sidebar-foreground: #1c1d1f;
   --sidebar-primary: #266df0;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #1c1d1f;
+  --sidebar-border: #e4e7ec;
   --sidebar-ring: #266df0;
   --shadow-primary:
     0px 0px 0px 0.5px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06),
@@ -50,36 +58,36 @@
 
 .web3-dashboard.dark,
 .dark .web3-dashboard {
-  --background: oklch(0.115 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: #101010;
+  --foreground: #fafafb;
+  --card: #202124;
+  --card-foreground: #fafafb;
+  --popover: #232529;
+  --popover-foreground: #fafafb;
   --primary: #538bf3;
   --primary-foreground: #ffffff;
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.215 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --secondary: #2e3238;
+  --secondary-foreground: #fafafb;
+  --muted: #232529;
+  --muted-foreground: #8f99a8;
+  --accent: #2e3238;
+  --accent-foreground: #fafafb;
+  --destructive: #ff5b59;
+  --border: #2e3238;
+  --input: #383e47;
   --ring: #538bf3;
-  --chart-1: oklch(0.897 0.196 126.665);
-  --chart-2: oklch(0.768 0.233 130.85);
-  --chart-3: oklch(0.648 0.2 131.684);
-  --chart-4: oklch(0.532 0.157 131.589);
-  --chart-5: oklch(0.453 0.124 130.933);
-  --sidebar: oklch(0.135 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
+  --chart-1: #94b9ff;
+  --chart-2: #709ff5;
+  --chart-3: #538bf3;
+  --chart-4: #266df0;
+  --chart-5: #245bc2;
+  --sidebar: #1c1d1f;
+  --sidebar-foreground: #fafafb;
   --sidebar-primary: #538bf3;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-accent: #232529;
+  --sidebar-accent-foreground: #fafafb;
+  --sidebar-border: #2e3238;
   --sidebar-ring: #538bf3;
   --shadow-primary:
     0px 0px 0px 1px rgba(255, 255, 255, 0.06),

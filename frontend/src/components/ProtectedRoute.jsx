@@ -10,11 +10,11 @@ export default function ProtectedRoute({ children }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-paper-300 dark:bg-ink-50 flex-col gap-4">
-        <div className="w-12 h-12 bg-brand-600 rounded-card flex items-center justify-center shadow-raised">
+        <div className="w-12 h-12 bg-brand-500 rounded-card flex items-center justify-center shadow-raised">
           <span className="material-symbols-outlined text-white text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>graphic_eq</span>
         </div>
         <Spinner size={28} className="text-brand-500" />
-        <p className="text-sm text-ink-700 dark:text-ink-900">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
   }

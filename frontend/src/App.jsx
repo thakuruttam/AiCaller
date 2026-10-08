@@ -28,6 +28,7 @@ import Usage from './pages/Usage';
 import Notifications from './pages/Notifications';
 import Web3Dashboard from './pages/web3-dashboard';
 import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import { NotificationProvider } from './context/NotificationContext';
 import NotificationDropdown from './components/NotificationDropdown';
 import {
@@ -54,16 +55,16 @@ function BalanceWidget() {
   const isLow = balance.minuteBalance <= 30;
   const isDepleted = balance.minuteBalance === 0;
 
-  const borderColor = isDepleted ? 'border-negative/40' : isLow ? 'border-caution/40' : 'border-paper-500 dark:border-ink-400';
+  const borderColor = isDepleted ? 'border-negative/25' : isLow ? 'border-caution/25' : 'border-paper-500 dark:border-ink-400';
   const bgColor     = isDepleted ? 'bg-negative/10'          : isLow ? 'bg-caution/10'          : 'bg-paper-200 dark:bg-ink-300/60';
-  const numColor    = isDepleted ? 'text-negative-dim'        : isLow ? 'text-caution-dim'        : 'text-ink-100 dark:text-white';
+  const numColor    = isDepleted ? 'text-negative-dim'        : isLow ? 'text-caution-dim'        : 'text-foreground';
 
   return (
     <div className={`mx-3 mb-2 rounded-control border overflow-hidden ${bgColor} ${borderColor}`}>
       {/* Balance row → goes to /billing */}
       <NavLink to="/billing" className="block px-3 pt-2.5 pb-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] font-medium text-ink-700 dark:text-ink-800">Balance</span>
+          <span className="text-[11px] font-medium text-muted-foreground">Balance</span>
           {isDepleted && <span className="text-[10px] font-bold text-negative-dim dark:text-negative">TOP UP</span>}
           {isLow && !isDepleted && <span className="text-[10px] font-bold text-caution-dim dark:text-caution">LOW</span>}
         </div>
@@ -71,7 +72,7 @@ function BalanceWidget() {
           <span className={`text-lg font-bold leading-none ${numColor}`}>
             {balance.minuteBalance.toLocaleString('en-IN')}
           </span>
-          <span className="text-xs text-ink-700 dark:text-ink-800 mb-0.5">min</span>
+          <span className="text-xs text-muted-foreground mb-0.5">min</span>
         </div>
       </NavLink>
 
@@ -80,8 +81,8 @@ function BalanceWidget() {
         to="/usage"
         className="flex items-center justify-between px-3 py-1.5 border-t border-paper-500 dark:border-ink-400 hover:bg-paper-300 dark:hover:bg-white/5 transition-colors"
       >
-        <span className="text-[11px] font-medium text-ink-700 dark:text-ink-800">Usage</span>
-        <span className="material-symbols-outlined [--icon-size:14px] text-ink-800">arrow_forward</span>
+        <span className="text-[11px] font-medium text-muted-foreground">Usage</span>
+        <span className="material-symbols-outlined [--icon-size:14px] text-muted-foreground">arrow_forward</span>
       </NavLink>
     </div>
   );
@@ -118,17 +119,17 @@ function AppLayout() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/create-campaign" element={
-                <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-ink-600 dark:text-ink-900 text-sm">You don't have permission to create campaigns.</div>}>
+                <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">You don't have permission to create campaigns.</div>}>
                   <CampaignWizard />
                 </RoleGate>
               } />
               <Route path="/edit-campaign/:id" element={
-                <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-ink-600 dark:text-ink-900 text-sm">You don't have permission to edit campaigns.</div>}>
+                <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">You don't have permission to edit campaigns.</div>}>
                   <CampaignWizard />
                 </RoleGate>
               } />
               <Route path="/admin" element={
-                <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-ink-600 dark:text-ink-900 text-sm">You don't have permission to access the admin panel.</div>}>
+                <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">You don't have permission to access the admin panel.</div>}>
                   <AdminDashboard />
                 </RoleGate>
               } />
@@ -184,24 +185,26 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <ToastProvider>
-          <AuthProvider>
-            <NotificationProvider>
-              <Routes>
-                <Route path="/login" element={<ThemeScope><Login /></ThemeScope>} />
-                <Route path="/auth/callback" element={<ThemeScope><AuthCallback /></ThemeScope>} />
-                <Route path="/share/:token" element={<ThemeScope><ShareView /></ThemeScope>} />
-                <Route path="/share/:token/calls/:callLogId" element={<ThemeScope><SharedCallReport /></ThemeScope>} />
-                <Route path="/invite/:token" element={<ThemeScope><InviteAccept /></ThemeScope>} />
-                <Route path="/dashboard/web3-dashboard" element={<Web3Dashboard />} />
-                <Route path="/" element={<RootRoute />} />
-                <Route path="/*" element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                } />
-              </Routes>
-            </NotificationProvider>
-          </AuthProvider>
+          <ConfirmProvider>
+            <AuthProvider>
+              <NotificationProvider>
+                <Routes>
+                  <Route path="/login" element={<ThemeScope><Login /></ThemeScope>} />
+                  <Route path="/auth/callback" element={<ThemeScope><AuthCallback /></ThemeScope>} />
+                  <Route path="/share/:token" element={<ThemeScope><ShareView /></ThemeScope>} />
+                  <Route path="/share/:token/calls/:callLogId" element={<ThemeScope><SharedCallReport /></ThemeScope>} />
+                  <Route path="/invite/:token" element={<ThemeScope><InviteAccept /></ThemeScope>} />
+                  <Route path="/dashboard/web3-dashboard" element={<Web3Dashboard />} />
+                  <Route path="/" element={<RootRoute />} />
+                  <Route path="/*" element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  } />
+                </Routes>
+              </NotificationProvider>
+            </AuthProvider>
+          </ConfirmProvider>
         </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>
