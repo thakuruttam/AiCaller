@@ -458,20 +458,28 @@ const Dashboard = () => {
                 const typeMeta = campaignTypeMeta(c.type);
                 const TypeIcon = typeMeta.icon;
                 const rowOpen = openMenuId === c.id;
+                // Every cell carries its own hover/open background rather than
+                // relying on the row's bg bleeding through — the vendored
+                // TableRow component ships its own hard-coded hover:bg-muted/50
+                // that Tailwind's class-merge doesn't know conflicts with our
+                // custom paper-200 color (it's not in twMerge's built-in
+                // palette), so the row's own background silently lost that
+                // fight. Keeping every cell self-sufficient sidesteps it.
+                const cellHoverCls = `group-hover:bg-paper-200 transition-colors ${rowOpen ? 'bg-paper-200!' : ''}`;
                 return (
                 <TableRow
                   key={c.id}
                   ref={i === 0 ? firstRowRef : undefined}
                   onClick={() => navigate(`/campaigns/${c.id}/report`)}
-                  className={`group cursor-pointer whitespace-normal hover:bg-paper-200 dark:hover:bg-ink-300/60 ${rowOpen ? 'bg-paper-200 dark:bg-ink-300/60' : ''}`}
+                  className="group cursor-pointer whitespace-normal"
                 >
-                  <TableCell className={`sticky left-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors px-6 py-5 ${rowOpen ? 'bg-paper-200! dark:bg-ink-300/60!' : ''}`}>
+                  <TableCell className={`sticky left-0 z-10 bg-card px-6 py-5 ${cellHoverCls}`}>
                     <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${typeMeta.tone}`}>
                       <TypeIcon className="size-4" />
                       {typeMeta.label}
                     </span>
                   </TableCell>
-                  <TableCell className="px-5 py-5">
+                  <TableCell className={`px-5 py-5 ${cellHoverCls}`}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="flex flex-col min-w-0">
@@ -486,12 +494,12 @@ const Dashboard = () => {
                       <TooltipContent side="bottom">{c.name}</TooltipContent>
                     </Tooltip>
                   </TableCell>
-                  <TableCell className="px-5 py-5">
+                  <TableCell className={`px-5 py-5 ${cellHoverCls}`}>
                     <span className={`text-sm font-medium capitalize ${CAMPAIGN_STATUS_TEXT[campaignStatus(c)]}`}>
                       {campaignStatus(c)}
                     </span>
                   </TableCell>
-                  <TableCell className="px-5 py-5">
+                  <TableCell className={`px-5 py-5 ${cellHoverCls}`}>
                     {c.createdBy?.name ? (
                       <span className="text-sm text-ink-600 dark:text-ink-900 truncate max-w-[120px]">
                         {c.createdBy.name}
@@ -500,12 +508,12 @@ const Dashboard = () => {
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="px-5 py-5">
+                  <TableCell className={`px-5 py-5 ${cellHoverCls}`}>
                     <CampaignCostInsight campaign={c} />
                   </TableCell>
                   <TableCell
                     align="right"
-                    className={`sticky right-0 z-10 bg-card dark:bg-muted group-hover:bg-paper-200 dark:group-hover:bg-ink-300/60 transition-colors text-right px-6 py-5 ${rowOpen ? 'bg-paper-200! dark:bg-ink-300/60!' : ''}`}
+                    className={`sticky right-0 z-10 bg-card text-right px-6 py-5 ${cellHoverCls}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-end">
