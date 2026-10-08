@@ -1,24 +1,26 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Megaphone, Plus, Search } from "lucide-react";
+import { Megaphone, Plus, Search } from "lucide-react";
 
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { SidebarTrigger } from "../../ui/sidebar";
-import { ThemeToggle } from "../../ui/theme-toggle";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "../../ui/dropdown-menu";
 import { useAuth } from "../../../../context/AuthContext";
 import { useToast } from "../../../../context/ToastContext";
 import api from "../../../../api/axios";
 
-function WorkspacePicker() {
+// Tucked inside the account dropdown (as a submenu) rather than its own
+// persistent sidebar row — switching workspace is rare enough that it
+// shouldn't be something every page load puts in front of you.
+export function WorkspaceSwitcherMenu() {
   const { user, workspaces, switchWorkspace, refreshWorkspaces } = useAuth();
   const { addToast } = useToast();
   const [switching, setSwitching] = React.useState(null);
@@ -59,22 +61,15 @@ function WorkspacePicker() {
 
   if (!current && user?.role !== "SUPER_ADMIN") return null;
 
-  const initials = current?.name?.charAt(0)?.toUpperCase() || "?";
-
   return (
-    <DropdownMenu onOpenChange={(open) => { if (!open) setShowCreate(false); }}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="bg-muted h-9 w-[190px] justify-between gap-2 shrink-0">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
-              {initials}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-left">{current?.name || "No workspace"}</span>
-          </span>
-          <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64" align="start">
+    <DropdownMenuSub onOpenChange={(open) => { if (!open) setShowCreate(false); }}>
+      <DropdownMenuSubTrigger>
+        <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+          {current?.name?.charAt(0)?.toUpperCase() || "?"}
+        </span>
+        <span className="min-w-0 flex-1 truncate">{current?.name || "Switch workspace"}</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-64">
         <DropdownMenuLabel>{current?.name || "Workspace"}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {workspaces.filter((w) => w.id !== user?.workspaceId).map((w) => (
@@ -106,8 +101,8 @@ function WorkspacePicker() {
             New workspace
           </DropdownMenuItem>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 }
 
@@ -129,8 +124,6 @@ export function DashboardTopbar() {
       </div>
 
       <div className="hidden items-center gap-2 md:flex">
-        <WorkspacePicker />
-        <ThemeToggle />
         <Button
           className="h-9 px-5 shadow-[inset_0_1px_6px_2px_rgba(255,255,255,0.1),inset_0_-1px_6px_2px_rgba(0,0,0,0.1)]"
           onClick={() => navigate("/create-campaign")}

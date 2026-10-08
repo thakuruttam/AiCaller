@@ -10,8 +10,8 @@ import CampaignTypeLabel from '../components/CampaignTypeLabel';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useToast } from '../context/ToastContext';
 import {
-  Button, IconButton, StatusBadge, Input, Pagination,
-  Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow,
+  Button, IconButton, Input, Pagination,
+  Table, THead, TBody, Th, Tr, Td, CellStack, TableToolbar, SkeletonRow,
   FilterBar, ColumnToggle, statusLabel,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
@@ -30,13 +30,7 @@ import {
   TooltipContent,
 } from '../pages/web3-dashboard/ui/tooltip';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '../pages/web3-dashboard/ui/dropdown-menu';
-import {
-  PhoneCall, CheckCircle2, TrendingUp, Wallet, FolderSearch, MoreVertical,
+  PhoneCall, CheckCircle2, TrendingUp, Wallet, FolderSearch, Eye, Pencil, Copy,
 } from 'lucide-react';
 import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
 
@@ -55,15 +49,17 @@ const STICKY_HEAD =
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'no-answer', 'busy', 'cancelled']);
 
-// Deterministic accent per campaign/person — same idea as the KPI cards'
-// colored icon badges, gives each row a visual anchor instead of a wall of
-// plain text.
-const AVATAR_TONES = ['bg-sky-400', 'bg-emerald-400', 'bg-orange-400', 'bg-purple-400', 'bg-pink-400', 'bg-indigo-400'];
-function avatarTone(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_TONES[hash % AVATAR_TONES.length];
-}
+// Status reads as plain colored text (no pill). Bespoke to campaignStatus()'s
+// own 4-state vocabulary below rather than the shared app-wide tone map —
+// that map collapses 'active' and 'completed' to the same green "positive"
+// tone, which reads as identical colors here. "In progress" and "done" need
+// to look different at a glance, so active gets its own brand-blue.
+const CAMPAIGN_STATUS_TEXT = {
+  draft: 'text-ink-700 dark:text-ink-800',
+  queued: 'text-ink-700 dark:text-ink-800',
+  active: 'text-brand-500',
+  completed: 'text-positive',
+};
 
 // Latest call log per contact — shared by the progress bar and the status
 // derivation below, since Campaign has no native status field in the schema.
@@ -480,8 +476,8 @@ const Dashboard = () => {
               <Th {...sortProps('name')} className="w-[30%]">Campaign</Th>
               {show('status') && <Th {...sortProps('status')} className="w-[12%]">Status</Th>}
               {show('owner') && <Th {...sortProps('owner')} className="w-[18%]">Created by</Th>}
-              {show('progress') && <Th {...sortProps('progress')} className="w-[18%]">Progress</Th>}
-              <Th align="right" className={`${STICKY_HEAD} right-0 z-20 w-[10%]`}><span className="sr-only">Actions</span></Th>
+              {show('progress') && <Th {...sortProps('progress')} className="w-[16%]">Progress</Th>}
+              <Th align="right" className={`${STICKY_HEAD} right-0 z-20 w-[12%]`}><span className="sr-only">Actions</span></Th>
             </THead>
             <TBody>
               {loading && Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={columns.visibleCount + 2} />)}
@@ -512,25 +508,14 @@ const Dashboard = () => {
                   </Td>
                   {show('status') && (
                     <Td>
-                      <StatusBadge status={campaignStatus(c)} />
+                      <span className={`text-sm font-medium first-letter:uppercase inline-block ${CAMPAIGN_STATUS_TEXT[campaignStatus(c)]}`}>
+                        {statusLabel(campaignStatus(c))}
+                      </span>
                     </Td>
                   )}
                   {show('owner') && <Td muted>
                     {c.createdBy?.name ? (
-                      <div className="flex items-center gap-2 min-w-0">
-                        {c.createdBy.avatarUrl ? (
-                          <img
-                            src={c.createdBy.avatarUrl}
-                            alt=""
-                            className="size-6 shrink-0 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-black ${avatarTone(c.createdBy.name)}`}>
-                            {c.createdBy.name.charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                        <span className="truncate">{c.createdBy.name}</span>
-                      </div>
+                      <span className="block truncate">{c.createdBy.name}</span>
                     ) : '—'}
                   </Td>}
                   {show('progress') && (
@@ -543,40 +528,27 @@ const Dashboard = () => {
                     className={`${STICKY} ${STICKY_HOVER} right-0 z-10`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <RowActions>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <IconButton size="sm" title="Actions">
-                            <MoreVertical className="size-4" />
-                          </IconButton>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openViewModal(c.id)}
-                            disabled={loadingCampaignId === c.id}
-                          >
-                            {loadingCampaignId === c.id ? <Spinner size={14} /> : null}
-                            Quick view
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}/report`)}>
-                            Report
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}`)}>
-                            Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/edit-campaign/${c.id}`)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleClone(c.id)}
-                            disabled={cloningId === c.id}
-                          >
-                            {cloningId === c.id ? <Spinner size={14} /> : null}
-                            Clone
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </RowActions>
+                    <div className="flex items-center justify-end gap-1">
+                      <IconButton
+                        size="sm"
+                        title="Quick view"
+                        onClick={() => openViewModal(c.id)}
+                        disabled={loadingCampaignId === c.id}
+                      >
+                        {loadingCampaignId === c.id ? <Spinner size={14} /> : <Eye className="size-4" />}
+                      </IconButton>
+                      <IconButton size="sm" title="Edit" onClick={() => navigate(`/edit-campaign/${c.id}`)}>
+                        <Pencil className="size-4" />
+                      </IconButton>
+                      <IconButton
+                        size="sm"
+                        title="Clone"
+                        onClick={() => handleClone(c.id)}
+                        disabled={cloningId === c.id}
+                      >
+                        {cloningId === c.id ? <Spinner size={14} /> : <Copy className="size-4" />}
+                      </IconButton>
+                    </div>
                   </Td>
                 </Tr>
                 );
