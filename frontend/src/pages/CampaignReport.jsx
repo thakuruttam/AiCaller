@@ -11,7 +11,6 @@ import axios from 'axios';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import PageLoader from '../components/PageLoader';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import { EVAL_BASE } from '../api/config';
 
 const SENTIMENT_ICON = {
@@ -296,6 +295,13 @@ export default function CampaignReport() {
     ? Math.round(((progress.completed + progress.failed) / progress.total) * 100)
     : 0;
 
+  const paginated = filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  /* ── Question-view derived data ── */
+  const qContacts = filteredContacts; // question view uses same search filter
+  const qPaginated = qContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const qTotalPages = Math.max(1, Math.ceil(qContacts.length / PER_PAGE));
+
   return (
     <div className="page-gutter pt-3 pb-7 animate-fade-in space-y-8">
       {/* Page Header */}
@@ -399,16 +405,7 @@ export default function CampaignReport() {
       </section>
 
       {/* Results Section — By Contact / By Question */}
-      <FullscreenTable className="flex flex-col gap-4">
-      {({ toggle, isFs }) => {
-        const paginated = isFs ? filteredContacts : filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-        /* ── Question-view derived data ── */
-        const qContacts = filteredContacts; // question view uses same search filter
-        const qPaginated = isFs ? qContacts : qContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-        const qTotalPages = Math.max(1, Math.ceil(qContacts.length / PER_PAGE));
-
-        return (<>
+      <div className="flex flex-col gap-4">
         {/* Section header with view toggle */}
         <section className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
           <TableToolbar
@@ -422,7 +419,6 @@ export default function CampaignReport() {
                   <Button variant="secondary" size="sm" icon="table_view" onClick={() => downloadQuestionView('excel')} title="Download as Excel">Excel</Button>
                 </>
               )}
-              <FullscreenButton toggle={toggle} isFs={isFs} />
             </>}
           >
             <Tabs
@@ -579,7 +575,7 @@ export default function CampaignReport() {
             page={page}
             totalPages={totalPages}
             totalRows={filteredContacts.length}
-            pageSize={isFs ? 0 : PER_PAGE}
+            pageSize={PER_PAGE}
             onPageChange={setPage}
             label="evaluated calls"
           />
@@ -667,7 +663,7 @@ export default function CampaignReport() {
             page={page}
             totalPages={qTotalPages}
             totalRows={qContacts.length}
-            pageSize={isFs ? 0 : PER_PAGE}
+            pageSize={PER_PAGE}
             onPageChange={setPage}
             label="contacts"
           />
@@ -679,9 +675,7 @@ export default function CampaignReport() {
             Select at least one question above to see the breakdown.
           </div>
         )}
-        </>);
-      }}
-      </FullscreenTable>
+      </div>
 
       {showShare && <ShareModal campaignId={id} onClose={() => setShowShare(false)} />}
     </div>

@@ -14,7 +14,6 @@ import SandboxAgent from './CampaignWizard/components/SandboxAgent.jsx';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import { useToast } from '../context/ToastContext';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 function ShareModal({ campaignId, onClose }) {
   const [days, setDays] = useState(7);
@@ -180,6 +179,8 @@ export default function CampaignDetails() {
     { header: 'Duration (s)', value: ({ log }) => (log?.durationMs ? Math.round(log.durationMs / 1000) : null) },
   ], sortedRows);
 
+  const paginated = sortedRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
+
   return (
     <Page>
       {/* Breadcrumb */}
@@ -234,16 +235,12 @@ export default function CampaignDetails() {
       </div>
 
       {/* Activity Table */}
-      <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
-        {({ toggle, isFs }) => {
-          const paginated = isFs ? sortedRows : sortedRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
-          return (<>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
         <TableToolbar
           title="Contact call status"
           count={sortedRows.length}
           actions={<>
             <IconButton tone="neutral" size="md" title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedRows.length} />
-            <FullscreenButton toggle={toggle} isFs={isFs} />
           </>}
         >
           <FilterBar filters={filters} />
@@ -347,14 +344,12 @@ export default function CampaignDetails() {
           page={page}
           totalPages={totalPages}
           totalRows={sortedRows.length}
-          pageSize={isFs ? 0 : PER_PAGE}
+          pageSize={PER_PAGE}
           onPageChange={setPage}
           label="contacts"
         />
 
-        </>);
-        }}
-      </FullscreenTable>
+      </div>
 
       <Modal isOpen={isSandboxOpen} onClose={() => setIsSandboxOpen(false)} title="AI Sandbox — Live Test" className="max-w-2xl w-full">
         <SandboxAgent campaign={campaign} />

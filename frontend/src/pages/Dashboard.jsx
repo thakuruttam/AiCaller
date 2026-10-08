@@ -2,7 +2,6 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import { Link, useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import DebouncedSearch from '../components/DebouncedSearch';
 import Modal from '../components/Modal';
 import Step7Review from './CampaignWizard/components/Step7Review';
@@ -284,6 +283,9 @@ const Dashboard = () => {
     { header: 'Contacts total', value: c => contactProgress(c).totalContacts },
   ], filteredCampaigns);
 
+  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PER_PAGE));
+  const paginated = filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
   return (
     <div className="bg-paper-300 dark:bg-ink-50 h-full page-gutter pb-7 animate-fade-in flex flex-col">
       {/* Everything below shares one gap-3 grid rhythm — same vertical gap
@@ -377,7 +379,7 @@ const Dashboard = () => {
       </div>
 
       {/* Genuinely zero campaigns (not just a search with no matches) — no
-          point showing table chrome (title bar, search, export, fullscreen)
+          point showing table chrome (title bar, search, filters, export)
           around nothing to search or export. Just the empty state. This
           whole block (either branch) is flex-1 so it stretches to the
           bottom of the page regardless of how many rows render. */}
@@ -407,11 +409,7 @@ const Dashboard = () => {
           with the Campaign column pinned left at a fixed width and Actions
           pinned right; every other free-text cell truncates with a tooltip
           for the full value. */
-      <FullscreenTable className="bg-card dark:bg-muted rounded-2xl ring-0 shadow-primary overflow-hidden flex-1 min-h-0 flex flex-col">
-        {({ toggle, isFs }) => {
-          const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PER_PAGE));
-          const paginated = isFs ? filteredCampaigns : filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-          return (<>
+      <div className="bg-card dark:bg-muted rounded-2xl ring-0 shadow-primary overflow-hidden flex-1 min-h-0 flex flex-col">
         <div ref={headerBarRef} className="shrink-0">
           <TableToolbar
             title="Active Campaigns"
@@ -419,7 +417,6 @@ const Dashboard = () => {
             actions={<>
               <ColumnToggle visibility={columns} />
               <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!filteredCampaigns.length} />
-              <FullscreenButton toggle={toggle} isFs={isFs} />
             </>}
           >
             <FilterBar filters={filters} />
@@ -558,7 +555,7 @@ const Dashboard = () => {
         )}
         </div>
 
-        {!isFs && filteredCampaigns.length > 0 && (
+        {filteredCampaigns.length > 0 && (
           <div ref={paginationRef} className="mt-auto shrink-0">
             <Pagination
               page={page}
@@ -571,9 +568,7 @@ const Dashboard = () => {
             />
           </div>
         )}
-        </>);
-        }}
-      </FullscreenTable>
+      </div>
       )}
       </div>
       </div>

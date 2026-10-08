@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import { Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, Badge, Button, IconButton, EmptyState, FilterBar } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
@@ -163,14 +162,12 @@ export default function ShareView() {
         </div>
 
         {/* Search + table */}
-        <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
-          {({ toggle, isFs }) => (<>
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
           <TableToolbar
             title="Calls"
             count={sorted.length}
             actions={<>
               <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sorted.length} />
-              <FullscreenButton toggle={toggle} isFs={isFs} />
             </>}
           >
             <FilterBar filters={filters} />
@@ -244,8 +241,7 @@ export default function ShareView() {
               </TBody>
             </Table>
           )}
-          </>)}
-        </FullscreenTable>
+        </div>
       </main>
     </div>
   );

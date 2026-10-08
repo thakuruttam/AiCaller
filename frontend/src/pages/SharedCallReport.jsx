@@ -3,7 +3,6 @@ import { Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar } from '../componen
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 function parseTranscript(raw) {
   if (!raw) return [];
@@ -234,12 +233,10 @@ export default function SharedCallReport() {
 
         {/* Evaluation Breakdown */}
         {questionResults.length > 0 && (
-          <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
-            {({ toggle, isFs }) => (<>
+          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
             <TableToolbar
               title="Evaluation breakdown"
               count={filteredQuestions.length}
-              actions={<FullscreenButton toggle={toggle} isFs={isFs} />}
             >
               <Tabs
                 size="sm"
@@ -303,8 +300,7 @@ export default function SharedCallReport() {
                 })}
               </TBody>
             </Table>
-            </>)}
-          </FullscreenTable>
+          </div>
         )}
       </main>
     </div>

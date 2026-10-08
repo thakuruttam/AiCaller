@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import DebouncedSearch from '../components/DebouncedSearch';
 import ToggleSwitch from '../components/ToggleSwitch';
 import Pagination from '../components/Pagination';
@@ -315,8 +314,6 @@ export default function MyTeam() {
       />
 
       {/* Table */}
-      <FullscreenTable className="bg-transparent">
-        {({ toggle, isFs }) => (
           <Card padded={false} className="overflow-hidden">
             <TableToolbar
               title="Members"
@@ -324,7 +321,6 @@ export default function MyTeam() {
               actions={<>
                 <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!filteredMembers.length} />
                 <IconButton title="Refresh" icon="refresh" onClick={loadMembers} />
-                <FullscreenButton toggle={toggle} isFs={isFs} />
               </>}
             >
               <FilterBar filters={filters} />
@@ -442,8 +438,6 @@ export default function MyTeam() {
               />
             </>)}
           </Card>
-        )}
-      </FullscreenTable>
 
       {isAdmin && (
         <div className="mt-6">

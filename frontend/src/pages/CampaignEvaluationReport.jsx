@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { BarChart3, TrendingUp, Target, Activity, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { EVAL_BASE } from '../api/config';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import {
   Button, Badge, toneForStatus, statusLabel,
   Table, THead, TBody, Th, Tr, Td,
@@ -75,8 +74,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
   const completionPercent = Math.round((parseFloat(report.completionRate) || 0) * 100);
 
   return (
-    <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
-      {({ toggle, isFs }) => (<>
+    <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
       <div className="border-b border-paper-500 dark:border-ink-400 px-6 py-4 flex items-center justify-between">
         <h3 className="font-semibold text-sm text-ink-100 dark:text-paper-200 flex items-center gap-2">
           <Activity size={16} className="text-brand-500" /> Evaluation Analytics
@@ -92,7 +90,6 @@ export default function CampaignEvaluationReport({ campaignId }) {
           >
             Download CSV
           </Button>
-          <FullscreenButton toggle={toggle} isFs={isFs} />
         </div>
       </div>
 
@@ -199,7 +196,6 @@ export default function CampaignEvaluationReport({ campaignId }) {
           </div>
         </div>
       )}
-      </>)}
-    </FullscreenTable>
+    </div>
   );
 }

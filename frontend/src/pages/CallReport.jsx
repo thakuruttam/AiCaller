@@ -7,7 +7,6 @@ import axios from 'axios';
 import { GripVertical } from 'lucide-react';
 import { EVAL_BASE } from '../api/config';
 import PageLoader from '../components/PageLoader';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 
 const OUTCOME_BADGE = {
   COMPLETED:    'bg-positive/10 text-positive-dim dark:bg-positive/15 dark:text-positive',
@@ -272,8 +271,7 @@ export default function CallReport() {
         {/* Evaluation Breakdown Table */}
         {(scoreBreakdown.length > 0 || hasExtracted) && (
           <div className="col-span-12">
-            <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden h-full">
-              {({ toggle, isFs }) => (<>
+            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden h-full">
               <TableToolbar
                 title="Evaluation breakdown"
                 actions={<>
@@ -288,7 +286,6 @@ export default function CallReport() {
                       { value: 'failed', label: 'Failed' },
                     ]}
                   />
-                  <FullscreenButton toggle={toggle} isFs={isFs} />
                 </>}
               />
                 <Table className="table-fixed" style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
@@ -481,8 +478,7 @@ export default function CallReport() {
                   </div>
                 </div>
               )}
-              </>)}
-            </FullscreenTable>
+            </div>
           </div>
         )}
 

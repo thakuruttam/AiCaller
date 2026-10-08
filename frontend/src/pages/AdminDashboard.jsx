@@ -6,7 +6,6 @@ import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
-import FullscreenTable, { FullscreenButton } from '../components/FullscreenTable';
 import Step7Review from './CampaignWizard/components/Step7Review';
 import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar } from '../components/ui';
 import { campaignTypeLabel } from '../components/campaignTypes';
@@ -327,8 +326,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Campaign Table */}
-      <FullscreenTable className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-6">
-        {({ toggle, isFs }) => (<>
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-6">
         <TableToolbar
           title="All Campaigns"
           count={loading ? null : filtered.length}
@@ -336,7 +334,6 @@ export default function AdminDashboard() {
             <Badge tone="positive" capitalize={false}>{totalActive} Active</Badge>
             <Badge tone="caution" capitalize={false}>{totalPaused} Paused</Badge>
             <IconButton title="Export CSV" icon="download" onClick={handleExportCampaigns} disabled={!filtered.length} />
-            <FullscreenButton toggle={toggle} isFs={isFs} />
           </>}
         >
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -521,8 +518,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
-        </>)}
-      </FullscreenTable>
+      </div>
 
 
       {/* Re-run confirm modal */}
