@@ -22,12 +22,6 @@ import {
   TooltipContent,
 } from '../pages/web3-dashboard/ui/tooltip';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '../pages/web3-dashboard/ui/dropdown-menu';
-import {
   Table,
   TableHeader,
   TableBody,
@@ -36,8 +30,8 @@ import {
   TableCell,
 } from '../pages/web3-dashboard/ui/table';
 import {
-  PhoneCall, CheckCircle2, TrendingUp, Wallet, FolderSearch, MoreVertical,
-  Users, UserPlus, Banknote, MessageSquare, Briefcase,
+  PhoneCall, CheckCircle2, TrendingUp, Wallet, FolderSearch,
+  Users, UserPlus, Banknote, MessageSquare, Briefcase, Eye, Pencil, Copy,
 } from 'lucide-react';
 import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
 
@@ -125,7 +119,6 @@ const Dashboard = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [loadingCampaignId, setLoadingCampaignId] = useState(null);
   const [cloningId, setCloningId] = useState(null);
-  const [openMenuId, setOpenMenuId] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(6);
   const headerBarRef = useRef(null);
@@ -457,15 +450,14 @@ const Dashboard = () => {
               {!loading && paginated.map((c, i) => {
                 const typeMeta = campaignTypeMeta(c.type);
                 const TypeIcon = typeMeta.icon;
-                const rowOpen = openMenuId === c.id;
-                // Every cell carries its own hover/open background rather than
+                // Every cell carries its own hover background rather than
                 // relying on the row's bg bleeding through — the vendored
                 // TableRow component ships its own hard-coded hover:bg-muted/50
                 // that Tailwind's class-merge doesn't know conflicts with our
                 // custom paper-200 color (it's not in twMerge's built-in
                 // palette), so the row's own background silently lost that
                 // fight. Keeping every cell self-sufficient sidesteps it.
-                const cellHoverCls = `group-hover:bg-paper-200 transition-colors ${rowOpen ? 'bg-paper-200!' : ''}`;
+                const cellHoverCls = 'group-hover:bg-paper-200 transition-colors';
                 return (
                 <TableRow
                   key={c.id}
@@ -516,39 +508,24 @@ const Dashboard = () => {
                     className={`sticky right-0 z-10 bg-card text-right px-6 py-5 ${cellHoverCls}`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex justify-end">
-                      <DropdownMenu onOpenChange={(open) => setOpenMenuId(open ? c.id : null)}>
-                        <DropdownMenuTrigger asChild>
-                          <IconButton title="Actions">
-                            <MoreVertical className="size-4" />
-                          </IconButton>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openViewModal(c.id)}
-                            disabled={loadingCampaignId === c.id}
-                          >
-                            {loadingCampaignId === c.id ? <Spinner size={14} /> : null}
-                            Quick view
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}/report`)}>
-                            Report
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/campaigns/${c.id}`)}>
-                            Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/edit-campaign/${c.id}`)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleClone(c.id)}
-                            disabled={cloningId === c.id}
-                          >
-                            {cloningId === c.id ? <Spinner size={14} /> : null}
-                            Clone
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    <div className="flex justify-end gap-1">
+                      <IconButton
+                        title="Quick view"
+                        onClick={() => openViewModal(c.id)}
+                        disabled={loadingCampaignId === c.id}
+                      >
+                        {loadingCampaignId === c.id ? <Spinner size={14} /> : <Eye className="size-4" />}
+                      </IconButton>
+                      <IconButton title="Edit" onClick={() => navigate(`/edit-campaign/${c.id}`)}>
+                        <Pencil className="size-4" />
+                      </IconButton>
+                      <IconButton
+                        title="Clone"
+                        onClick={() => handleClone(c.id)}
+                        disabled={cloningId === c.id}
+                      >
+                        {cloningId === c.id ? <Spinner size={14} /> : <Copy className="size-4" />}
+                      </IconButton>
                     </div>
                   </TableCell>
                 </TableRow>
