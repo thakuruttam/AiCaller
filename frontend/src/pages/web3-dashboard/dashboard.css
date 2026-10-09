@@ -14,7 +14,7 @@
   --card-foreground: #1c1d1f;
   --popover: #ffffff;
   --popover-foreground: #1c1d1f;
-  --primary: #266df0;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
   --secondary: #f3f4f6;
   --secondary-foreground: #1c1d1f;
@@ -25,21 +25,21 @@
   --destructive: #f65351;
   --border: #e4e7ec;
   --input: #e4e7ec;
-  --ring: #266df0;
-  --chart-1: #94b9ff;
-  --chart-2: #709ff5;
-  --chart-3: #266df0;
-  --chart-4: #245bc2;
+  --ring: #2563eb;
+  --chart-1: #93c5fd;
+  --chart-2: #60a5fa;
+  --chart-3: #2563eb;
+  --chart-4: #1d4ed8;
   --chart-5: #1a2233;
   --radius: 0.625rem;
   --sidebar: #fafafb;
   --sidebar-foreground: #1c1d1f;
-  --sidebar-primary: #266df0;
+  --sidebar-primary: #2563eb;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f3f4f6;
   --sidebar-accent-foreground: #1c1d1f;
   --sidebar-border: #e4e7ec;
-  --sidebar-ring: #266df0;
+  --sidebar-ring: #2563eb;
   --shadow-primary:
     0px 0px 0px 0.5px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06),
     0px 2px 4px 0px rgba(0, 0, 0, 0.04),
@@ -64,7 +64,7 @@
   --card-foreground: #fafafb;
   --popover: #232529;
   --popover-foreground: #fafafb;
-  --primary: #538bf3;
+  --primary: #3b82f6;
   --primary-foreground: #ffffff;
   --secondary: #2e3238;
   --secondary-foreground: #fafafb;
@@ -75,20 +75,20 @@
   --destructive: #ff5b59;
   --border: #2e3238;
   --input: #383e47;
-  --ring: #538bf3;
-  --chart-1: #94b9ff;
-  --chart-2: #709ff5;
-  --chart-3: #538bf3;
-  --chart-4: #266df0;
-  --chart-5: #245bc2;
+  --ring: #3b82f6;
+  --chart-1: #93c5fd;
+  --chart-2: #60a5fa;
+  --chart-3: #3b82f6;
+  --chart-4: #2563eb;
+  --chart-5: #1d4ed8;
   --sidebar: #1c1d1f;
   --sidebar-foreground: #fafafb;
-  --sidebar-primary: #538bf3;
+  --sidebar-primary: #3b82f6;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #232529;
   --sidebar-accent-foreground: #fafafb;
   --sidebar-border: #2e3238;
-  --sidebar-ring: #538bf3;
+  --sidebar-ring: #3b82f6;
   --shadow-primary:
     0px 0px 0px 1px rgba(255, 255, 255, 0.06),
     0px 1px 2px -1px rgba(0, 0, 0, 0.5), 0px 2px 4px 0px rgba(0, 0, 0, 0.5),

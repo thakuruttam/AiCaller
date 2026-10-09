@@ -75,8 +75,8 @@ describe('design system', () => {
     ])).toEqual([]);
   });
 
-  it('uses the one brand gradient (primary actions, hero surfaces) and flat tints otherwise', () => {
-    expect(violations(/bg-gradient-to-(?!br from-brand-450 to-brand-800)/)).toEqual([]);
+  it('uses flat fills only — no gradients', () => {
+    expect(violations(/bg-gradient-to-|(?<!\[background-image:)linear-gradient\(/)).toEqual([]);
   });
 
   it('opens dialogs through the shared Modal and confirm dialog', () => {

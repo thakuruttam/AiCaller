@@ -6,6 +6,7 @@ import {
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import PageLoader from '../components/PageLoader';
@@ -28,13 +29,11 @@ export default function CampaignReport() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [progress, setProgress] = useState(null);
-  const [page, setPage] = useState(1);
   const [showShare, setShowShare] = useState(false);
   const [viewMode, setViewMode] = useState('contact');
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [cellDisplay, setCellDisplay] = useState('both'); // 'text' | 'score' | 'both'
   const questionInitRef = useRef(false);
-  const PER_PAGE = 10;
 
   const allQuestions = useMemo(() => {
     const qSet = new Set();
@@ -173,6 +172,8 @@ export default function CampaignReport() {
     sentiment: c => c.sentiment,
     score: c => (c.score != null ? Number(c.score) : null),
   });
+  // Both views page through the same filtered list, so they share one pager.
+  const { paginated, setPage, paginationProps } = usePagination(filteredContacts);
 
   if (loading) return <PageLoader text="Loading campaign report…" />;
 
@@ -204,8 +205,6 @@ export default function CampaignReport() {
   const neuCount = sentiment.neutral || 0;
   const negCount = sentiment.negative || 0;
 
-  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PER_PAGE));
-
   const handleExportContacts = () => exportCsv(`campaign-${id}-contacts-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Contact', value: c => c.contactName || 'Unknown' },
     { header: 'Phone', value: c => c.contactPhone },
@@ -217,13 +216,6 @@ export default function CampaignReport() {
   const progressPct = progress && progress.total > 0
     ? Math.round(((progress.completed + progress.failed) / progress.total) * 100)
     : 0;
-
-  const paginated = filteredContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-  /* ── Question-view derived data ── */
-  const qContacts = filteredContacts; // question view uses same search filter
-  const qPaginated = qContacts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  const qTotalPages = Math.max(1, Math.ceil(qContacts.length / PER_PAGE));
 
   return (
     <Page className="space-y-7">
@@ -427,14 +419,7 @@ export default function CampaignReport() {
                 )}
             </TBody>
           </Table>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            totalRows={filteredContacts.length}
-            pageSize={PER_PAGE}
-            onPageChange={setPage}
-            label="evaluated calls"
-          />
+          <Pagination {...paginationProps} label="evaluated calls" />
         </Card>
         )}
 
@@ -464,7 +449,7 @@ export default function CampaignReport() {
                   })}
             </THead>
             <TBody>
-                {qPaginated.map(c => (
+                {paginated.map(c => (
                   <Tr key={c.callLogId}>
                     <Td className="sticky left-0 z-10 bg-card dark:bg-muted group-hover/row:bg-paper-200 transition-colors">
                       <CellStack title={c.contactName || 'Unknown'} meta={c.contactPhone || '—'} />
@@ -501,7 +486,7 @@ export default function CampaignReport() {
                     })}
                   </Tr>
                 ))}
-                {qContacts.length === 0 && (
+                {filteredContacts.length === 0 && (
                   <tr>
                     <td colSpan={selectedQuestions.length + 1}>
                       {isFiltered ? (
@@ -519,14 +504,7 @@ export default function CampaignReport() {
                 )}
             </TBody>
           </Table>
-          <Pagination
-            page={page}
-            totalPages={qTotalPages}
-            totalRows={qContacts.length}
-            pageSize={PER_PAGE}
-            onPageChange={setPage}
-            label="contacts"
-          />
+          <Pagination {...paginationProps} label="contacts" />
         </Card>
         )}
 

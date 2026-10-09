@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Button, IconButton, SelectableCard, Field, Input, WordLimitTextarea } from '../../../components/ui';
-import { Lightbulb, PhoneIncoming, PhoneOff, Timer, Mic, Play, Square, Loader2 } from 'lucide-react';
+import { Lightbulb, PhoneIncoming, PhoneOff, Timer, Mic, Play, Square } from 'lucide-react';
 import api from '../../../api/axios';
+import { Button, IconButton, SelectableCard, Field, Input, WordLimitTextarea, WaveLoader } from '../../../components/ui';
 
 // Gemini Live's full prebuilt voice set — all 30, per Google's docs (kept in
 // sync manually with api-service/src/controllers/campaign.controller.js's
@@ -263,7 +263,7 @@ export default function Step1Basics({ payload, updatePayload }) {
                   className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-brand-500 hover:bg-brand-500/10 cursor-pointer"
                   title={`Preview ${label}`}
                 >
-                  {isThis && previewingVoice.state === 'loading' && <Loader2 size={13} className="animate-spin" />}
+                  {isThis && previewingVoice.state === 'loading' && <WaveLoader size={13} label="Loading preview" />}
                   {isThis && previewingVoice.state === 'playing' && <Square size={11} fill="currentColor" />}
                   {!isThis && <Play size={13} fill="currentColor" />}
                 </span>

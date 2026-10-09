@@ -30,15 +30,19 @@
      surfaces), and three semantic tones.
      ═══════════════════════════════════════════════════════════════════════ */
 
-  /* Accent ramp */
-  --color-brand-100: #e8f0ff;
-  --color-brand-200: #c8dcff;
-  --color-brand-300: #94b9ff;
-  --color-brand-400: #709ff5;
-  --color-brand-450: #538bf3;
-  --color-brand-500: #266df0;
-  --color-brand-600: #245bc2;
-  --color-brand-800: #1a2233;
+  /* Accent ramp — a deep, professional blue. 500 is the brand (solid
+     buttons, links, focus), 600/700 its hover/pressed steps, 450 the
+     lighter accent for dark mode; 100–300 exist for charts only — tints
+     are brand-500 at /10, never a separate swatch. */
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-450: #3b82f6;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --color-brand-800: #1e3a8a;
 
   /* Light neutrals — page, cards, hairlines */
   --color-paper-100: #ffffff;
@@ -70,6 +74,13 @@
   --color-negative-dim: #f65351;
   --color-caution: #f5b900;
   --color-caution-dim: #dba601;
+  /* Solid fills for danger / success buttons — the status tones above are
+     tuned for text, dots and tints and are too light behind white text;
+     these clear WCAG AA (≥4.5:1) with white. */
+  --color-negative-strong: #dc2626;
+  --color-negative-stronger: #b91c1c;
+  --color-positive-strong: #047857;
+  --color-positive-stronger: #065f46;
 
   /* Type. Inter carries an optical-size axis, so one family covers UI and
      display; JetBrains Mono is used for transcripts and identifiers. */
@@ -209,6 +220,12 @@
      6 (24px)  modal padding
      4 (16px)  between groups inside a card
      1.5 (6px) label → control
+   Type — Inter, four weights with fixed jobs:
+     bold      page titles (PageHeader, 24px)
+     semibold  card/section/table/dialog titles, numbers, buttons, column
+               headers, badges' emphasis
+     medium    labels, field labels, nav, secondary emphasis
+     normal    body copy and table cells
    Shape — controls rounded-control (8px), cards/modals rounded-2xl,
    pills rounded-full. Control heights 32/36/40px (Button sm/md/lg = Input).
    ═══════════════════════════════════════════════════════════════════════ */
@@ -301,6 +318,20 @@
   to   { opacity: 1; }
 }
 
+/* Voice-wave loader (components/ui/WaveLoader.jsx): each bar breathes
+   between a low level and full height, staggered by its animation-delay so
+   the row ripples like a speaking voice. */
+.voice-wave-bar {
+  transform-origin: center;
+  transform: scaleY(var(--wave-rest, 0.6));
+  animation: voiceWave 0.9s ease-in-out infinite;
+}
+
+@keyframes voiceWave {
+  0%, 100% { transform: scaleY(0.3); }
+  50%      { transform: scaleY(1); }
+}
+
 @keyframes shimmer {
   from { background-position: 200% 0; }
   to   { background-position: -200% 0; }
@@ -308,7 +339,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in, .animate-rise, .animate-slide-in-right,
-  .animate-scale-in, .animate-backdrop, .animate-slide-in-left, .stagger > *, .skeleton {
+  .animate-scale-in, .animate-backdrop, .animate-slide-in-left, .stagger > *, .skeleton,
+  .voice-wave-bar {
     animation: none !important;
   }
   *, *::before, *::after {

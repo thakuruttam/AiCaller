@@ -52,7 +52,7 @@ export function Th({ icon, align = 'left', sort, onSort, className = '', childre
     <th
       scope="col"
       aria-sort={sort === 'asc' ? 'ascending' : sort === 'desc' ? 'descending' : undefined}
-      className={`h-10 ${CELL_X} text-xs font-medium text-muted-foreground whitespace-nowrap select-none ${right ? 'text-right' : ''} ${className}`}
+      className={`h-10 ${CELL_X} text-xs font-semibold text-muted-foreground whitespace-nowrap select-none ${right ? 'text-right' : ''} ${className}`}
     >
       {onSort ? (
         <button
@@ -163,7 +163,7 @@ export function TableToolbar({ title, count, actions, className = '', children }
     <div className={`flex flex-col gap-3 px-5 py-3.5 border-b border-border md:flex-row md:items-center md:justify-between ${className}`}>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
         {title && (
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground whitespace-nowrap">
+          <h4 className="flex items-center gap-2 text-base font-semibold text-foreground whitespace-nowrap">
             {title}
             {count != null && (
               <span className="rounded-full bg-paper-300 dark:bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">

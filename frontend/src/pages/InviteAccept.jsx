@@ -3,6 +3,7 @@ import { Button, IconButton } from '../components/ui';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import AppLoader from '../components/AppLoader';
 
 const ROLE_COLOR = {
   ADMIN:  "bg-brand-500/10 text-brand-500 border-brand-500/25 dark:text-brand-300",
@@ -59,11 +60,7 @@ export default function InviteAccept() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-500/10 dark:bg-ink-50 flex items-center justify-center">
-        <span className="material-symbols-outlined text-[40px] text-brand-500 animate-spin">progress_activity</span>
-      </div>
-    );
+    return <AppLoader text="Checking your invite…" />;
   }
 
   if (error) {
@@ -161,10 +158,8 @@ export default function InviteAccept() {
           ) : emailMismatch ? (
             <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>Sign in with a different account</Button>
           ) : (
-            <Button variant="primary" size="lg" onClick={handleAccept} disabled={accepting}>
-              {accepting
-                ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Joining…</>
-                : <><span className="material-symbols-outlined text-[18px]">person_add</span> Join {invite.workspaceName}</>}
+            <Button variant="primary" size="lg" onClick={handleAccept} loading={accepting} icon={accepting ? undefined : 'person_add'}>
+              {accepting ? 'Joining…' : `Join ${invite.workspaceName}`}
             </Button>
           )}
         </div>

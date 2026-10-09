@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AppLoader from '../components/AppLoader';
 
 export default function AuthCallback() {
   const [params] = useSearchParams();
@@ -44,12 +45,5 @@ export default function AuthCallback() {
     finalize();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-paper-300 dark:bg-ink-50 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <span className="material-symbols-outlined text-[48px] text-brand-500 animate-spin">progress_activity</span>
-        <p className="text-muted-foreground text-sm">Signing you in…</p>
-      </div>
-    </div>
-  );
+  return <AppLoader text="Signing you in…" />;
 }

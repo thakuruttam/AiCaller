@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge,
+  Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge, Pagination,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -195,7 +196,7 @@ export default function Support() {
   const filters = useFacets(tickets, {
     status: { label: 'Status', get: t => t.status, format: statusLabel },
     category: { label: 'Category', get: t => t.category, format: categoryLabel },
-  });
+  }, { onChange: () => setPage(1) });
 
   const { sorted: sortedTickets, sortProps } = useSort(filters.filtered, {
     subject: t => t.subject,
@@ -203,6 +204,7 @@ export default function Support() {
     created: t => t.createdAt,
     activity: t => t._count?.replies || 0,
   });
+  const { paginated: pagedTickets, setPage, paginationProps } = usePagination(sortedTickets);
 
   const handleExport = () => exportCsv(`support-tickets-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Subject', value: t => t.subject },
@@ -345,7 +347,7 @@ export default function Support() {
                 <Th><span className="sr-only">Actions</span></Th>
               </THead>
               <TBody>
-                {sortedTickets.map(t => (
+                {pagedTickets.map(t => (
                   <Tr key={t.id} onClick={() => openTicket(t)}>
                     <Td>
                       <CellStack
@@ -372,6 +374,7 @@ export default function Support() {
               </TBody>
             </Table>
           )}
+          {!ticketsLoading && sortedTickets.length > 0 && <Pagination {...paginationProps} label="tickets" />}
         </section>
 
         {selectedTicket && (

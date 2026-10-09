@@ -9,8 +9,8 @@ import { useToast } from '../context/ToastContext';
 import * as notificationsApi from '../api/notifications';
 import { dateGroup, TYPE_GROUPS, typesForGroup } from '../components/notificationMeta';
 import NotificationRow from '../components/NotificationRow';
+import { DEFAULT_PAGE_SIZE } from '../hooks/usePagination';
 
-const PER_PAGE = 20;
 
 const STATUS_TABS = [
   { value: 'all',    label: 'All' },
@@ -45,7 +45,7 @@ export default function Notifications() {
     setLoading(true);
     try {
       const res = await notificationsApi.fetchNotifications({
-        page, limit: PER_PAGE, status,
+        page, limit: DEFAULT_PAGE_SIZE, status,
         type: typesForGroup(group),
         q: debouncedQuery,
       });
@@ -319,7 +319,7 @@ export default function Notifications() {
           page={page}
           totalPages={data.pages}
           totalRows={data.total}
-          pageSize={PER_PAGE}
+          pageSize={DEFAULT_PAGE_SIZE}
           onPageChange={setPage}
           label="notifications"
           compact

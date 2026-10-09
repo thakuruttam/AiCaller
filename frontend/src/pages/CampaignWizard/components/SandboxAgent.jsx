@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, IconButton } from '../../../components/ui';
 import axios from 'axios';
-import { Mic, MicOff, Volume2, Loader2, Play } from 'lucide-react';
+import { Mic, MicOff, Volume2, Play } from 'lucide-react';
+import { Button, IconButton, WaveLoader } from '../../../components/ui';
 
 export default function SandboxAgent({ campaign }) {
   const [session, setSession] = useState(null);
@@ -128,7 +128,7 @@ export default function SandboxAgent({ campaign }) {
             ))}
             {loading && !isListening && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Loader2 size={14} className="animate-spin" /> Thinking...
+                <WaveLoader size="xs" className="text-brand-500" label="Thinking" /> Thinking…
               </div>
             )}
           </div>
@@ -158,9 +158,9 @@ export default function SandboxAgent({ campaign }) {
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
               Use this sandbox to talk directly to your LLM configuration for this campaign before deploying to real phone numbers.
             </p>
-            <Button variant="primary" size="md" onClick={startSession} disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
-              {loading ? 'Starting...' : 'Start Sandbox'}
+            <Button variant="primary" size="md" onClick={startSession} loading={loading}>
+              {!loading && <Play size={16} />}
+              {loading ? 'Starting…' : 'Start Sandbox'}
             </Button>
           </div>
         </div>

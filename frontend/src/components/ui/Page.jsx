@@ -40,8 +40,8 @@ export function PageHeader({ title, subtitle, icon, actions, back, eyebrow, clas
       {back && <BackLink to={back.to} className="mb-4">{back.label}</BackLink>}
       <div className="flex flex-col items-start gap-4 md:flex-row md:justify-between md:items-end md:gap-6">
         <div className="min-w-0">
-          {eyebrow && <p className="text-xs font-medium text-muted-foreground mb-1">{eyebrow}</p>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+          {eyebrow && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">{eyebrow}</p>}
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             {icon && <span className="material-symbols-outlined [--icon-size:26px] text-brand-500 shrink-0">{icon}</span>}
             {title}
           </h1>

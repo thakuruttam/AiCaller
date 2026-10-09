@@ -5,6 +5,7 @@ import api from './api/axios';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AppLoader from './components/AppLoader';
 import RoleGate from './components/RoleGate';
 import Landing from './pages/marketing';
 import Dashboard from './pages/Dashboard';
@@ -168,13 +169,7 @@ function RootRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-paper-300 dark:bg-ink-50">
-        <div className="w-12 h-12 bg-brand-500 rounded-chip flex items-center justify-center shadow-card">
-          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>graphic_eq</span>
-        </div>
-      </div>
-    );
+    return <AppLoader />;
   }
 
   return user ? <AppLayout /> : <Landing />;

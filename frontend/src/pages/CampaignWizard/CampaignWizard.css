@@ -71,24 +71,9 @@
   transition: all 0.2s ease;
 }
 
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
 
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
 
-.btn-primary {
-  background: linear-gradient(135deg, #e94560, #ff1e56);
-  color: white;
-}
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
-}
 
 .pulse {
   animation: pulse 2s infinite;
@@ -264,7 +249,7 @@ html.dark .react-datepicker__day--disabled {
 }
 html.dark .react-datepicker__day--selected,
 html.dark .react-datepicker__day--keyboard-selected {
-  background-color: #266df0;
+  background-color: #2563eb;
   color: #fff;
 }
 html.dark .react-datepicker__time-container,
@@ -277,7 +262,7 @@ html.dark .react-datepicker__time-list-item:hover {
   background-color: #505967 !important;
 }
 html.dark .react-datepicker__time-list-item--selected {
-  background-color: #266df0 !important;
+  background-color: #2563eb !important;
 }
 html.dark .react-datepicker__triangle::before,
 html.dark .react-datepicker__triangle::after {

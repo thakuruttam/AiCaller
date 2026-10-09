@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Page, PageHeader, Button, IconButton, SelectableCard, Badge,
-  Table, THead, Th, TBody, Tr, Td, TableToolbar, EmptyState, FilterBar,
+  Table, THead, Th, TBody, Tr, Td, TableToolbar, EmptyState, FilterBar, Pagination,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
+import PageLoader from '../components/PageLoader';
 
 const TIER_ORDER = ['TRIAL', 'BASIC', 'STANDARD', 'PROFESSIONAL', 'ENTERPRISE', 'ENTERPRISE_PLUS'];
 
@@ -17,7 +19,7 @@ const TIER_BADGE = {
   STANDARD:       'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
   PROFESSIONAL:   'bg-brand-500/10 text-brand-500 border-brand-500/25 dark:text-brand-300',
   ENTERPRISE:     'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
-  ENTERPRISE_PLUS:'bg-gradient-to-br from-brand-450 to-brand-800 text-white border-transparent',
+  ENTERPRISE_PLUS:'bg-brand-500 text-white border-transparent',
 };
 
 
@@ -59,13 +61,14 @@ export default function Billing() {
   const filters = useFacets(history, {
     status: { label: 'Status', get: t => t.status, format: packLabel },
     pack: { label: 'Pack', get: t => t.packId, format: packLabel },
-  });
+  }, { onChange: () => setPage(1) });
 
   const { sorted: sortedHistory, sortProps } = useSort(filters.filtered, {
     date: t => t.createdAt,
     pack: t => t.packId,
     minutes: t => t.minutes || 0,
   });
+  const { paginated: pagedHistory, setPage, paginationProps } = usePagination(sortedHistory);
 
   const handleExport = () => exportCsv(`billing-history-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Date', value: t => t.createdAt && new Date(t.createdAt).toISOString().slice(0, 10) },
@@ -122,7 +125,7 @@ export default function Billing() {
           }
         },
         prefill: {},
-        theme: { color: '#266df0' },
+        theme: { color: '#2563eb' },
         modal: { ondismiss: () => setPaying(false) },
       };
 
@@ -135,12 +138,7 @@ export default function Billing() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-        <span className="material-symbols-outlined animate-spin text-[20px] mr-2">progress_activity</span>
-        Loading billing…
-      </div>
-    );
+    return <PageLoader text="Loading billing…" />;
   }
 
   if (!billing) {
@@ -180,7 +178,7 @@ export default function Billing() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
 
         {/* Balance card */}
-        <div className="md:col-span-1 bg-gradient-to-br from-brand-450 to-brand-800 rounded-2xl p-5 text-white shadow-primary">
+        <div className="md:col-span-1 bg-brand-500 rounded-2xl p-5 text-white shadow-primary">
           <p className="text-sm font-semibold opacity-80 mb-1">Minute Balance</p>
           <p className="text-5xl font-bold tracking-tight">{minuteBalance.toLocaleString('en-IN')}</p>
           <p className="text-sm opacity-70 mt-1">≈ ₹{balanceRupees.toLocaleString('en-IN')} value</p>
@@ -289,11 +287,8 @@ export default function Billing() {
               </div>
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="sm" onClick={() => setSelectedPackId(null)}>Cancel</Button>
-                <Button variant="primary" size="md" onClick={handleTopUp} disabled={paying}>
-                  {paying
-                    ? <><span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span> Processing…</>
-                    : <>Pay {pack.displayAmount}</>
-                  }
+                <Button variant="primary" size="md" onClick={handleTopUp} loading={paying}>
+                  {paying ? 'Processing…' : <>Pay {pack.displayAmount}</>}
                 </Button>
               </div>
             </div>
@@ -332,7 +327,7 @@ export default function Billing() {
               <Th>Status</Th>
             </THead>
             <TBody>
-              {sortedHistory.map((t) => (
+              {pagedHistory.map((t) => (
                 <Tr key={t.id}>
                   <Td muted className="whitespace-nowrap">{formatDate(t.createdAt)}</Td>
                   <Td className="font-medium capitalize">{t.packId.replace('_', ' ')}</Td>
@@ -353,6 +348,7 @@ export default function Billing() {
             </TBody>
           </Table>
         )}
+        {sortedHistory.length > 0 && <Pagination {...paginationProps} label="transactions" />}
       </div>
   </Page>
   );

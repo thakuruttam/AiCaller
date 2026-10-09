@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { Link, useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
@@ -9,11 +9,12 @@ import CampaignTypeLabel from '../components/CampaignTypeLabel';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useToast } from '../context/ToastContext';
 import {
-  Button, IconButton, Input, Pagination,
+  Page, Button, IconButton, Input, Pagination,
   Table, THead, TBody, Th, Tr, Td, CellStack, TableToolbar, SkeletonRow,
   FilterBar, ColumnToggle, StatCard, statusLabel,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
+import { usePagination } from '../hooks/usePagination';
 import { useFacets } from '../hooks/useFacets';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { exportCsv } from '../lib/exportCsv';
@@ -113,12 +114,6 @@ const Dashboard = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [loadingCampaignId, setLoadingCampaignId] = useState(null);
   const [cloningId, setCloningId] = useState(null);
-  const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(6);
-  const headerBarRef = useRef(null);
-  const theadRowRef = useRef(null);
-  const firstRowRef = useRef(null);
-  const paginationRef = useRef(null);
 
   useEffect(() => {
     fetchCampaigns(true);
@@ -212,7 +207,7 @@ const Dashboard = () => {
       type: { label: 'Type', get: c => c.type, format: campaignTypeLabel },
       owner: { label: 'Created by', get: c => c.createdBy?.name },
     },
-    { onChange: () => setPage(1) },
+    { onChange: () => resetToFirstPage() },
   );
   const columns = useColumnVisibility('dashboard.campaigns.columns', [
     { key: 'type', label: 'Type' },
@@ -222,7 +217,7 @@ const Dashboard = () => {
   ]);
   const show = columns.isVisible;
   const isFiltered = !!searchQuery || filters.activeCount > 0;
-  const clearAllFilters = () => { setSearchQuery(''); filters.reset(); setPage(1); };
+  const clearAllFilters = () => { setSearchQuery(''); filters.reset(); resetToFirstPage(); };
 
   const { sorted: filteredCampaigns, sortProps } = useSort(
     filters.filtered,
@@ -235,36 +230,9 @@ const Dashboard = () => {
     },
   );
 
-  // Rows-per-page tracks the actual vertical gap between the header bar and
-  // the pagination footer — both measured directly, not estimated — divided
-  // by one real rendered row's height. The pagination footer carries its own
-  // `mt-auto` so its position never depends on how many rows are currently
-  // showing, which is what keeps this from being a circular measurement:
-  // the gap we measure is the same gap regardless of the row count we pick,
-  // so one measurement pass converges on the right answer instead of
-  // chasing a moving target. Floored (never rounded up) so the table never
-  // overflows past the page — the worst case is a few unused pixels above
-  // the pagination bar, never a clipped row.
-  useLayoutEffect(() => {
-    const recompute = () => {
-      const headerBar = headerBarRef.current;
-      const pagination = paginationRef.current;
-      const theadRow = theadRowRef.current;
-      const firstRow = firstRowRef.current;
-      if (!headerBar || !pagination || !theadRow || !firstRow) return;
-      const available = pagination.getBoundingClientRect().top - headerBar.getBoundingClientRect().bottom;
-      const rowsAvailable = available - theadRow.getBoundingClientRect().height;
-      const rowH = firstRow.getBoundingClientRect().height;
-      if (rowH <= 0) return;
-      const fit = Math.floor(rowsAvailable / rowH);
-      setRowsPerPage(Math.max(3, fit));
-    };
-    recompute();
-    window.addEventListener('resize', recompute);
-    return () => window.removeEventListener('resize', recompute);
-  }, [loading, filteredCampaigns.length]);
-
-  const PER_PAGE = rowsPerPage;
+  const { paginated, setPage, paginationProps } = usePagination(filteredCampaigns);
+  // Search and filters live above the pager, so they reset it through here.
+  function resetToFirstPage() { setPage(1); }
 
   const handleExport = () => exportCsv(`campaigns-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Campaign', value: c => c.name },
@@ -276,23 +244,10 @@ const Dashboard = () => {
     { header: 'Contacts total', value: c => contactProgress(c).totalContacts },
   ], filteredCampaigns);
 
-  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PER_PAGE));
-  const paginated = filteredCampaigns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
   return (
-    <div className="bg-paper-300 dark:bg-ink-50 h-full page-gutter pb-8 animate-fade-in flex flex-col">
-      {/* Everything below shares one gap-3 grid rhythm — same vertical gap
-          between the KPI row and the table as between the KPI cards
-          themselves, matching the Watermelon template's own
-          `<div className="mx-auto grid gap-4">` wrapper. flex-1 so the
-          table below stretches all the way to the bottom of the viewport
-          (minus this page's own bottom padding) regardless of row count,
-          instead of shrink-wrapping around just a few rows. */}
-      <div className="flex flex-1 min-h-0 flex-col gap-7 pt-5">
-      {/* KPI Strip — matches the Watermelon template's StatGrid exactly:
-          same card shape/shadow, icon-badge layout, and page-gutter
-          as the topbar above it (this page needs a full-height flex layout
-          for the row-fit table, so it doesn't use <Page>). */}
+    <Page>
+      <div className="flex flex-col gap-7">
+      {/* KPI strip — the shared StatCard, same tile as every metrics row. */}
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={<PhoneCall className="size-5" />}
@@ -331,10 +286,8 @@ const Dashboard = () => {
 
       {/* Genuinely zero campaigns (not just a search with no matches) — no
           point showing table chrome (title bar, search, filters, export)
-          around nothing to search or export. Just the empty state. This
-          whole block (either branch) is flex-1 so it stretches to the
-          bottom of the page regardless of how many rows render. */}
-      <div className="flex-1 min-h-0 flex flex-col">
+          around nothing to search or export. Just the empty state. */}
+      <div>
       {!loading && campaigns.length === 0 ? (
         <div className="flex-1 min-h-[420px] flex flex-col items-center justify-center text-center px-6">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -360,8 +313,8 @@ const Dashboard = () => {
           with the Campaign column pinned left at a fixed width and Actions
           pinned right; every other free-text cell truncates with a tooltip
           for the full value. */
-      <div className="bg-card dark:bg-muted rounded-2xl ring-0 shadow-primary overflow-hidden flex-1 min-h-0 flex flex-col">
-        <div ref={headerBarRef} className="shrink-0">
+      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <div>
           <TableToolbar
             title="Active Campaigns"
             count={loading ? null : filteredCampaigns.length}
@@ -419,7 +372,7 @@ const Dashboard = () => {
           </div>
         ) : (
         <Table className="table-fixed">
-            <THead ref={theadRowRef}>
+            <THead>
               {show('type') && <Th {...sortProps('type')} className={`${STICKY_HEAD} left-0 z-20 w-[12%]`}>Type</Th>}
               <Th {...sortProps('name')} className="w-[30%]">Campaign</Th>
               {show('status') && <Th {...sortProps('status')} className="w-[12%]">Status</Th>}
@@ -429,11 +382,10 @@ const Dashboard = () => {
             </THead>
             <TBody>
               {loading && Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={columns.visibleCount + 2} />)}
-              {!loading && paginated.map((c, i) => {
+              {!loading && paginated.map((c) => {
                 return (
                 <Tr
                   key={c.id}
-                  ref={i === 0 ? firstRowRef : undefined}
                   onClick={() => navigate(`/campaigns/${c.id}/report`)}
                 >
                   {show('type') && (
@@ -507,17 +459,7 @@ const Dashboard = () => {
         </div>
 
         {filteredCampaigns.length > 0 && (
-          <div ref={paginationRef} className="mt-auto shrink-0">
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              totalRows={filteredCampaigns.length}
-              pageSize={PER_PAGE}
-              onPageChange={setPage}
-              label="campaigns"
-              compact
-            />
-          </div>
+          <Pagination {...paginationProps} label="campaigns" />
         )}
       </div>
       )}
@@ -543,7 +485,7 @@ const Dashboard = () => {
           }} />
         </Modal>
       )}
-    </div>
+    </Page>
   );
 };
 

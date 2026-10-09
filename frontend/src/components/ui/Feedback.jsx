@@ -99,7 +99,7 @@ export function Avatar({ name, src, size = 'md', className = '' }) {
     <span
       title={name}
       className={`inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden
-                  bg-gradient-to-br from-brand-450 to-brand-800 text-white font-semibold ${AVATAR_SIZES[size]} ${className}`}
+                  bg-brand-500 text-white font-semibold ${AVATAR_SIZES[size]} ${className}`}
     >
       {src ? <img src={src} alt={name || ''} className="w-full h-full object-cover" /> : initials}
     </span>

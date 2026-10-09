@@ -65,7 +65,7 @@ export function WorkspaceSwitcherMenu() {
   return (
     <DropdownMenuSub onOpenChange={(open) => { if (!open) setShowCreate(false); }}>
       <DropdownMenuSubTrigger>
-        <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+        <span className="bg-brand-500 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
           {current?.name?.charAt(0)?.toUpperCase() || "?"}
         </span>
         <span className="min-w-0 flex-1 truncate">{current?.name || "Switch workspace"}</span>

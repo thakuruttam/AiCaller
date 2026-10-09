@@ -94,7 +94,7 @@ export default function QuestionCard({
         <span className="cursor-grab text-muted-foreground hover:text-foreground transition-colors" title="Drag to reorder">
           <GripVertical size={16} />
         </span>
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-brand-450 to-brand-800 text-white text-xs font-semibold shrink-0">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-semibold shrink-0">
           {index + 1}
         </span>
 

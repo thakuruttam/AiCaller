@@ -4,41 +4,44 @@ import Spinner from '../Spinner';
 // Every button in the app comes from here. A variant carries the whole visual
 // contract — fill, hairline, hover, disabled and focus ring — so no screen has
 // to restate it, and so the focus ring can never be forgotten.
+// Flat, solid fills — no gradients. Every variant pairs a resting colour with
+// one hover and one pressed step from the same ramp, so the button visibly
+// responds without changing hue.
 const VARIANTS = {
-  // The brand gradient + inset gloss from the topbar's Create Campaign button,
-  // so every primary action in the app reads as the same control. One per
-  // view, on the primary action.
+  // Brand blue. One per view, on the primary action.
   primary:
-    'bg-gradient-to-br from-brand-450 to-brand-800 text-white ' +
-    'shadow-[inset_0_1px_6px_2px_rgba(255,255,255,0.1),inset_0_-1px_6px_2px_rgba(0,0,0,0.1),0_1px_2px_rgba(16,24,40,0.12)] ' +
-    'hover:brightness-110 active:brightness-95 ' +
-    'disabled:from-paper-500 disabled:to-paper-500 disabled:text-ink-800 disabled:shadow-none disabled:brightness-100 ' +
-    'dark:disabled:from-ink-400 dark:disabled:to-ink-400 dark:disabled:text-ink-700',
+    'bg-brand-500 text-white shadow-xs hover:bg-brand-600 active:bg-brand-700 ' +
+    'disabled:bg-paper-500 disabled:text-ink-800 disabled:shadow-none ' +
+    'dark:disabled:bg-ink-400 dark:disabled:text-ink-700',
   // Bordered surface on the card colour. The default for everything that
   // isn't the main action. In dark mode it sits one step above the card
   // (white/5 over bg-muted) so it never vanishes into the surface it's on.
   secondary:
     'bg-card dark:bg-white/[0.05] text-foreground border border-border shadow-xs ' +
-    'hover:bg-paper-200 dark:hover:bg-white/[0.09] ' +
+    'hover:bg-paper-200 dark:hover:bg-white/[0.09] active:bg-paper-300 dark:active:bg-white/[0.12] ' +
     'disabled:text-ink-800 dark:disabled:text-ink-700 disabled:shadow-none',
   // Tinted, no border — for accent actions that shouldn't compete with primary.
   subtle:
-    'bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/15 dark:hover:bg-brand-500/20',
+    'bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/15 active:bg-brand-500/20 dark:hover:bg-brand-500/20',
   // No chrome until hovered. Toolbars, table rows, dismissals.
   ghost:
-    'text-muted-foreground hover:bg-paper-300/70 dark:hover:bg-white/[0.06] hover:text-foreground',
-  // Destructive confirmation. Solid, so "delete" is never mistaken for
-  // "cancel" in a dialog footer.
+    'text-muted-foreground hover:bg-paper-300/70 dark:hover:bg-white/[0.06] hover:text-foreground active:bg-paper-400/70',
+  // Destructive confirmation (delete, kill, revoke). Solid red so "delete"
+  // is never mistaken for "cancel" in a dialog footer.
   danger:
-    'bg-negative text-white shadow-[inset_0_1px_4px_1px_rgba(255,255,255,0.12),0_1px_2px_rgba(16,24,40,0.12)] ' +
-    'hover:bg-negative-dim',
+    'bg-negative-strong text-white shadow-xs hover:bg-negative-stronger active:bg-negative-stronger ' +
+    'disabled:bg-paper-500 disabled:text-ink-800 disabled:shadow-none',
+  // Affirmative, non-primary outcomes (approve, resolve, mark done).
+  success:
+    'bg-positive-strong text-white shadow-xs hover:bg-positive-stronger active:bg-positive-stronger ' +
+    'disabled:bg-paper-500 disabled:text-ink-800 disabled:shadow-none',
   // Destructive but quiet until hovered, so it isn't the loudest thing on
   // screen just because it's dangerous.
   dangerGhost:
-    'text-muted-foreground hover:bg-negative/10 hover:text-negative-dim',
+    'text-muted-foreground hover:bg-negative/10 hover:text-negative-strong',
   // Reads as a link, behaves as a button.
   link:
-    'text-brand-500 dark:text-brand-300 hover:underline underline-offset-[3px] !px-0 !h-auto',
+    'text-brand-500 dark:text-brand-450 hover:text-brand-600 hover:underline underline-offset-[3px] !px-0 !h-auto',
 };
 
 // One height scale shared with Input/Select (CONTROL_HEIGHT in Input.jsx), so
@@ -78,7 +81,7 @@ const Button = React.forwardRef(function Button({
       disabled={As === 'button' ? isDisabled : undefined}
       aria-disabled={As !== 'button' && isDisabled ? true : undefined}
       className={[
-        'inline-flex items-center justify-center font-medium whitespace-nowrap',
+        'inline-flex items-center justify-center font-semibold whitespace-nowrap',
         'transition-[color,background-color,border-color,filter,transform] duration-150 outline-none cursor-pointer select-none',
         'focus-visible:ring-[3px] focus-visible:ring-brand-500/30',
         'disabled:cursor-not-allowed disabled:opacity-100 enabled:active:scale-[0.98]',

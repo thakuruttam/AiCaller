@@ -1,17 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Page, PageHeader, Table, THead, Th, TBody, Tr, Td, CellStack, StatusBadge, TableToolbar, EmptyState,
-  Button, IconButton, FilterBar, StatCard,
+  Button, IconButton, FilterBar, StatCard, Pagination,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import CampaignTypeLabel from '../components/CampaignTypeLabel';
+import PageLoader from '../components/PageLoader';
 
 const NO_CAMPAIGNS = [];
 
@@ -141,7 +143,7 @@ export default function Usage() {
 
   const filters = useFacets(data?.campaigns ?? NO_CAMPAIGNS, {
     type: { label: 'Type', get: c => c.type, format: campaignTypeLabel },
-  });
+  }, { onChange: () => setPage(1) });
 
   const { sorted: sortedCampaigns, sortProps } = useSort(filters.filtered, {
     name: c => c.name,
@@ -150,14 +152,10 @@ export default function Usage() {
     minutes: c => c.totalMinutes,
     cost: c => c.totalMinutes,
   });
+  const { paginated: pagedCampaigns, setPage, paginationProps } = usePagination(sortedCampaigns);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-        <span className="material-symbols-outlined animate-spin text-[20px] mr-2">progress_activity</span>
-        Loading usage…
-      </div>
-    );
+    return <PageLoader text="Loading usage…" />;
   }
 
   if (!data) {
@@ -240,12 +238,13 @@ export default function Usage() {
               <Th align="right" {...sortProps('cost')}>Cost</Th>
             </THead>
             <TBody>
-              {sortedCampaigns.map(c => (
+              {pagedCampaigns.map(c => (
                 <CampaignRow key={c.id} campaign={c} />
               ))}
             </TBody>
           </Table>
         )}
+        {sortedCampaigns.length > 0 && <Pagination {...paginationProps} label="campaigns" />}
       </div>
   </Page>
   );

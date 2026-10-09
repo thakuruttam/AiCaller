@@ -147,7 +147,7 @@ const Modal = ({
               </span>
             )}
             <div className="min-w-0 flex-1 pt-0.5">
-              {title && <h2 id={titleId} className="text-base font-semibold leading-6 text-foreground">{title}</h2>}
+              {title && <h2 id={titleId} className="text-lg font-semibold leading-7 tracking-tight text-foreground">{title}</h2>}
               {description && <p id={descId} className="text-sm text-muted-foreground mt-1">{description}</p>}
             </div>
             {dismissible && (

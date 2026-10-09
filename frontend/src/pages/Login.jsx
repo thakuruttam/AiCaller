@@ -38,9 +38,7 @@ const ArrowRightIcon = () => (
 // Try each concept in the browser: A (soundwave), B (orbit), C (handset+spark), D ("A" monogram).
 const LOGO_VARIANT = 'C';
 
-const LOGO_BADGE_BG = LOGO_VARIANT === 'B'
-  ? 'linear-gradient(135deg, #266df0, #94b9ff)'
-  : '#266df0';
+const LOGO_BADGE_BG = '#2563eb';
 
 const LogoIcon = ({ size = 16 }) => {
   if (LOGO_VARIANT === 'A') {

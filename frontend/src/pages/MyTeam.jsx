@@ -9,6 +9,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import Modal from '../components/Modal';
 import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Input, Field, CopyField, Avatar, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, EmptyState, SkeletonRow, FilterBar } from '../components/ui';
 import { useSort } from '../hooks/useSort';
+import { usePagination } from '../hooks/usePagination';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 
@@ -147,8 +148,6 @@ export default function MyTeam() {
   const [revokingId, setRevokingId] = useState(null);
   const [resendPrefill, setResendPrefill] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [statusChanging, setStatusChanging] = useState({});
 
   const workspaceId = user?.workspaceId;
@@ -271,13 +270,11 @@ export default function MyTeam() {
       status: m => m.status,
     },
   );
+  const { paginated: paginatedMembers, setPage, paginationProps } = usePagination(filteredMembers);
 
   if (!workspaceId) return (
     <Page><EmptyState icon="workspaces" title="No workspace found" body="Pick or create a workspace to manage its members." /></Page>
   );
-  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleExport = () => exportCsv(`team-members-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Name', value: m => m.name },
@@ -413,14 +410,7 @@ export default function MyTeam() {
                     })}
                   </TBody>
               </Table>
-              <Pagination
-                page={currentPage}
-                totalPages={totalPages}
-                totalRows={filteredMembers.length}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
-              />
+              <Pagination {...paginationProps} label="members" />
             </>)}
           </Card>
 
