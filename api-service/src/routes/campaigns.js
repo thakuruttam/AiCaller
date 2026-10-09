@@ -18,6 +18,7 @@ import {
   previewVoice,
   previewGeminiVoice
 } from '../controllers/campaign.controller.js';
+import { draftCampaign } from '../controllers/draft.controller.js';
 
 const router = Router();
 
@@ -33,6 +34,9 @@ router.get('/calls/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER'), 
 router.post('/calls/:id/fetch-recording', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER'), verifyCallLogAccess('id'), fetchRecording);
 router.post('/calls/:id/evaluate', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER'), verifyCallLogAccess('id'), reevaluateCall);
 router.post('/calls/:callLogId/recall', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER'), verifyCallLogAccess('callLogId'), recallCall);
+// Drafts a campaign from a plain-language brief. Creates nothing — the
+// caller reviews the draft and the wizard route below does the writing.
+router.post('/draft', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), draftCampaign);
 router.post('/wizard', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), createWizardCampaign);
 router.put('/wizard/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateWizardCampaign);
 router.post('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateCampaignStatus);
