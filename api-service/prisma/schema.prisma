@@ -78,9 +78,30 @@ model User {
   notifications   Notification[]
   supportTickets  SupportTicket[]
   supportReplies  SupportTicketReply[]
+  passwordResets  PasswordResetToken[]
 
   @@index([googleId])
   @@index([invitedById])
+}
+
+/// Single-use password-reset grants.
+///
+/// Only the SHA-256 hash of the token is stored, never the token itself —
+/// the raw value exists only in the email we send, so a dump of this
+/// collection cannot be replayed to take over an account. `tokenHash` is
+/// required (never null), so @unique is safe here despite Mongo's
+/// non-sparse unique indexes.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @map("_id")
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model WorkspaceMember {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { Button, Field, Input, IconButton, Tooltip } from '../components/ui';
@@ -278,9 +278,9 @@ export default function Login() {
                   />
                 </Field>
                 <div className="text-right mt-2">
-                  <a href="#" className="text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors">
+                  <Link to="/forgot-password" className="text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors">
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
               </div>
 

@@ -15,6 +15,7 @@ import CampaignReport from './pages/CampaignReport';
 import CallReport from './pages/CallReport';
 import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/Login';
+import { ForgotPassword, ResetPassword } from './pages/PasswordReset';
 import ShareView from './pages/ShareView';
 import SharedCallReport from './pages/SharedCallReport';
 import AuthCallback from './pages/AuthCallback';
@@ -190,6 +191,10 @@ function App() {
               <NotificationProvider>
                 <Routes>
                   <Route path="/login" element={<ThemeScope><Login /></ThemeScope>} />
+                  {/* Public by necessity — the point is that the user cannot
+                      sign in. The token in the emailed link is the credential. */}
+                  <Route path="/forgot-password" element={<ThemeScope><ForgotPassword /></ThemeScope>} />
+                  <Route path="/reset-password/:token" element={<ThemeScope><ResetPassword /></ThemeScope>} />
                   <Route path="/auth/callback" element={<ThemeScope><AuthCallback /></ThemeScope>} />
                   <Route path="/share/:token" element={<ThemeScope><ShareView /></ThemeScope>} />
                   <Route path="/share/:token/calls/:callLogId" element={<ThemeScope><SharedCallReport /></ThemeScope>} />

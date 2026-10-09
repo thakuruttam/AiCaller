@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { login, refresh, logout, me, updateMe, issueSessionForUser } from '../controllers/auth.controller.js';
+import {
+  login, refresh, logout, me, updateMe, issueSessionForUser,
+  forgotPassword, checkResetToken, resetPassword,
+} from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { prisma } from '../db.js';
 
@@ -113,6 +116,14 @@ if (googleConfigured) {
 router.post('/login', login);
 router.post('/refresh', refresh);
 router.post('/logout', logout);
+
+// Password reset — all three are deliberately unauthenticated: the whole
+// point is that the caller cannot sign in. The token in the link is the
+// credential.
+router.post('/forgot-password', forgotPassword);
+router.get('/reset-password/:token', checkResetToken);
+router.post('/reset-password', resetPassword);
+
 router.get('/me', authenticate, me);
 router.put('/me', authenticate, updateMe);
 router.post('/switch-workspace', authenticate, async (req, res) => {

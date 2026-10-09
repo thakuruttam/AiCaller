@@ -13,6 +13,106 @@ export function isEmailConfigured() {
   return !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
 }
 
+/**
+ * Password reset. Two shapes behind one call, because the HTTP response to
+ * "I forgot my password" must be identical either way — telling the browser
+ * that an address uses Google sign-in would turn this form into an account
+ * lookup. So the distinction is made here, in the message only the real
+ * mailbox owner receives.
+ */
+export async function sendPasswordResetEmail({ toEmail, name, resetUrl, expiresInMinutes, googleOnly = false }) {
+  const client = getClient();
+  if (!client || !process.env.RESEND_FROM_EMAIL) {
+    console.warn('[email] Resend not configured — skipping password reset email. Set RESEND_API_KEY and RESEND_FROM_EMAIL.');
+    return;
+  }
+
+  const from = `${process.env.RESEND_FROM_NAME || 'AI Caller Pro'} <${process.env.RESEND_FROM_EMAIL}>`;
+  const greeting = name ? `Hi ${name},` : 'Hi there,';
+
+  if (googleOnly) {
+    await client.emails.send({
+      from,
+      to: toEmail,
+      subject: 'Signing in to AI Caller Pro',
+      text: [
+        greeting, '',
+        'Someone asked to reset the password for this address.',
+        '',
+        "This account doesn't have a password — it signs in with Google. Use the",
+        '"Continue with Google" button on the sign-in page instead.',
+        '',
+        "If this wasn't you, you can safely ignore this email. Nothing has changed.",
+        '', '— The AI Caller Pro Team'
+      ].join('\n'),
+      html: `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
+      <tr><td style="background:#266df0;padding:28px 40px;text-align:center">
+        <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:-.3px">AI Caller Pro</p>
+      </td></tr>
+      <tr><td style="padding:40px">
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1c1d1f">Use Google to sign in</h1>
+        <p style="margin:0 0 20px;font-size:15px;color:#46505f;line-height:1.6">${greeting} someone asked to reset the password for this address.</p>
+        <p style="margin:0 0 20px;font-size:15px;color:#46505f;line-height:1.6">This account doesn't have a password — it signs in with Google. Use the <strong>Continue with Google</strong> button on the sign-in page instead.</p>
+        <p style="margin:0;font-size:13px;color:#8f99a8">If this wasn't you, ignore this email. Nothing has changed.</p>
+      </td></tr>
+      <tr><td style="background:#f3f4f6;padding:20px 40px;text-align:center;border-top:1px solid #e4e7ec">
+        <p style="margin:0;font-size:12px;color:#8f99a8">AI Caller Pro</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+    });
+    return;
+  }
+
+  await client.emails.send({
+    from,
+    to: toEmail,
+    subject: 'Reset your AI Caller Pro password',
+    text: [
+      greeting, '',
+      'Use this link to set a new password:',
+      resetUrl, '',
+      `The link expires in ${expiresInMinutes} minutes and works once.`,
+      '',
+      "If you didn't ask for this, ignore this email — your password stays as it is.",
+      '', '— The AI Caller Pro Team'
+    ].join('\n'),
+    html: `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
+      <tr><td style="background:#266df0;padding:28px 40px;text-align:center">
+        <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:-.3px">AI Caller Pro</p>
+      </td></tr>
+      <tr><td style="padding:40px">
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1c1d1f">Set a new password</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#46505f;line-height:1.6">${greeting} here's your link to choose a new password.</p>
+        <table cellpadding="0" cellspacing="0" style="margin-bottom:26px"><tr>
+          <td style="background:#266df0;border-radius:12px">
+            <a href="${resetUrl}" style="display:block;padding:14px 32px;font-size:15px;font-weight:600;color:#fff;text-decoration:none">Set a new password →</a>
+          </td>
+        </tr></table>
+        <p style="margin:0 0 8px;font-size:13px;color:#6f7988">Or paste this link in your browser:</p>
+        <p style="margin:0 0 24px;font-size:12px;color:#266df0;word-break:break-all;font-family:monospace;background:#f3f4f6;padding:10px 14px;border-radius:8px">${resetUrl}</p>
+        <p style="margin:0;font-size:13px;color:#8f99a8">Expires in <strong style="color:#46505f">${expiresInMinutes} minutes</strong> and works once. If you didn't ask for this, ignore this email — your password stays as it is.</p>
+      </td></tr>
+      <tr><td style="background:#f3f4f6;padding:20px 40px;text-align:center;border-top:1px solid #e4e7ec">
+        <p style="margin:0;font-size:12px;color:#8f99a8">AI Caller Pro</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+  });
+}
+
 export async function sendInviteEmail({ toEmail, inviterName, workspaceName, role, inviteUrl, expiresAt }) {
   const client = getClient();
   if (!client || !process.env.RESEND_FROM_EMAIL) {
