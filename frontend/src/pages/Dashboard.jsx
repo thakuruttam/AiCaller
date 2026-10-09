@@ -11,11 +11,14 @@ import { useToast } from '../context/ToastContext';
 import {
   Button, IconButton, Input, Pagination,
   Table, THead, TBody, Th, Tr, Td, CellStack, TableToolbar, SkeletonRow,
-  FilterBar, ColumnToggle, StatCard, statusLabel,
+  FilterBar, ColumnToggle, StatCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
+import { useCampaignActions } from '../hooks/useCampaignActions';
+import CampaignRunControls, { CampaignStatusText } from '../components/CampaignRunControls';
+import { campaignRunState, contactProgress, runStateLabel } from '../lib/campaignState';
 import { exportCsv } from '../lib/exportCsv';
 import {
   Tooltip,
@@ -39,51 +42,10 @@ const STICKY_HEAD =
   'sticky bg-paper-200 dark:bg-muted ' +
   'dark:[background-image:linear-gradient(rgb(255_255_255/0.02),rgb(255_255_255/0.02))]';
 
-const TERMINAL_STATUSES = new Set(['completed', 'failed', 'no-answer', 'busy', 'cancelled']);
-
-// Status reads as plain colored text (no pill). Bespoke to campaignStatus()'s
-// own 4-state vocabulary below rather than the shared app-wide tone map —
-// that map collapses 'active' and 'completed' to the same green "positive"
-// tone, which reads as identical colors here. "In progress" and "done" need
-// to look different at a glance, so active gets its own brand-blue.
-const CAMPAIGN_STATUS_TEXT = {
-  draft: 'text-muted-foreground',
-  queued: 'text-muted-foreground',
-  active: 'text-brand-500',
-  completed: 'text-positive',
-};
-
-// Latest call log per contact — shared by the progress bar and the status
-// derivation below, since Campaign has no native status field in the schema.
-function latestLogsByContact(campaign) {
-  const latest = {};
-  (campaign.callLogs || []).forEach(l => {
-    const prev = latest[l.contactId];
-    if (!prev || new Date(l.createdAt) > new Date(prev.createdAt)) latest[l.contactId] = l;
-  });
-  return Object.values(latest);
-}
-
-// draft: no contacts added yet. queued: contacts added, no calls placed.
-// active: some calls placed, not every contact reached a terminal state.
-// completed: every contact has.
-function campaignStatus(campaign) {
-  const totalContacts = campaign.campaignContacts?.length || 0;
-  if (totalContacts === 0) return 'draft';
-  if (!campaign.callLogs?.length) return 'queued';
-  const contactsDone = latestLogsByContact(campaign).filter(l => TERMINAL_STATUSES.has(l.status)).length;
-  return contactsDone >= totalContacts ? 'completed' : 'active';
-}
-
-// Contacts-done vs. total contacts drives both the bar's fill % and its
-// color: exactly on pace (<=1x) is green, up to double is yellow (a contact
-// getting multiple call attempts logged is normal), more than double is red
-// — that ratio blowing out is the actual signal something's wrong.
-function contactProgress(campaign) {
-  const totalContacts = campaign.campaignContacts?.length || 0;
-  const contactsDone = latestLogsByContact(campaign).filter(l => TERMINAL_STATUSES.has(l.status)).length;
-  return { totalContacts, contactsDone, ratio: totalContacts > 0 ? contactsDone / totalContacts : 0 };
-}
+// Run state, progress and their labels/colours are shared with the campaign
+// detail screen — see lib/campaignState.js. They used to be defined here,
+// which meant this table and the detail page could disagree about whether a
+// campaign was finished.
 
 function CampaignCostInsight({ campaign }) {
   const { totalContacts, contactsDone, ratio } = contactProgress(campaign);
@@ -125,6 +87,11 @@ const Dashboard = () => {
     const interval = setInterval(() => fetchCampaigns(false), 15000);
     return () => clearInterval(interval);
   }, []);
+
+  // One instance shared by every row, so in-flight state stays per-campaign.
+  // Refetching on success is what moves a row's control from Start to Pause:
+  // run state is derived from the call logs, not held locally.
+  const campaignActions = useCampaignActions({ onDone: () => fetchCampaigns(false) });
 
   const fetchCampaigns = async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -208,7 +175,7 @@ const Dashboard = () => {
   const filters = useFacets(
     campaigns.filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase())),
     {
-      status: { label: 'Status', get: c => campaignStatus(c), format: statusLabel },
+      status: { label: 'Status', get: c => campaignRunState(c), format: runStateLabel },
       type: { label: 'Type', get: c => c.type, format: campaignTypeLabel },
       owner: { label: 'Created by', get: c => c.createdBy?.name },
     },
@@ -229,7 +196,7 @@ const Dashboard = () => {
     {
       type: c => campaignTypeLabel(c.type),
       name: c => c.name,
-      status: c => campaignStatus(c),
+      status: c => campaignRunState(c),
       owner: c => c.createdBy?.name,
       progress: c => contactProgress(c).ratio,
     },
@@ -269,7 +236,7 @@ const Dashboard = () => {
   const handleExport = () => exportCsv(`campaigns-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Campaign', value: c => c.name },
     { header: 'Type', value: c => campaignTypeLabel(c.type) },
-    { header: 'Status', value: c => statusLabel(campaignStatus(c)) },
+    { header: 'Status', value: c => runStateLabel(campaignRunState(c)) },
     { header: 'Created by', value: c => c.createdBy?.name },
     { header: 'Created', value: c => c.createdAt && new Date(c.createdAt).toISOString().slice(0, 10) },
     { header: 'Contacts done', value: c => contactProgress(c).contactsDone },
@@ -434,7 +401,11 @@ const Dashboard = () => {
                 <Tr
                   key={c.id}
                   ref={i === 0 ? firstRowRef : undefined}
-                  onClick={() => navigate(`/campaigns/${c.id}/report`)}
+                  // The campaign page, not its report: a campaign that has
+                  // never run has no report to show, and the campaign page
+                  // carries the run controls, the contact list and a link
+                  // onward to the report once there is one.
+                  onClick={() => navigate(`/campaigns/${c.id}`)}
                 >
                   {show('type') && (
                     <Td className={`${STICKY} ${STICKY_HOVER} left-0 z-10`}>
@@ -456,9 +427,7 @@ const Dashboard = () => {
                   </Td>
                   {show('status') && (
                     <Td>
-                      <span className={`text-sm font-medium first-letter:uppercase inline-block ${CAMPAIGN_STATUS_TEXT[campaignStatus(c)]}`}>
-                        {statusLabel(campaignStatus(c))}
-                      </span>
+                      <CampaignStatusText campaign={c} />
                     </Td>
                   )}
                   {show('owner') && <Td muted>
@@ -477,6 +446,9 @@ const Dashboard = () => {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-end gap-1">
+                      {/* Run/pause without leaving the list — the campaign's
+                          own state picks which action this is. */}
+                      <CampaignRunControls campaign={c} actions={campaignActions} variant="row" />
                       <IconButton
                         size="sm"
                         title="Quick view"

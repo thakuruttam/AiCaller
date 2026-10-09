@@ -5,6 +5,9 @@ import {
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
+import { useCampaignActions, useCallActions } from '../hooks/useCampaignActions';
+import CampaignRunControls, { CampaignStateSummary } from '../components/CampaignRunControls';
+import { contactProgress, campaignRunState } from '../lib/campaignState';
 import { exportCsv } from '../lib/exportCsv';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
@@ -27,22 +30,39 @@ export default function CampaignDetails() {
 
   useEffect(() => { fetchCampaignDetails(); }, [id]);
 
-  const fetchCampaignDetails = async () => {
-    setLoading(true);
+  // `quiet` refetches without flashing the page loader — used after a run
+  // action and by the live poll below, where the page is already on screen.
+  const fetchCampaignDetails = async ({ quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
     setLoadError(null);
     try {
       const res = await api.get(`/api/campaigns/${id}`);
       setCampaign(res.data);
     } catch (e) {
       console.error(e);
-      setLoadError(e.response?.status === 403 ? 'access-denied' : 'not-found');
+      if (!quiet) setLoadError(e.response?.status === 403 ? 'access-denied' : 'not-found');
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
+  const campaignActions = useCampaignActions({ onDone: () => fetchCampaignDetails({ quiet: true }) });
+  const callActions = useCallActions({ onDone: () => fetchCampaignDetails({ quiet: true }) });
+
+  // While calls are actually in flight this page is the operator's live
+  // view, so statuses and durations fill in on their own after pressing
+  // Start. Polling stops the moment nothing is live — a finished campaign
+  // isn't re-fetched forever in a background tab.
+  const runState = campaign ? campaignRunState(campaign) : null;
+  useEffect(() => {
+    if (runState !== 'running') return;
+    const poll = setInterval(() => fetchCampaignDetails({ quiet: true }), 10000);
+    return () => clearInterval(poll);
+  }, [runState, id]);
+
   const contacts = campaign?.campaignContacts || [];
   const logs = campaign?.callLogs || [];
+  const progress = contactProgress(campaign);
   const completed = logs.filter(l => l.status === 'completed').length;
   const avgDuration = logs.filter(l => l.durationMs).length
     ? Math.round(logs.filter(l => l.durationMs).reduce((a,l) => a + l.durationMs, 0) / logs.filter(l => l.durationMs).length / 1000)
@@ -130,11 +150,17 @@ export default function CampaignDetails() {
         back={{ to: '/', label: 'Back to Dashboard' }}
         eyebrow="Campaign"
         title={<>{campaign.name}<CampaignTypeLabel type={campaign.type} className="ml-1 text-sm" /></>}
-        subtitle={campaign.callModule?.callIntro || 'Automated outreach campaign.'}
+        // What the campaign is doing, rather than restating its intro line —
+        // it sits directly above the buttons that act on it, so the operator
+        // can see what Start/Pause/Stop will apply to.
+        subtitle={<CampaignStateSummary campaign={campaign} progress={progress} />}
         actions={<>
-          <Button variant="secondary" icon="share" onClick={() => setShowShare(true)}>Share</Button>
-          <Button as={Link} to={`/campaigns/${id}/report`} variant="secondary" icon="analytics">Report</Button>
-          <Button icon="science" onClick={() => setIsSandboxOpen(true)}>AI Sandbox</Button>
+          {/* Running the campaign is the point of this screen, so it leads. */}
+          <CampaignRunControls campaign={campaign} actions={campaignActions} variant="header" />
+          <Button as={Link} to={`/edit-campaign/${id}`} variant="secondary" icon="edit">Edit</Button>
+          <Button variant="secondary" icon="analytics" as={Link} to={`/campaigns/${id}/report`}>Report</Button>
+          <IconButton title="Share a read-only link" icon="share" onClick={() => setShowShare(true)} />
+          <IconButton title="Test this script in the AI sandbox" icon="science" onClick={() => setIsSandboxOpen(true)} />
         </>}
       />
 
@@ -182,7 +208,7 @@ export default function CampaignDetails() {
               <Th {...sortProps('calledAt')}>Called at</Th>
               <Th {...sortProps('status')}>Status</Th>
               <Th align="right" {...sortProps('duration')}>Duration</Th>
-              <Th align="right">Call details</Th>
+              <Th align="right">Actions</Th>
             </THead>
             <TBody>
               {paginated.map(({ cc, log }) => {
@@ -228,11 +254,39 @@ export default function CampaignDetails() {
                     <Td numeric muted>{durationStr}</Td>
                     <Td align="right">
                       {log ? (
-                        <Button as={Link} to={`/campaign/${id}/calls/${log.id}`} variant="ghost" size="sm" icon="article">
-                          View call
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <IconButton
+                            as={Link}
+                            to={`/campaign/${id}/calls/${log.id}`}
+                            size="sm"
+                            icon="article"
+                            title="Open transcript and recording"
+                          />
+                          {/* Re-score an existing transcript. Only a call
+                              that produced one can be re-evaluated —
+                              reevaluateCall rejects the rest with a 400. */}
+                          <IconButton
+                            size="sm"
+                            icon="refresh"
+                            title={log.status === 'completed'
+                              ? 'Re-run the evaluation for this call'
+                              : 'Only a completed call can be re-evaluated'}
+                            disabled={log.status !== 'completed' || !!callActions.pendingFor(log.id)}
+                            loading={callActions.pendingFor(log.id) === 'evaluate'}
+                            onClick={() => callActions.reevaluate(log.id)}
+                          />
+                          <IconButton
+                            size="sm"
+                            icon="call"
+                            tone="brand"
+                            title={`Call ${name} again`}
+                            disabled={!!callActions.pendingFor(log.id)}
+                            loading={callActions.pendingFor(log.id) === 'recall'}
+                            onClick={() => callActions.recall(log.id, { contactName: name })}
+                          />
+                        </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground italic">N/A</span>
+                        <span className="text-xs text-muted-foreground italic">Not called yet</span>
                       )}
                     </Td>
                   </Tr>

@@ -3,12 +3,20 @@ import { Button, PageHeader, StatusBadge, Badge, EmptyState } from '../component
 import api from '../api/axios';
 import { useParams, Link } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import { useCallActions } from '../hooks/useCampaignActions';
 import AudioPlayer from '../components/AudioPlayer';
 import PageLoader from '../components/PageLoader';
 
+// The provider-id header the gateway writes at the top of every saved
+// transcript. It was `[Twilio_SID:…]` historically and is `[Plivo_CallUUID:…]`
+// since the Plivo migration (telephony-gateway/src/plivoStreamHandler.js) —
+// match both so old calls stay clean and new ones stop rendering the header
+// as a speaker turn called "[Plivo_CallUUID".
+const TRANSCRIPT_HEADER = /\[(?:Twilio_SID|Plivo_CallUUID):[^\]]+\]/g;
+
 function parseTranscript(raw) {
   if (!raw) return [];
-  const clean = raw.replace(/\[Twilio_SID:[^\]]+\]/g, '').trim();
+  const clean = raw.replace(TRANSCRIPT_HEADER, '').trim();
   const lines = clean.split('\n').filter(l => l.trim());
   const turns = [];
   let currentSpeaker = null;
@@ -113,6 +121,9 @@ const CallDetails = () => {
     container.scrollBy({ top: delta, behavior: 'smooth' });
   }, [activeTurnIndex]);
 
+  // Re-reads the call after a retry so the new status shows without a reload.
+  const callActions = useCallActions({ onDone: () => fetchCallDetails() });
+
   useEffect(() => { autoSyncedRef.current = false; fetchCallDetails(); }, [id]);
 
   const fetchCallDetails = async () => {
@@ -151,7 +162,7 @@ const CallDetails = () => {
     }
   };
 
-  const cleanTranscript = (raw) => (raw || '').replace(/\[Twilio_SID:[^\]]+\]/g, '').trim();
+  const cleanTranscript = (raw) => (raw || '').replace(TRANSCRIPT_HEADER, '').trim();
 
   const handleCopyTranscript = async () => {
     if (!callLog?.transcript) return;
@@ -202,7 +213,7 @@ const CallDetails = () => {
           </span>
         }
         title={`Call Details: ${contactName}`}
-        actions={
+        actions={<>
           <Button
             as={Link}
             to={`/campaign/${campaignId || callLog.campaignId}/calls/${id}/report`}
@@ -210,7 +221,31 @@ const CallDetails = () => {
           >
             View Report
           </Button>
-        }
+          {/* Retrying belongs here, where the failure is visible — not only
+              in the admin panel. Re-scoring needs a transcript to read, so
+              it's offered on completed calls only. */}
+          <Button
+            variant="secondary"
+            icon="refresh"
+            disabled={callLog.status !== 'completed' || !!callActions.pendingFor(id)}
+            loading={callActions.pendingFor(id) === 'evaluate'}
+            onClick={() => callActions.reevaluate(id)}
+            title={callLog.status === 'completed'
+              ? 'Score this transcript again'
+              : 'Only a completed call can be re-evaluated'}
+          >
+            Re-run evaluation
+          </Button>
+          <Button
+            variant="secondary"
+            icon="call"
+            disabled={!!callActions.pendingFor(id)}
+            loading={callActions.pendingFor(id) === 'recall'}
+            onClick={() => callActions.recall(id, { contactName })}
+          >
+            Call again
+          </Button>
+        </>}
       />
 
       {/* Info Strip */}
