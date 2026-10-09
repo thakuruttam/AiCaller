@@ -1,6 +1,6 @@
 import React from 'react';
 import MarketingLayout from './Layout';
-import { Container, Eyebrow, PrimaryCta, SectionHeading, FaqList, Breadcrumbs } from './parts';
+import { Container, PrimaryCta, SectionHeading, FaqList, PageHero } from './parts';
 import { FinalCta } from './Sections';
 import { PRICING, PRICING_FAQS } from './content';
 import { pageForPath } from '../../seo/pages';
@@ -15,22 +15,12 @@ export default function Pricing() {
 
   return (
     <MarketingLayout>
-      <section className="bg-paper-200 pt-28 pb-16 sm:pt-32">
-        <Container>
-          <Breadcrumbs items={pageForPath('/pricing').breadcrumbs} className="mb-8" />
-          <div className="max-w-3xl">
-            <Eyebrow>Pricing</Eyebrow>
-            <h1 className="mt-5 text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] text-ink-100">
-              Pay per call minute. No subscription.
-            </h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-ink-600">
-              Buy a prepaid pack of minutes and spend it across any campaign. Larger packs bring the rate
-              down to {`₹${lowest.toFixed(2)}`} per minute and unlock higher team and campaign limits. The AI voice
-              agent, transcription and automatic evaluation of every call are included in the rate.
-            </p>
-          </div>
-        </Container>
-      </section>
+      <PageHero
+        breadcrumbs={pageForPath('/pricing').breadcrumbs}
+        eyebrow="Pricing"
+        title="Pay per call minute. No subscription."
+        intro={`Buy a prepaid pack of minutes and spend it across any campaign. Larger packs bring the rate down to ₹${lowest.toFixed(2)} per minute and unlock higher team and campaign limits. The AI voice agent, transcription and automatic evaluation of every call are included in the rate.`}
+      />
 
       <section aria-labelledby="packs" className="bg-paper-100 py-16 md:py-24">
         <Container>

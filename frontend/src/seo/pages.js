@@ -1,5 +1,5 @@
 import { SITE, absoluteUrl } from './site';
-import { FAQS, PRICING, PRICING_FAQS, USE_CASES, CAPABILITIES } from '../pages/marketing/content';
+import { PRICING, USE_CASES, CAPABILITIES, FAQ_GROUPS, DEMO_VIDEO } from '../pages/marketing/content';
 
 // Every public, indexable page and what search engines and AI agents are told
 // about it. The runtime <head> (useSeo), the pre-rendered HTML, sitemap.xml
@@ -103,7 +103,23 @@ export const PUBLIC_PAGES = [
     description: HOME_DESCRIPTION,
     changefreq: 'weekly',
     priority: 1.0,
-    jsonLd: [organization, website, software, webPage('/', HOME_TITLE, HOME_DESCRIPTION), faqPage(`${SITE.url}/#faq`, FAQS)],
+    jsonLd: [
+      organization,
+      website,
+      software,
+      webPage('/', HOME_TITLE, HOME_DESCRIPTION),
+      {
+        '@type': 'VideoObject',
+        '@id': `${SITE.url}/#demo-video`,
+        name: DEMO_VIDEO.title,
+        description: DEMO_VIDEO.description,
+        thumbnailUrl: absoluteUrl(DEMO_VIDEO.poster),
+        contentUrl: absoluteUrl(DEMO_VIDEO.src),
+        uploadDate: DEMO_VIDEO.uploadDate,
+        duration: DEMO_VIDEO.duration,
+        publisher: { '@id': organization['@id'] },
+      },
+    ],
   },
   {
     path: '/pricing',
@@ -130,8 +146,36 @@ export const PUBLIC_PAGES = [
           url: absoluteUrl('/pricing'),
         })),
       },
-      faqPage(`${absoluteUrl('/pricing')}#faq`, PRICING_FAQS),
     ],
+  },
+  {
+    path: '/product',
+    title: `AI Calling Software Features | ${SITE.name}`,
+    description: 'No-code campaign builder, 30 AI voices, branching questions, CSV import, live dashboards, automatic call scoring, recordings and shareable reports.',
+    changefreq: 'monthly',
+    priority: 0.9,
+    breadcrumbs: [{ name: 'Home', path: '/' }, { name: 'Product', path: '/product' }],
+    jsonLd: [organization, software, webPage('/product', `AI Calling Software Features | ${SITE.name}`, 'No-code campaign builder, 30 AI voices, branching questions, CSV import, live dashboards, automatic call scoring, recordings and shareable reports.')],
+  },
+  {
+    path: '/security',
+    title: `Security & Data Protection | ${SITE.name}`,
+    description: 'How AI Caller Pro protects your calls and data: workspace isolation, role-based access, hashed passwords, expiring share links and full call provenance.',
+    changefreq: 'monthly',
+    priority: 0.7,
+    breadcrumbs: [{ name: 'Home', path: '/' }, { name: 'Security', path: '/security' }],
+    jsonLd: [organization, webPage('/security', `Security & Data Protection | ${SITE.name}`, 'How AI Caller Pro protects your calls and data: workspace isolation, role-based access, hashed passwords, expiring share links and full call provenance.')],
+  },
+  {
+    path: '/faq',
+    title: `FAQ — AI Voice Calling, Pricing & Security | ${SITE.name}`,
+    description: 'Answers about how the AI voice agent places and scores calls, which languages it speaks, how per-minute billing works and how your data is protected.',
+    changefreq: 'monthly',
+    priority: 0.7,
+    breadcrumbs: [{ name: 'Home', path: '/' }, { name: 'FAQ', path: '/faq' }],
+    // The one place FAQ structured data lives — each question has a single
+    // canonical page, even though some also show on Pricing and Security.
+    jsonLd: [organization, webPage('/faq', `FAQ — AI Voice Calling, Pricing & Security | ${SITE.name}`, 'Answers about how the AI voice agent places and scores calls, which languages it speaks, how per-minute billing works and how your data is protected.'), faqPage(`${absoluteUrl('/faq')}#faq`, FAQ_GROUPS.flatMap((g) => g.items))],
   },
   {
     path: '/use-cases',

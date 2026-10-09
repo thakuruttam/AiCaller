@@ -2,15 +2,14 @@
 // invented customers, logos, testimonials or metrics. An enterprise buyer will
 // check, and a fabricated proof point is worse than none.
 
-// Real routes use `to` (client-side, and crawlable as plain links); home
-// sections use `href` with an absolute path so they work from every page —
-// on the home page the browser treats "/#faq" as an in-page jump.
+// Every top-level link is its own page — no in-page jumps dressed up as
+// navigation. `to` renders a client-side <Link>, still a plain crawlable <a>.
 export const NAV_LINKS = [
-  { href: '/#product', label: 'Product' },
+  { to: '/product', label: 'Product' },
   { to: '/use-cases', label: 'Use cases' },
   { to: '/pricing', label: 'Pricing' },
-  { href: '/#security', label: 'Security' },
-  { href: '/#faq', label: 'FAQ' },
+  { to: '/security', label: 'Security' },
+  { to: '/faq', label: 'FAQ' },
 ];
 
 // The three screens a buyer actually meets, in order.
@@ -91,10 +90,10 @@ export const CAPABILITIES = [
 ];
 
 export const STEPS = [
-  { n: '01', title: 'Upload your contacts', body: 'Bring a CSV or add contacts by hand. Map columns once; per-contact overrides are supported.' },
-  { n: '02', title: 'Define the objective', body: 'Set what the agent must find out, what ends the call early, and how each answer should be judged.' },
-  { n: '03', title: 'Launch and watch', body: 'Calls dial over enterprise telephony with per-tenant concurrency limits protecting your other campaigns.' },
-  { n: '04', title: 'Read the scored result', body: 'Transcripts, sentiment and outcomes land as each call ends — share a report link with anyone.' },
+  { n: '01', icon: 'upload_file', tone: 'blue', title: 'Upload your contacts', body: 'Bring a CSV or add contacts by hand. Map columns once; per-contact overrides are supported.' },
+  { n: '02', icon: 'target', tone: 'violet', title: 'Define the objective', body: 'Set what the agent must find out, what ends the call early, and how each answer should be judged.' },
+  { n: '03', icon: 'rocket_launch', tone: 'amber', title: 'Launch and watch', body: 'Calls dial over enterprise telephony with per-tenant concurrency limits protecting your other campaigns.' },
+  { n: '04', icon: 'fact_check', tone: 'emerald', title: 'Read the scored result', body: 'Transcripts, sentiment and outcomes land as each call ends — share a report link with anyone.' },
 ];
 
 // Framed as architecture facts rather than compliance badges the product does
@@ -202,6 +201,7 @@ export const PRICING_FAQS = [
 export const USE_CASES = [
   {
     slug: 'hr-screening',
+    icon: 'badge',
     cta: 'Start screening candidates',
     type: 'HR',
     name: 'HR screening calls',
@@ -225,6 +225,7 @@ export const USE_CASES = [
   },
   {
     slug: 'recruiting',
+    icon: 'groups',
     cta: 'Start calling candidates',
     type: 'RECRUITER',
     name: 'Recruiting agency calls',
@@ -248,6 +249,7 @@ export const USE_CASES = [
   },
   {
     slug: 'sales-outreach',
+    icon: 'trending_up',
     cta: 'Start qualifying leads',
     type: 'SALES',
     name: 'Sales outreach & lead qualification',
@@ -271,6 +273,7 @@ export const USE_CASES = [
   },
   {
     slug: 'loan-recovery',
+    icon: 'account_balance_wallet',
     cta: 'Start a collections campaign',
     type: 'LOAN_RECOVERY',
     name: 'Loan recovery & EMI reminders',
@@ -294,6 +297,7 @@ export const USE_CASES = [
   },
   {
     slug: 'customer-feedback',
+    icon: 'sentiment_satisfied',
     cta: 'Start a feedback survey',
     type: 'FEEDBACK',
     name: 'Customer feedback & CSAT surveys',
@@ -316,3 +320,147 @@ export const USE_CASES = [
     ],
   },
 ];
+
+// /product — the full feature reference, grouped by the stage of a campaign
+// it belongs to. Deeper than the home page's highlights; every line is a
+// feature that exists in the app today.
+export const PRODUCT_SECTIONS = [
+  {
+    id: 'build',
+    nav: 'Build',
+    title: 'Build a campaign without code',
+    body: 'A five-step wizard takes a campaign from a name to a launch-ready call plan.',
+    image: { src: '/product/campaign-builder.jpg', alt: 'The campaign builder: campaign name, campaign type tiles, maximum call duration and a grid of AI voices.' },
+    features: [
+      { title: 'Five campaign types', body: 'HR screening, recruiting, sales, loan recovery and customer feedback, each with a sensible starting structure.' },
+      { title: 'Questions with branching', body: 'Add questions or information statements, then skip ahead or end the call based on how each answer is scored.' },
+      { title: 'Plain-English scoring', body: 'Describe what a good answer looks like in your own words; the model judges every response against it.' },
+      { title: '30 AI voices', body: 'Prebuilt voices from firm to friendly, each with a sample you can play before choosing.' },
+      { title: 'Call guardrails', body: 'Set a maximum call duration, an intro, a sign-off and the conditions that end a call early.' },
+      { title: 'Test before launch', body: 'Talk to the agent in the AI sandbox to hear exactly how it will open and handle answers.' },
+    ],
+  },
+  {
+    id: 'contacts',
+    nav: 'Contacts',
+    title: 'Bring your contacts as they are',
+    body: 'Import a list once and personalise every call from its columns.',
+    features: [
+      { title: 'CSV and Excel import', body: 'Upload .csv, .xlsx or .xls files and map columns once — or add contacts by hand.' },
+      { title: 'Per-contact overrides', body: 'Fill names, amounts, dates or any field into the script per contact, and override call settings for individual people.' },
+      { title: 'Duplicate protection', body: 'The same phone number is never added to a campaign twice, so nobody is called twice at once.' },
+    ],
+  },
+  {
+    id: 'run',
+    nav: 'Run',
+    title: 'Run it live',
+    body: 'Launch now or schedule a start time, then watch results arrive as calls end.',
+    image: { src: '/product/dashboard.jpg', alt: 'The dashboard: calls queued, completed calls, success rate and spend above the list of campaigns.' },
+    features: [
+      { title: 'Natural, interruptible calls', body: 'Real-time conversation with barge-in handling — people can talk over the agent, as on a normal call.' },
+      { title: 'English, Hindi and Hinglish', body: 'Choose the language per campaign; the agent holds the whole conversation in it.' },
+      { title: 'Scheduled launches', body: 'Set a start time and the campaign begins dialling on its own.' },
+      { title: 'Fair concurrency', body: 'Per-workspace call limits keep one large campaign from slowing down anyone else’s.' },
+      { title: 'Live progress and spend', body: 'Calls queued, completed and success rate update live, with spend tracked against each campaign’s estimate.' },
+    ],
+  },
+  {
+    id: 'review',
+    nav: 'Review',
+    title: 'Review every call',
+    body: 'Each call ends with a recording, a transcript and an evaluation — no manual listening.',
+    image: { src: '/product/campaign-report.jpg', alt: 'A campaign report listing every contact with call status, duration and a link to the individual call report.' },
+    features: [
+      { title: 'Automatic evaluation', body: 'Sentiment, outcome (completed, reschedule, wrong person and more) and a score for every question.' },
+      { title: 'Recordings and transcripts', body: 'Every conversation captured and tied to the evaluation that scored it.' },
+      { title: 'Filter, sort and export', body: 'Slice results by outcome, sentiment or status and export exactly what you see to CSV.' },
+      { title: 'Shareable reports', body: 'Send a campaign or call report to anyone through a link that expires after 3, 7, 14 or 30 days.' },
+    ],
+  },
+  {
+    id: 'manage',
+    nav: 'Team & billing',
+    title: 'Manage your team and spend',
+    body: 'Workspaces, roles and minute-based billing for teams of any size.',
+    features: [
+      { title: 'Workspaces and roles', body: 'Separate workspaces per team or client, with admin, editor and viewer roles inside each.' },
+      { title: 'Invite links', body: 'Invite teammates by email with the role they should have; links expire on their own.' },
+      { title: 'Email and SMS notifications', body: 'Get told when campaigns finish, calls fail or your balance runs low — on the channels you choose.' },
+      { title: 'Minute-based billing', body: 'Prepaid minute packs with a per-campaign and per-call usage breakdown.' },
+    ],
+  },
+];
+
+// /security — how data is protected, stated as how the system works rather
+// than as certifications the product does not hold.
+export const SECURITY_SECTIONS = [
+  {
+    title: 'Access control',
+    items: [
+      { title: 'Workspace isolation', body: 'Every campaign, contact and call record belongs to one workspace, and the server checks that on every request — not only in the interface.' },
+      { title: 'Roles inside each workspace', body: 'Admins manage members and billing, editors build and run campaigns, viewers can only read results.' },
+      { title: 'Hashed passwords and Google sign-in', body: 'Passwords are stored as bcrypt hashes, never in plain text; teams can sign in with Google instead.' },
+      { title: 'Short-lived sessions', body: 'Access tokens expire quickly and are refreshed in the background, so a leaked token stops working on its own.' },
+    ],
+  },
+  {
+    title: 'Sharing and invitations',
+    items: [
+      { title: 'Expiring share links', body: 'Reports shared outside your team use unguessable links that stop working after the period you choose.' },
+      { title: 'Expiring invites', body: 'Invitations carry the role they grant and expire if they are not accepted.' },
+      { title: 'Shared pages stay out of search', body: 'Shared reports and invitations are excluded from search engines and AI crawlers.' },
+    ],
+  },
+  {
+    title: 'Calls and data',
+    items: [
+      { title: 'Full call provenance', body: 'Recording, transcript and evaluation stay attached to the call that produced them, for audit after the fact.' },
+      { title: 'Protected concurrency', body: 'A fair per-workspace dispatcher caps simultaneous calls, so one campaign cannot starve another team’s.' },
+      { title: 'Identity checks on sensitive calls', body: 'Campaigns can confirm they are speaking to the right person before discussing any details, and end politely if not.' },
+      { title: 'Encrypted in transit', body: 'The app and its API are served only over HTTPS.' },
+    ],
+  },
+];
+
+export const SECURITY_FAQS = [
+  {
+    q: 'Who can see my campaigns and calls?',
+    a: 'Only members of the workspace they belong to, within the limits of their role — plus anyone you explicitly send an expiring share link to.',
+  },
+  {
+    q: 'Can a shared report link be found by search engines?',
+    a: 'No. Shared reports use unguessable links, expire after the period you choose, and are excluded from search engines and AI crawlers.',
+  },
+  {
+    q: 'Do you hold compliance certifications?',
+    a: 'We describe how the system protects your data rather than claim certifications we do not hold. For specific requirements, contact us before you start.',
+  },
+];
+
+// /faq — every question in one place, grouped. Home shows the first few of
+// the product group; FAQ structured data lives on /faq only, so each
+// question has one canonical home.
+export const FAQ_GROUPS = [
+  { id: 'product', title: 'Product', items: FAQS },
+  { id: 'pricing', title: 'Pricing and billing', items: PRICING_FAQS },
+  { id: 'security', title: 'Security and privacy', items: SECURITY_FAQS },
+];
+
+// Home stats band — counts of what the product does today, nothing measured
+// on customers. Each number is checkable against the app.
+export const HOME_STATS = [
+  { value: 30, suffix: '', label: 'Prebuilt AI voices', icon: 'graphic_eq', tone: 'blue' },
+  { value: 3, suffix: '', label: 'Call languages — English, Hindi, Hinglish', icon: 'translate', tone: 'violet' },
+  { value: 5, suffix: '', label: 'Campaign types, from HR to collections', icon: 'campaign', tone: 'amber' },
+  { value: 0, suffix: '', label: 'Lines of code to launch a campaign', icon: 'data_object', tone: 'emerald' },
+];
+
+export const DEMO_VIDEO = {
+  src: '/demo.mp4',
+  poster: '/product/demo-poster.jpg',
+  title: 'AI Caller Pro product walkthrough',
+  description: 'A walkthrough of building a campaign, watching it run live and reviewing scored calls in AI Caller Pro.',
+  duration: 'PT56S',
+  uploadDate: '2026-09-29',
+};

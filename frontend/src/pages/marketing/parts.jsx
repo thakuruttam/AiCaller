@@ -137,3 +137,23 @@ export function Breadcrumbs({ items, className = '' }) {
     </nav>
   );
 }
+
+// Top of every subpage: breadcrumb trail, eyebrow, the page's one <h1>,
+// intro copy and optional actions — so all subpages share one structure.
+export function PageHero({ breadcrumbs, eyebrow, title, intro, actions }) {
+  return (
+    <section className="relative overflow-hidden bg-paper-200 pt-28 pb-16 sm:pt-32">
+      <Container className="relative">
+        {breadcrumbs && <Breadcrumbs items={breadcrumbs} className="mb-8" />}
+        <div className="max-w-3xl">
+          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+          <h1 className="mt-5 text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] text-ink-100">
+            {title}
+          </h1>
+          {intro && <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-ink-600">{intro}</p>}
+          {actions && <div className="mt-9 flex flex-wrap gap-3">{actions}</div>}
+        </div>
+      </Container>
+    </section>
+  );
+}

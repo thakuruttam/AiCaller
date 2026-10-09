@@ -318,6 +318,40 @@
   to   { opacity: 1; }
 }
 
+/* Scroll reveal (pages/marketing/visuals.jsx <Reveal>). Hidden only under
+   html.js, which index.html sets before paint — pre-rendered HTML read
+   without JavaScript is always visible. */
+[data-reveal] {
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.js [data-reveal='out'] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+/* The wordmark's bars hold still until the logo is hovered or focused. */
+.wave-hover .voice-wave-bar { animation-play-state: paused; }
+.wave-hover:hover .voice-wave-bar,
+.wave-hover:focus-visible .voice-wave-bar { animation-play-state: running; }
+
+/* Marketing accents: a dashed connector that draws across the flow steps,
+   and a slow float for the hero's product chips. */
+.flow-line {
+  background-image: repeating-linear-gradient(90deg, var(--color-paper-800) 0 6px, transparent 6px 12px);
+  animation: flowLine 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left;
+}
+@keyframes flowLine {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+
 /* Voice-wave loader (components/ui/WaveLoader.jsx): each bar breathes
    between a low level and full height, staggered by its animation-delay so
    the row ripples like a speaking voice. */
@@ -328,8 +362,8 @@
 }
 
 @keyframes voiceWave {
-  0%, 100% { transform: scaleY(0.3); }
-  50%      { transform: scaleY(1); }
+  0%, 100% { transform: scaleY(calc(var(--wave-peak, 1) * 0.3)); }
+  50%      { transform: scaleY(var(--wave-peak, 1)); }
 }
 
 @keyframes shimmer {
@@ -340,9 +374,10 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in, .animate-rise, .animate-slide-in-right,
   .animate-scale-in, .animate-backdrop, .animate-slide-in-left, .stagger > *, .skeleton,
-  .voice-wave-bar {
+  .voice-wave-bar, .flow-line, .animate-float {
     animation: none !important;
   }
+  .js [data-reveal='out'] { opacity: 1; transform: none; }
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
   }

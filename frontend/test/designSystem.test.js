@@ -77,7 +77,7 @@ describe('design system', () => {
   });
 
   it('uses flat fills only — no gradients', () => {
-    expect(violations(/bg-gradient-to-|(?<!\[background-image:)linear-gradient\(/)).toEqual([]);
+    expect(violations(/bg-gradient-to-|(?<!\[background-image:)(?:linear|radial|conic)-gradient\(/)).toEqual([]);
   });
 
   it('opens dialogs through the shared Modal and confirm dialog', () => {

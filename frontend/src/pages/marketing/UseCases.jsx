@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import MarketingLayout from './Layout';
-import { Container, Eyebrow, SectionHeading, Breadcrumbs, PrimaryCta, SecondaryCta } from './parts';
+import { Container, SectionHeading, PrimaryCta, SecondaryCta, PageHero } from './parts';
 import { FinalCta } from './Sections';
 import { USE_CASES, STEPS } from './content';
 import { pageForPath } from '../../seo/pages';
@@ -29,22 +29,12 @@ export function UseCasesIndex() {
   useSeo('/use-cases');
   return (
     <MarketingLayout>
-      <section className="bg-paper-200 pt-28 pb-16 sm:pt-32">
-        <Container>
-          <Breadcrumbs items={pageForPath('/use-cases').breadcrumbs} className="mb-8" />
-          <div className="max-w-3xl">
-            <Eyebrow>Use cases</Eyebrow>
-            <h1 className="mt-5 text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] text-ink-100">
-              One AI voice agent, five kinds of outbound call
-            </h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-ink-600">
-              Every campaign type uses the same building blocks — your questions, branching on each answer,
-              plain-English scoring, and a transcript and evaluation for every call. Pick the one closest to
-              the calls your team makes today.
-            </p>
-          </div>
-        </Container>
-      </section>
+      <PageHero
+        breadcrumbs={pageForPath('/use-cases').breadcrumbs}
+        eyebrow="Use cases"
+        title="One AI voice agent, five kinds of outbound call"
+        intro="Every campaign type uses the same building blocks — your questions, branching on each answer, plain-English scoring, and a transcript and evaluation for every call. Pick the one closest to the calls your team makes today."
+      />
       <section className="bg-paper-100 py-16 md:py-24">
         <Container>
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -66,22 +56,16 @@ export function UseCaseDetail() {
 
   return (
     <MarketingLayout>
-      <section className="bg-paper-200 pt-28 pb-16 sm:pt-32">
-        <Container>
-          <Breadcrumbs items={pageForPath(`/use-cases/${slug}`).breadcrumbs} className="mb-8" />
-          <div className="max-w-3xl">
-            <Eyebrow>{useCase.name}</Eyebrow>
-            <h1 className="mt-5 text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] text-ink-100">
-              {useCase.h1}
-            </h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-ink-600">{useCase.intro}</p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <PrimaryCta>{useCase.cta}</PrimaryCta>
-              <SecondaryCta as={Link} to="/pricing">See pricing</SecondaryCta>
-            </div>
-          </div>
-        </Container>
-      </section>
+      <PageHero
+        breadcrumbs={pageForPath(`/use-cases/${slug}`).breadcrumbs}
+        eyebrow={useCase.name}
+        title={useCase.h1}
+        intro={useCase.intro}
+        actions={<>
+          <PrimaryCta>{useCase.cta}</PrimaryCta>
+          <SecondaryCta as={Link} to="/pricing">See pricing</SecondaryCta>
+        </>}
+      />
 
       <section className="bg-paper-100 py-16 md:py-24">
         <Container className="grid gap-12 md:grid-cols-2">

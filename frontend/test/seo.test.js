@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { PUBLIC_PAGES, pageForPath } from '../src/seo/pages.js';
 import { buildHead, headToHtml, applyHead } from '../src/seo/head.js';
-import { PRICING, FAQS } from '../src/pages/marketing/content.js';
+import { PRICING, FAQ_GROUPS, NAV_LINKS } from '../src/pages/marketing/content.js';
+import { MARKETING_ROUTES } from '../src/pages/marketing/routes.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -22,9 +23,27 @@ describe('public page SEO', () => {
     }
   });
 
-  it('home FAQ structured data matches the visible FAQ word for word', () => {
-    const faq = pageForPath('/').jsonLd.find((n) => n['@type'] === 'FAQPage');
-    expect(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text])).toEqual(FAQS.map((f) => [f.q, f.a]));
+  it('FAQ structured data lives on /faq only and matches its visible questions word for word', () => {
+    const faq = pageForPath('/faq').jsonLd.find((n) => n['@type'] === 'FAQPage');
+    expect(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text]))
+      .toEqual(FAQ_GROUPS.flatMap((g) => g.items).map((f) => [f.q, f.a]));
+    const others = PUBLIC_PAGES.filter((p) => p.path !== '/faq' && p.jsonLd.some((n) => n['@type'] === 'FAQPage'));
+    expect(others.map((p) => p.path)).toEqual([]);
+  });
+
+  it('every nav link is a real page in the registry, not an in-page jump', () => {
+    for (const link of NAV_LINKS) {
+      expect(link.to, `${link.label} should be a page route`).toBeTruthy();
+      expect(pageForPath(link.to), `${link.to} missing from PUBLIC_PAGES`).not.toBeNull();
+    }
+  });
+
+  it('every public page has a route the app and pre-render share', () => {
+    const routes = MARKETING_ROUTES.map((r) => r.path);
+    for (const page of PUBLIC_PAGES) {
+      const matches = routes.some((r) => r === page.path || (r.includes(':') && page.path.startsWith(r.split(':')[0])));
+      expect(matches, `${page.path} has no route`).toBe(true);
+    }
   });
 
   it('breadcrumb structured data mirrors the visible trail', () => {

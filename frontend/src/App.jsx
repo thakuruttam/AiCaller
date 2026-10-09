@@ -8,8 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AppLoader from './components/AppLoader';
 import RoleGate from './components/RoleGate';
 import Landing from './pages/marketing';
-import Pricing from './pages/marketing/Pricing';
-import { UseCasesIndex, UseCaseDetail } from './pages/marketing/UseCases';
+import { MARKETING_ROUTES } from './pages/marketing/routes';
 import Dashboard from './pages/Dashboard';
 import CampaignWizard from './pages/CampaignWizard/CampaignWizard';
 import CampaignDetails from './pages/CampaignDetails';
@@ -210,9 +209,10 @@ function App() {
                   <Route path="/invite/:token" element={<ThemeScope><InviteAccept /></ThemeScope>} />
                   <Route path="/dashboard/web3-dashboard" element={<Web3Dashboard />} />
                   <Route path="/" element={<RootRoute />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/use-cases" element={<UseCasesIndex />} />
-                <Route path="/use-cases/:slug" element={<UseCaseDetail />} />
+                {MARKETING_ROUTES.filter(r => r.path !== '/').map((route) => {
+                  const Page = route.Component;
+                  return <Route key={route.path} path={route.path} element={<Page />} />;
+                })}
                   <Route path="/*" element={
                     <ProtectedRoute>
                       <AppLayout />

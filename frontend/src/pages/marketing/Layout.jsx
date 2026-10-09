@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Container, PrimaryCta } from './parts';
 import { NAV_LINKS, USE_CASES } from './content';
+import WaveMotif from '../../components/ui/WaveMotif';
 
 // Shared frame for every public page — one nav, one footer — so each page
 // is reachable from every other through plain, crawlable links.
@@ -14,11 +15,9 @@ function NavItem({ link, className, onClick }) {
 
 function Wordmark({ className = '' }) {
   return (
-    <Link to="/" className={`inline-flex items-center gap-2.5 ${className}`}>
-      <span className="flex h-8 w-8 items-center justify-center rounded-chip bg-brand-500">
-        <span className="material-symbols-outlined text-white [--icon-size:18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-          graphic_eq
-        </span>
+    <Link to="/" aria-label="AI Caller Pro home" className={`wave-hover inline-flex items-center gap-2.5 ${className}`}>
+      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white">
+        <WaveMotif bars={5} height={16} barWidth={2.5} gap={2} seed={4} animated />
       </span>
       <span className="text-[15px] font-semibold tracking-[-0.01em] text-ink-100">AI Caller Pro</span>
     </Link>

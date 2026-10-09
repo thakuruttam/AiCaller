@@ -183,16 +183,10 @@ export default function Login() {
         ════════════════════════════════════════ */}
         <section className="hidden lg:flex flex-col justify-between w-[48%] bg-ink-50 p-6 relative overflow-hidden">
 
-          {/* Glowing blurred gradient blob background */}
-          <div className="absolute inset-0 pointer-events-none" style={{ filter: 'blur(70px)' }}>
-            <div className="absolute -top-24 -right-24 w-[520px] h-[520px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(38,109,240,0.55) 0%, transparent 70%)' }} />
-            <div className="absolute top-1/3 -left-16 w-[420px] h-[420px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(83,139,243,0.32) 0%, transparent 70%)' }} />
-            <div className="absolute bottom-0 left-1/4 w-[460px] h-[460px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(148,185,255,0.28) 0%, transparent 70%)' }} />
-          </div>
 
           {/* Logo */}
           <div className="relative z-10 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-chip flex items-center justify-center" style={{ background: LOGO_BADGE_BG, boxShadow: '0 4px 14px rgba(38,109,240,0.35)' }}>
+            <div className="w-9 h-9 rounded-chip flex items-center justify-center" style={{ background: LOGO_BADGE_BG, boxShadow: '0 4px 14px rgba(37,99,235,0.35)' }}>
               <LogoIcon size={19} />
             </div>
             <span className="font-semibold text-white text-lg">AI Caller Pro</span>
@@ -217,7 +211,7 @@ export default function Login() {
 
           {/* Trust line */}
           <p className="relative z-10 text-xs text-ink-800 tracking-wide">
-            Trusted by 500+ enterprise teams
+            No-code campaigns · 30 AI voices · English, Hindi &amp; Hinglish
           </p>
         </section>
 
