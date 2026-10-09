@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'dist-ssr']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -55,5 +55,11 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
     },
+  },
+  // Build-time pre-render entry (scripts/prerender.js) — never hot-reloaded,
+  // and it deliberately re-exports the SEO registry alongside render().
+  {
+    files: ['src/entry-prerender.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
 ])

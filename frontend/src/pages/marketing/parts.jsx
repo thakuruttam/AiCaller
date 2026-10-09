@@ -81,9 +81,59 @@ export function AppFrame({ src, alt, className = '', priority = false, url = 'ap
         width={1483}
         height={812}
         loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
         decoding="async"
         className="block h-auto w-full"
       />
     </div>
+  );
+}
+
+// FAQ list as native <details>/<summary>: every answer is in the HTML (so
+// crawlers and answer engines read it, and FAQ structured data matches
+// visible text), it works without JavaScript, and the disclosure semantics
+// come from the browser rather than hand-rolled ARIA.
+export function FaqList({ items, className = '' }) {
+  return (
+    <div className={`mx-auto max-w-3xl divide-y divide-paper-500 border-y border-paper-500 ${className}`}>
+      {items.map((f) => (
+        <details key={f.q} className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 [&::-webkit-details-marker]:hidden">
+            <h3 className="text-[15px] font-semibold text-ink-100">{f.q}</h3>
+            <span
+              className="material-symbols-outlined shrink-0 text-ink-700 transition-transform [--icon-size:20px] group-open:rotate-180"
+              aria-hidden="true"
+            >
+              expand_more
+            </span>
+          </summary>
+          <p className="pb-5 pr-10 text-[15px] leading-relaxed text-ink-600">{f.a}</p>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+// Visible trail matching the page's BreadcrumbList structured data
+// (seo/pages.js) — same items, same order.
+export function Breadcrumbs({ items, className = '' }) {
+  return (
+    <nav aria-label="Breadcrumb" className={className}>
+      <ol className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-700">
+        {items.map((item, i) => {
+          const last = i === items.length - 1;
+          return (
+            <li key={item.path} className="flex items-center gap-1.5">
+              {last ? (
+                <span aria-current="page" className="font-medium text-ink-100">{item.name}</span>
+              ) : (
+                <Link to={item.path} className="transition-colors hover:text-ink-100">{item.name}</Link>
+              )}
+              {!last && <span aria-hidden="true" className="text-ink-800">/</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

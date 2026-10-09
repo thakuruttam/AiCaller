@@ -2,12 +2,15 @@
 // invented customers, logos, testimonials or metrics. An enterprise buyer will
 // check, and a fabricated proof point is worse than none.
 
+// Real routes use `to` (client-side, and crawlable as plain links); home
+// sections use `href` with an absolute path so they work from every page —
+// on the home page the browser treats "/#faq" as an in-page jump.
 export const NAV_LINKS = [
-  { href: '#product', label: 'Product' },
-  { href: '#capabilities', label: 'Capabilities' },
-  { href: '#how', label: 'How it works' },
-  { href: '#security', label: 'Security' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '/#product', label: 'Product' },
+  { to: '/use-cases', label: 'Use cases' },
+  { to: '/pricing', label: 'Pricing' },
+  { href: '/#security', label: 'Security' },
+  { href: '/#faq', label: 'FAQ' },
 ];
 
 // The three screens a buyer actually meets, in order.
@@ -151,5 +154,165 @@ export const FAQS = [
   {
     q: 'How is usage billed?',
     a: 'By call minute. Each campaign shows an estimated total before it runs and tracks actual spend against it as calls complete.',
+  },
+];
+
+// Prepaid minute packs and the limits each unlocks — a copy of
+// api-service/src/config/billing.js (PACKS + TIER_LIMITS), because the public
+// pricing page is pre-rendered without the API. test/pricingParity.test.js
+// fails if the two drift. -1 means unlimited.
+export const PRICING = [
+  { id: 'TRIAL', label: 'Trial', amountInr: 500, minutes: 100, ratePerMin: 5.0,
+    limits: { teamMembers: 2, workspaces: 1, campaigns: 1, contacts: 500, api: false } },
+  { id: 'BASIC', label: 'Basic', amountInr: 2000, minutes: 440, ratePerMin: 4.55,
+    limits: { teamMembers: 5, workspaces: 1, campaigns: 3, contacts: 2000, api: false } },
+  { id: 'STANDARD', label: 'Standard', amountInr: 5000, minutes: 1150, ratePerMin: 4.35,
+    limits: { teamMembers: 10, workspaces: 2, campaigns: 10, contacts: 10000, api: false } },
+  { id: 'PROFESSIONAL', label: 'Professional', amountInr: 15000, minutes: 3600, ratePerMin: 4.17,
+    limits: { teamMembers: 25, workspaces: 5, campaigns: -1, contacts: -1, api: true } },
+  { id: 'ENTERPRISE', label: 'Enterprise', amountInr: 50000, minutes: 12500, ratePerMin: 4.0,
+    limits: { teamMembers: -1, workspaces: -1, campaigns: -1, contacts: -1, api: true } },
+  { id: 'ENTERPRISE_PLUS', label: 'Enterprise+', amountInr: 100000, minutes: 27000, ratePerMin: 3.7,
+    limits: { teamMembers: -1, workspaces: -1, campaigns: -1, contacts: -1, api: true } },
+];
+
+export const PRICING_FAQS = [
+  {
+    q: 'How does pricing work?',
+    a: 'You buy a prepaid pack of call minutes. Minutes are deducted as calls run, billed by call minute, and every campaign shows its estimated cost before it starts.',
+  },
+  {
+    q: 'Is there a subscription?',
+    a: 'No. Packs are one-time top-ups — larger packs carry a lower per-minute rate and unlock higher team, workspace, campaign and contact limits.',
+  },
+  {
+    q: 'What does the per-minute rate include?',
+    a: 'The AI voice agent conducting the call over enterprise telephony, plus automatic transcription and evaluation of every completed call.',
+  },
+  {
+    q: 'What happens when my balance runs low?',
+    a: 'The dashboard flags a low balance so you can top up before a campaign stalls, and usage is broken down per campaign and per call.',
+  },
+];
+
+// One page per CampaignType (api-service/prisma/schema.prisma). Every claim
+// maps to something the campaign wizard actually does — the question flow,
+// branching, semantic scoring, languages, recordings and evaluation — not to
+// invented results.
+export const USE_CASES = [
+  {
+    slug: 'hr-screening',
+    cta: 'Start screening candidates',
+    type: 'HR',
+    name: 'HR screening calls',
+    title: 'AI Phone Screening for HR & Recruitment Teams',
+    description:
+      'Automate first-round candidate screening calls. An AI voice agent asks your questions, follows up on answers and scores every candidate call.',
+    h1: 'Screen every applicant by phone — without a recruiter on every call',
+    intro:
+      'Set the questions a first-round screen has to answer — notice period, current and expected compensation, location, role fit — and the agent calls each candidate, holds a natural conversation, and returns a transcript and a score for every answer.',
+    tasks: [
+      'Confirm the candidate’s interest and availability for the role',
+      'Ask notice period, current and expected compensation and preferred location',
+      'Skip or follow up on questions based on the answer given',
+      'End politely when the person is not the intended candidate',
+    ],
+    outcomes: [
+      'A scored transcript per candidate instead of hand-written notes',
+      'Answers judged against what you described as a good answer, in plain English',
+      'Shareable report links for hiring managers without an account',
+    ],
+  },
+  {
+    slug: 'recruiting',
+    cta: 'Start calling candidates',
+    type: 'RECRUITER',
+    name: 'Recruiting agency calls',
+    title: 'AI Calling for Recruiting & Staffing Agencies',
+    description:
+      'Call every candidate in your pipeline with an AI voice agent that qualifies, confirms availability and scores each call for recruiters.',
+    h1: 'Work the whole candidate pipeline, not just the top of it',
+    intro:
+      'Staffing agencies carry more candidates than recruiters can phone. Upload the list, define what each call must find out, and the agent calls every candidate with per-contact details filled into the conversation.',
+    tasks: [
+      'Introduce the opening and check whether the candidate is open to it',
+      'Collect availability, experience and compensation expectations',
+      'Personalise each call with per-contact overrides from your CSV',
+      'Handle a candidate talking over the agent mid-sentence, as on a real call',
+    ],
+    outcomes: [
+      'Every candidate contacted, with outcome and sentiment recorded',
+      'Filter and sort results by outcome, then export to CSV',
+      'Workspaces and roles that keep each client’s campaigns separate',
+    ],
+  },
+  {
+    slug: 'sales-outreach',
+    cta: 'Start qualifying leads',
+    type: 'SALES',
+    name: 'Sales outreach & lead qualification',
+    title: 'AI Sales Calls for Lead Qualification & Outreach',
+    description:
+      'Qualify every lead by phone. An AI voice agent asks your qualifying questions, branches on answers and scores intent, with every call transcribed.',
+    h1: 'Qualify every lead the day it arrives',
+    intro:
+      'Describe your qualifying questions and what a strong answer sounds like. The agent calls each lead, adapts the conversation to their answers, and hands your team a scored, searchable record of who is worth a follow-up.',
+    tasks: [
+      'Open with your pitch and confirm the person is the right contact',
+      'Ask budget, timeline and need, branching on each answer',
+      'End the call early when a lead is clearly not a fit — no wasted minutes',
+      'Capture a callback request when the timing is wrong',
+    ],
+    outcomes: [
+      'Intent and outcome scored for every lead, automatically',
+      'Live campaign progress and spend tracked against the estimate',
+      'Recordings and transcripts tied to the evaluation that scored them',
+    ],
+  },
+  {
+    slug: 'loan-recovery',
+    cta: 'Start a collections campaign',
+    type: 'LOAN_RECOVERY',
+    name: 'Loan recovery & EMI reminders',
+    title: 'AI Voice Agent for EMI Reminders & Collections',
+    description:
+      'Automate EMI reminder and collections calls in English, Hindi or Hinglish. The AI agent verifies the borrower, states dues and records promises to pay.',
+    h1: 'EMI reminders and collections calls, at the scale of your book',
+    intro:
+      'Reminder and early-collections calls are high-volume and repetitive. The agent confirms it is speaking to the borrower, states the pending amount from your data, and records what the borrower commits to — in English, Hindi or Hinglish.',
+    tasks: [
+      'Verify identity before discussing any account details',
+      'State the due amount and date from per-contact fields',
+      'Record a promise-to-pay date or a reason for delay',
+      'Apologise and end the call if the wrong person answers',
+    ],
+    outcomes: [
+      'Outcome per borrower — completed, reschedule, wrong person and more',
+      'Full call provenance — recording, transcript and evaluation — for audit',
+      'Usage tracked by call minute, per campaign',
+    ],
+  },
+  {
+    slug: 'customer-feedback',
+    cta: 'Start a feedback survey',
+    type: 'FEEDBACK',
+    name: 'Customer feedback & CSAT surveys',
+    title: 'AI Phone Surveys for Customer Feedback & CSAT',
+    description:
+      'Run CSAT and feedback surveys by phone. An AI voice agent asks follow-ups, captures open answers and scores sentiment on every call.',
+    h1: 'Phone surveys customers actually finish',
+    intro:
+      'A conversation gets answers a form does not. The agent asks your survey questions, follows up on low scores to find out why, and every call lands with sentiment and per-question results already scored.',
+    tasks: [
+      'Ask a rating question and follow up when the score is low',
+      'Capture open-ended feedback in the customer’s own words',
+      'Keep the survey short with branching that skips irrelevant questions',
+      'Run in English, Hindi or Hinglish per campaign',
+    ],
+    outcomes: [
+      'Sentiment breakdown across the whole campaign',
+      'Question-by-question results you can filter and export',
+      'Report links to share results with the wider team',
+    ],
   },
 ];

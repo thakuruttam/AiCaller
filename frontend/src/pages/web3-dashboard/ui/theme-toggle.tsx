@@ -1,21 +1,17 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
+import { IconButton } from "../../../components/ui";
 
-import { Button } from "./button";
-
+// Sun and moon cross-fade with a quarter turn as the theme flips; the label
+// names the theme you'd switch to, which is what the click will do.
 export function ThemeToggle() {
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
+  const next = theme === "dark" ? "light" : "dark";
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleTheme}
-      aria-label="Toggle theme"
-    >
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
+    <IconButton title={`Switch to ${next} theme`} onClick={toggleTheme} className="relative">
+      <Sun className="size-[18px] rotate-0 scale-100 transition-all duration-300 dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute size-[18px] rotate-90 scale-0 transition-all duration-300 dark:rotate-0 dark:scale-100" />
+    </IconButton>
   );
 }

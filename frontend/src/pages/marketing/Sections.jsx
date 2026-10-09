@@ -1,20 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Container, SectionHeading, Eyebrow, PrimaryCta, SecondaryCta, AppFrame } from './parts';
+import { Container, SectionHeading, Eyebrow, PrimaryCta, SecondaryCta, AppFrame, FaqList } from './parts';
 import { TOUR, CAPABILITIES, STEPS, TRUST, FAQS } from './content';
 
 // ── Hero ────────────────────────────────────────────────────────────────────
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-paper-200 pt-28 pb-16 sm:pt-32 md:pb-24">
-      {/* A single soft wash rather than decorative blobs — it should read as
-          depth, not as ornament competing with the screenshot. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-[520px]"
-        style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(38,109,240,0.10) 0%, transparent 70%)' }}
-      />
-
       <Container className="relative">
         <div className="mx-auto max-w-3xl text-center animate-rise">
           <Eyebrow className="justify-center">AI voice calling for outbound teams</Eyebrow>
@@ -32,7 +24,7 @@ export function Hero() {
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <PrimaryCta>Get started</PrimaryCta>
-            <SecondaryCta as="a" href="#product">See the product</SecondaryCta>
+            <SecondaryCta as={Link} to="/use-cases">See use cases</SecondaryCta>
           </div>
 
           <p className="mt-5 text-[13px] text-ink-700">
@@ -201,40 +193,11 @@ export function Trust() {
 
 // ── FAQ ─────────────────────────────────────────────────────────────────────
 export function Faq() {
-  const [open, setOpen] = useState(null);
-
   return (
     <section id="faq" className="scroll-mt-24 bg-paper-200 py-20 md:py-28">
       <Container>
         <SectionHeading eyebrow="FAQ" title="Questions we get asked" align="center" />
-
-        <div className="mx-auto mt-12 max-w-3xl divide-y divide-paper-500 border-y border-paper-500">
-          {FAQS.map((f, i) => {
-            const isOpen = open === i;
-            return (
-              <div key={f.q}>
-                <h3>
-                  <button
-                    onClick={() => setOpen(isOpen ? null : i)}
-                    aria-expanded={isOpen}
-                    className="flex w-full cursor-pointer items-center justify-between gap-6 py-5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-500/40"
-                  >
-                    <span className="text-[15px] font-medium text-ink-100">{f.q}</span>
-                    <span
-                      className={`material-symbols-outlined shrink-0 text-ink-700 transition-transform [--icon-size:20px] ${isOpen ? 'rotate-180' : ''}`}
-                      aria-hidden="true"
-                    >
-                      expand_more
-                    </span>
-                  </button>
-                </h3>
-                {isOpen && (
-                  <p className="animate-fade-in pb-5 pr-10 text-[15px] leading-relaxed text-ink-600">{f.a}</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <FaqList items={FAQS} className="mt-12" />
       </Container>
     </section>
   );
@@ -246,11 +209,6 @@ export function FinalCta() {
     <section className="bg-paper-100 py-20 md:py-28">
       <Container>
         <div className="relative overflow-hidden rounded-card bg-brand-500 px-6 py-16 text-center sm:px-12">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{ background: 'radial-gradient(70% 120% at 50% 0%, rgba(255,255,255,0.16) 0%, transparent 70%)' }}
-          />
           <div className="relative mx-auto max-w-2xl">
             <h2 className="text-[clamp(1.75rem,3.4vw,2.5rem)] font-semibold leading-[1.12] tracking-[-0.025em] text-white">
               Put outbound calling on autopilot

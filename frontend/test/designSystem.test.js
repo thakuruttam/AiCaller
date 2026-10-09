@@ -51,6 +51,7 @@ describe('design system', () => {
       ['pages/Login.jsx'], // Google / Microsoft sign-in logos and the dark brand panel
       ['pages/InviteAccept.jsx'], // Google sign-in logo
       ['pages/Billing.jsx', 'color:'], // Razorpay checkout theme takes a hex
+      ['seo/site.js', 'themeColor'], // <meta name="theme-color"> takes a hex
     ])).toEqual([]);
   });
 

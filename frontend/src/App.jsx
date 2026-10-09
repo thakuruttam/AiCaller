@@ -8,6 +8,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AppLoader from './components/AppLoader';
 import RoleGate from './components/RoleGate';
 import Landing from './pages/marketing';
+import Pricing from './pages/marketing/Pricing';
+import { UseCasesIndex, UseCaseDetail } from './pages/marketing/UseCases';
 import Dashboard from './pages/Dashboard';
 import CampaignWizard from './pages/CampaignWizard/CampaignWizard';
 import CampaignDetails from './pages/CampaignDetails';
@@ -165,17 +167,34 @@ function ThemeScope({ children }) {
   );
 }
 
+// A stored refresh token is the only way a load can end with a signed-in
+// user; without one the visitor is anonymous, so the marketing page renders
+// immediately rather than a loader replacing the pre-rendered HTML.
+function hasStoredSession() {
+  try {
+    return !!localStorage.getItem('refreshToken');
+  } catch {
+    return false;
+  }
+}
+
 function RootRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <AppLoader />;
+    return hasStoredSession() ? <AppLoader /> : <Landing />;
   }
 
   return user ? <AppLayout /> : <Landing />;
 }
 
 function App() {
+  // index.html hides pre-rendered marketing HTML from signed-in visitors
+  // until the app has replaced it; this runs after that first commit.
+  useEffect(() => {
+    document.getElementById('root')?.removeAttribute('data-prerendered');
+  }, []);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
@@ -191,6 +210,9 @@ function App() {
                   <Route path="/invite/:token" element={<ThemeScope><InviteAccept /></ThemeScope>} />
                   <Route path="/dashboard/web3-dashboard" element={<Web3Dashboard />} />
                   <Route path="/" element={<RootRoute />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/use-cases" element={<UseCasesIndex />} />
+                <Route path="/use-cases/:slug" element={<UseCaseDetail />} />
                   <Route path="/*" element={
                     <ProtectedRoute>
                       <AppLayout />

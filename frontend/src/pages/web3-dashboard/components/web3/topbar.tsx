@@ -5,6 +5,7 @@ import { Megaphone, Plus } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { SidebarTrigger } from "../../ui/sidebar";
+import { ThemeToggle } from "../../ui/theme-toggle";
 import {
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -123,11 +124,14 @@ export function DashboardTopbar() {
         </div>
       </div>
 
-      <div className="hidden items-center gap-2 md:flex">
-        <AppButton className="px-5" onClick={() => navigate("/create-campaign")}>
-          Create Campaign
-          <Megaphone className="size-4" />
-        </AppButton>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <span className="hidden md:block">
+          <AppButton className="px-5" onClick={() => navigate("/create-campaign")}>
+            Create Campaign
+            <Megaphone className="size-4" />
+          </AppButton>
+        </span>
       </div>
     </header>
   );
