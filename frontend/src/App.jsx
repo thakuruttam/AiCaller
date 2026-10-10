@@ -8,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RoleGate from './components/RoleGate';
 import Landing from './pages/marketing';
 import Dashboard from './pages/Dashboard';
-import CampaignWizard from './pages/CampaignWizard/CampaignWizard';
+import CampaignBuilder from './pages/CampaignBuilder/CampaignBuilder';
 import CampaignDetails from './pages/CampaignDetails';
 import CallDetails from './pages/CallDetails';
 import CampaignReport from './pages/CampaignReport';
@@ -121,12 +121,12 @@ function AppLayout() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/create-campaign" element={
                 <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">You don't have permission to create campaigns.</div>}>
-                  <CampaignWizard />
+                  <CampaignBuilder />
                 </RoleGate>
               } />
               <Route path="/edit-campaign/:id" element={
                 <RoleGate allow={['SUPER_ADMIN', 'ADMIN', 'EDITOR']} fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">You don't have permission to edit campaigns.</div>}>
-                  <CampaignWizard />
+                  <CampaignBuilder />
                 </RoleGate>
               } />
               <Route path="/admin" element={

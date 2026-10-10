@@ -2,6 +2,7 @@ import React, { useState, forwardRef } from 'react';
 import { Button, IconButton, Badge } from '../../../components/ui';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import '../../../components/datepicker.css';
 import {
   ClipboardList, PhoneCall, Users,
   Settings, CheckCircle2,

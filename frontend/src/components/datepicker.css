@@ -1,0 +1,50 @@
+/* react-datepicker, themed to match the app — the popup otherwise always
+   renders light in dark mode. Import after the library's own stylesheet,
+   wherever a DatePicker is used. */
+.react-datepicker-popper {
+  z-index: 50;
+}
+
+html.dark .react-datepicker {
+  background-color: #202124;
+  border-color: #505967;
+  color: #e4e7ec;
+}
+html.dark .react-datepicker__header {
+  background-color: #1c1d1f;
+  border-bottom-color: #505967;
+}
+html.dark .react-datepicker__current-month,
+html.dark .react-datepicker__day-name,
+html.dark .react-datepicker__day,
+html.dark .react-datepicker-time__header,
+html.dark .react-datepicker__time-name {
+  color: #e4e7ec;
+}
+html.dark .react-datepicker__day:hover {
+  background-color: #505967;
+}
+html.dark .react-datepicker__day--disabled {
+  color: #505967;
+}
+html.dark .react-datepicker__day--selected,
+html.dark .react-datepicker__day--keyboard-selected {
+  background-color: #266df0;
+  color: #fff;
+}
+html.dark .react-datepicker__time-container,
+html.dark .react-datepicker__time-container .react-datepicker__time,
+html.dark .react-datepicker__time-list {
+  background-color: #202124;
+  color: #e4e7ec;
+}
+html.dark .react-datepicker__time-list-item:hover {
+  background-color: #505967 !important;
+}
+html.dark .react-datepicker__time-list-item--selected {
+  background-color: #266df0 !important;
+}
+html.dark .react-datepicker__triangle::before,
+html.dark .react-datepicker__triangle::after {
+  border-bottom-color: #1c1d1f !important;
+}
