@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
-import { Button } from '../../components/ui';
-import Spinner from '../../components/Spinner';
+import { Button, WaveLoader } from '../../components/ui';
 import { DEFAULT_VOICE, FEATURED_VOICES, VOICES } from './campaignModel';
 
 /**
@@ -83,7 +82,7 @@ export default function VoicePicker({ value, onChange, sampleText }) {
                            hover:text-brand-500 hover:bg-brand-500/10 outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30"
               >
                 {state === 'loading'
-                  ? <Spinner size={14} />
+                  ? <WaveLoader size={14} label={`Loading ${v}`} />
                   : <span className="material-symbols-outlined [--icon-size:18px]">{state === 'playing' ? 'stop' : 'play_arrow'}</span>}
               </button>
             </div>

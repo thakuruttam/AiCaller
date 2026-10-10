@@ -17,6 +17,8 @@ export {
 } from './Table';
 export { default as Page, PageHeader, BackLink, EmptyState, Stat } from './Page';
 export { default as StatCard } from './StatCard';
+export { default as WaveLoader } from './WaveLoader';
+export { default as WaveMotif } from './WaveMotif';
 export { FacetFilter, FilterBar, ColumnToggle } from './TableControls';
 export { default as Pagination } from './Pagination';
 export {

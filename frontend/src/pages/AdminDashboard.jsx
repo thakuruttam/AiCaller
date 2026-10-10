@@ -8,10 +8,11 @@ import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import Step7Review from './CampaignWizard/components/Step7Review';
-import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar, StatCard, Progress, Select } from '../components/ui';
+import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar, StatCard, Progress, Select, WaveLoader, Pagination } from '../components/ui';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 
 export default function AdminDashboard() {
   const [campaigns, setCampaigns] = useState([]);
@@ -244,12 +245,15 @@ export default function AdminDashboard() {
       type: { label: 'Type', get: c => c.type || 'HR', format: campaignTypeLabel },
       workspace: { label: 'Workspace', get: c => c.tenant?.name },
     },
+    { onChange: () => setCampaignPage(1) },
   );
   const filtered = campaignFilters.filtered;
+  const { paginated: pagedCampaigns, setPage: setCampaignPage, paginationProps: campaignPagination } = usePagination(filtered);
   const isCampaignFiltered = !!campaignSearchQuery || campaignFilters.activeCount > 0;
   const clearCampaignFilters = () => {
     setCampaignSearchQuery('');
     campaignFilters.reset();
+    setCampaignPage(1);
   };
 
   const handleExportCampaigns = () => exportCsv(`all-campaigns-${new Date().toISOString().slice(0, 10)}`, [
@@ -340,7 +344,7 @@ export default function AdminDashboard() {
             {secondsAgo === 0 ? 'Live' : `${secondsAgo}s ago`}
           </span>
           <FilterBar filters={campaignFilters} />
-          <DebouncedSearch value={campaignSearchQuery} onSearch={setCampaignSearchQuery} placeholder="Search campaigns..." className="w-full md:w-72 md:ml-auto" />
+          <DebouncedSearch value={campaignSearchQuery} onSearch={(q) => { setCampaignSearchQuery(q); setCampaignPage(1); }} placeholder="Search campaigns..." className="w-full md:w-72 md:ml-auto" />
         </TableToolbar>
 
         <div className="divide-y divide-border">
@@ -350,7 +354,7 @@ export default function AdminDashboard() {
               <p className="text-sm text-muted-foreground">Loading campaigns…</p>
             </div>
           )}
-          {!loading && filtered.map(campaign => {
+          {!loading && pagedCampaigns.map(campaign => {
             const logs = campaign.callLogs || [];
             const STALE_MS = 10 * 60 * 1000; // 10 min — in-progress/queued older than this is a ghost
             const effectiveStatus = (log) => {
@@ -517,6 +521,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+        {!loading && filtered.length > 0 && <Pagination {...campaignPagination} label="campaigns" />}
       </div>
 
 
@@ -619,7 +624,7 @@ function SupportTicketsPanel({ tickets, loading, filter, setFilter, onRefresh, o
           </div>
 
           {loading ? (
-            <div className="px-5 py-10 text-center text-muted-foreground text-sm">Loading…</div>
+            <div className="flex justify-center px-5 py-10"><WaveLoader className="text-brand-500" label="Loading tickets" /></div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <span className="material-symbols-outlined text-muted-foreground/40 [--icon-size:40px] block mb-2">inbox</span>

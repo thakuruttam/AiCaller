@@ -50,9 +50,9 @@ export default function StatCard({
               : icon}
           </span>
         )}
-        <h3 className="text-sm font-medium text-foreground">{label}</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{label}</h3>
       </div>
-      <div className={`mt-3 text-3xl font-normal tracking-wide tabular-nums text-foreground ${valueClassName}`}>{value}</div>
+      <div className={`mt-3 text-3xl font-semibold tracking-tight tabular-nums text-foreground ${valueClassName}`}>{value}</div>
       {(footer || children) && (
         <div className="mt-auto flex flex-col gap-3 pt-3">
           {footer}

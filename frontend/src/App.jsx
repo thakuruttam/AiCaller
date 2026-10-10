@@ -5,8 +5,10 @@ import api from './api/axios';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AppLoader from './components/AppLoader';
 import RoleGate from './components/RoleGate';
 import Landing from './pages/marketing';
+import { MARKETING_ROUTES } from './pages/marketing/routes';
 import Dashboard from './pages/Dashboard';
 import CampaignBuilder from './pages/CampaignBuilder/CampaignBuilder';
 import CampaignDetails from './pages/CampaignDetails';
@@ -165,23 +167,34 @@ function ThemeScope({ children }) {
   );
 }
 
+// A stored refresh token is the only way a load can end with a signed-in
+// user; without one the visitor is anonymous, so the marketing page renders
+// immediately rather than a loader replacing the pre-rendered HTML.
+function hasStoredSession() {
+  try {
+    return !!localStorage.getItem('refreshToken');
+  } catch {
+    return false;
+  }
+}
+
 function RootRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-paper-300 dark:bg-ink-50">
-        <div className="w-12 h-12 bg-brand-500 rounded-chip flex items-center justify-center shadow-card">
-          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>graphic_eq</span>
-        </div>
-      </div>
-    );
+    return hasStoredSession() ? <AppLoader /> : <Landing />;
   }
 
   return user ? <AppLayout /> : <Landing />;
 }
 
 function App() {
+  // index.html hides pre-rendered marketing HTML from signed-in visitors
+  // until the app has replaced it; this runs after that first commit.
+  useEffect(() => {
+    document.getElementById('root')?.removeAttribute('data-prerendered');
+  }, []);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
@@ -201,6 +214,10 @@ function App() {
                   <Route path="/invite/:token" element={<ThemeScope><InviteAccept /></ThemeScope>} />
                   <Route path="/dashboard/web3-dashboard" element={<Web3Dashboard />} />
                   <Route path="/" element={<RootRoute />} />
+                {MARKETING_ROUTES.filter(r => r.path !== '/').map((route) => {
+                  const Page = route.Component;
+                  return <Route key={route.path} path={route.path} element={<Page />} />;
+                })}
                   <Route path="/*" element={
                     <ProtectedRoute>
                       <AppLayout />

@@ -1,12 +1,12 @@
 import React from 'react';
 import Button, { IconButton } from './Button';
 import { Select } from './Input';
+import { PAGE_SIZE_OPTIONS } from '../../hooks/usePagination';
 
 // The one pagination control. Screens previously shipped two different
 // designs — a Prev/Next pair and a numbered-page strip — which read as two
 // different products. This covers both needs: page numbers when there is room
 // (`compact={false}`) and a plain Prev/Next when there isn't.
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export default function Pagination({
   page,

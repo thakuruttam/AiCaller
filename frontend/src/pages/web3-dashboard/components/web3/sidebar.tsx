@@ -70,7 +70,7 @@ export function DashboardSidebar() {
               className="h-11 px-2 group-data-[collapsible=icon]:hidden group-data-[collapsible=icon]:p-0"
             >
               <Link to="/">
-                <div className="w-8 h-8 bg-gradient-to-br from-brand-450 to-brand-800 rounded-chip flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 bg-brand-500 rounded-chip flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined text-white [--icon-size:18px]" style={{ fontVariationSettings: "'FILL' 1" }}>graphic_eq</span>
                 </div>
                 <span className="text-lg font-medium">AI Caller Pro</span>
@@ -139,7 +139,7 @@ export function DashboardSidebar() {
                     <span className="relative inline-flex">
                       <item.icon className="size-4 group-data-[collapsible=icon]:size-5" />
                       {showBadge && (
-                        <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none">
+                        <span className="bg-brand-500 text-primary-foreground absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none">
                           {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                       )}
@@ -159,7 +159,7 @@ export function DashboardSidebar() {
                 >
                   <Avatar className="size-6 shrink-0">
                     {user?.avatarUrl && <AvatarImage src={user.avatarUrl} />}
-                    <AvatarFallback className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground text-xs font-semibold">
+                    <AvatarFallback className="bg-brand-500 text-primary-foreground text-xs font-semibold">
                       {user?.name?.charAt(0)?.toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>

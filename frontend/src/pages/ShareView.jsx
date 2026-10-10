@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
-import { Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, Badge, Button, IconButton, EmptyState, FilterBar } from '../components/ui';
+import { Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, Badge, Button, IconButton, EmptyState, FilterBar, Pagination } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 
 const OUTCOME_TONE = {
   COMPLETED:    'positive',
@@ -79,9 +80,9 @@ export default function ShareView() {
   const filters = useFacets(filtered, {
     outcome: { label: 'Outcome', get: c => c.outcome || 'PENDING', format: v => outcomeLabel(v === 'PENDING' ? null : v) },
     sentiment: { label: 'Sentiment', get: c => c.sentiment },
-  });
+  }, { onChange: () => setPage(1) });
   const isFiltered = !!search || filters.activeCount > 0;
-  const clearAllFilters = () => { setSearch(''); filters.reset(); };
+  const clearAllFilters = () => { setSearch(''); filters.reset(); setPage(1); };
 
   const { sorted, sortProps } = useSort(filters.filtered, {
     contact: c => c.contactName,
@@ -89,6 +90,7 @@ export default function ShareView() {
     score: c => c.score,
     date: c => c.createdAt,
   });
+  const { paginated, setPage, paginationProps } = usePagination(sorted);
 
   if (loading) return (
     <div className="min-h-screen bg-paper-200 dark:bg-ink-50 flex items-center justify-center">
@@ -175,7 +177,7 @@ export default function ShareView() {
               <span className="material-symbols-outlined [--icon-size:18px] text-muted-foreground">search</span>
               <input
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Search contacts…"
                 aria-label="Search contacts"
                 className="flex-1 min-w-0 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
@@ -200,7 +202,7 @@ export default function ShareView() {
                 <Th><span className="sr-only">Actions</span></Th>
               </THead>
               <TBody>
-                {sorted.map(c => (
+                {paginated.map(c => (
                   <Tr key={c.callLogId} onClick={() => navigate(`/share/${token}/calls/${c.callLogId}`)}>
                     <Td>
                       <CellStack title={c.contactName} meta={c.phone} />
@@ -241,6 +243,7 @@ export default function ShareView() {
               </TBody>
             </Table>
           )}
+          <Pagination {...paginationProps} label="calls" />
         </div>
       </main>
     </div>

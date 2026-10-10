@@ -29,7 +29,7 @@ export function CardHeader({ title, icon, action, className = '' }) {
         {icon && (
           <span className="material-symbols-outlined [--icon-size:16px] text-muted-foreground">{icon}</span>
         )}
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
       </div>
       {action}
     </div>

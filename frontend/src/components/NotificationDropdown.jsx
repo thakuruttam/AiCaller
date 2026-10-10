@@ -3,6 +3,7 @@ import { Button, IconButton } from '../components/ui';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import NotificationRow from './NotificationRow';
+import { WaveLoader } from './ui';
 
 export default function NotificationDropdown() {
   const [open, setOpen] = useState(false);
@@ -62,7 +63,7 @@ export default function NotificationDropdown() {
           {/* List */}
           <div className="max-h-96 overflow-y-auto divide-y divide-paper-400 dark:divide-ink-400">
             {loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</div>
+              <div className="flex justify-center px-4 py-8"><WaveLoader size="sm" className="text-brand-500" label="Loading notifications" /></div>
             )}
             {!loading && notifications.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications yet</div>

@@ -5,6 +5,7 @@ import { Megaphone, Plus } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { SidebarTrigger } from "../../ui/sidebar";
+import { ThemeToggle } from "../../ui/theme-toggle";
 import {
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -65,7 +66,7 @@ export function WorkspaceSwitcherMenu() {
   return (
     <DropdownMenuSub onOpenChange={(open) => { if (!open) setShowCreate(false); }}>
       <DropdownMenuSubTrigger>
-        <span className="bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+        <span className="bg-brand-500 text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
           {current?.name?.charAt(0)?.toUpperCase() || "?"}
         </span>
         <span className="min-w-0 flex-1 truncate">{current?.name || "Switch workspace"}</span>
@@ -123,11 +124,14 @@ export function DashboardTopbar() {
         </div>
       </div>
 
-      <div className="hidden items-center gap-2 md:flex">
-        <AppButton className="px-5" onClick={() => navigate("/create-campaign")}>
-          Create Campaign
-          <Megaphone className="size-4" />
-        </AppButton>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <span className="hidden md:block">
+          <AppButton className="px-5" onClick={() => navigate("/create-campaign")}>
+            Create Campaign
+            <Megaphone className="size-4" />
+          </AppButton>
+        </span>
       </div>
     </header>
   );

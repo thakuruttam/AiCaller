@@ -8,7 +8,7 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-br from-brand-450 to-brand-800 text-primary-foreground [a&]:hover:brightness-110",
+        default: "bg-brand-500 text-primary-foreground [a&]:hover:bg-brand-600",
         secondary:
           "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
         destructive:

@@ -9,6 +9,7 @@ import { useCampaignActions, useCallActions } from '../hooks/useCampaignActions'
 import CampaignRunControls, { CampaignStateSummary } from '../components/CampaignRunControls';
 import { contactProgress, campaignRunState } from '../lib/campaignState';
 import { exportCsv } from '../lib/exportCsv';
+import { usePagination } from '../hooks/usePagination';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import PageLoader from '../components/PageLoader';
@@ -25,8 +26,6 @@ export default function CampaignDetails() {
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const PER_PAGE = 10;
 
   useEffect(() => { fetchCampaignDetails(); }, [id]);
 
@@ -114,6 +113,7 @@ export default function CampaignDetails() {
     status: ({ log }) => log?.status,
     duration: ({ log }) => log?.durationMs,
   });
+  const { paginated, setPage, paginationProps } = usePagination(sortedRows);
 
   if (loading) return <PageLoader text="Loading campaign…" />;
   if (loadError || !campaign) return (
@@ -131,7 +131,6 @@ export default function CampaignDetails() {
     </Page>
   );
 
-  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PER_PAGE));
 
   const handleExport = () => exportCsv(`${campaign.name || 'campaign'}-contacts-${new Date().toISOString().slice(0, 10)}`, [
     { header: 'Name', value: ({ cc }) => cc.overrides?.name || cc.contact?.name },
@@ -142,7 +141,6 @@ export default function CampaignDetails() {
     { header: 'Duration (s)', value: ({ log }) => (log?.durationMs ? Math.round(log.durationMs / 1000) : null) },
   ], sortedRows);
 
-  const paginated = sortedRows.slice((page-1)*PER_PAGE, page*PER_PAGE);
 
   return (
     <Page>
@@ -311,14 +309,7 @@ export default function CampaignDetails() {
             </TBody>
           </Table>
 
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          totalRows={sortedRows.length}
-          pageSize={PER_PAGE}
-          onPageChange={setPage}
-          label="contacts"
-        />
+        <Pagination {...paginationProps} label="contacts" />
       </Card>
 
       <Modal isOpen={isSandboxOpen} onClose={() => setIsSandboxOpen(false)} title="AI Sandbox — Live Test" size="lg">
