@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge, Pagination,
 } from '../components/ui';
@@ -236,6 +237,17 @@ export default function Support() {
       setSelectedTicket(res.data);
     } catch { addToast('Failed to load ticket', 'error'); }
   };
+
+  // Lets a global-search result land directly on a ticket instead of just
+  // the generic Support page.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket');
+    if (!ticketId) return;
+    openTicket({ id: ticketId });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen">
