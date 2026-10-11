@@ -8,11 +8,12 @@ import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import DebouncedSearch from '../components/DebouncedSearch';
 import Step7Review from './CampaignWizard/components/Step7Review';
-import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar, StatCard, Progress, Select, WaveLoader, Pagination } from '../components/ui';
+import { Tabs, Button, IconButton, Page, PageHeader, Badge, StatusBadge, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, FilterBar, StatCard, Progress, Select, WaveLoader, Pagination, FullscreenButton, FullscreenCard } from '../components/ui';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 export default function AdminDashboard() {
   const [campaigns, setCampaigns] = useState([]);
@@ -23,6 +24,7 @@ export default function AdminDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [campaignSearchQuery, setCampaignSearchQuery] = useState('');
   const [callSearchQueries, setCallSearchQueries] = useState({});
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [nowTs, setNowTs] = useState(() => Date.now());
   // Notifications deep-link here as /admin?tab=support&ticket=<id>, so the tab
@@ -329,7 +331,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Campaign Table */}
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-7">
+      <FullscreenCard
+        isFullscreen={isFullscreen}
+        onClose={toggleFullscreen}
+        className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden mb-7"
+      >
         <TableToolbar
           title="All Campaigns"
           count={loading ? null : filtered.length}
@@ -337,6 +343,7 @@ export default function AdminDashboard() {
             <Badge tone="positive" capitalize={false}>{totalActive} Active</Badge>
             <Badge tone="caution" capitalize={false}>{totalPaused} Paused</Badge>
             <IconButton title="Export CSV" icon="download" onClick={handleExportCampaigns} disabled={!filtered.length} />
+            <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
           </>}
         >
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -347,14 +354,14 @@ export default function AdminDashboard() {
           <DebouncedSearch value={campaignSearchQuery} onSearch={(q) => { setCampaignSearchQuery(q); setCampaignPage(1); }} placeholder="Search campaigns..." className="w-full md:w-72 md:ml-auto" />
         </TableToolbar>
 
-        <div className="divide-y divide-border">
+        <div className={`divide-y divide-border ${isFullscreen ? '' : 'max-h-[570px] overflow-y-auto'}`}>
           {loading && (
             <div className="px-6 py-10 flex flex-col items-center gap-3">
               <Spinner size={28} className="text-brand-500" />
               <p className="text-sm text-muted-foreground">Loading campaigns…</p>
             </div>
           )}
-          {!loading && pagedCampaigns.map(campaign => {
+          {!loading && (isFullscreen ? filtered : pagedCampaigns).map(campaign => {
             const logs = campaign.callLogs || [];
             const STALE_MS = 10 * 60 * 1000; // 10 min — in-progress/queued older than this is a ghost
             const effectiveStatus = (log) => {
@@ -450,8 +457,8 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-x-auto">
-                        <Table>
-                          <THead>
+                        <Table maxHeight="40vh">
+                          <THead sticky>
                             <Th>Contact</Th>
                             <Th>Phone</Th>
                             <Th>Status</Th>
@@ -521,8 +528,8 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
-        {!loading && filtered.length > 0 && <Pagination {...campaignPagination} label="campaigns" />}
-      </div>
+        {!isFullscreen && !loading && filtered.length > 0 && <Pagination {...campaignPagination} label="campaigns" />}
+      </FullscreenCard>
 
 
       {/* Re-run confirm modal */}

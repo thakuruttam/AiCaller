@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Page, PageHeader, Button, IconButton, SelectableCard, Badge,
-  Table, THead, Th, TBody, Tr, Td, TableToolbar, EmptyState, FilterBar, Pagination,
+  Table, THead, Th, TBody, Tr, Td, TableToolbar, EmptyState, FilterBar, Pagination, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import PageLoader from '../components/PageLoader';
@@ -40,6 +41,7 @@ export default function Billing() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [selectedPackId, setSelectedPackId] = useState(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const load = useCallback(async () => {
     try {
@@ -297,13 +299,20 @@ export default function Billing() {
       </div>
 
       {/* Transaction history */}
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+      <FullscreenCard
+        isFullscreen={isFullscreen}
+        onClose={toggleFullscreen}
+        className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+      >
         <TableToolbar
           title="Transaction history"
           count={history.length ? sortedHistory.length : null}
-          actions={history.length > 0 && (
-            <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedHistory.length} />
-          )}
+          actions={<>
+            {history.length > 0 && (
+              <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedHistory.length} />
+            )}
+            <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
+          </>}
         >
           {history.length > 0 && <FilterBar filters={filters} />}
         </TableToolbar>
@@ -317,8 +326,8 @@ export default function Billing() {
             action={<Button variant="secondary" onClick={filters.reset}>Clear filters</Button>}
           />
         ) : (
-          <Table>
-            <THead>
+          <Table maxHeight={isFullscreen ? undefined : '500px'}>
+            <THead sticky>
               <Th {...sortProps('date')}>Date</Th>
               <Th {...sortProps('pack')}>Pack</Th>
               <Th align="right" {...sortProps('minutes')}>Minutes</Th>
@@ -327,7 +336,7 @@ export default function Billing() {
               <Th>Status</Th>
             </THead>
             <TBody>
-              {pagedHistory.map((t) => (
+              {(isFullscreen ? sortedHistory : pagedHistory).map((t) => (
                 <Tr key={t.id}>
                   <Td muted className="whitespace-nowrap">{formatDate(t.createdAt)}</Td>
                   <Td className="font-medium capitalize">{t.packId.replace('_', ' ')}</Td>
@@ -348,8 +357,8 @@ export default function Billing() {
             </TBody>
           </Table>
         )}
-        {sortedHistory.length > 0 && <Pagination {...paginationProps} label="transactions" />}
-      </div>
+        {!isFullscreen && sortedHistory.length > 0 && <Pagination {...paginationProps} label="transactions" />}
+      </FullscreenCard>
   </Page>
   );
 }

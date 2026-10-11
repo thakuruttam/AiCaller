@@ -81,8 +81,10 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
             <span className="text-xs text-muted-foreground">In the order the agent says it</span>
           </div>
 
-          {/* The spine: a hairline joining every line of the call. */}
-          <ol className="relative flex flex-col gap-4 before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-border">
+          {/* The spine: a hairline joining every line of the call. Capped
+              and scrolled internally once there are enough questions,
+              rather than growing the page. */}
+          <ol className="relative flex flex-col gap-4 max-h-[55vh] overflow-y-auto before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-border">
             <FixedLine icon="call" label="Opening line" issue={issues.fields.callIntro} hint="[Name] becomes each person's name. The agent then confirms it's speaking to them.">
               <Textarea
                 aria-label="Opening line"
@@ -180,8 +182,9 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
         </Card>
       </div>
 
-      {/* How it sounds. Sticky so it stays in reach beside a long script. */}
-      <Card className="lg:sticky lg:top-5 flex flex-col gap-5">
+      {/* How it sounds. Sticky so it stays in reach beside a long script;
+          top-28 clears the sticky step header above (name + stepper). */}
+      <Card className="lg:sticky lg:top-28 flex flex-col gap-5">
         <h2 className="text-sm font-semibold text-foreground">How it sounds</h2>
 
         <div>

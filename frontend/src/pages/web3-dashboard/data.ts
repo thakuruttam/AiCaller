@@ -3,7 +3,6 @@ import {
   ArrowUpRight,
   Bell,
   ChartNoAxesColumn,
-  CircleGauge,
   Coins,
   Grid2X2,
   Repeat2,
@@ -17,7 +16,6 @@ export const navSections = [
     items: [
       { label: "Dashboard", icon: Grid2X2, to: "/" },
       { label: "My Team", icon: Repeat2, to: "/team" },
-      { label: "Billing", icon: CircleGauge, to: "/billing" },
       { label: "Support", icon: ChartNoAxesColumn, to: "/support" },
     ],
   },

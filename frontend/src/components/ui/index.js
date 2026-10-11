@@ -19,7 +19,8 @@ export { default as Page, PageHeader, BackLink, EmptyState, Stat } from './Page'
 export { default as StatCard } from './StatCard';
 export { default as WaveLoader } from './WaveLoader';
 export { default as WaveMotif } from './WaveMotif';
-export { FacetFilter, FilterBar, ColumnToggle } from './TableControls';
+export { FacetFilter, FilterBar, ColumnToggle, FullscreenButton } from './TableControls';
+export { default as FullscreenCard } from './FullscreenCard';
 export { default as Pagination } from './Pagination';
 export {
   Skeleton, SkeletonText, Alert, Progress, Avatar, Tooltip, Divider,

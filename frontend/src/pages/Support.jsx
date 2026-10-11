@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge, Pagination,
+  Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge, Pagination, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -181,6 +182,7 @@ export default function Support() {
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const fetchTickets = async () => {
     try {
@@ -323,13 +325,20 @@ export default function Support() {
         </div>
 
         {/* Recent Tickets */}
-        <section className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <FullscreenCard
+          isFullscreen={isFullscreen}
+          onClose={toggleFullscreen}
+          className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+        >
           <TableToolbar
             title="Recent tickets"
             count={tickets.length ? sortedTickets.length : null}
-            actions={tickets.length > 0 && (
-              <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedTickets.length} />
-            )}
+            actions={<>
+              {tickets.length > 0 && (
+                <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedTickets.length} />
+              )}
+              <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
+            </>}
           >
             {tickets.length > 0 && <FilterBar filters={filters} />}
           </TableToolbar>
@@ -350,8 +359,8 @@ export default function Support() {
               action={<Button variant="secondary" onClick={filters.reset}>Clear filters</Button>}
             />
           ) : (
-            <Table>
-              <THead>
+            <Table maxHeight={isFullscreen ? undefined : '500px'}>
+              <THead sticky>
                 <Th {...sortProps('subject')}>Ticket</Th>
                 <Th {...sortProps('status')}>Status</Th>
                 <Th {...sortProps('created')}>Created</Th>
@@ -359,7 +368,7 @@ export default function Support() {
                 <Th><span className="sr-only">Actions</span></Th>
               </THead>
               <TBody>
-                {pagedTickets.map(t => (
+                {(isFullscreen ? sortedTickets : pagedTickets).map(t => (
                   <Tr key={t.id} onClick={() => openTicket(t)}>
                     <Td>
                       <CellStack
@@ -386,8 +395,8 @@ export default function Support() {
               </TBody>
             </Table>
           )}
-          {!ticketsLoading && sortedTickets.length > 0 && <Pagination {...paginationProps} label="tickets" />}
-        </section>
+          {!isFullscreen && !ticketsLoading && sortedTickets.length > 0 && <Pagination {...paginationProps} label="tickets" />}
+        </FullscreenCard>
 
         {selectedTicket && (
           <TicketModal

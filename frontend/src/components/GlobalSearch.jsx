@@ -9,11 +9,12 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 // Plain navigation shortcuts — intentionally excludes Admin Panel, even for
-// super admins. Everything else in the app is fair game.
+// super admins. Everything else in the app is fair game. Billing moved under
+// Admin Panel (SUPER_ADMIN only), so it's filtered out for everyone else.
 const SHORTCUTS = [
   { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutGrid },
   { id: 'team', label: 'My Team', path: '/team', icon: Users },
-  { id: 'billing', label: 'Billing', path: '/billing', icon: CreditCard },
+  { id: 'billing', label: 'Billing', path: '/billing', icon: CreditCard, superAdminOnly: true },
   { id: 'support', label: 'Support', path: '/support', icon: LifeBuoy },
   { id: 'usage', label: 'Usage', path: '/usage', icon: Activity },
   { id: 'notifications', label: 'Notifications', path: '/notifications', icon: Bell },
@@ -25,19 +26,26 @@ const MAX_PER_GROUP = 5;
 // Campaigns, contacts and calls all come from the one already-tenant-scoped
 // GET /api/campaigns payload (it embeds campaignContacts.contact and
 // callLogs) — no extra endpoints needed for those three groups.
-function buildResults(q, data) {
+function buildResults(q, data, isSuperAdmin) {
   const groups = [];
 
   const shortcuts = SHORTCUTS
-    .filter(s => s.label.toLowerCase().includes(q))
+    .filter(s => (isSuperAdmin || !s.superAdminOnly) && s.label.toLowerCase().includes(q))
     .slice(0, MAX_PER_GROUP)
     .map(s => ({ id: `shortcut-${s.id}`, label: s.label, path: s.path, icon: s.icon }));
   if (shortcuts.length) groups.push({ label: 'Shortcuts', items: shortcuts });
 
+  // Each matching campaign surfaces its three views, not just the report,
+  // so a search lands wherever the person actually meant to go. Capped by
+  // campaign (not by item) so a campaign's three links always stay together.
   const campaigns = (data.campaigns || [])
     .filter(c => c.name?.toLowerCase().includes(q))
-    .slice(0, MAX_PER_GROUP)
-    .map(c => ({ id: `campaign-${c.id}`, label: c.name, path: `/campaigns/${c.id}/report`, icon: Megaphone }));
+    .slice(0, Math.ceil(MAX_PER_GROUP / 3))
+    .flatMap(c => [
+      { id: `campaign-${c.id}-overview`, label: c.name, sublabel: 'Overview', path: `/edit-campaign/${c.id}`, icon: Megaphone },
+      { id: `campaign-${c.id}-details`, label: c.name, sublabel: 'Details', path: `/campaigns/${c.id}`, icon: Megaphone },
+      { id: `campaign-${c.id}-report`, label: c.name, sublabel: 'Report', path: `/campaigns/${c.id}/report`, icon: Megaphone },
+    ]);
   if (campaigns.length) groups.push({ label: 'Campaigns', items: campaigns });
 
   const contactMap = new Map();
@@ -143,7 +151,7 @@ export default function GlobalSearch() {
   }, [query]);
 
   const q = query.trim().toLowerCase();
-  const results = q ? buildResults(q, data) : [];
+  const results = q ? buildResults(q, data, user?.role === 'SUPER_ADMIN') : [];
   const flat = results.flatMap(g => g.items);
 
   const go = (item) => {

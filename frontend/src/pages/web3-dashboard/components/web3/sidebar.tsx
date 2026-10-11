@@ -1,4 +1,4 @@
-import { ArrowDown, ChevronDown, LockKeyhole } from "lucide-react";
+import { ArrowDown, ChevronDown, CircleGauge, LockKeyhole } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
 import { useAuth } from "../../../../context/AuthContext";
@@ -53,6 +53,7 @@ export function DashboardSidebar() {
             title: "Admin",
             items: [
               { label: "Admin Panel", icon: LockKeyhole, to: "/admin" },
+              { label: "Billing", icon: CircleGauge, to: "/billing" },
               { label: "Usage", icon: ArrowDown, to: "/usage" },
             ],
           },
@@ -137,7 +138,7 @@ export function DashboardSidebar() {
                 >
                   <Link to={item.to}>
                     <span className="relative inline-flex">
-                      <item.icon className="size-4 group-data-[collapsible=icon]:size-5" />
+                      <item.icon className="size-4 group-data-[collapsible=icon]:size-5!" />
                       {showBadge && (
                         <span className="bg-brand-500 text-primary-foreground absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none">
                           {unreadCount > 9 ? "9+" : unreadCount}

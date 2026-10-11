@@ -235,7 +235,10 @@ export default function CampaignBuilder() {
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-7">
+          {/* Sticky so the name/step controls stay in reach while a long
+              contact list or script scrolls beneath them, instead of
+              scrolling away with the rest of the page. */}
+          <div className="sticky top-0 z-10 pt-5 pb-4 mb-3 bg-paper-300 dark:bg-ink-50 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0 flex-1">
               <label htmlFor="campaign-name" className="block text-xs font-medium text-muted-foreground">
                 {isEdit ? 'Editing campaign' : 'New campaign'}

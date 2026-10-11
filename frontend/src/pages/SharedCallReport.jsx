@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar,
-  PageHeader, BackLink, EmptyState, Badge, Card, CardHeader, StatCard, Progress, statusLabel,
+  PageHeader, BackLink, EmptyState, Badge, Card, CardHeader, StatCard, Progress, statusLabel, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
 import PageLoader from '../components/PageLoader';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 function parseTranscript(raw) {
   if (!raw) return [];
@@ -65,6 +66,7 @@ export default function SharedCallReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterScore, setFilterScore] = useState('all');
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   useEffect(() => {
     const load = async () => {
@@ -220,10 +222,15 @@ export default function SharedCallReport() {
 
         {/* Evaluation Breakdown */}
         {questionResults.length > 0 && (
-          <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+          <FullscreenCard
+            isFullscreen={isFullscreen}
+            onClose={toggleFullscreen}
+            className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+          >
             <TableToolbar
               title="Evaluation breakdown"
               count={filteredQuestions.length}
+              actions={<FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />}
             >
               <Tabs
                 size="sm"
@@ -237,8 +244,8 @@ export default function SharedCallReport() {
                 ]}
               />
             </TableToolbar>
-            <Table>
-              <THead>
+            <Table maxHeight={isFullscreen ? undefined : '500px'}>
+              <THead sticky>
                 <Th>Question</Th>
                 <Th>Answer</Th>
                 <Th>Scoring rule</Th>
@@ -287,7 +294,7 @@ export default function SharedCallReport() {
                 })}
               </TBody>
             </Table>
-          </div>
+          </FullscreenCard>
         )}
       </main>
     </div>

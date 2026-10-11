@@ -7,11 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import Modal from '../components/Modal';
-import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Input, Field, CopyField, Avatar, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, EmptyState, SkeletonRow, FilterBar } from '../components/ui';
+import { Page, PageHeader, Card, Button, IconButton, Badge, Select, Input, Field, CopyField, Avatar, Table, THead, TBody, Th, Tr, Td, CellStack, RowActions, TableToolbar, EmptyState, SkeletonRow, FilterBar, FullscreenButton, FullscreenCard } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { usePagination } from '../hooks/usePagination';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 const ROLE_BADGE = {
   SUPER_ADMIN: 'bg-brand-500/10 text-brand-600 border-brand-500/25 dark:text-brand-300',
@@ -148,6 +149,8 @@ export default function MyTeam() {
   const [revokingId, setRevokingId] = useState(null);
   const [resendPrefill, setResendPrefill] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { isFullscreen: membersFullscreen, toggle: toggleMembersFullscreen } = useFullscreen();
+  const { isFullscreen: invitesFullscreen, toggle: toggleInvitesFullscreen } = useFullscreen();
   const [statusChanging, setStatusChanging] = useState({});
 
   const workspaceId = user?.workspaceId;
@@ -296,13 +299,18 @@ export default function MyTeam() {
       />
 
       {/* Table */}
-          <Card padded={false} className="overflow-hidden">
+          <FullscreenCard
+            isFullscreen={membersFullscreen}
+            onClose={toggleMembersFullscreen}
+            className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+          >
             <TableToolbar
               title="Members"
               count={loading ? null : filteredMembers.length}
               actions={<>
                 <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!filteredMembers.length} />
                 <IconButton title="Refresh" icon="refresh" onClick={loadMembers} />
+                <FullscreenButton isFullscreen={membersFullscreen} onToggle={toggleMembersFullscreen} />
               </>}
             >
               <FilterBar filters={filters} />
@@ -335,8 +343,8 @@ export default function MyTeam() {
                 action={isFiltered && <Button variant="secondary" onClick={clearAllFilters}>Clear filters</Button>}
               />
             ) : (<>
-              <Table>
-                  <THead>
+              <Table maxHeight={membersFullscreen ? undefined : '500px'}>
+                  <THead sticky>
                       <Th {...sortProps('name')}>Name</Th>
                       <Th {...sortProps('email')}>Email</Th>
                       <Th {...sortProps('role')}>Role</Th>
@@ -346,7 +354,7 @@ export default function MyTeam() {
                       {isAdmin && <Th align="right"><span className="sr-only">Actions</span></Th>}
                   </THead>
                   <TBody>
-                    {paginatedMembers.map(m => {
+                    {(membersFullscreen ? filteredMembers : paginatedMembers).map(m => {
                       const isSelf = m.id === user?.id;
                       const isSuperAdminTarget = m.globalRole === 'SUPER_ADMIN';
                       const toggleDisabled = !isAdmin || isSelf || isSuperAdminTarget || !!statusChanging[m.id];
@@ -410,9 +418,9 @@ export default function MyTeam() {
                     })}
                   </TBody>
               </Table>
-              <Pagination {...paginationProps} label="members" />
+              {!membersFullscreen && <Pagination {...paginationProps} label="members" />}
             </>)}
-          </Card>
+          </FullscreenCard>
 
       {isAdmin && (
         <div className="mt-7">
@@ -421,10 +429,18 @@ export default function MyTeam() {
               {invitesLoading ? 'Loading pending invites…' : 'No pending invites'}
             </p>
           ) : (
-            <Card padded={false} className="overflow-hidden">
-              <TableToolbar title="Pending invites" count={invites.length} />
-              <Table>
-                <THead>
+            <FullscreenCard
+              isFullscreen={invitesFullscreen}
+              onClose={toggleInvitesFullscreen}
+              className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+            >
+              <TableToolbar
+                title="Pending invites"
+                count={invites.length}
+                actions={<FullscreenButton isFullscreen={invitesFullscreen} onToggle={toggleInvitesFullscreen} />}
+              />
+              <Table maxHeight={invitesFullscreen ? undefined : '500px'}>
+                <THead sticky>
                     <Th>Email</Th>
                     <Th>Role</Th>
                     <Th>Expires</Th>
@@ -457,7 +473,7 @@ export default function MyTeam() {
                   ))}
                 </TBody>
               </Table>
-            </Card>
+            </FullscreenCard>
           )}
         </div>
       )}
