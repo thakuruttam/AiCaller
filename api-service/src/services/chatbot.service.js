@@ -199,7 +199,12 @@ export async function runChat({ message, history, user }) {
       : { error: `Unknown tool: ${name}` };
 
     contents.push({ role: 'model', parts: [{ functionCall: { name, args } }] });
-    contents.push({ role: 'function', parts: [{ functionResponse: { name, response: result } }] });
+    // Confirmed against the live API: this endpoint rejects role 'function'
+    // ("Role 'function' is not supported... valid role: ...USER...MODEL...")
+    // despite that being documented elsewhere for some Gemini API versions —
+    // the tool-result turn goes back as 'user', paired with the preceding
+    // 'model' turn that requested the call.
+    contents.push({ role: 'user', parts: [{ functionResponse: { name, response: result } }] });
   }
 
   return "I'm having trouble pulling that together right now — try asking again, or rephrase your question.";

@@ -117,7 +117,7 @@ describe('runChat', () => {
 
     const secondBody = JSON.parse(global.fetch.mock.calls[1][1].body);
     const functionResponseTurn = secondBody.contents.find(c => c.parts.some(p => p.functionResponse));
-    expect(functionResponseTurn.role).toBe('function');
+    expect(functionResponseTurn.role).toBe('user');
   });
 
   it('rejects a get_billing_summary call at the handler level even if a non-SUPER_ADMIN somehow triggers it (defense in depth)', async () => {
