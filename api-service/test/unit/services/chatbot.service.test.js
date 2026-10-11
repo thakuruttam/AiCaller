@@ -120,6 +120,20 @@ describe('runChat', () => {
     expect(functionResponseTurn.role).toBe('user');
   });
 
+  it('echoes the model\'s functionCall turn back verbatim, preserving fields like thoughtSignature rather than reconstructing it', async () => {
+    mockFetchOnce({
+      candidates: [{ content: { parts: [{ functionCall: { name: 'get_campaign_summary', args: {} }, thoughtSignature: 'opaque-signature-abc' }] } }],
+    });
+    mockFetchOnce(textResponse('ok'));
+    findManyMock.mockResolvedValue([]);
+
+    await runChat({ message: 'how many campaigns', history: [], user: ADMIN_USER });
+
+    const secondBody = JSON.parse(global.fetch.mock.calls[1][1].body);
+    const modelTurn = secondBody.contents.find(c => c.role === 'model' && c.parts.some(p => p.functionCall));
+    expect(modelTurn.parts[0].thoughtSignature).toBe('opaque-signature-abc');
+  });
+
   it('rejects a get_billing_summary call at the handler level even if a non-SUPER_ADMIN somehow triggers it (defense in depth)', async () => {
     mockFetchOnce(functionCallResponse('get_billing_summary', {}));
     mockFetchOnce(textResponse('Billing is restricted.'));

@@ -198,7 +198,13 @@ export async function runChat({ message, history, user }) {
       ? await handler(args, user)
       : { error: `Unknown tool: ${name}` };
 
-    contents.push({ role: 'model', parts: [{ functionCall: { name, args } }] });
+    // Echo back the exact `parts` Gemini returned, not a reconstructed
+    // `{ functionCall: { name, args } }` — "thinking" models (this one
+    // included) attach an opaque `thoughtSignature` alongside the
+    // functionCall part, and the API rejects a follow-up turn where it's
+    // missing ("Function call is missing a thought_signature..."). Confirmed
+    // against the live API after rebuilding it dropped that field silently.
+    contents.push({ role: 'model', parts });
     // Confirmed against the live API: this endpoint rejects role 'function'
     // ("Role 'function' is not supported... valid role: ...USER...MODEL...")
     // despite that being documented elsewhere for some Gemini API versions —
