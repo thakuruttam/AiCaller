@@ -34,6 +34,7 @@ import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { NotificationProvider } from './context/NotificationContext';
 import NotificationDropdown from './components/NotificationDropdown';
+import ChatWidget from './components/chatbot/ChatWidget';
 import {
   SidebarProvider,
   SidebarInset,
@@ -154,6 +155,7 @@ function AppLayout() {
             </Routes>
           </main>
         </SidebarInset>
+        <ChatWidget />
       </PortalContainerProvider>
     </SidebarProvider>
   );

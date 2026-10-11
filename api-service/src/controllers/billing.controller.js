@@ -18,21 +18,30 @@ function getRazorpay() {
   return razorpay;
 }
 
+// Shared by the GET /api/billing route and the chatbot's get_billing_summary
+// tool — one query, one shape, so the two never drift apart. Returns null if
+// the tenant doesn't exist (callers decide how to report that).
+export async function computeBillingSummary(tenantId) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { minuteBalance: true, billingTier: true },
+  });
+  if (!tenant) return null;
+
+  return {
+    minuteBalance: tenant.minuteBalance,
+    billingTier: tenant.billingTier,
+    limits: TIER_LIMITS[tenant.billingTier],
+    packs: PACKS,
+  };
+}
+
 // GET /api/billing
 export async function getBilling(req, res) {
   try {
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: req.user.workspaceId },
-      select: { minuteBalance: true, billingTier: true },
-    });
-    if (!tenant) return res.status(404).json({ error: 'Workspace not found' });
-
-    res.json({
-      minuteBalance: tenant.minuteBalance,
-      billingTier: tenant.billingTier,
-      limits: TIER_LIMITS[tenant.billingTier],
-      packs: PACKS,
-    });
+    const summary = await computeBillingSummary(req.user.workspaceId);
+    if (!summary) return res.status(404).json({ error: 'Workspace not found' });
+    res.json(summary);
   } catch (err) {
     console.error('[billing] getBilling error:', err);
     res.status(500).json({ error: 'Failed to fetch billing info' });
@@ -210,6 +219,76 @@ async function creditBalance({ topUp, razorpayPaymentId, pack }) {
   }
 }
 
+// Shared by the GET /api/billing/usage route and the chatbot's
+// get_usage_summary tool. `where` is a Prisma Campaign filter — callers pass
+// `{ tenantId }` for a single workspace or `{}` for the SUPER_ADMIN
+// cross-tenant view; the chat tool only ever passes the former.
+export async function computeUsageSummary(where) {
+  const campaigns = await prisma.campaign.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      createdAt: true,
+      tenant: { select: { name: true } },
+      campaignContacts: {
+        select: { contactId: true, overrides: true },
+      },
+      callLogs: {
+        select: {
+          id: true,
+          status: true,
+          durationMs: true,
+          billableMinutes: true,
+          createdAt: true,
+          contactId: true,
+          contact: { select: { name: true, phone: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const enriched = campaigns.map(c => {
+    // Build a contactId → campaign-specific name map from overrides
+    const nameOverride = Object.fromEntries(
+      c.campaignContacts
+        .filter(cc => cc.overrides?.name)
+        .map(cc => [cc.contactId, cc.overrides.name])
+    );
+
+    const totalMinutes = c.callLogs.reduce((s, l) => s + (l.billableMinutes || 0), 0);
+    const completedCalls = c.callLogs.filter(l => l.status === 'completed').length;
+    return {
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      createdAt: c.createdAt,
+      tenantName: c.tenant?.name,
+      totalCalls: c.callLogs.length,
+      completedCalls,
+      totalMinutes,
+      calls: c.callLogs.map(l => ({
+        id: l.id,
+        contactName: nameOverride[l.contactId] || l.contact?.name || '—',
+        contactPhone: l.contact?.phone || '—',
+        status: l.status,
+        durationMs: l.durationMs || 0,
+        billableMinutes: l.billableMinutes || 0,
+        createdAt: l.createdAt,
+      })),
+    };
+  });
+
+  return {
+    campaigns: enriched,
+    totalMinutes: enriched.reduce((s, c) => s + c.totalMinutes, 0),
+    totalCalls: enriched.reduce((s, c) => s + c.totalCalls, 0),
+  };
+}
+
 // GET /api/billing/usage
 export async function getUsage(req, res) {
   try {
@@ -217,69 +296,8 @@ export async function getUsage(req, res) {
     // silently scoped to whichever single workspace the session currently has
     // active, hiding real call/usage history for every other tenant.
     const allTenants = req.user.role === 'SUPER_ADMIN' && req.query.all === 'true';
-    const campaigns = await prisma.campaign.findMany({
-      where: allTenants ? {} : { tenantId: req.user.workspaceId },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        createdAt: true,
-        tenant: { select: { name: true } },
-        campaignContacts: {
-          select: { contactId: true, overrides: true },
-        },
-        callLogs: {
-          select: {
-            id: true,
-            status: true,
-            durationMs: true,
-            billableMinutes: true,
-            createdAt: true,
-            contactId: true,
-            contact: { select: { name: true, phone: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const enriched = campaigns.map(c => {
-      // Build a contactId → campaign-specific name map from overrides
-      const nameOverride = Object.fromEntries(
-        c.campaignContacts
-          .filter(cc => cc.overrides?.name)
-          .map(cc => [cc.contactId, cc.overrides.name])
-      );
-
-      const totalMinutes = c.callLogs.reduce((s, l) => s + (l.billableMinutes || 0), 0);
-      const completedCalls = c.callLogs.filter(l => l.status === 'completed').length;
-      return {
-        id: c.id,
-        name: c.name,
-        type: c.type,
-        createdAt: c.createdAt,
-        tenantName: c.tenant?.name,
-        totalCalls: c.callLogs.length,
-        completedCalls,
-        totalMinutes,
-        calls: c.callLogs.map(l => ({
-          id: l.id,
-          contactName: nameOverride[l.contactId] || l.contact?.name || '—',
-          contactPhone: l.contact?.phone || '—',
-          status: l.status,
-          durationMs: l.durationMs || 0,
-          billableMinutes: l.billableMinutes || 0,
-          createdAt: l.createdAt,
-        })),
-      };
-    });
-
-    res.json({
-      campaigns: enriched,
-      totalMinutes: enriched.reduce((s, c) => s + c.totalMinutes, 0),
-      totalCalls: enriched.reduce((s, c) => s + c.totalCalls, 0),
-    });
+    const summary = await computeUsageSummary(allTenants ? {} : { tenantId: req.user.workspaceId });
+    res.json(summary);
   } catch (err) {
     console.error('[billing] getUsage error:', err);
     res.status(500).json({ error: 'Failed to fetch usage' });
