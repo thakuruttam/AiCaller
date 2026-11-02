@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Tabs, Table, THead, Th, TBody, Tr, Td, TableToolbar,
-  BackLink, Alert, Badge, Card, CardHeader, StatCard, Progress, statusLabel,
+  BackLink, Alert, Badge, Card, CardHeader, StatCard, Progress, statusLabel, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { GripVertical } from 'lucide-react';
 import { EVAL_BASE } from '../api/config';
 import PageLoader from '../components/PageLoader';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 // Badge tones for the eval outcome. NO_ANSWER reads as caution here (the
 // call didn't get its answers), unlike the neutral it gets in call lists.
@@ -54,6 +55,7 @@ export default function CallReport() {
   const [error, setError] = useState(null);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const [filterScore, setFilterScore] = useState('all');
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   // Drag-to-resize for the breakdown table's columns.
   const [colWidths, setColWidths] = useState(() =>
@@ -222,7 +224,11 @@ export default function CallReport() {
         {/* Evaluation Breakdown Table */}
         {(scoreBreakdown.length > 0 || hasExtracted) && (
           <div className="col-span-12">
-            <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden h-full">
+            <FullscreenCard
+              isFullscreen={isFullscreen}
+              onClose={toggleFullscreen}
+              className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden h-full"
+            >
               <TableToolbar
                 title="Evaluation breakdown"
                 actions={<>
@@ -237,15 +243,20 @@ export default function CallReport() {
                       { value: 'failed', label: 'Failed' },
                     ]}
                   />
+                  <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
                 </>}
               />
-                <Table className="table-fixed" style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
+                <Table
+                  className="table-fixed"
+                  style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}
+                  maxHeight={isFullscreen ? undefined : '500px'}
+                >
                   <colgroup>
                     {BREAKDOWN_COLUMNS.map(c => (
                       <col key={c.key} style={{ width: colWidths[c.key] }} />
                     ))}
                   </colgroup>
-                  <THead>
+                  <THead sticky>
                       {BREAKDOWN_COLUMNS.map((c, i) => (
                         <Th key={c.key} align={c.key === 'points' ? 'right' : 'left'} className="relative">
                           <span className="truncate pr-2">{c.label}</span>
@@ -427,7 +438,7 @@ export default function CallReport() {
                   </Alert>
                 </div>
               )}
-            </div>
+            </FullscreenCard>
           </div>
         )}
 

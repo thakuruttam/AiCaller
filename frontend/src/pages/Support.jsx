@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge, Pagination,
+  Page, PageHeader, Button, IconButton, StatusBadge, Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, SkeletonRow, EmptyState, FilterBar, Field, Input, Select, Textarea, statusLabel, Badge, Pagination, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -17,17 +19,6 @@ const CATEGORIES = [
   { value: 'feature',    label: 'Feature Request' },
   { value: 'account',   label: 'Account Management' },
   { value: 'general',   label: 'General Question' },
-];
-
-const FAQS = [
-  { q: 'How do I create a new campaign?', a: 'Click "New Campaign" in the left sidebar. The Campaign Wizard guides you through 7 steps: pick a call module, configure settings, define data to collect, set scoring questions, upload contacts, and review before launch.' },
-  { q: "Why aren't my calls connecting?", a: 'Verify your Twilio credentials in the environment config. Ensure phone numbers use E.164 format (+1XXXXXXXXXX). Check your Twilio account balance and confirm the caller ID is active and verified.' },
-  { q: 'How do I upload contacts?', a: 'In Step 5 of the Campaign Wizard (or from Campaign Details), click "Upload Contacts" and pick a CSV. The column mapper lets you link columns to Name, Phone, and optional Tag fields.' },
-  { q: "What's the difference between campaign types?", a: 'AI Caller Pro supports 5 types: HR (employee engagement), Recruiter (candidate outreach), Sales (lead qualification), Loan Recovery (payment reminders), and Feedback (customer satisfaction). Each shapes the AI tone and evaluation criteria.' },
-  { q: 'How does AI scoring work?', a: 'After each call, the evaluation pipeline scores 0–100 based on question coverage, sentiment analysis, identity verification (if enabled), and custom scoring rules per campaign. Scores appear in the Campaign Report.' },
-  { q: 'Can I share a campaign report externally?', a: 'Yes. Open a campaign report and click "Share" to generate a time-limited read-only link. Recipients can view scores and transcripts without needing an account.' },
-  { q: "What happens when a contact doesn't answer?", a: "The call is logged as NO_ANSWER. Retry behavior can be configured in Campaign Settings. You can also manually re-queue failed calls from the Admin Panel." },
-  { q: 'How do I add team members to my workspace?', a: 'Go to Settings → Members tab and click "Invite Member." Enter their email and choose a role: Admin (full access), Editor (create/edit campaigns), or Viewer (read-only).' },
 ];
 
 function FaqItem({ q, a, open, onToggle }) {
@@ -175,11 +166,13 @@ export default function Support() {
   const { addToast } = useToast();
 
   const [openFaq, setOpenFaq] = useState(null);
+  const [faqs, setFaqs] = useState([]);
   const [form, setForm] = useState({ subject: '', message: '', category: 'technical' });
   const [submitting, setSubmitting] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const fetchTickets = async () => {
     try {
@@ -190,6 +183,12 @@ export default function Support() {
   };
 
   useEffect(() => { fetchTickets(); }, []);
+
+  // Same content the chatbot's system prompt uses — served from the backend
+  // so the FAQ page and the assistant never drift out of sync.
+  useEffect(() => {
+    api.get('/api/chatbot/faq').then(res => setFaqs(res.data || [])).catch(() => {});
+  }, []);
 
   const categoryLabel = (value) => CATEGORIES.find(c => c.value === value)?.label || value;
 
@@ -237,6 +236,17 @@ export default function Support() {
     } catch { addToast('Failed to load ticket', 'error'); }
   };
 
+  // Lets a global-search result land directly on a ticket instead of just
+  // the generic Support page.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket');
+    if (!ticketId) return;
+    openTicket({ id: ticketId });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   return (
     <div className="min-h-screen">
       <Page>
@@ -255,7 +265,7 @@ export default function Support() {
           <div className="lg:col-span-7">
             <h2 className="text-sm font-semibold text-foreground mb-5">Common Questions</h2>
             <div className="border-t border-paper-500 dark:border-ink-400">
-              {FAQS.map((f, i) => (
+              {faqs.map((f, i) => (
                 <FaqItem
                   key={i}
                   q={f.q}
@@ -311,13 +321,20 @@ export default function Support() {
         </div>
 
         {/* Recent Tickets */}
-        <section className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <FullscreenCard
+          isFullscreen={isFullscreen}
+          onClose={toggleFullscreen}
+          className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+        >
           <TableToolbar
             title="Recent tickets"
             count={tickets.length ? sortedTickets.length : null}
-            actions={tickets.length > 0 && (
-              <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedTickets.length} />
-            )}
+            actions={<>
+              {tickets.length > 0 && (
+                <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedTickets.length} />
+              )}
+              <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
+            </>}
           >
             {tickets.length > 0 && <FilterBar filters={filters} />}
           </TableToolbar>
@@ -338,8 +355,8 @@ export default function Support() {
               action={<Button variant="secondary" onClick={filters.reset}>Clear filters</Button>}
             />
           ) : (
-            <Table>
-              <THead>
+            <Table maxHeight={isFullscreen ? undefined : '500px'}>
+              <THead sticky>
                 <Th {...sortProps('subject')}>Ticket</Th>
                 <Th {...sortProps('status')}>Status</Th>
                 <Th {...sortProps('created')}>Created</Th>
@@ -347,7 +364,7 @@ export default function Support() {
                 <Th><span className="sr-only">Actions</span></Th>
               </THead>
               <TBody>
-                {pagedTickets.map(t => (
+                {(isFullscreen ? sortedTickets : pagedTickets).map(t => (
                   <Tr key={t.id} onClick={() => openTicket(t)}>
                     <Td>
                       <CellStack
@@ -374,8 +391,8 @@ export default function Support() {
               </TBody>
             </Table>
           )}
-          {!ticketsLoading && sortedTickets.length > 0 && <Pagination {...paginationProps} label="tickets" />}
-        </section>
+          {!isFullscreen && !ticketsLoading && sortedTickets.length > 0 && <Pagination {...paginationProps} label="tickets" />}
+        </FullscreenCard>
 
         {selectedTicket && (
           <TicketModal

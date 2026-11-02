@@ -1,9 +1,12 @@
 import { useState } from 'react';
 
 // Page-size choices every table offers, and the size it starts at. One list
-// app-wide so "per page" means the same thing on every screen.
-export const PAGE_SIZE_OPTIONS = [15, 30, 60, 120];
-export const DEFAULT_PAGE_SIZE = 15;
+// app-wide so "per page" means the same thing on every screen. Default is
+// kept small so a table's first page plus the page's other content (stat
+// cards, toolbar, filters) fits a typical viewport without the page itself
+// needing to scroll — only the table's own Pagination control changes pages.
+export const PAGE_SIZE_OPTIONS = [7, 14, 28, 56];
+export const DEFAULT_PAGE_SIZE = 7;
 
 // Client-side pagination for a table. Pass the rows after search, filters
 // and sorting; spread `paginationProps` onto <Pagination>. Changing the page

@@ -17,7 +17,8 @@ import {
 import { useAuth } from "../../../../context/AuthContext";
 import { useToast } from "../../../../context/ToastContext";
 import api from "../../../../api/axios";
-import { Button as AppButton, Input as AppInput } from "../../../../components/ui";
+import { Button as AppButton } from "../../../../components/ui";
+import GlobalSearch from "../../../../components/GlobalSearch";
 
 // Tucked inside the account dropdown (as a submenu) rather than its own
 // persistent sidebar row — switching workspace is rare enough that it
@@ -116,11 +117,7 @@ export function DashboardTopbar() {
       <div className="flex w-full max-w-sm items-center gap-2">
         <SidebarTrigger className="shrink-0 lg:hidden" />
         <div className="flex-1">
-          <AppInput
-            icon="search"
-            aria-label="Search campaigns, calls and contacts"
-            placeholder="Search campaigns, calls, contacts..."
-          />
+          <GlobalSearch />
         </div>
       </div>
 

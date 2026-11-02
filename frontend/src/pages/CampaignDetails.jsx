@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Button, IconButton, Badge, StatusBadge, Page, PageHeader, BackLink, Card, EmptyState, Avatar, Pagination, Input,
-  Table, THead, Th, TBody, Tr, Td, TableToolbar, FilterBar, statusLabel, StatCard, Progress,
+  Table, THead, Th, TBody, Tr, Td, TableToolbar, FilterBar, statusLabel, StatCard, Progress, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
+import { useFullscreen } from '../hooks/useFullscreen';
 import { useCampaignActions, useCallActions } from '../hooks/useCampaignActions';
 import CampaignRunControls, { CampaignStateSummary } from '../components/CampaignRunControls';
 import { contactProgress, campaignRunState } from '../lib/campaignState';
@@ -26,6 +27,7 @@ export default function CampaignDetails() {
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   useEffect(() => { fetchCampaignDetails(); }, [id]);
 
@@ -179,12 +181,17 @@ export default function CampaignDetails() {
       </div>
 
       {/* Activity Table */}
-      <Card padded={false} className="overflow-hidden">
+      <FullscreenCard
+        isFullscreen={isFullscreen}
+        onClose={toggleFullscreen}
+        className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+      >
         <TableToolbar
           title="Contact call status"
           count={sortedRows.length}
           actions={<>
             <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedRows.length} />
+            <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
           </>}
         >
           <FilterBar filters={filters} />
@@ -198,8 +205,8 @@ export default function CampaignDetails() {
           </div>
         </TableToolbar>
 
-          <Table>
-            <THead>
+          <Table maxHeight={isFullscreen ? undefined : '500px'}>
+            <THead sticky>
               <Th {...sortProps('name')}>Name</Th>
               <Th {...sortProps('phone')}>Phone</Th>
               <Th>Tags / Overrides</Th>
@@ -209,7 +216,7 @@ export default function CampaignDetails() {
               <Th align="right">Actions</Th>
             </THead>
             <TBody>
-              {paginated.map(({ cc, log }) => {
+              {(isFullscreen ? sortedRows : paginated).map(({ cc, log }) => {
                 const contact = cc.contact;
                 const name = cc.overrides?.name || contact?.name || '?';
                 const status = log?.status;
@@ -309,8 +316,8 @@ export default function CampaignDetails() {
             </TBody>
           </Table>
 
-        <Pagination {...paginationProps} label="contacts" />
-      </Card>
+        {!isFullscreen && <Pagination {...paginationProps} label="contacts" />}
+      </FullscreenCard>
 
       <Modal isOpen={isSandboxOpen} onClose={() => setIsSandboxOpen(false)} title="AI Sandbox — Live Test" size="lg">
         <SandboxAgent campaign={campaign} />

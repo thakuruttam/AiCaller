@@ -11,6 +11,7 @@ import shareRoutes from './routes/share.js';
 import notificationRoutes from './routes/notifications.js';
 import supportRoutes from './routes/support.js';
 import billingRoutes from './routes/billing.js';
+import chatbotRoutes from './routes/chatbot.js';
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/share', shareRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Any unmatched route (e.g. someone hitting the bare API host in a browser) falls back to the frontend login page.
 app.use((req, res) => {

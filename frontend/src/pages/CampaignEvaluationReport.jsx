@@ -3,9 +3,10 @@ import { BarChart3, TrendingUp, Target, Activity, AlertCircle } from 'lucide-rea
 import axios from 'axios';
 import { EVAL_BASE } from '../api/config';
 import {
-  Button, Badge, toneForStatus, statusLabel,
-  Table, THead, TBody, Th, Tr, Td,
+  Button, IconButton, Badge, toneForStatus, statusLabel,
+  Table, THead, TBody, Th, Tr, Td, FullscreenButton, FullscreenCard,
 } from '../components/ui';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 // Sentiment isn't a call status, so it gets its own tone map rather than being
 // forced through `toneForStatus`.
@@ -17,6 +18,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
   const [error, setError] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [contactsTotal, setContactsTotal] = useState(0);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   useEffect(() => {
     if (!campaignId) return;
@@ -74,7 +76,11 @@ export default function CampaignEvaluationReport({ campaignId }) {
   const completionPercent = Math.round((parseFloat(report.completionRate) || 0) * 100);
 
   return (
-    <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+    <FullscreenCard
+      isFullscreen={isFullscreen}
+      onClose={toggleFullscreen}
+      className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+    >
       <div className="border-b border-paper-500 dark:border-ink-400 px-6 py-4 flex items-center justify-between">
         <h3 className="font-semibold text-sm text-ink-100 dark:text-paper-200 flex items-center gap-2">
           <Activity size={16} className="text-brand-500" /> Evaluation Analytics
@@ -90,6 +96,7 @@ export default function CampaignEvaluationReport({ campaignId }) {
           >
             Download CSV
           </Button>
+          <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
         </div>
       </div>
 
@@ -146,9 +153,9 @@ export default function CampaignEvaluationReport({ campaignId }) {
               {contacts.length} / {contactsTotal}
             </span>
           </div>
-          <div className="overflow-auto max-h-[400px]">
+          <div className={isFullscreen ? 'overflow-auto' : 'overflow-auto max-h-[400px]'}>
             <Table>
-              <THead>
+              <THead sticky>
                 <Th icon="person">Contact</Th>
                 <Th icon="flag">Outcome</Th>
                 <Th icon="mood">Sentiment</Th>
@@ -196,6 +203,6 @@ export default function CampaignEvaluationReport({ campaignId }) {
           </div>
         </div>
       )}
-    </div>
+    </FullscreenCard>
   );
 }

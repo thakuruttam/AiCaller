@@ -132,7 +132,9 @@ export default function ContactsStep({ payload, update, readiness, onError }) {
                 <Input icon="search" aria-label="Search people" value={query} onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }} placeholder="Search by name, number or tag" />
               </div>
             )}
-            <ul className="divide-y divide-border rounded-xl border border-border">
+            {/* Each row is 57px — capped at exactly 7 so the list never
+                scrolls for a short list, only once there's an 8th row. */}
+            <ul className="divide-y divide-border rounded-xl border border-border max-h-[399px] overflow-y-auto">
               {filtered.slice(0, shown).map(({ c, index }) => (
                 <li key={`${c.phone}-${index}`} className="flex items-center gap-3 px-3 py-2.5">
                   <Avatar name={c.name} size="sm" />
@@ -163,7 +165,9 @@ export default function ContactsStep({ payload, update, readiness, onError }) {
         )}
       </Card>
 
-      <Card className="lg:sticky lg:top-5 flex flex-col gap-5">
+      {/* top-28 clears the sticky step header above (name + stepper) so this
+          card doesn't slide underneath it while the page scrolls. */}
+      <Card className="lg:sticky lg:top-28 flex flex-col gap-5">
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3">When should we call?</h2>
           <div role="radiogroup" aria-label="When to call" className="grid grid-cols-2 gap-2">

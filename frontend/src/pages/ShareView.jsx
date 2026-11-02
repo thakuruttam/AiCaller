@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
-import { Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, Badge, Button, IconButton, EmptyState, FilterBar, Pagination } from '../components/ui';
+import { Table, THead, Th, TBody, Tr, Td, CellStack, RowActions, TableToolbar, Badge, Button, IconButton, EmptyState, FilterBar, Pagination, FullscreenButton, FullscreenCard } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 const OUTCOME_TONE = {
   COMPLETED:    'positive',
@@ -46,6 +47,7 @@ export default function ShareView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -164,12 +166,17 @@ export default function ShareView() {
         </div>
 
         {/* Search + table */}
-        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+        <FullscreenCard
+          isFullscreen={isFullscreen}
+          onClose={toggleFullscreen}
+          className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+        >
           <TableToolbar
             title="Calls"
             count={sorted.length}
             actions={<>
               <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sorted.length} />
+              <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
             </>}
           >
             <FilterBar filters={filters} />
@@ -192,8 +199,8 @@ export default function ShareView() {
               action={isFiltered && <Button variant="secondary" size="sm" onClick={clearAllFilters}>Clear filters</Button>}
             />
           ) : (
-            <Table>
-              <THead>
+            <Table maxHeight={isFullscreen ? undefined : '500px'}>
+              <THead sticky>
                 <Th {...sortProps('contact')}>Contact</Th>
                 <Th {...sortProps('outcome')}>Outcome</Th>
                 <Th align="right" {...sortProps('score')}>Score</Th>
@@ -202,7 +209,7 @@ export default function ShareView() {
                 <Th><span className="sr-only">Actions</span></Th>
               </THead>
               <TBody>
-                {paginated.map(c => (
+                {(isFullscreen ? sorted : paginated).map(c => (
                   <Tr key={c.callLogId} onClick={() => navigate(`/share/${token}/calls/${c.callLogId}`)}>
                     <Td>
                       <CellStack title={c.contactName} meta={c.phone} />
@@ -243,8 +250,8 @@ export default function ShareView() {
               </TBody>
             </Table>
           )}
-          <Pagination {...paginationProps} label="calls" />
-        </div>
+          {!isFullscreen && <Pagination {...paginationProps} label="calls" />}
+        </FullscreenCard>
       </main>
     </div>
   );

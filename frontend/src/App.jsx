@@ -34,6 +34,7 @@ import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { NotificationProvider } from './context/NotificationContext';
 import NotificationDropdown from './components/NotificationDropdown';
+import ChatWidget from './components/chatbot/ChatWidget';
 import {
   SidebarProvider,
   SidebarInset,
@@ -142,7 +143,11 @@ function AppLayout() {
               <Route path="/campaign/:campaignId/calls/:id/report" element={<CallReport />} />
               <Route path="/settings/workspace" element={<WorkspaceSettings />} />
               <Route path="/team" element={<MyTeam />} />
-              <Route path="/billing" element={<Billing />} />
+              <Route path="/billing" element={
+                <RoleGate allow={['SUPER_ADMIN']} fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">You don't have permission to access billing.</div>}>
+                  <Billing />
+                </RoleGate>
+              } />
               <Route path="/usage" element={<Usage />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/support" element={<Support />} />
@@ -150,6 +155,7 @@ function AppLayout() {
             </Routes>
           </main>
         </SidebarInset>
+        <ChatWidget />
       </PortalContainerProvider>
     </SidebarProvider>
   );

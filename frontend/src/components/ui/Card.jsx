@@ -4,9 +4,15 @@ import React from 'react';
 // soft shadow-primary ring and a 16px radius (tokens from web3-dashboard/
 // dashboard.css). `padded={false}` is for cards that own their own layout,
 // like one wrapping a full-bleed table.
-export default function Card({ padded = true, interactive = false, className = '', children, ...props }) {
+// forwardRef so callers (e.g. a table card wiring up useFullscreen) can
+// attach a ref to the actual DOM node.
+const Card = React.forwardRef(function Card(
+  { padded = true, interactive = false, className = '', children, ...props },
+  ref
+) {
   return (
     <div
+      ref={ref}
       className={[
         'bg-card dark:bg-muted rounded-2xl shadow-primary',
         padded ? 'p-5' : '',
@@ -18,7 +24,9 @@ export default function Card({ padded = true, interactive = false, className = '
       {children}
     </div>
   );
-}
+});
+
+export default Card;
 
 // Card header with the reference's layout: a muted label on the left, optional
 // affordances on the right.

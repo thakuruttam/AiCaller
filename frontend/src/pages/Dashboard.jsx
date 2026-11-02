@@ -11,13 +11,14 @@ import { useToast } from '../context/ToastContext';
 import {
   Page, Button, IconButton, Input, Pagination,
   Table, THead, TBody, Th, Tr, Td, CellStack, TableToolbar, SkeletonRow,
-  FilterBar, ColumnToggle, StatCard,
+  FilterBar, ColumnToggle, StatCard, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { usePagination } from '../hooks/usePagination';
 import { useFacets } from '../hooks/useFacets';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { useCampaignActions } from '../hooks/useCampaignActions';
+import { useFullscreen } from '../hooks/useFullscreen';
 import CampaignRunControls, { CampaignStatusText } from '../components/CampaignRunControls';
 import { campaignRunState, contactProgress, runStateLabel } from '../lib/campaignState';
 import { exportCsv } from '../lib/exportCsv';
@@ -76,6 +77,7 @@ const Dashboard = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [loadingCampaignId, setLoadingCampaignId] = useState(null);
   const [cloningId, setCloningId] = useState(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   useEffect(() => {
     fetchCampaigns(true);
@@ -280,7 +282,11 @@ const Dashboard = () => {
           with the Campaign column pinned left at a fixed width and Actions
           pinned right; every other free-text cell truncates with a tooltip
           for the full value. */
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+      <FullscreenCard
+        isFullscreen={isFullscreen}
+        onClose={toggleFullscreen}
+        className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+      >
         <div>
           <TableToolbar
             title="Active Campaigns"
@@ -288,6 +294,7 @@ const Dashboard = () => {
             actions={<>
               <ColumnToggle visibility={columns} />
               <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!filteredCampaigns.length} />
+              <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
             </>}
           >
             <FilterBar filters={filters} />
@@ -338,8 +345,8 @@ const Dashboard = () => {
             )}
           </div>
         ) : (
-        <Table className="table-fixed">
-            <THead>
+        <Table className="table-fixed" maxHeight={isFullscreen ? undefined : '500px'}>
+            <THead sticky>
               {show('type') && <Th {...sortProps('type')} className={`${STICKY_HEAD} left-0 z-20 w-[12%]`}>Type</Th>}
               <Th {...sortProps('name')} className="w-[30%]">Campaign</Th>
               {show('status') && <Th {...sortProps('status')} className="w-[12%]">Status</Th>}
@@ -349,7 +356,7 @@ const Dashboard = () => {
             </THead>
             <TBody>
               {loading && Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} cols={columns.visibleCount + 2} />)}
-              {!loading && paginated.map((c) => {
+              {!loading && (isFullscreen ? filteredCampaigns : paginated).map((c) => {
                 return (
                 <Tr
                   key={c.id}
@@ -430,10 +437,10 @@ const Dashboard = () => {
         )}
         </div>
 
-        {filteredCampaigns.length > 0 && (
+        {!isFullscreen && filteredCampaigns.length > 0 && (
           <Pagination {...paginationProps} label="campaigns" />
         )}
-      </div>
+      </FullscreenCard>
       )}
       </div>
       </div>

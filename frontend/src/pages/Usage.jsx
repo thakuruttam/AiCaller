@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Page, PageHeader, Table, THead, Th, TBody, Tr, Td, CellStack, StatusBadge, TableToolbar, EmptyState,
-  Button, IconButton, FilterBar, StatCard, Pagination,
+  Button, IconButton, FilterBar, StatCard, Pagination, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 import { campaignTypeLabel } from '../components/campaignTypes';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
@@ -99,8 +100,8 @@ function CampaignRow({ campaign }) {
       {expanded && (
         <tr>
           <td colSpan={5} className="p-0 bg-paper-200/50 dark:bg-white/[0.02]">
-            <Table>
-              <THead>
+            <Table maxHeight="30vh">
+              <THead sticky>
                 <Th>Time</Th>
                 <Th>Contact</Th>
                 <Th>Status</Th>
@@ -127,6 +128,7 @@ export default function Usage() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const load = useCallback(async () => {
     try {
@@ -209,11 +211,18 @@ export default function Usage() {
       </div>
 
       {/* Campaign breakdown */}
-      <div className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden">
+      <FullscreenCard
+        isFullscreen={isFullscreen}
+        onClose={toggleFullscreen}
+        className="bg-card dark:bg-muted rounded-2xl shadow-primary overflow-hidden"
+      >
         <TableToolbar
           title="Campaign breakdown"
           count={sortedCampaigns.length}
-          actions={<IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedCampaigns.length} />}
+          actions={<>
+            <IconButton title="Export CSV" icon="download" onClick={handleExport} disabled={!sortedCampaigns.length} />
+            <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
+          </>}
         >
           <FilterBar filters={filters} />
           <p className="text-xs text-muted-foreground">Click a row to see per-call details</p>
@@ -229,8 +238,8 @@ export default function Usage() {
             action={<Button variant="secondary" onClick={filters.reset}>Clear filters</Button>}
           />
         ) : (
-          <Table>
-            <THead>
+          <Table maxHeight={isFullscreen ? undefined : '500px'}>
+            <THead sticky>
               <Th {...sortProps('name')}>Campaign</Th>
               <Th {...sortProps('type')}>Type</Th>
               <Th align="right" {...sortProps('calls')}>Calls (done/total)</Th>
@@ -238,14 +247,14 @@ export default function Usage() {
               <Th align="right" {...sortProps('cost')}>Cost</Th>
             </THead>
             <TBody>
-              {pagedCampaigns.map(c => (
+              {(isFullscreen ? sortedCampaigns : pagedCampaigns).map(c => (
                 <CampaignRow key={c.id} campaign={c} />
               ))}
             </TBody>
           </Table>
         )}
-        {sortedCampaigns.length > 0 && <Pagination {...paginationProps} label="campaigns" />}
-      </div>
+        {!isFullscreen && sortedCampaigns.length > 0 && <Pagination {...paginationProps} label="campaigns" />}
+      </FullscreenCard>
   </Page>
   );
 }

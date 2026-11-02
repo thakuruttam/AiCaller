@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Button, IconButton, Tabs, Pagination, Input, Table, THead, Th, TBody, Tr, Td, CellStack, TableToolbar, FilterBar,
-  StatCard, Progress, Badge, StatusBadge, Page, PageHeader, BackLink, Card, EmptyState, Alert, statusLabel,
+  StatCard, Progress, Badge, StatusBadge, Page, PageHeader, BackLink, Card, EmptyState, Alert, statusLabel, FullscreenButton, FullscreenCard,
 } from '../components/ui';
 import { useSort } from '../hooks/useSort';
 import { useFacets } from '../hooks/useFacets';
 import { exportCsv } from '../lib/exportCsv';
 import { usePagination } from '../hooks/usePagination';
+import { useFullscreen } from '../hooks/useFullscreen';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import PageLoader from '../components/PageLoader';
@@ -31,6 +32,7 @@ export default function CampaignReport() {
   const [progress, setProgress] = useState(null);
   const [showShare, setShowShare] = useState(false);
   const [viewMode, setViewMode] = useState('contact');
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [cellDisplay, setCellDisplay] = useState('both'); // 'text' | 'score' | 'both'
   const questionInitRef = useRef(false);
@@ -259,7 +261,7 @@ export default function CampaignReport() {
       </section>
 
       {/* Results Section — By Contact / By Question */}
-      <div className="flex flex-col gap-4">
+      <FullscreenCard isFullscreen={isFullscreen} onClose={toggleFullscreen} className="flex flex-col gap-4">
         {/* Section header with view toggle */}
         <Card padded={false} className="overflow-hidden">
           <TableToolbar
@@ -273,6 +275,7 @@ export default function CampaignReport() {
                   <Button variant="secondary" size="sm" icon="table_view" onClick={() => downloadQuestionView('excel')} title="Download as Excel">Excel</Button>
                 </>
               )}
+              <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
             </>}
           >
             <Tabs
@@ -346,8 +349,8 @@ export default function CampaignReport() {
         {/* ── By Contact table ── */}
         {viewMode === 'contact' && (
         <Card padded={false} className="overflow-hidden">
-          <Table>
-            <THead>
+          <Table maxHeight={isFullscreen ? undefined : '500px'}>
+            <THead sticky>
               <Th {...sortProps('name')}>Contact / Phone</Th>
               <Th {...sortProps('outcome')}>Outcome</Th>
               <Th {...sortProps('sentiment')}>Sentiment</Th>
@@ -355,7 +358,7 @@ export default function CampaignReport() {
               <Th align="right">Action</Th>
             </THead>
             <TBody>
-                {paginated.map(c => {
+                {(isFullscreen ? filteredContacts : paginated).map(c => {
                   const sentimentInfo = SENTIMENT_ICON[c.sentiment] || null;
                   const score = c.score != null ? Number(c.score).toFixed(1) : null;
                   const hasTranscript = c.outcome === 'COMPLETED';
@@ -419,15 +422,15 @@ export default function CampaignReport() {
                 )}
             </TBody>
           </Table>
-          <Pagination {...paginationProps} label="evaluated calls" />
+          {!isFullscreen && <Pagination {...paginationProps} label="evaluated calls" />}
         </Card>
         )}
 
         {/* ── By Question table ── */}
         {viewMode === 'question' && selectedQuestions.length > 0 && (
         <Card padded={false} className="overflow-hidden">
-          <Table className="min-w-max">
-            <THead>
+          <Table className="min-w-max" maxHeight={isFullscreen ? undefined : '500px'}>
+            <THead sticky>
                   <Th {...sortProps('name')} className="sticky left-0 z-10 min-w-[180px] bg-paper-200 dark:bg-muted">Contact</Th>
                   {selectedQuestions.map(q => {
                     const avg = questionAvgScores[q];
@@ -449,7 +452,7 @@ export default function CampaignReport() {
                   })}
             </THead>
             <TBody>
-                {paginated.map(c => (
+                {(isFullscreen ? filteredContacts : paginated).map(c => (
                   <Tr key={c.callLogId}>
                     <Td className="sticky left-0 z-10 bg-card dark:bg-muted group-hover/row:bg-paper-200 transition-colors">
                       <CellStack title={c.contactName || 'Unknown'} meta={c.contactPhone || '—'} />
@@ -504,7 +507,7 @@ export default function CampaignReport() {
                 )}
             </TBody>
           </Table>
-          <Pagination {...paginationProps} label="contacts" />
+          {!isFullscreen && <Pagination {...paginationProps} label="contacts" />}
         </Card>
         )}
 
@@ -513,7 +516,7 @@ export default function CampaignReport() {
             <EmptyState icon="checklist" title="No questions selected" body="Select at least one question above to see the breakdown." />
           </Card>
         )}
-      </div>
+      </FullscreenCard>
 
       <ShareCampaignModal campaignId={id} isOpen={showShare} onClose={() => setShowShare(false)} />
     </Page>

@@ -48,6 +48,12 @@ const Modal = ({
   icon,
   dismissible = true,
   className,
+  // True edge-to-edge takeover (no backdrop, no margin, no rounded corners)
+  // rather than a centred dialog — e.g. a table's "view fullscreen". Still
+  // goes through this one component so `fixed inset-0` stays confined here
+  // (see test/designSystem.test.js), and still gets the portal/focus-trap/
+  // Escape/scroll-lock behaviour below for free.
+  fullscreen = false,
 }) => {
   const panelRef = useRef(null);
   const restoreFocusTo = useRef(null);
@@ -117,12 +123,14 @@ const Modal = ({
   const headerIcon = icon ?? toneMeta?.icon;
 
   const dialog = (
-    <div className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center sm:p-4">
-      <div
-        className="absolute inset-0 bg-ink-50/40 backdrop-blur-[3px] animate-backdrop"
-        onClick={dismissible ? onClose : undefined}
-        aria-hidden="true"
-      />
+    <div className={`fixed inset-0 z-[150] ${fullscreen ? '' : 'flex items-end justify-center sm:items-center sm:p-4'}`}>
+      {!fullscreen && (
+        <div
+          className="absolute inset-0 bg-ink-50/40 backdrop-blur-[3px] animate-backdrop"
+          onClick={dismissible ? onClose : undefined}
+          aria-hidden="true"
+        />
+      )}
 
       <div
         ref={panelRef}
@@ -131,10 +139,12 @@ const Modal = ({
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`relative flex flex-col w-full max-h-[92vh] sm:max-h-[88vh] outline-none
-          bg-card dark:bg-muted text-foreground shadow-overlay ring-1 ring-black/5 dark:ring-white/10
-          rounded-t-2xl sm:rounded-2xl animate-scale-in
-          ${className || SIZES[size] || SIZES.md}`}
+        className={fullscreen
+          ? 'relative flex flex-col w-full h-full outline-none bg-card dark:bg-muted text-foreground animate-scale-in'
+          : `relative flex flex-col w-full max-h-[92vh] sm:max-h-[88vh] outline-none
+            bg-card dark:bg-muted text-foreground shadow-overlay ring-1 ring-black/5 dark:ring-white/10
+            rounded-t-2xl sm:rounded-2xl animate-scale-in
+            ${className || SIZES[size] || SIZES.md}`}
       >
         {/* Grab handle — signals the bottom sheet on phones. */}
         <div className="sm:hidden mx-auto mt-2 h-1 w-10 rounded-full bg-paper-600 dark:bg-white/15" aria-hidden="true" />

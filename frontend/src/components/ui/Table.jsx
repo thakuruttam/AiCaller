@@ -12,9 +12,18 @@ import { Skeleton } from './Feedback';
 // columns line up with the card's toolbar and pagination above and below.
 const CELL_X = 'px-4 first:pl-5 last:pr-5';
 
-export default function Table({ className = '', style, children }) {
+// `maxHeight` bounds the table to that height and scrolls its rows
+// internally (pair with `sticky` on THead) once there are more rows than
+// fit — e.g. a larger "per page" pick, or a long unpaginated list — instead
+// of the table growing and pushing the rest of the page down. Omit it (the
+// default) for a table that should just size to its content, such as one
+// already inside a full-height fullscreen view.
+export default function Table({ className = '', style, maxHeight, children }) {
   return (
-    <div className="relative w-full overflow-x-auto">
+    <div
+      className={`relative w-full overflow-x-auto ${maxHeight ? 'overflow-y-auto' : ''}`}
+      style={maxHeight ? { maxHeight } : undefined}
+    >
       <table style={style} className={`w-full text-left text-sm ${className}`}>{children}</table>
     </div>
   );

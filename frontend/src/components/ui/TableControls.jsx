@@ -95,6 +95,18 @@ export function FilterBar({ filters, className = '' }) {
   );
 }
 
+// Pairs with useFullscreen() — drop into a TableToolbar's `actions`, and
+// attach the hook's `ref` to the table's own card wrapper.
+export function FullscreenButton({ isFullscreen, onToggle }) {
+  return (
+    <IconButton
+      title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+      icon={isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+      onClick={onToggle}
+    />
+  );
+}
+
 // Column visibility menu. Takes the useColumnVisibility() result; the last
 // visible column can't be hidden, so the table never collapses to nothing.
 export function ColumnToggle({ visibility }) {
