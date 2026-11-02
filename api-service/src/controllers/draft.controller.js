@@ -213,7 +213,7 @@ export async function draftCampaign(req, res) {
 
   try {
     const response = await getClient().messages.parse({
-      model: 'claude-opus-5',
+      model: 'claude-opus-5-5',
       max_tokens: 16000,
       // Weighting a question set, ordering it for conversational flow and
       // deriving branching from prose is genuine reasoning, not extraction.

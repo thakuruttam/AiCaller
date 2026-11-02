@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Field, Input, Select, Tabs, Textarea } from '../../components/ui';
 import ScriptItem from './ScriptItem';
+import ScoringCard from './ScoringCard';
 import VoicePicker from './VoicePicker';
 import IssueText from './IssueText';
 import {
   CALL_LENGTHS, CAMPAIGN_TYPES, LANGUAGES, RATE_PER_MINUTE, RETRY_OPTIONS,
   moveItem, newItem, normalizeItems,
 } from './campaignModel';
+import { incomingJumps } from './questionLogic';
 
 /** A fixed line of the call — the opening or the sign-off — on the spine. */
 function FixedLine({ icon, label, hint, issue, children }) {
@@ -31,10 +33,25 @@ function FixedLine({ icon, label, hint, issue, children }) {
  */
 export default function ScriptStep({ payload, update, issues, draftNotes, onDismissNotes }) {
   const [focusId, setFocusId] = useState(null);
-  const [rulesOpen, setRulesOpen] = useState(!!payload.endCallIf?.trim());
+  // One line is open for editing at a time; the rest stay folded to the
+  // question and what it does, so the whole call reads at a glance.
+  const [activeId, setActiveId] = useState(null);
   const items = payload.dataToCollect || [];
   const goals = payload.goals || {};
   const settings = payload.callSettings || {};
+  const jumps = incomingJumps(items);
+
+  // Clicking or tabbing anywhere but a script line folds the open one.
+  useEffect(() => {
+    if (!activeId) return undefined;
+    const leave = (e) => { if (!e.target.closest?.('[data-script-line]')) setActiveId(null); };
+    document.addEventListener('mousedown', leave);
+    document.addEventListener('focusin', leave);
+    return () => {
+      document.removeEventListener('mousedown', leave);
+      document.removeEventListener('focusin', leave);
+    };
+  }, [activeId]);
 
   const setItems = (next) => update({ dataToCollect: normalizeItems(next) });
   const setGoal = (key, value) => update({ goals: { ...goals, [key]: value } });
@@ -46,6 +63,7 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
     next.splice(index + 1, 0, item);
     setItems(next);
     setFocusId(item.id);
+    setActiveId(item.id);
   };
 
   const lengths = CALL_LENGTHS.includes(settings.maxDuration) ? CALL_LENGTHS : [...CALL_LENGTHS, settings.maxDuration].sort((a, b) => a - b);
@@ -82,7 +100,7 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
           </div>
 
           {/* The spine: a hairline joining every line of the call. */}
-          <ol className="relative flex flex-col gap-4 before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-border">
+          <ol className="relative flex flex-col gap-3 before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-border">
             <FixedLine icon="call" label="Opening line" issue={issues.fields.callIntro} hint="[Name] becomes each person's name. The agent then confirms it's speaking to them.">
               <Textarea
                 aria-label="Opening line"
@@ -100,7 +118,10 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
                 index={index}
                 items={items}
                 issue={issues.items[item.id]}
+                active={item.id === activeId}
                 autoFocus={item.id === focusId}
+                incoming={jumps[item.id]}
+                onActivate={() => setActiveId(item.id)}
                 onChange={(next) => setItems(items.map(i => (i.id === item.id ? next : i)))}
                 onRemove={() => setItems(items.filter(i => i.id !== item.id))}
                 onMove={(dir) => setItems(moveItem(items, index, index + dir))}
@@ -135,49 +156,7 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
           </ol>
         </Card>
 
-        <Card padded={false}>
-          <button
-            type="button"
-            aria-expanded={rulesOpen}
-            aria-controls="call-rules"
-            onClick={() => setRulesOpen(o => !o)}
-            className="w-full flex items-center gap-3 p-5 text-left cursor-pointer rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30"
-          >
-            <span className="flex-1 min-w-0">
-              <span className="block text-sm font-semibold text-foreground">Call rules <span className="font-normal text-muted-foreground">· optional</span></span>
-              <span className="block text-xs text-muted-foreground mt-0.5 truncate">
-                {payload.endCallIf?.trim()
-                  ? `Ends early if: ${payload.endCallIf.trim()}`
-                  : 'When to hang up early, and the score a call needs to pass'}
-                {` · Pass mark ${payload.rules?.successScore ?? 50}`}
-              </span>
-            </span>
-            <span className={`material-symbols-outlined [--icon-size:20px] text-muted-foreground transition-transform ${rulesOpen ? 'rotate-180' : ''}`}>expand_more</span>
-          </button>
-          {rulesOpen && (
-            <div id="call-rules" className="border-t border-border p-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px] gap-5 animate-fade-in">
-              <Field label="Hang up early if…" hint="Checked against everything the person says, at any point in the call.">
-                <Textarea
-                  rows={2}
-                  value={payload.endCallIf || ''}
-                  onChange={(e) => update({ endCallIf: e.target.value })}
-                  placeholder="e.g. They ask not to be called again, or it's the wrong person."
-                />
-              </Field>
-              <Field label="Pass mark" hint="Calls scoring below this are marked unsuccessful.">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={payload.rules?.successScore ?? 50}
-                  onChange={(e) => update({ rules: { ...payload.rules, successScore: Math.min(100, Math.max(0, Number(e.target.value) || 0)) } })}
-                  trailing={<span className="pr-1.5 text-xs text-muted-foreground">/ 100</span>}
-                  className="tabular-nums"
-                />
-              </Field>
-            </div>
-          )}
-        </Card>
+        <ScoringCard payload={payload} update={update} setItems={setItems} />
       </div>
 
       {/* How it sounds. Sticky so it stays in reach beside a long script. */}

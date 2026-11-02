@@ -4,6 +4,9 @@
 //
 // The payload is exactly what POST/PUT /api/campaigns/wizard accept — see
 // createWizardCampaign in api-service/src/controllers/campaign.controller.js.
+// What a question does with its answer lives in questionLogic.js.
+
+import { readLogic, syncLogic, writeLogic } from './questionLogic';
 
 export const RATE_PER_MINUTE = 5; // ₹/min, matches api-service/src/config/billing.js
 
@@ -66,12 +69,8 @@ export const RETRY_OPTIONS = [
   { value: 3, label: 'Try 3 more times' },
 ];
 
-// The matching vocabulary the evaluator understands.
-export const CONDITIONS = [
-  'contains', 'does not contain', 'equals', 'starts with', 'ends with',
-  'is greater than', 'is less than',
-];
 const ANY = 'is any value';
+const YES_NO = ['is_true', 'is_false'];
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -129,9 +128,10 @@ export function emptyPayload() {
 
 const q = (text, extra = {}) => ({ ...newItem('question', text), ...extra });
 const say = (text) => newItem('information', text);
-const judged = (criteria) => ({ scoringActiveTab: 'semantic', scoringCriteria: criteria });
-const endIf = (when) => ({
-  onAnswer: { ...newItem().onAnswer, action: 'end_call', skipConditionActiveTab: 'semantic', skipSemanticCondition: when },
+const judged = (criteria) => ({ answerType: 'open', scoringActiveTab: 'semantic', scoringCriteria: criteria });
+// A yes/no question; `good` is the answer that scores, `endIf` the one that hangs up.
+const yesNo = (text, { good = null, endIf = null, ...extra } = {}) => writeLogic(q(text, extra), {
+  type: 'yesno', good, route: endIf ? { action: 'end_call', when: endIf, skipToId: '' } : null,
 });
 
 export const TEMPLATES = [
@@ -148,10 +148,7 @@ export const TEMPLATES = [
       },
       endCallIf: 'The person says they are not looking for a job change, or asks not to be called again.',
       dataToCollect: [
-        q('Are you still interested in this role?', {
-          is_mandatory: true, ...judged('Full marks if they confirm they are still interested.'),
-          ...endIf('They say they are no longer interested.'),
-        }),
+        yesNo('Are you still interested in this role?', { is_mandatory: true, good: 'yes', endIf: 'no' }),
         q('How many years of relevant experience do you have?', judged('Full marks for 3 or more years, half for 1 to 2 years, none for less than a year.')),
         q('What is your notice period?', judged('Full marks for 30 days or less, half for up to 60 days, none for longer.')),
         q('What salary are you expecting?'),
@@ -171,10 +168,7 @@ export const TEMPLATES = [
       },
       endCallIf: 'The person asks not to be contacted again.',
       dataToCollect: [
-        q('Are you open to new opportunities right now?', {
-          is_mandatory: true, ...judged('Full marks if they are open to new opportunities.'),
-          ...endIf('They are not open to new opportunities.'),
-        }),
+        yesNo('Are you open to new opportunities right now?', { is_mandatory: true, good: 'yes', endIf: 'no' }),
         q('What kind of role are you looking for?'),
         q('How soon could you start?', judged('Full marks for within 2 weeks, half for within a month, none for longer.')),
         q('What pay are you expecting?'),
@@ -194,11 +188,9 @@ export const TEMPLATES = [
       },
       endCallIf: 'The person says they are not interested or asks not to be called again.',
       dataToCollect: [
-        q('Is this something your team is looking to improve this year?', judged('Full marks if it is a current priority.')),
+        yesNo('Is this something your team is looking to improve this year?', { good: 'yes' }),
         q('How many people on your team would use it?', judged('Full marks for 10 or more people, half for 3 to 9.')),
-        q('Would you like to book a 20-minute demo this week?', {
-          is_mandatory: true, ...judged('Full marks if they agree to a demo.'),
-        }),
+        yesNo('Would you like to book a 20-minute demo this week?', { is_mandatory: true, good: 'yes' }),
       ],
     }),
   },
@@ -216,11 +208,9 @@ export const TEMPLATES = [
       endCallIf: 'The person says they are not the account holder.',
       dataToCollect: [
         say('Your EMI of [Amount] was due on [Due date] and is still unpaid.'),
-        q('Will you be able to make the payment in the next 3 days?', {
-          is_mandatory: true, ...judged('Full marks if they commit to paying within 3 days.'),
-        }),
+        yesNo('Will you be able to make the payment in the next 3 days?', { is_mandatory: true, good: 'yes' }),
         q('On which date will you make the payment?', { is_mandatory: true }),
-        q('Is anything stopping you from paying on time?'),
+        q('What, if anything, might stop you from paying on time?'),
       ],
     }),
   },
@@ -271,9 +261,10 @@ export const totalWeight = (items = []) => items.reduce((s, i) => s + itemWeight
  * The single place the script list is made consistent after any edit:
  * ids and order are filled in, statements carry no weight, questions nobody
  * weighted by hand share whatever the hand-weighted ones left over, sub-fields
- * split their question's weight, and a jump that no longer points forward
+ * split their question's weight, a jump that no longer points forward
  * loses its target (readiness then asks for a new one rather than silently
- * turning it into "continue").
+ * turning it into "continue"), and answer rules are re-stated to match the
+ * question's current wording (see syncLogic).
  */
 export function normalizeItems(items = []) {
   let list = items.map((item, idx) => ({
@@ -304,9 +295,9 @@ export function normalizeItems(items = []) {
 
   return list.map((item, idx) => {
     const target = item.onAnswer?.skipToId;
-    if (item.onAnswer?.action !== 'skip_question' || !target) return item;
+    if (item.onAnswer?.action !== 'skip_question' || !target) return syncLogic(item);
     const targetIdx = list.findIndex(other => other.id === target);
-    return targetIdx > idx ? item : { ...item, onAnswer: { ...item.onAnswer, skipToId: '' } };
+    return syncLogic(targetIdx > idx ? item : { ...item, onAnswer: { ...item.onAnswer, skipToId: '' } });
   });
 }
 
@@ -316,26 +307,6 @@ export function moveItem(items, from, to) {
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);
   return normalizeItems(next);
-}
-
-/** How a question is scored, as the editor presents it. */
-export function scoringMode(item) {
-  if (item.scoringActiveTab === 'semantic') return 'ai';
-  const c = item.expectedAnswer?.condition;
-  return c && c !== ANY ? 'match' : 'any';
-}
-
-export function setScoringMode(item, mode) {
-  if (mode === 'ai') return { ...item, scoringActiveTab: 'semantic' };
-  if (mode === 'match') {
-    const c = item.expectedAnswer?.condition;
-    return {
-      ...item,
-      scoringActiveTab: 'condition',
-      expectedAnswer: { condition: c && c !== ANY ? c : 'contains', value: item.expectedAnswer?.value || '' },
-    };
-  }
-  return { ...item, scoringActiveTab: 'condition', expectedAnswer: { condition: ANY, value: '' } };
 }
 
 /** The [Company]-style gaps in a piece of text. [Name] is filled per call. */
@@ -404,24 +375,23 @@ export function getReadiness(payload, now = Date.now()) {
     const g = gaps(item.text);
     if (g) block('script', `Line ${n}: replace ${g} with your own words.`, { itemId: item.id, gap: true });
     if (!isQuestion(item)) return;
-    const mode = scoringMode(item);
-    if (mode === 'ai' && !item.scoringCriteria?.trim()) {
-      block('script', `Question ${n}: describe what a good answer is.`, { itemId: item.id });
+    const logic = readLogic(item);
+    const route = logic.route;
+    if (logic.type === 'number' && (logic.good || route) && !logic.threshold) {
+      block('script', `Question ${n}: enter the number to compare answers with.`, { itemId: item.id });
     }
-    if (mode === 'match' && !String(item.expectedAnswer?.value ?? '').trim()) {
+    if (logic.match && !YES_NO.includes(logic.match.condition) && !String(logic.match.value ?? '').trim()) {
       block('script', `Question ${n}: enter the answer to match.`, { itemId: item.id });
     }
-    const action = item.onAnswer?.action;
-    if (action === 'end_call' || action === 'skip_question') {
-      const semantic = item.onAnswer.skipConditionActiveTab !== 'condition';
-      const cond = item.onAnswer.skipCondition || {};
-      const missing = semantic
-        ? !item.onAnswer.skipSemanticCondition?.trim()
-        : cond.condition !== ANY && !String(cond.value ?? '').trim();
-      if (missing) block('script', `Question ${n}: say when to ${action === 'end_call' ? 'end the call' : 'skip ahead'}.`, { itemId: item.id });
+    if (route && logic.type === 'open') {
+      const c = route.condition;
+      const missing = c
+        ? c.condition !== ANY && !YES_NO.includes(c.condition) && !String(c.value ?? '').trim()
+        : !route.text?.trim();
+      if (missing) block('script', `Question ${n}: say when to ${route.action === 'end_call' ? 'end the call' : 'jump ahead'}.`, { itemId: item.id });
     }
-    if (action === 'skip_question' && !item.onAnswer.skipToId) {
-      block('script', `Question ${n}: choose where to skip to.`, { itemId: item.id });
+    if (route?.action === 'skip_question' && !route.skipToId) {
+      block('script', `Question ${n}: choose which question to jump to.`, { itemId: item.id });
     }
   });
 

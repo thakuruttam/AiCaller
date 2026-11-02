@@ -3,8 +3,9 @@ import {
   TEMPLATES, defaultScheduleIso, emptyPayload, findPlaceholders, formatPhone, fromCampaign,
   fromTemplate, getReadiness, guessColumns, isoToPickerDate, mergeContacts, moveItem, newItem,
   normalizeItems, normalizePhone, parsePastedContacts, pickerDateToIso, rowsToContacts,
-  scoringMode, setScoringMode, totalWeight,
+  totalWeight,
 } from './campaignModel';
+import { readLogic, updateLogic } from './questionLogic';
 
 const question = (text, extra = {}) => ({ ...newItem('question', text), ...extra });
 
@@ -68,19 +69,6 @@ describe('moving lines', () => {
   });
 });
 
-describe('scoring modes', () => {
-  it('maps the three choices onto the fields the evaluator reads', () => {
-    const item = question('a');
-    expect(scoringMode(item)).toBe('any');
-    const match = setScoringMode(item, 'match');
-    expect(match.expectedAnswer.condition).toBe('contains');
-    expect(scoringMode(match)).toBe('match');
-    const ai = setScoringMode(match, 'ai');
-    expect(ai.scoringActiveTab).toBe('semantic');
-    expect(scoringMode(setScoringMode(ai, 'any'))).toBe('any');
-  });
-});
-
 describe('getReadiness', () => {
   const texts = (p) => getReadiness(p).blockers.map(b => b.text).join(' | ');
 
@@ -120,23 +108,28 @@ describe('getReadiness', () => {
     expect(findPlaceholders(p)).toEqual(['[Company]', '[Amount]']);
   });
 
-  it('wants a value for "must match" and a description for "AI judges"', () => {
+  it('wants a value for an exact match and a number to compare with', () => {
     const p = ready({
       dataToCollect: normalizeItems([
-        setScoringMode(question('a'), 'match'),
-        setScoringMode(question('b'), 'ai'),
+        question('a', { expectedAnswer: { condition: 'contains', value: '' } }),
+        updateLogic(question('How many years?'), { type: 'number', good: 'above' }),
       ]),
     });
     expect(texts(p)).toContain('Question 1: enter the answer to match.');
-    expect(texts(p)).toContain('Question 2: describe what a good answer is.');
+    expect(texts(p)).toContain('Question 2: enter the number to compare answers with.');
+  });
+
+  it('needs nothing extra for a yes/no rule — the condition writes itself', () => {
+    const a = updateLogic(question('Are you free?'), { type: 'yesno', good: 'yes', route: { when: 'no', action: 'end_call' } });
+    expect(getReadiness(ready({ dataToCollect: normalizeItems([a]) })).blockers).toEqual([]);
   });
 
   it('wants a condition and a target for a skip', () => {
     const a = question('a');
     a.onAnswer = { ...a.onAnswer, action: 'skip_question', skipConditionActiveTab: 'semantic', skipSemanticCondition: '' };
     const t = texts(ready({ dataToCollect: normalizeItems([a, question('b')]) }));
-    expect(t).toContain('Question 1: say when to skip ahead.');
-    expect(t).toContain('Question 1: choose where to skip to.');
+    expect(t).toContain('Question 1: say when to jump ahead.');
+    expect(t).toContain('Question 1: choose which question to jump to.');
   });
 
   it('allows "always end the call" (match anything)', () => {
@@ -186,6 +179,11 @@ describe('templates', () => {
       expect(intro).toContain('[Name]');
       expect(intro.toLowerCase()).not.toMatch(/speaking with|is this|are you/);
     }
+  });
+
+  it('opens screening with a yes/no that hangs up on "no"', () => {
+    const [first] = fromTemplate('HR').dataToCollect;
+    expect(readLogic(first)).toMatchObject({ type: 'yesno', good: 'yes', route: { when: 'no', action: 'end_call' } });
   });
 
   it('builds fresh ids every time', () => {

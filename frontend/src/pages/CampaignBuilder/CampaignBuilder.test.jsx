@@ -6,6 +6,11 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 // The builder end to end, with its real steps — only the network, toasts
 // and the confirm dialog are stubbed.
 
+// Each flow types whole sentences keystroke by keystroke through the real
+// page; that takes 2–3s alone and can pass 5s when the full suite runs in
+// parallel.
+vi.setConfig({ testTimeout: 20000 });
+
 const addToast = vi.fn();
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ addToast }) }));
 const confirmMock = vi.fn(async () => true);
@@ -148,15 +153,52 @@ describe('writing the script', () => {
     expect(screen.queryByLabelText('Question 2')).not.toBeInTheDocument();
   });
 
-  it('keeps scoring and branching folded away until asked for', async () => {
+  it('sets what each answer leads to, then folds the line to a readable summary', async () => {
     const user = userEvent.setup();
     renderBuilder();
     await user.click(button(/start with a blank script/i));
-    expect(screen.queryByText('How should the answer be scored?')).not.toBeInTheDocument();
-    await user.click(button(/options/i));
-    expect(screen.getByText('How should the answer be scored?')).toBeInTheDocument();
-    await user.click(button(/must match/i));
-    expect(screen.getByLabelText('Question 1 expected answer — value')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Question 1'), 'Are you free to talk?');
+
+    // The wording makes it a yes/no question, so its two answers are laid out.
+    expect(screen.getByLabelText('Question 1 — kind of answer')).toHaveValue('yesno');
+    await user.selectOptions(screen.getByLabelText('Question 1 — if no, then'), 'end_call');
+    await user.click(button('Yes is a good answer to question 1'));
+
+    // Leaving the line folds it; what it does stays visible.
+    await user.click(screen.getByLabelText('Opening line'));
+    expect(screen.queryByLabelText('Question 1 — if no, then')).not.toBeInTheDocument();
+    const facts = screen.getByRole('list', { name: 'What line 1 does' });
+    expect(within(facts).getByText('If no → ends the call')).toBeInTheDocument();
+    expect(within(facts).getByText('Good answer: yes')).toBeInTheDocument();
+  });
+
+  it('compares a number answer against a threshold', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await user.click(button(/start with a blank script/i));
+    await user.type(screen.getByLabelText('Question 1'), 'What is your notice period?');
+
+    expect(screen.getByLabelText('Question 1 — kind of answer')).toHaveValue('number');
+    await user.type(screen.getByLabelText('Question 1 — number to compare with'), '30');
+    await user.type(screen.getByLabelText('Question 1 — unit'), 'days');
+    await user.click(button('Less than 30 days is a good answer to question 1'));
+    await user.click(screen.getByLabelText('Opening line'));
+    expect(screen.getByText('Good answer: less than 30 days')).toBeInTheDocument();
+  });
+
+  it('shares the score between questions in one place', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await user.click(button(/start with a blank script/i));
+    await user.type(screen.getByLabelText('Question 1'), 'First?{Enter}Second?');
+    await user.click(button(/scoring and call rules/i));
+
+    const first = screen.getByLabelText('Question 1 share of the score');
+    expect(first).toHaveValue(50);
+    await user.clear(first);
+    await user.type(first, '70');
+    expect(screen.getByLabelText('Question 2 share of the score')).toHaveValue(30);
+    expect(screen.getByText(/custom score split/i)).toBeInTheDocument();
   });
 });
 
