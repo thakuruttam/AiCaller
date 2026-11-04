@@ -1,6 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { prisma } from '../db.js';
+import { computeAiUsageSummary } from '../services/aiUsage.service.js';
 import { PACKS, TIER_LIMITS, LOW_BALANCE_THRESHOLD } from '../config/billing.js';
 import { createNotification } from '../utils/notifications.js';
 
@@ -296,7 +297,10 @@ export async function getUsage(req, res) {
     // silently scoped to whichever single workspace the session currently has
     // active, hiding real call/usage history for every other tenant.
     const allTenants = req.user.role === 'SUPER_ADMIN' && req.query.all === 'true';
-    const summary = await computeUsageSummary(allTenants ? {} : { tenantId: req.user.workspaceId });
+    const where = allTenants ? {} : { tenantId: req.user.workspaceId };
+    const summary = await computeUsageSummary(where);
+    // AI model calls are our own cost, so only super admins see them
+    if (req.user.role === 'SUPER_ADMIN') summary.ai = await computeAiUsageSummary(where);
     res.json(summary);
   } catch (err) {
     console.error('[billing] getUsage error:', err);

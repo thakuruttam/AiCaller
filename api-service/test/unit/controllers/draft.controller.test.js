@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('../../../src/services/aiUsage.service.js', () => ({ recordAiUsage: vi.fn() }));
+
 import { draftCampaign } from '../../../src/controllers/draft.controller.js';
+import { recordAiUsage } from '../../../src/services/aiUsage.service.js';
 
 // Gemini drafting with the network mocked: a real draft needs GEMINI_API_KEY.
 
@@ -26,8 +30,10 @@ function geminiReply(body, { status = 200 } = {}) {
   return { ok: status < 400, status, json: async () => body, text: async () => JSON.stringify(body) };
 }
 
+const USAGE = { promptTokenCount: 1200, candidatesTokenCount: 900, thoughtsTokenCount: 300 };
+
 function geminiDraft(draft) {
-  return geminiReply({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(draft) }] } }] });
+  return geminiReply({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(draft) }] } }], usageMetadata: USAGE });
 }
 
 function makeRes() {
@@ -39,7 +45,7 @@ function makeRes() {
 
 async function draft(brief = BRIEF) {
   const res = makeRes();
-  await draftCampaign({ body: { brief } }, res);
+  await draftCampaign({ body: { brief }, user: { id: 'user-1', workspaceId: 'tenant-1' } }, res);
   return res;
 }
 
@@ -53,6 +59,7 @@ describe('draftCampaign with Gemini', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    recordAiUsage.mockClear();
   });
 
   afterEach(() => {
@@ -110,8 +117,9 @@ describe('draftCampaign with Gemini', () => {
   });
 
   it('maps rate limiting, safety blocks and network failures to clear errors', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(geminiReply({}, { status: 429 }));
+    const limited = vi.spyOn(globalThis, 'fetch').mockResolvedValue(geminiReply({}, { status: 429 }));
     expect((await draft()).statusCode).toBe(429);
+    limited.mockRestore();
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(geminiReply({ promptFeedback: { blockReason: 'SAFETY' } }));
     expect((await draft()).statusCode).toBe(422);
@@ -125,5 +133,47 @@ describe('draftCampaign with Gemini', () => {
     const res = await draft('call people');
     expect(res.statusCode).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('records each draft for the Usage page, counting thinking tokens as output', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(geminiDraft(DRAFT));
+    await draft();
+    expect(recordAiUsage).toHaveBeenCalledTimes(1);
+    expect(recordAiUsage).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: 'tenant-1', userId: 'user-1', feature: 'campaign_draft', provider: 'gemini',
+      inputTokens: 1200, outputTokens: 1200, success: true,
+    }));
+  });
+
+  it('records a rejected draft as unsuccessful, since the tokens were still billed', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(geminiDraft({ name: 'only a name' }));
+    await draft();
+    expect(recordAiUsage).toHaveBeenCalledWith(expect.objectContaining({ success: false, inputTokens: 1200 }));
+  });
+
+  it('records nothing when no model was called', async () => {
+    delete process.env.GEMINI_API_KEY;
+    await draft();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNRESET'));
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    await draft();
+    expect(recordAiUsage).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the next model when the first is overloaded or retired, and records the one that answered', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(geminiReply({ error: { code: 503, message: 'high demand' } }, { status: 503 }))
+      .mockResolvedValueOnce(geminiDraft(DRAFT));
+    const res = await draft();
+    expect(res.statusCode).toBe(200);
+    expect(fetchMock.mock.calls.map(([url]) => url.match(/models\/([^:]+):/)[1])).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash']);
+    expect(recordAiUsage).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.5-flash', success: true }));
+  });
+
+  it('does not try another model for a request Gemini rejects outright', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(geminiReply({ error: { code: 400 } }, { status: 400 }));
+    const res = await draft();
+    expect(res.statusCode).toBe(502);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

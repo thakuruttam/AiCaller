@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { recordAiUsage } from '../services/aiUsage.service.js';
 
 /**
  * POST /api/campaigns/draft
@@ -99,7 +100,12 @@ function getClient() {
 
 // Gemini drafts whenever its key is set (the server already holds one for voice previews);
 // Anthropic is used only on a server that has no Gemini key.
-const GEMINI_DRAFT_MODEL = process.env.GEMINI_DRAFT_MODEL || 'gemini-2.5-flash';
+// Tried in order: the next model is used when one is overloaded (503), retired (404) or
+// rate-limited (429). gemini-2.5-flash was retired for new keys in Nov 2026. Comma-separated
+// GEMINI_DRAFT_MODELS overrides the list.
+const GEMINI_DRAFT_MODELS = (process.env.GEMINI_DRAFT_MODELS || 'gemini-3.8-flash,gemini-3.5-flash')
+  .split(',').map(m => m.trim()).filter(Boolean);
+const GEMINI_TRY_NEXT_MODEL = new Set([404, 429, 500, 503]);
 const GEMINI_TIMEOUT_MS = 90000;
 
 function draftProvider() {
@@ -108,12 +114,13 @@ function draftProvider() {
   return null;
 }
 
-/** A failure that maps straight to an HTTP response. */
+/** A failure that maps straight to an HTTP response. `usage` is set when the model already ran (and billed). */
 class DraftError extends Error {
-  constructor(status, body) {
+  constructor(status, body, usage = null) {
     super(body.error);
     this.status = status;
     this.body = body;
+    this.usage = usage;
   }
 }
 
@@ -124,22 +131,32 @@ function geminiResponseSchema() {
   return schema;
 }
 
+async function callGemini(model, brief) {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: 'user', parts: [{ text: brief }] }],
+      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: geminiResponseSchema() },
+    }),
+    signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+  });
+}
+
 async function draftWithGemini(brief) {
   let response;
-  try {
-    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_DRAFT_MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: 'user', parts: [{ text: brief }] }],
-        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: geminiResponseSchema() },
-      }),
-      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-    });
-  } catch (err) {
-    console.error('[draft] Gemini unreachable:', err.message);
-    throw new DraftError(504, { error: 'Could not reach the drafting service. Check your connection.' });
+  let model;
+  for (const candidate of GEMINI_DRAFT_MODELS) {
+    model = candidate;
+    try {
+      response = await callGemini(model, brief);
+    } catch (err) {
+      console.error('[draft] Gemini unreachable:', err.message);
+      throw new DraftError(504, { error: 'Could not reach the drafting service. Check your connection.' });
+    }
+    if (response.ok || !GEMINI_TRY_NEXT_MODEL.has(response.status)) break;
+    console.warn(`[draft] ${model} answered ${response.status}; trying the next model`);
   }
 
   if (!response.ok) {
@@ -154,10 +171,17 @@ async function draftWithGemini(brief) {
 
   const data = await response.json();
   const candidate = data?.candidates?.[0];
+  const meta = data?.usageMetadata || {};
+  // Gemini bills thinking tokens as output
+  const usage = {
+    provider: 'gemini', model,
+    inputTokens: meta.promptTokenCount || 0,
+    outputTokens: (meta.candidatesTokenCount || 0) + (meta.thoughtsTokenCount || 0),
+  };
   // A safety block arrives as HTTP 200 — check before reading content.
   if (data?.promptFeedback?.blockReason || candidate?.finishReason === 'SAFETY' || candidate?.finishReason === 'PROHIBITED_CONTENT') {
     console.warn('[draft] declined:', data?.promptFeedback?.blockReason || candidate?.finishReason);
-    throw new DraftError(422, { error: 'This brief was declined. Rephrase it, or build the campaign manually.' });
+    throw new DraftError(422, { error: 'This brief was declined. Rephrase it, or build the campaign manually.' }, usage);
   }
 
   const text = (candidate?.content?.parts || []).map(part => part.text || '').join('');
@@ -169,9 +193,9 @@ async function draftWithGemini(brief) {
   }
   if (!parsed.success) {
     console.error('[draft] Gemini output did not match the schema; finishReason =', candidate?.finishReason);
-    throw new DraftError(502, { error: 'The draft came back unreadable. Try again.' });
+    throw new DraftError(502, { error: 'The draft came back unreadable. Try again.' }, usage);
   }
-  return parsed.data;
+  return { draft: parsed.data, usage };
 }
 
 async function draftWithAnthropic(brief) {
@@ -202,16 +226,21 @@ async function draftWithAnthropic(brief) {
     throw err;
   }
 
+  const usage = {
+    provider: 'anthropic', model: 'claude-opus-5-5',
+    inputTokens: response.usage?.input_tokens || 0,
+    outputTokens: response.usage?.output_tokens || 0,
+  };
   // A policy decline arrives as HTTP 200 — check before reading content.
   if (response.stop_reason === 'refusal') {
     console.warn('[draft] declined:', response.stop_details);
-    throw new DraftError(422, { error: 'This brief was declined. Rephrase it, or build the campaign manually.' });
+    throw new DraftError(422, { error: 'This brief was declined. Rephrase it, or build the campaign manually.' }, usage);
   }
   if (!response.parsed_output) {
     console.error('[draft] no parsed output; stop_reason =', response.stop_reason);
-    throw new DraftError(502, { error: 'The draft came back unreadable. Try again.' });
+    throw new DraftError(502, { error: 'The draft came back unreadable. Try again.' }, usage);
   }
-  return response.parsed_output;
+  return { draft: response.parsed_output, usage };
 }
 
 /**
@@ -325,14 +354,22 @@ export async function draftCampaign(req, res) {
     });
   }
 
+  // Every model call costs money, so it is recorded for the Usage page — including ones whose
+  // output we then reject.
+  const track = (usage, success) => usage && recordAiUsage({
+    tenantId: req.user?.workspaceId, userId: req.user?.id, feature: 'campaign_draft', success, ...usage,
+  });
+
   try {
-    const draft = provider === 'gemini' ? await draftWithGemini(brief.trim()) : await draftWithAnthropic(brief.trim());
+    const { draft, usage } = provider === 'gemini' ? await draftWithGemini(brief.trim()) : await draftWithAnthropic(brief.trim());
+    await track(usage, true);
     const result = toWizardPayload(draft);
     const questionCount = result.payload.dataToCollect.filter(i => i.itemType === 'question').length;
     console.log(`[draft] drafted "${result.payload.name}" with ${provider} — ${questionCount} questions`);
 
     return res.json(result);
   } catch (err) {
+    await track(err.usage, false);
     if (err instanceof DraftError) return res.status(err.status).json(err.body);
     console.error('[draft] failed:', err);
     return res.status(500).json({ error: 'Could not draft this campaign. Build it manually, or try again.' });

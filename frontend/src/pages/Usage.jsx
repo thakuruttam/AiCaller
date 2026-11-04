@@ -17,6 +17,8 @@ import CampaignTypeLabel from '../components/CampaignTypeLabel';
 import PageLoader from '../components/PageLoader';
 
 const NO_CAMPAIGNS = [];
+// For showing our AI cost (billed in USD) in rupees; an estimate, not a live rate.
+const USD_TO_INR = 88;
 
 function formatDuration(ms) {
   if (!ms) return '—';
@@ -168,7 +170,7 @@ export default function Usage() {
     );
   }
 
-  const { campaigns, totalMinutes, totalCalls } = data;
+  const { campaigns, totalMinutes, totalCalls, ai } = data;
   const totalCost = totalMinutes * 5;
   const campaignsWithCalls = campaigns.filter(c => c.totalCalls > 0).length;
 
@@ -189,7 +191,7 @@ export default function Usage() {
       />
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-7">
+      <div className={`grid grid-cols-1 sm:grid-cols-3 ${ai ? 'lg:grid-cols-4' : ''} gap-5 mb-7`}>
         <StatCard
           icon="timer"
           label="Total minutes billed"
@@ -208,6 +210,14 @@ export default function Usage() {
           value={totalCost > 0 ? `₹${totalCost.toLocaleString('en-IN')}` : '₹0'}
           hint="At ₹5 / min"
         />
+        {ai && (
+          <StatCard
+            icon="auto_awesome"
+            label="AI drafting cost"
+            value={`$${ai.totalCostUsd.toFixed(2)} (≈ ₹${Math.round(ai.totalCostUsd * USD_TO_INR).toLocaleString('en-IN')})`}
+            hint={`${ai.totalRequests.toLocaleString('en-IN')} draft${ai.totalRequests !== 1 ? 's' : ''} · ${ai.totalTokens.toLocaleString('en-IN')} tokens`}
+          />
+        )}
       </div>
 
       {/* Campaign breakdown */}
