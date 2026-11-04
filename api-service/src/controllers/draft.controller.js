@@ -97,8 +97,121 @@ function getClient() {
   return client;
 }
 
-function hasCredentials() {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+// Gemini drafts whenever its key is set (the server already holds one for voice previews);
+// Anthropic is used only on a server that has no Gemini key.
+const GEMINI_DRAFT_MODEL = process.env.GEMINI_DRAFT_MODEL || 'gemini-2.5-flash';
+const GEMINI_TIMEOUT_MS = 90000;
+
+function draftProvider() {
+  if (process.env.GEMINI_API_KEY) return 'gemini';
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) return 'anthropic';
+  return null;
+}
+
+/** A failure that maps straight to an HTTP response. */
+class DraftError extends Error {
+  constructor(status, body) {
+    super(body.error);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+// Gemini's structured output takes plain JSON Schema; the same zod schema keeps both providers
+// to one shape. $schema is metadata Gemini doesn't accept.
+function geminiResponseSchema() {
+  const { $schema, ...schema } = z.toJSONSchema(DraftSchema);
+  return schema;
+}
+
+async function draftWithGemini(brief) {
+  let response;
+  try {
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_DRAFT_MODEL}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: brief }] }],
+        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: geminiResponseSchema() },
+      }),
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    });
+  } catch (err) {
+    console.error('[draft] Gemini unreachable:', err.message);
+    throw new DraftError(504, { error: 'Could not reach the drafting service. Check your connection.' });
+  }
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 500);
+    console.error('[draft] Gemini error:', response.status, detail);
+    if (response.status === 401 || response.status === 403) {
+      throw new DraftError(503, { error: 'Drafting credentials were rejected. Check GEMINI_API_KEY.', code: 'DRAFTING_UNAVAILABLE' });
+    }
+    if (response.status === 429) throw new DraftError(429, { error: 'Too many drafts at once. Try again in a moment.' });
+    throw new DraftError(502, { error: 'Could not draft this campaign. Build it manually, or try again.' });
+  }
+
+  const data = await response.json();
+  const candidate = data?.candidates?.[0];
+  // A safety block arrives as HTTP 200 — check before reading content.
+  if (data?.promptFeedback?.blockReason || candidate?.finishReason === 'SAFETY' || candidate?.finishReason === 'PROHIBITED_CONTENT') {
+    console.warn('[draft] declined:', data?.promptFeedback?.blockReason || candidate?.finishReason);
+    throw new DraftError(422, { error: 'This brief was declined. Rephrase it, or build the campaign manually.' });
+  }
+
+  const text = (candidate?.content?.parts || []).map(part => part.text || '').join('');
+  let parsed;
+  try {
+    parsed = DraftSchema.safeParse(JSON.parse(text));
+  } catch {
+    parsed = { success: false };
+  }
+  if (!parsed.success) {
+    console.error('[draft] Gemini output did not match the schema; finishReason =', candidate?.finishReason);
+    throw new DraftError(502, { error: 'The draft came back unreadable. Try again.' });
+  }
+  return parsed.data;
+}
+
+async function draftWithAnthropic(brief) {
+  let response;
+  try {
+    response = await getClient().messages.parse({
+      model: 'claude-opus-5-5',
+      max_tokens: 16000,
+      // Weighting a question set, ordering it for conversational flow and
+      // deriving branching from prose is genuine reasoning, not extraction.
+      thinking: { type: 'adaptive' },
+      system: SYSTEM,
+      messages: [{ role: 'user', content: brief }],
+      output_config: { format: zodOutputFormat(DraftSchema) },
+    });
+  } catch (err) {
+    // Most-specific first: a bad key and a rate limit need different fixes.
+    if (err instanceof Anthropic.AuthenticationError) {
+      console.error('[draft] auth rejected:', err.message);
+      throw new DraftError(503, { error: 'Drafting credentials were rejected. Check ANTHROPIC_API_KEY.', code: 'DRAFTING_UNAVAILABLE' });
+    }
+    if (err instanceof Anthropic.RateLimitError) {
+      throw new DraftError(429, { error: 'Too many drafts at once. Try again in a moment.' });
+    }
+    if (err instanceof Anthropic.APIConnectionError) {
+      throw new DraftError(504, { error: 'Could not reach the drafting service. Check your connection.' });
+    }
+    throw err;
+  }
+
+  // A policy decline arrives as HTTP 200 — check before reading content.
+  if (response.stop_reason === 'refusal') {
+    console.warn('[draft] declined:', response.stop_details);
+    throw new DraftError(422, { error: 'This brief was declined. Rephrase it, or build the campaign manually.' });
+  }
+  if (!response.parsed_output) {
+    console.error('[draft] no parsed output; stop_reason =', response.stop_reason);
+    throw new DraftError(502, { error: 'The draft came back unreadable. Try again.' });
+  }
+  return response.parsed_output;
 }
 
 /**
@@ -202,60 +315,25 @@ export async function draftCampaign(req, res) {
     });
   }
 
-  if (!hasCredentials()) {
+  const provider = draftProvider();
+  if (!provider) {
     // Named precisely so an operator knows exactly what to set. The manual
     // builder is unaffected, which is why this is a soft failure.
     return res.status(503).json({
-      error: 'Drafting is not configured on this server. Set ANTHROPIC_API_KEY to enable it — you can still build the campaign manually.',
+      error: 'Drafting is not configured on this server. Set GEMINI_API_KEY to enable it — you can still build the campaign manually.',
       code: 'DRAFTING_UNAVAILABLE',
     });
   }
 
   try {
-    const response = await getClient().messages.parse({
-      model: 'claude-opus-5-5',
-      max_tokens: 16000,
-      // Weighting a question set, ordering it for conversational flow and
-      // deriving branching from prose is genuine reasoning, not extraction.
-      thinking: { type: 'adaptive' },
-      system: SYSTEM,
-      messages: [{ role: 'user', content: brief.trim() }],
-      output_config: { format: zodOutputFormat(DraftSchema) },
-    });
-
-    // A policy decline arrives as HTTP 200 — check before reading content.
-    if (response.stop_reason === 'refusal') {
-      console.warn('[draft] declined:', response.stop_details);
-      return res.status(422).json({
-        error: 'This brief was declined. Rephrase it, or build the campaign manually.',
-      });
-    }
-
-    if (!response.parsed_output) {
-      console.error('[draft] no parsed output; stop_reason =', response.stop_reason);
-      return res.status(502).json({ error: 'The draft came back unreadable. Try again.' });
-    }
-
-    const result = toWizardPayload(response.parsed_output);
+    const draft = provider === 'gemini' ? await draftWithGemini(brief.trim()) : await draftWithAnthropic(brief.trim());
+    const result = toWizardPayload(draft);
     const questionCount = result.payload.dataToCollect.filter(i => i.itemType === 'question').length;
-    console.log(`[draft] drafted "${result.payload.name}" — ${questionCount} questions`);
+    console.log(`[draft] drafted "${result.payload.name}" with ${provider} — ${questionCount} questions`);
 
     return res.json(result);
   } catch (err) {
-    // Most-specific first: a bad key and a rate limit need different fixes.
-    if (err instanceof Anthropic.AuthenticationError) {
-      console.error('[draft] auth rejected:', err.message);
-      return res.status(503).json({
-        error: 'Drafting credentials were rejected. Check ANTHROPIC_API_KEY.',
-        code: 'DRAFTING_UNAVAILABLE',
-      });
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      return res.status(429).json({ error: 'Too many drafts at once. Try again in a moment.' });
-    }
-    if (err instanceof Anthropic.APIConnectionError) {
-      return res.status(504).json({ error: 'Could not reach the drafting service. Check your connection.' });
-    }
+    if (err instanceof DraftError) return res.status(err.status).json(err.body);
     console.error('[draft] failed:', err);
     return res.status(500).json({ error: 'Could not draft this campaign. Build it manually, or try again.' });
   }
