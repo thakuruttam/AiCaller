@@ -86,8 +86,12 @@ describe('starting a campaign', () => {
   });
 
   it('writes the script from a description', async () => {
-    apiPost.mockResolvedValueOnce({
+    // Drafting is a job: POST returns its id, then the page polls until it's done.
+    apiPost.mockResolvedValueOnce({ data: { jobId: 'job-1' } });
+    apiGet.mockResolvedValueOnce({ data: { status: 'pending' } });
+    apiGet.mockResolvedValueOnce({
       data: {
+        status: 'done',
         payload: {
           name: 'Drafted', type: 'SALES',
           goals: { goal: 'g', callIntro: 'Hi [Name]', callSignOff: 's' },
@@ -103,12 +107,24 @@ describe('starting a campaign', () => {
     await user.type(screen.getByLabelText('Describe your calls'), 'Call our leads and ask if they want a demo next week.');
     await user.click(button(/write my script/i));
 
-    await waitFor(() => expect(screen.getByLabelText('Campaign name')).toHaveValue('Drafted'));
+    await waitFor(() => expect(screen.getByLabelText('Campaign name')).toHaveValue('Drafted'), { timeout: 8000 });
     expect(apiPost).toHaveBeenCalledWith('/api/campaigns/draft', { brief: 'Call our leads and ask if they want a demo next week.' });
+    expect(apiGet).toHaveBeenCalledWith('/api/campaigns/draft/job-1');
     expect(screen.getByLabelText('Question 1')).toHaveValue('Drafted question?');
     expect(screen.getByText('Assumed a 3 minute limit.')).toBeInTheDocument();
     expect(button('Hinglish')).toHaveAttribute('aria-pressed', 'true');
-  });
+  }, 15000);
+
+  it('shows why a drafting job failed', async () => {
+    apiPost.mockResolvedValueOnce({ data: { jobId: 'job-2' } });
+    apiGet.mockResolvedValueOnce({ data: { status: 'failed', error: 'The draft came back unreadable. Try again.' } });
+    const user = userEvent.setup();
+    renderBuilder();
+    await user.type(screen.getByLabelText('Describe your calls'), 'Call our leads and ask if they want a demo next week.');
+    await user.click(button(/write my script/i));
+
+    expect(await screen.findByText('The draft came back unreadable. Try again.', {}, { timeout: 8000 })).toBeInTheDocument();
+  }, 15000);
 
   it('points to the templates when the server cannot write scripts', async () => {
     apiPost.mockRejectedValueOnce({ response: { status: 404, data: {} } });

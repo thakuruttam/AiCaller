@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('../../../src/services/aiUsage.service.js', () => ({ recordAiUsage: vi.fn() }));
+// Draft jobs live in Redis; an in-memory map stands in for it.
+const jobStore = new Map();
+vi.mock('../../../src/redis.js', () => ({
+  redis: {
+    set: vi.fn(async (key, value) => { jobStore.set(key, value); return 'OK'; }),
+    get: vi.fn(async (key) => jobStore.get(key) ?? null),
+  },
+}));
 
-import { draftCampaign } from '../../../src/controllers/draft.controller.js';
+import { draftCampaign, getDraftJob } from '../../../src/controllers/draft.controller.js';
 import { recordAiUsage } from '../../../src/services/aiUsage.service.js';
 
 // Gemini drafting with the network mocked: a real draft needs GEMINI_API_KEY.
@@ -43,10 +51,27 @@ function makeRes() {
   return res;
 }
 
+const USER = { id: 'user-1', workspaceId: 'tenant-1' };
+
+async function poll(jobId, user = USER) {
+  const res = makeRes();
+  await getDraftJob({ params: { jobId }, user }, res);
+  return res;
+}
+
+/** Start a draft, let its background job finish, and return the outcome the page would see. */
 async function draft(brief = BRIEF) {
   const res = makeRes();
-  await draftCampaign({ body: { brief }, user: { id: 'user-1', workspaceId: 'tenant-1' } }, res);
-  return res;
+  await draftCampaign({ body: { brief }, user: USER }, res);
+  if (res.statusCode !== 202) return res;
+  let job;
+  for (let i = 0; i < 100; i++) {
+    job = await poll(res.body.jobId);
+    if (job.body.status !== 'pending') break;
+    await new Promise(r => setTimeout(r, 0));
+  }
+  if (job.body.status === 'done') return { statusCode: 200, body: job.body, jobId: res.body.jobId };
+  return { statusCode: JSON.parse(jobStore.get(`campaign-draft-job:${res.body.jobId}`)).httpStatus, body: job.body };
 }
 
 describe('draftCampaign with Gemini', () => {
@@ -60,6 +85,7 @@ describe('draftCampaign with Gemini', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
     recordAiUsage.mockClear();
+    jobStore.clear();
   });
 
   afterEach(() => {
@@ -175,5 +201,35 @@ describe('draftCampaign with Gemini', () => {
     const res = await draft();
     expect(res.statusCode).toBe(502);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers at once with a job id, and the job reports pending until the draft is ready', async () => {
+    let finish;
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const res = makeRes();
+    await draftCampaign({ body: { brief: BRIEF }, user: USER }, res);
+    expect(res.statusCode).toBe(202);
+    expect(res.body.jobId).toMatch(/^[0-9a-f-]{36}$/);
+    expect((await poll(res.body.jobId)).body).toEqual({ status: 'pending' });
+
+    finish(geminiDraft(DRAFT));
+    await vi.waitFor(async () => expect((await poll(res.body.jobId)).body.status).toBe('done'));
+    expect((await poll(res.body.jobId)).body.payload.name).toBe('Diploma applicant screening');
+  });
+
+  it("does not show one person's draft to anyone else", async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(geminiDraft(DRAFT));
+    const { jobId } = await draft();
+    expect((await poll(jobId, { id: 'user-2', workspaceId: 'tenant-1' })).statusCode).toBe(404);
+    expect((await poll(jobId, { id: 'user-1', workspaceId: 'tenant-2' })).statusCode).toBe(404);
+    expect((await poll('no-such-job')).statusCode).toBe(404);
+  });
+
+  it('moves on to the next model when one does not answer in time', async () => {
+    const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(timeout).mockResolvedValueOnce(geminiDraft(DRAFT));
+    const res = await draft();
+    expect(res.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

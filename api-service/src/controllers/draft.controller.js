@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { recordAiUsage } from '../services/aiUsage.service.js';
+import { redis } from '../redis.js';
+import { randomUUID } from 'crypto';
 
 /**
  * POST /api/campaigns/draft
@@ -106,7 +108,8 @@ function getClient() {
 const GEMINI_DRAFT_MODELS = (process.env.GEMINI_DRAFT_MODELS || 'gemini-3.8-flash,gemini-3.5-flash')
   .split(',').map(m => m.trim()).filter(Boolean);
 const GEMINI_TRY_NEXT_MODEL = new Set([404, 429, 500, 503]);
-const GEMINI_TIMEOUT_MS = 90000;
+// Per model: a model that hasn't answered in time is treated like an overloaded one.
+const GEMINI_TIMEOUT_MS = 60000;
 
 function draftProvider() {
   if (process.env.GEMINI_API_KEY) return 'gemini';
@@ -152,8 +155,12 @@ async function draftWithGemini(brief) {
     try {
       response = await callGemini(model, brief);
     } catch (err) {
+      if (err.name === 'TimeoutError' && model !== GEMINI_DRAFT_MODELS.at(-1)) {
+        console.warn(`[draft] ${model} did not answer in ${GEMINI_TIMEOUT_MS / 1000}s; trying the next model`);
+        continue;
+      }
       console.error('[draft] Gemini unreachable:', err.message);
-      throw new DraftError(504, { error: 'Could not reach the drafting service. Check your connection.' });
+      throw new DraftError(504, { error: 'Could not reach the drafting service. Try again in a minute.' });
     }
     if (response.ok || !GEMINI_TRY_NEXT_MODEL.has(response.status)) break;
     console.warn(`[draft] ${model} answered ${response.status}; trying the next model`);
@@ -335,6 +342,40 @@ function toWizardPayload(draft) {
   };
 }
 
+// Drafting can take over a minute when a model is busy, longer than a request should stay open
+// (nginx cuts proxies at 60s). So POST starts a background job and returns its id at once, and
+// the page polls GET /draft/:jobId until the draft is ready. Jobs live in Redis for 15 minutes.
+const DRAFT_JOB_TTL_SECONDS = 15 * 60;
+const draftJobKey = (jobId) => `campaign-draft-job:${jobId}`;
+
+async function saveDraftJob(jobId, job) {
+  await redis.set(draftJobKey(jobId), JSON.stringify(job), 'EX', DRAFT_JOB_TTL_SECONDS);
+}
+
+/** Run one draft to completion. Resolves to { status, body } — never throws. */
+async function runDraft(brief, provider, user) {
+  // Every model call costs money, so it is recorded for the Usage page — including ones whose
+  // output we then reject.
+  const track = (usage, success) => usage && recordAiUsage({
+    tenantId: user?.workspaceId, userId: user?.id, feature: 'campaign_draft', success, ...usage,
+  });
+
+  try {
+    const { draft, usage } = provider === 'gemini' ? await draftWithGemini(brief) : await draftWithAnthropic(brief);
+    await track(usage, true);
+    const result = toWizardPayload(draft);
+    const questionCount = result.payload.dataToCollect.filter(i => i.itemType === 'question').length;
+    console.log(`[draft] drafted "${result.payload.name}" with ${provider} — ${questionCount} questions`);
+    return { status: 200, body: result };
+  } catch (err) {
+    await track(err.usage, false);
+    if (err instanceof DraftError) return { status: err.status, body: err.body };
+    console.error('[draft] failed:', err);
+    return { status: 500, body: { error: 'Could not draft this campaign. Build it manually, or try again.' } };
+  }
+}
+
+// POST /api/campaigns/draft  → 202 { jobId }
 export async function draftCampaign(req, res) {
   const { brief } = req.body || {};
 
@@ -354,24 +395,39 @@ export async function draftCampaign(req, res) {
     });
   }
 
-  // Every model call costs money, so it is recorded for the Usage page — including ones whose
-  // output we then reject.
-  const track = (usage, success) => usage && recordAiUsage({
-    tenantId: req.user?.workspaceId, userId: req.user?.id, feature: 'campaign_draft', success, ...usage,
-  });
-
+  const jobId = randomUUID();
+  const owner = { tenantId: req.user?.workspaceId || null, userId: req.user?.id || null };
   try {
-    const { draft, usage } = provider === 'gemini' ? await draftWithGemini(brief.trim()) : await draftWithAnthropic(brief.trim());
-    await track(usage, true);
-    const result = toWizardPayload(draft);
-    const questionCount = result.payload.dataToCollect.filter(i => i.itemType === 'question').length;
-    console.log(`[draft] drafted "${result.payload.name}" with ${provider} — ${questionCount} questions`);
-
-    return res.json(result);
+    await saveDraftJob(jobId, { ...owner, status: 'pending' });
   } catch (err) {
-    await track(err.usage, false);
-    if (err instanceof DraftError) return res.status(err.status).json(err.body);
-    console.error('[draft] failed:', err);
-    return res.status(500).json({ error: 'Could not draft this campaign. Build it manually, or try again.' });
+    console.error('[draft] could not create job:', err.message);
+    return res.status(503).json({ error: 'Could not start drafting just now. Try again, or pick a template.' });
   }
+
+  runDraft(brief.trim(), provider, req.user)
+    .then(({ status, body }) => saveDraftJob(jobId, status === 200
+      ? { ...owner, status: 'done', result: body }
+      : { ...owner, status: 'failed', httpStatus: status, error: body.error, code: body.code || null }))
+    .catch(err => console.error('[draft] could not save job result:', err.message));
+
+  return res.status(202).json({ jobId });
+}
+
+// GET /api/campaigns/draft/:jobId  → { status: 'pending' } | { status: 'done', payload, ... } | { status: 'failed', error, code }
+export async function getDraftJob(req, res) {
+  let job = null;
+  try {
+    const raw = await redis.get(draftJobKey(req.params.jobId));
+    job = raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.error('[draft] could not read job:', err.message);
+    return res.status(503).json({ error: 'Could not check the draft just now. Try again.' });
+  }
+  // Only the person who started a draft can read it; anything else looks like an expired job.
+  if (!job || job.tenantId !== (req.user?.workspaceId || null) || job.userId !== (req.user?.id || null)) {
+    return res.status(404).json({ error: 'This draft has expired. Start again.' });
+  }
+  if (job.status === 'done') return res.json({ status: 'done', ...job.result });
+  if (job.status === 'failed') return res.json({ status: 'failed', error: job.error, code: job.code });
+  return res.json({ status: 'pending' });
 }
