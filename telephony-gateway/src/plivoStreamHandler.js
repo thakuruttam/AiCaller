@@ -8,6 +8,7 @@ import { speakBackToPlivo } from './providers/tts.js';
 import { setupRealtime } from './providers/openaiRealtime.js';
 import { setupGeminiLive } from './providers/geminiLive.js';
 import { createNotification, notifyWorkspace } from './utils/notifications.js';
+import { containsProfanity, maskProfanity, politeHangupLine } from './utils/profanity.js';
 import { hangupCall } from './hangupCall.js';
 import { startPlivoRecording } from './plivoRest.js';
 
@@ -631,6 +632,19 @@ export function setupPlivoStream() {
       hasFreshTranscriptForCurrentItem = true;
       if (isCallEnding) return;
 
+      // A caller who swears gets a polite goodbye and the call ends (same closing flow as End-Call-If below)
+      if (containsProfanity(transcript)) {
+        console.log('[Stream] Autonomous: caller used abusive language — ending the call politely');
+        agent.recordEndCall('abusive_language');
+        isCallEnding = true;
+        const closingText = politeHangupLine(agent.language);
+        lastClosingText = closingText;
+        closingRetried = false;
+        realtimeSession.interruptAndSpeak(closingText);
+        if (callSid) agent.saveState(redis, callSid);
+        return;
+      }
+
       // Dedicated, deterministic check for the campaign's own configured
       // End-Call-If condition — confirmed on a live call that leaving this
       // purely to the free-flowing model's judgment is unreliable: it ended
@@ -1087,7 +1101,7 @@ export function setupPlivoStream() {
               useAutonomousEngine: useAutonomous
             });
 
-            let processedIntro = finalGoals.callIntro || 'Hello, this is an AI assistant calling.';
+            let processedIntro = maskProfanity(finalGoals.callIntro) || 'Hello, this is an AI assistant calling.';
             if (agent.contactName) {
               processedIntro = processedIntro.replace(/\[Name\]/gi, agent.contactName);
 
