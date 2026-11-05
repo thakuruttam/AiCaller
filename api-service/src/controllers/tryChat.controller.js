@@ -19,13 +19,14 @@ import { buildConversationInstructions, CONVERSATION_END_REASONS } from '../util
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_CHARS = 2000;
 // A chat turn should feel instant: a model that hasn't answered in 8s is
-// treated as overloaded and the next one is tried. The steadier model goes
-// first — gemini-3.8-flash 503'd for ~30s on the first live test chat.
+// treated as overloaded and the next one is tried. (Nov 2026: this key's
+// gemini-3.5-flash quota is exhausted — 429 at once — so 3.8 goes first.)
 const TIMEOUT_MS = 8000;
-const MODELS = (process.env.GEMINI_TRY_CHAT_MODELS || 'gemini-3.5-flash,gemini-3.8-flash')
+const MODELS = (process.env.GEMINI_TRY_CHAT_MODELS || 'gemini-3.8-flash,gemini-3.5-flash')
   .split(',').map(m => m.trim()).filter(Boolean);
 // capture_detail turns carry no speech, so the model is asked again for its
-// reply; this caps how many times one message can go round.
+// reply, and an empty answer (gemini-3.8-flash sometimes returns no parts on
+// a long prompt) is retried; this caps how many times one message can go round.
 const MAX_TOOL_ROUNDS = 3;
 const TRY_NEXT_MODEL = new Set([404, 429, 500, 503]);
 
@@ -86,6 +87,8 @@ export function buildTryChatRequest({ payload, messages, contactName }) {
     systemInstruction: { parts: [{ text: `${instructions}\n\n${note}` }] },
     contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),
     tools: [{ functionDeclarations: [CAPTURE_DETAIL_TOOL, END_CALL_TOOL] }],
+    // Same low temperature as a live conversation call, so the test behaves alike.
+    generationConfig: { temperature: Number(process.env.GEMINI_CONVERSATION_TEMPERATURE ?? 0.3) },
   };
 }
 
@@ -142,6 +145,10 @@ export const tryChat = async (req, res) => {
       success: true,
     });
     const parts = turn.data?.candidates?.[0]?.content?.parts || [];
+    if (!parts.length) {
+      console.warn(`[tryChat] ${turn.model} returned an empty answer; asking again`);
+      continue;
+    }
     Object.assign(captured, readCapturedDetails(parts, parsed.payload));
     const read = readTryChatReply(turn.data, parsed.payload);
     if (read.reply || read.endCall) {

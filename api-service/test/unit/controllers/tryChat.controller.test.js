@@ -117,10 +117,18 @@ describe('tryChat', () => {
     expect(recordAiUsage).toHaveBeenCalledWith(expect.objectContaining({ feature: 'campaign_try_chat', tenantId: 'tenant-1', inputTokens: 800 }));
   });
 
-  it('tries the steadier model first', async () => {
+  it('tries gemini-3.8-flash first', async () => {
     fetch.mockResolvedValueOnce(gemini([{ text: 'Hi.' }]));
     await tryChat({ body: { payload: PAYLOAD, messages: MESSAGES }, user: USER }, makeRes());
-    expect(fetch.mock.calls[0][0]).toContain('gemini-3.5-flash');
+    expect(fetch.mock.calls[0][0]).toContain('gemini-3.8-flash');
+  });
+
+  it('asks again when the model returns an empty answer', async () => {
+    fetch.mockResolvedValueOnce(gemini([])).mockResolvedValueOnce(gemini([{ text: 'Hello again.' }]));
+    const res = makeRes();
+    await tryChat({ body: { payload: PAYLOAD, messages: MESSAGES }, user: USER }, res);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.body.reply).toBe('Hello again.');
   });
 
   it('when the model only captures a detail, answers the tool call and returns what it says next', async () => {

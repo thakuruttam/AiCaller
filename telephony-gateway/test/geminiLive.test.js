@@ -106,3 +106,46 @@ describe('Gemini Live provider — forcing a line over the model', () => {
     expect(handlers.onAudio).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Gemini Live provider — setup and transcripts', () => {
+  beforeEach(() => { FakeWebSocket.instances.length = 0; process.env.GEMINI_API_KEY = 'test-key'; });
+  afterEach(() => { delete process.env.GEMINI_API_KEY; });
+
+  const handlers = () => ({
+    onTranscript: vi.fn(), onAudio: vi.fn(), onSpeechStart: vi.fn(), onSpeechActivity: vi.fn(),
+    onResponseDone: vi.fn(), onAssistantTranscript: vi.fn(), onClearPlayback: vi.fn(), onReady: vi.fn(),
+  });
+  const open = (h, options) => {
+    const session = setupGeminiLive('x', h, 'en', null, [], options);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    return { session, socket };
+  };
+
+  it('sends a temperature only when asked to', () => {
+    const { socket } = open(handlers(), { temperature: 0.3 });
+    expect(socket.sent[0].setup.generationConfig.temperature).toBe(0.3);
+    FakeWebSocket.instances.length = 0;
+    const { socket: plain } = open(handlers());
+    expect(plain.sent[0].setup.generationConfig).not.toHaveProperty('temperature');
+  });
+
+  it('drops the text of a reply the server muted — the caller never heard it', () => {
+    const h = handlers();
+    const { session, socket } = open(h);
+    socket._message({ setupComplete: {} });
+    socket._message({ serverContent: { outputTranscription: { text: 'justto confirm,you agreedto order' } } });
+    session.muteInFlight();
+    socket._message({ serverContent: { turnComplete: true } });
+    expect(h.onAssistantTranscript).not.toHaveBeenCalled();
+  });
+
+  it('keeps the text of a normal reply', () => {
+    const h = handlers();
+    const { socket } = open(h);
+    socket._message({ setupComplete: {} });
+    socket._message({ serverContent: { outputTranscription: { text: 'It is 520 rupees.' } } });
+    socket._message({ serverContent: { turnComplete: true } });
+    expect(h.onAssistantTranscript).toHaveBeenCalledWith('It is 520 rupees.');
+  });
+});

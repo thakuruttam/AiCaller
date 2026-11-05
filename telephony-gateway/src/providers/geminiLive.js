@@ -225,7 +225,7 @@ function toGeminiFunctionDeclarations(tools) {
  *   initial setup message — the only point Gemini accepts them.
  * @returns {{ sendAudio, speak, interruptAndSpeak, beginAutonomousConversation, continueConversation, close }}
  */
-export function setupGeminiLive(instructions, handlers, language = 'en', voiceOverride = null, tools = []) {
+export function setupGeminiLive(instructions, handlers, language = 'en', voiceOverride = null, tools = [], options = {}) {
   // Was 'gemini-2.5-flash-native-audio-preview-12-2025' — picked semi-
   // arbitrarily while verifying the wire protocol, never actually validated
   // for transcription/comprehension quality itself. Confirmed on a real test
@@ -259,6 +259,10 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
   // botSpeaking, this is also set for turns the model starts on its own in
   // reply to the caller — the case interruptAndSpeak must be able to mute.
   let responseInFlight = false;
+  // Set when the SERVER mutes a reply (muteInFlight / interruptAndSpeak): the
+  // caller never heard it, so its text is dropped rather than saved to the
+  // transcript. A caller barge-in doesn't set this — those words were heard.
+  let dropMutedText = false;
   let assistantTranscriptBuffer = '';
   let inputTranscriptBuffer = '';
   let sawAudioThisTurn = false;
@@ -311,6 +315,9 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       model,
       generationConfig: {
         responseModalities: ['AUDIO'],
+        // Conversation campaigns pass a lower temperature so the model sticks
+        // to the knowledge base instead of improvising (see plivoStreamHandler).
+        ...(typeof options.temperature === 'number' ? { temperature: options.temperature } : {}),
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
       },
       systemInstruction: { parts: [{ text: instructions }] },
@@ -401,6 +408,10 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     if (sc.turnComplete) {
       botSpeaking = false;
       responseInFlight = false;
+      if (dropMutedText) {
+        dropMutedText = false;
+        assistantTranscriptBuffer = '';
+      }
       flushAssistantTranscript();
       if (responseCancelPending) {
         responseCancelPending = false;
@@ -458,6 +469,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       if (!(botSpeaking || responseInFlight)) return;
       console.log('[GeminiLive] Muting in-flight response');
       responseCancelPending = true;
+      dropMutedText = true;
       handlers.onClearPlayback?.();
     },
 
@@ -474,6 +486,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       if (botSpeaking || responseInFlight) {
         console.log(`[GeminiLive] Muting in-flight response to force: "${text}"`);
         responseCancelPending = true;
+        dropMutedText = true;
         pendingSpeakText = text;
         handlers.onClearPlayback?.();
         return;

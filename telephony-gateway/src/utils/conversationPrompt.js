@@ -8,6 +8,9 @@
 // so the test chat behaves exactly like a real call. A test in api-service
 // fails if the two copies drift — edit one, copy it over the other.
 
+/** The one answer to anything the knowledge base doesn't cover — fixed, so the model can't paraphrase it into a guess. */
+export const UNKNOWN_ANSWER = "I don't have that information right now, but I can have the team get back to you on that.";
+
 /** Reasons the model may give end_call in a conversation campaign. */
 export const CONVERSATION_END_REASONS = [
   'objective_met',      // the objective was achieved
@@ -84,7 +87,7 @@ KNOWLEDGE>>>`
     c.rules.always.length ? `ALWAYS:\n${bullets(c.rules.always)}` : '',
   ].filter(Boolean).join('\n\n');
 
-  const onObjective = `- objective_met: the objective counts as reached as soon as the caller clearly agrees to it${c.detailsToCollect.length ? ' and you have asked for the DETAILS TO COLLECT (it\'s fine if they declined some)' : ''}. Then, in one short sentence, repeat back what was agreed and that the team will get back to them, let them respond, and call end_call. Do not keep talking once it is reached.`;
+  const onObjective = `- objective_met: the objective counts as reached only when the caller gives a clear, unambiguous yes to it. Vague or distracted replies ("sure, whatever", "hmm", a number, anything off topic) are NOT a yes — ask one direct confirming question first ("Just to confirm, would you like …?"). It counts as reached as soon as that clear yes is given${c.detailsToCollect.length ? ' and you have asked for the DETAILS TO COLLECT (it\'s fine if they declined some)' : ''}. Then, in one short sentence, repeat back what was agreed and that the team will get back to them, let them respond, and call end_call. Do not keep talking once it is reached.`;
   const onNo = c.endWhen.acceptFirstNo
     ? '- not_interested: the first time they clearly say they are not interested. Do not try to change their mind.'
     : '- not_interested: if they say they are not interested, you may address their concern ONCE, briefly, using only the KNOWLEDGE. If they still say no, accept it and call end_call. Never push past a second no.';
@@ -108,9 +111,12 @@ Everything you say should move the call toward this objective. When the caller a
 
 ${knowledge}
 
-ANSWERING QUESTIONS — this overrides everything else:
-- State only facts written in the KNOWLEDGE above. Never guess or invent prices, discounts, dates, features, guarantees, numbers, names or policies — not even "approximately".
-- If the answer is not in the KNOWLEDGE, say you don't have that detail right now and the team will follow up with it. Then continue.
+ANSWERING QUESTIONS — this overrides everything else, including the OBJECTIVE:
+- The KNOWLEDGE above is everything you know. You have NO other knowledge about any product, brand, company, ingredient, medicine, illness, treatment or topic — even ones you recognise. Do not use anything you learned anywhere else.
+- A name is not information. Never work out what something is for, how it works, who it suits, how to use it, its dose, its benefits or its side effects from its name or from memory. If the KNOWLEDGE doesn't say it in words, you don't know it.
+- That includes hints. Don't describe, group or label items by what they might do ("for joints", "memory support", "wellness", "immunity", "premium", "authentic", "popular"), and don't ask the caller about needs the KNOWLEDGE doesn't link to an item. When you mention an item, use only what is written about it — its name, and its price or other details exactly as given.
+- Before every factual statement, check that it is written in the KNOWLEDGE. If it isn't, say exactly: "${UNKNOWN_ANSWER}" Do not add a guess, a "typically", an "often", or a partial answer around it. Then continue the conversation.
+- Never recommend or suggest anything for a symptom, condition or need unless the KNOWLEDGE explicitly says that item is for it. Never give medical, health, legal or financial advice, even with a disclaimer.
 - Never make a promise or commitment the KNOWLEDGE does not explicitly allow.
 
 WHAT YOU CAN AND CANNOT DO — you are only a voice on this call:

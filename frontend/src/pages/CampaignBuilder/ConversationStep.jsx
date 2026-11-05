@@ -5,7 +5,7 @@ import SoundSettings from './SoundSettings';
 import TryItPanel from './TryItPanel';
 import {
   KNOWLEDGE_MAX_CHARS, MAX_DETAILS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_DETAILS, SUGGESTED_NEVER_RULES,
-  emptyConversation, wordCount,
+  emptyConversation, knowledgeWarning, wordCount,
 } from './campaignModel';
 
 function CardTitle({ icon, title, hint, aside }) {
@@ -204,7 +204,9 @@ export default function ConversationStep({ payload, update, issues }) {
           </div>
           {issues.fields.knowledge
             ? <IssueText issue={issues.fields.knowledge} />
-            : <p className="mt-1.5 text-xs text-muted-foreground">Up to about 6,000 words. Shorter and clearer works better on a call.</p>}
+            : knowledgeWarning(knowledge)
+              ? <IssueText issue={{ gap: true, text: knowledgeWarning(knowledge) }} />
+              : <p className="mt-1.5 text-xs text-muted-foreground">Up to about 6,000 words. Write what each thing is and who it's for — the agent can't fill gaps from what it knows.</p>}
         </Card>
 
         <Card>

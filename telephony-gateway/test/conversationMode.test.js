@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { VoiceAgent } from '../src/VoiceAgent.js';
 import {
   buildConversationInstructions, normalizeConversation,
-  CONVERSATION_END_REASONS, KNOWLEDGE_MAX_CHARS, MAX_RULES,
+  CONVERSATION_END_REASONS, KNOWLEDGE_MAX_CHARS, MAX_RULES, UNKNOWN_ANSWER,
 } from '../src/utils/conversationPrompt.js';
 
 const conversation = {
@@ -53,9 +53,25 @@ describe('buildConversationInstructions', () => {
 
   it('forbids stating anything outside the knowledge base', () => {
     const text = build();
-    expect(text).toMatch(/State only facts written in the KNOWLEDGE/);
-    expect(text).toMatch(/Never guess or invent prices, discounts, dates/);
-    expect(text).toMatch(/the team will follow up/);
+    expect(text).toMatch(/The KNOWLEDGE above is everything you know/);
+    expect(text).toMatch(/check that it is written in the KNOWLEDGE/);
+    expect(text).toMatch(/Do not add a guess, a "typically", an "often"/);
+  });
+
+  it('forbids outside knowledge, guessing from names and health advice', () => {
+    // Live call 2026-11-05: product names only in the knowledge, yet the agent
+    // explained what each was for and recommended one for fatigue.
+    const text = build();
+    expect(text).toMatch(/You have NO other knowledge about any product, brand/);
+    expect(text).toMatch(/A name is not information/);
+    expect(text).toMatch(/don't ask the caller about needs the KNOWLEDGE doesn't link to an item/);
+    expect(text).toMatch(/Never give medical, health, legal or financial advice/);
+    expect(text).toContain(`say exactly: "${UNKNOWN_ANSWER}"`);
+  });
+
+  it('needs a clear yes before the objective counts as reached', () => {
+    expect(build()).toMatch(/only when the caller gives a clear, unambiguous yes/);
+    expect(build()).toMatch(/"sure, whatever", "hmm", a number/);
   });
 
   it('with no knowledge, tells the agent it can state no product facts at all', () => {
@@ -78,7 +94,7 @@ describe('buildConversationInstructions', () => {
   it('always ends once the objective is reached, and when the call goes nowhere', () => {
     // Live call 2026-11-05 kept going after the caller agreed, chasing an email.
     const text = build();
-    expect(text).toMatch(/objective counts as reached as soon as the caller clearly agrees/);
+    expect(text).toMatch(/It counts as reached as soon as that clear yes is given/);
     expect(text).toMatch(/Do not keep talking once it is reached/);
     expect(text).toMatch(/no_progress: if you have tried three times/);
     expect(build({ conversation: { ...conversation, endWhen: { endOnObjective: false } } }))

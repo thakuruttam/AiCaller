@@ -129,6 +129,21 @@ export function testGreeting(callIntro) {
   return `${/[.?!]$/.test(intro) ? intro : `${intro}.`} Am I speaking with ${TEST_NAME}?`;
 }
 
+/**
+ * Why a knowledge base probably won't answer questions, or null. A pasted
+ * product listing (names, sizes, prices, "Add to Cart") says what things are
+ * called and cost, never what they are for — and the agent may only state
+ * what's written, so it will keep saying it doesn't know.
+ */
+export function knowledgeWarning(knowledge) {
+  const lines = String(knowledge || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length < 8) return null;
+  const sentences = lines.filter(l => wordCount(l) >= 8).length;
+  if (sentences / lines.length >= 0.15) return null;
+  const shopPage = lines.some(l => /^(add to cart|out of stock|buy now)$/i.test(l));
+  return `${shopPage ? 'This looks copied from a shop page' : 'This is mostly names and numbers'} — the agent only knows what's written, so it will say it doesn't know what each item is for. Add a line about what each one is for and who it suits.`;
+}
+
 /** Words in a piece of text, for the knowledge meter. */
 export const wordCount = (text) => (String(text || '').trim().match(/\S+/g) || []).length;
 
@@ -588,6 +603,8 @@ function getConversationReadiness(payload, now) {
     block('contacts', 'The scheduled time has passed — pick a later one.');
   }
   if (!conv.rules?.never?.length) warnings.push('No "Never" rules — consider listing what the agent must not promise.');
+  const thin = knowledgeWarning(knowledge);
+  if (thin) warnings.push(thin);
 
   const estMinutes = estimateMinutes(payload);
   return { blockers, warnings, questions: 0, contacts, weight: 0, estMinutes, estCost: estMinutes * RATE_PER_MINUTE };

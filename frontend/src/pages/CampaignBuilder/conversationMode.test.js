@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CONVERSATION_TEMPLATES, KNOWLEDGE_MAX_CHARS, conversationStart, emptyPayload, fromCampaign,
-  getReadiness, testGreeting, wordCount,
+  getReadiness, knowledgeWarning, testGreeting, wordCount,
 } from './campaignModel';
 
 const contacts = [{ name: 'Priya', phone: '+919876543210' }];
@@ -89,5 +89,21 @@ describe('testGreeting', () => {
     expect(testGreeting("Hi [Name], I'm calling from Acme")).toBe("Hi Alex, I'm calling from Acme. Am I speaking with Alex?");
     expect(testGreeting('Hi, is this Alex?')).toBe('Hi, is this Alex?');
     expect(testGreeting('')).toBe('Am I speaking with Alex?');
+  });
+});
+
+describe('knowledgeWarning', () => {
+  const shop = ['Divya Eyegrit Gold 20 N', 'Divya Eyegrit Gold 20 N', '12 g', '₹ 855.16 M.R.P.: ₹ 892.00 4.13% OFF', '5.0/5 (2)', 'Add to Cart',
+    'Divya Neurogrit Gold 20 N', '13 g', '₹ 855.16 M.R.P.: ₹ 892.00', 'Add to Cart'].join('\n');
+
+  it('flags a product listing pasted from a shop page', () => {
+    expect(knowledgeWarning(shop)).toMatch(/copied from a shop page/);
+    expect(getReadiness(ready({ conversation: { ...ready().conversation, knowledge: shop } })).warnings.join(' ')).toMatch(/what each item is for/);
+  });
+
+  it('leaves real descriptions alone, and short notes too', () => {
+    const prose = Array.from({ length: 10 }, (_, i) => `Plan ${i} costs ₹999 per user per month and includes call reports for every campaign.`).join('\n');
+    expect(knowledgeWarning(prose)).toBeNull();
+    expect(knowledgeWarning('Price: ₹999')).toBeNull();
   });
 });

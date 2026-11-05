@@ -1305,7 +1305,12 @@ export function setupPlivoStream() {
               if (useGeminiLive) {
                 const geminiGreetingDirective = `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.`;
                 const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
-                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, agent.mode === 'conversation' ? CONVERSATION_TOOLS : AUTONOMOUS_TOOLS);
+                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, agent.mode === 'conversation' ? CONVERSATION_TOOLS : AUTONOMOUS_TOOLS,
+                  // Conversation calls answer from a pasted knowledge base; a lower
+                  // temperature keeps the model to it instead of improvising from
+                  // what it already knows (live call 2026-11-05 recommended a
+                  // product for fatigue from memory). GEMINI_CONVERSATION_TEMPERATURE overrides.
+                  agent.mode === 'conversation' ? { temperature: Number(process.env.GEMINI_CONVERSATION_TEMPERATURE ?? 0.3) } : {});
               } else {
                 realtimeSession = setupRealtime(agent.generateSystemPrompt(), realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.voice || null);
               }

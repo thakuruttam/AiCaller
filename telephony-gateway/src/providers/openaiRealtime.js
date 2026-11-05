@@ -226,6 +226,8 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
   // belongs to a response we've already thrown away, so it's dropped
   // instead of reaching Plivo.
   let responseCancelPending = false;
+  // See geminiLive.js: text of a reply the server cancelled was never heard.
+  let dropCancelledText = false;
 
   function flushPendingSpeak() {
     if (pendingSpeakText !== null) {
@@ -386,6 +388,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       // confirmed for response.output_audio.delta — unconfirmed against a
       // live autonomous-mode call, first thing to verify there.
       case 'response.output_audio_transcript.done':
+        if (dropCancelledText) break;
         if (msg.transcript?.trim()) {
           handlers.onAssistantTranscript?.(msg.transcript.trim());
         }
@@ -461,6 +464,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       case 'response.done': {
         botSpeaking = false;
         if (responseCancelPending) {
+          dropCancelledText = false;
           // This is the cancelled response's own response.done — any audio
           // for it was already dropped above, so there's nothing real to
           // report. Treating it like a normal (possibly zero-audio) response
@@ -597,6 +601,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
       if (ready && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'response.cancel' }));
         responseCancelPending = true;
+        dropCancelledText = true;
       }
       handlers.onClearPlayback?.();
       botSpeaking = false;
@@ -608,6 +613,7 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
         if (ready && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'response.cancel' }));
           responseCancelPending = true;
+          dropCancelledText = true;
         }
         // response.cancel stops generation, but audio already sent to Plivo
         // would still play — flush it too.
