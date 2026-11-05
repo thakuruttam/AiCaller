@@ -254,6 +254,11 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
   // completion-aware semantic_vad — it has no linguistic sense to fall back
   // on if it mistakes echo for real speech.
   let responseCancelPending = false;
+  // True from the moment the model starts producing a turn (audio,
+  // transcript or a tool call) until its turnComplete/interrupted. Unlike
+  // botSpeaking, this is also set for turns the model starts on its own in
+  // reply to the caller — the case interruptAndSpeak must be able to mute.
+  let responseInFlight = false;
   let assistantTranscriptBuffer = '';
   let inputTranscriptBuffer = '';
   let sawAudioThisTurn = false;
@@ -337,6 +342,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     }
 
     if (msg.toolCall?.functionCalls) {
+      responseInFlight = true;
       for (const call of msg.toolCall.functionCalls) {
         console.log(`[GeminiLive] Tool call: ${call.name}(${JSON.stringify(call.args)})`);
         handlers.onToolCall?.(call.name, call.args || {});
@@ -351,6 +357,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     if (!sc) return;
 
     if (sc.interrupted) {
+      responseInFlight = false;
       console.log('[GeminiLive] Caller started speaking while bot was talking — barge-in');
       responseCancelPending = true;
       botSpeaking = false;
@@ -369,10 +376,12 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     }
 
     if (sc.outputTranscription?.text) {
+      responseInFlight = true;
       assistantTranscriptBuffer += sc.outputTranscription.text;
     }
 
     if (sc.modelTurn?.parts) {
+      responseInFlight = true;
       for (const part of sc.modelTurn.parts) {
         if (part.thought) continue; // internal reasoning — never spoken, never forwarded
         if (part.inlineData?.data && !responseCancelPending) {
@@ -391,6 +400,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
 
     if (sc.turnComplete) {
       botSpeaking = false;
+      responseInFlight = false;
       flushAssistantTranscript();
       if (responseCancelPending) {
         responseCancelPending = false;
@@ -438,14 +448,36 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       sendSpeak(text);
     },
 
+    /**
+     * Stop whatever the model is saying right now without queueing anything
+     * new — used the instant the model calls end_call, before the server's
+     * (async) check decides what to say instead. The forced line follows
+     * via interruptAndSpeak once that check resolves.
+     */
+    muteInFlight() {
+      if (!(botSpeaking || responseInFlight)) return;
+      console.log('[GeminiLive] Muting in-flight response');
+      responseCancelPending = true;
+      handlers.onClearPlayback?.();
+    },
+
     interruptAndSpeak(text) {
-      // Gemini Live's WebSocket protocol has no documented explicit
-      // "cancel the in-flight response" message analogous to OpenAI's
-      // response.cancel (unconfirmed either way against the live API in
-      // this session — not something a text-only probe turn could trigger).
-      // Sending the next turn while one is in flight is the best available
-      // approximation until that's verified on a real call.
-      botSpeaking = false;
+      // Gemini Live has no "cancel the in-flight response" message like
+      // OpenAI's response.cancel, and sending a new turn mid-response did
+      // NOT stop the old one: on a live call (2026-11-05) the model's own
+      // "We won't be moving forward with your..." kept playing after the
+      // server had already overruled its end_call. So instead: drop the
+      // rest of the in-flight response's audio (responseCancelPending, the
+      // same gate barge-in uses), tell the handler to flush what Plivo has
+      // already buffered, and queue the forced text — turnComplete for the
+      // muted response flushes it via flushPendingSpeak().
+      if (botSpeaking || responseInFlight) {
+        console.log(`[GeminiLive] Muting in-flight response to force: "${text}"`);
+        responseCancelPending = true;
+        pendingSpeakText = text;
+        handlers.onClearPlayback?.();
+        return;
+      }
       this.speak(text);
     },
 

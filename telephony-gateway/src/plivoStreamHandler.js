@@ -43,7 +43,7 @@ const AUTONOMOUS_TOOLS = [
   {
     type: 'function',
     name: 'end_call',
-    description: 'Call when the conversation should end — all questions covered, or the caller declined/was busy/was the wrong person.',
+    description: 'Call when the conversation should end — all questions covered, or the caller declined/was busy/was the wrong person. Call it without speaking any goodbye, reason or result yourself: the closing line is played automatically, and the caller must never be told an outcome or why the call is ending.',
     parameters: {
       type: 'object',
       properties: { reason: { type: 'string', enum: ['completed', 'declined', 'busy', 'wrong_person'] } },
@@ -743,6 +743,12 @@ export function setupPlivoStream() {
           if (callSid) agent.saveState(redis, callSid);
           break;
         case 'end_call': {
+          // Cut the model's own words the moment it decides to end — every
+          // path below ends in a forced line (sign-off, next question or
+          // identity re-ask), but only after an async LLM check, and on a
+          // live call (2026-11-05) the model's "We won't be moving forward
+          // with your..." played during exactly that gap.
+          realtimeSession.muteInFlight?.();
           // Deterministic guard, mirroring the global End-Call-If check above:
           // confirmed on a live call that the model can wrongly decide a
           // per-question end_call condition is satisfied when it literally
@@ -1140,6 +1146,16 @@ export function setupPlivoStream() {
                 },
                 onToolCall: useAutonomous ? (name, args) => handleAutonomousToolCall(name, args) : undefined,
                 onSpeechActivity: () => resetSilenceTimeout(),
+                // The server is overriding what the model was saying (forced
+                // sign-off, overruled end_call, stall valve): drop audio
+                // Plivo has already buffered so the caller doesn't hear the
+                // rest of the model's own line before the forced one.
+                onClearPlayback: () => {
+                  console.log('[Stream] Forced line — sending clearAudio to cut the model\'s in-flight speech');
+                  if (ws.readyState === ws.OPEN && streamSid) {
+                    ws.send(JSON.stringify({ event: 'clearAudio', streamId: streamSid }));
+                  }
+                },
                 onSpeechStart: () => {
                   console.log('[Stream] Realtime barge-in — sending clearAudio');
                   if (ws.readyState === ws.OPEN && streamSid) {

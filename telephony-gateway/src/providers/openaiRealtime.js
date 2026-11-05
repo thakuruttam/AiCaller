@@ -590,6 +590,18 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
      * which was actively misleading while diagnosing a live call where THIS
      * was the stall valve cutting off a mid-sentence reply, not a sign-off.
      */
+    /** See geminiLive.js muteInFlight — cancel the current response, queue nothing. */
+    muteInFlight() {
+      if (!botSpeaking) return;
+      console.log('[Realtime] Cancelling in-flight response (muteInFlight)');
+      if (ready && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'response.cancel' }));
+        responseCancelPending = true;
+      }
+      handlers.onClearPlayback?.();
+      botSpeaking = false;
+    },
+
     interruptAndSpeak(text) {
       if (botSpeaking) {
         console.log(`[Realtime] Cancelling in-flight response to force: "${text}"`);
@@ -597,6 +609,9 @@ export function setupRealtime(instructions, handlers, language = 'en', voiceOver
           ws.send(JSON.stringify({ type: 'response.cancel' }));
           responseCancelPending = true;
         }
+        // response.cancel stops generation, but audio already sent to Plivo
+        // would still play — flush it too.
+        handlers.onClearPlayback?.();
         botSpeaking = false;
       }
       this.speak(text);

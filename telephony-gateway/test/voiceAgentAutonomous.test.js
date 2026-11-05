@@ -130,6 +130,31 @@ describe('VoiceAgent — autonomous mode ledger', () => {
     expect(agent.isAutonomousStalled()).toBe(false);
   });
 
+  it('generateAutonomousInstructions forbids announcing any outcome or inventing thresholds', () => {
+    // Live call 2026-11-05: the bot told a candidate "that is longer than what
+    // we are looking for, so we won't be moving forward" — no such rule existed.
+    const agent = makeAgent({ goal: 'Shortlist applicants for a first-round interview.' });
+    const instructions = agent.generateAutonomousInstructions();
+    expect(instructions).toContain('NEVER ANNOUNCE A RESULT');
+    expect(instructions).toMatch(/we won't be moving forward/);
+    expect(instructions).toMatch(/do not invent one/);
+    expect(instructions).toMatch(/Do not say a goodbye, a reason, or any closing words of your own/);
+    // The old "a brief, natural goodbye" invitation to improvise is gone.
+    expect(instructions).not.toMatch(/brief, natural goodbye/);
+  });
+
+  it('describes a per-question end_call rule as silent — never to be explained to the caller', () => {
+    const agent = makeAgent({
+      dataToCollect: [{
+        id: 'q1', order: 1, itemType: 'question', text: 'How many months notice period?',
+        onAnswer: { action: 'end_call', skipConditionActiveTab: 'semantic', skipSemanticCondition: 'more than 3 months' }
+      }]
+    });
+    const instructions = agent.generateAutonomousInstructions();
+    expect(instructions).toContain('if the answer satisfies: more than 3 months, end the call');
+    expect(instructions).toContain('never tell the caller this condition');
+  });
+
   it('generateAutonomousInstructions includes the goal, ordered items, and the tool-calling contract', () => {
     const agent = makeAgent({ goal: 'Screen candidates for a QA role.' });
     const instructions = agent.generateAutonomousInstructions();

@@ -682,6 +682,40 @@ describe('OpenAI Realtime provider — autonomous (free-flowing, tool-calling) m
     expect(socket.sent.filter(m => m.type === 'response.create')).toHaveLength(2);
   });
 
+  it('interruptAndSpeak also flushes audio Plivo has already buffered', () => {
+    const handlers = { ...makeHandlers(), onClearPlayback: vi.fn() };
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    session.speak('model was mid-response');
+    session.interruptAndSpeak('Thank you for your time. Goodbye.');
+    expect(handlers.onClearPlayback).toHaveBeenCalledTimes(1);
+  });
+
+  it('muteInFlight cancels the current response and queues nothing', () => {
+    const handlers = { ...makeHandlers(), onClearPlayback: vi.fn() };
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    session.speak('model was mid-response');
+    socket.sent.length = 0;
+    session.muteInFlight();
+    expect(socket.sent.some(m => m.type === 'response.cancel')).toBe(true);
+    expect(socket.sent.some(m => m.type === 'response.create')).toBe(false);
+    expect(handlers.onClearPlayback).toHaveBeenCalledTimes(1);
+  });
+
+  it('muteInFlight is a no-op when nothing is being said', () => {
+    const handlers = { ...makeHandlers(), onClearPlayback: vi.fn() };
+    const session = setupRealtime('x', handlers);
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket.sent.length = 0;
+    session.muteInFlight();
+    expect(socket.sent).toHaveLength(0);
+    expect(handlers.onClearPlayback).not.toHaveBeenCalled();
+  });
+
   it('onResponseDone reports whether the response actually delivered audio', () => {
     // Confirmed on a live call: a turn that's ONLY a tool call (e.g.
     // answer_captured) can finish with ZERO audio chunks — the model

@@ -449,7 +449,7 @@ When instructed to say the sign-off, say the exact sign-off text and immediately
         const cond = onAnswer.skipConditionActiveTab === 'semantic'
           ? onAnswer.skipSemanticCondition
           : `${onAnswer.skipCondition?.condition || ''} "${onAnswer.skipCondition?.value || ''}"`;
-        line += ` — if the answer satisfies: ${cond}, end the call`;
+        line += ` — if the answer satisfies: ${cond}, end the call (silently call end_call; never tell the caller this condition, that they did not qualify, or why the call is ending)`;
       }
       return line;
     }).join('\n');
@@ -769,7 +769,7 @@ Reason about the caller's latest message in context — declines, reschedule req
     const { goal, endCallIf } = this.config;
     return `You are on a live phone call with ${this.contactName}. Speak naturally, like a real professional conversation — you do not need to recite anything word-for-word, though you should lean toward the wording given below where it stays natural.
 
-IDENTITY CHECK — this happens exactly ONCE, right now, before the first question, and NEVER again for the rest of the call: the greeting you just delivered asked "Am I speaking with ${this.contactName}?" You must not move on to the questions below until the caller has clearly confirmed that. A real confirmation is an explicit "yes"/"speaking"/"that's me" or equivalent — a vague, ambiguous, or filler reply ("sure," "okay," "mm-hmm," silence-filler sounds) is NOT confirmation. If the reply is ambiguous, ask once more, plainly: "Just to confirm, is this ${this.contactName}?" — and wait for a clear answer before proceeding. If the caller explicitly says this is the wrong person, call end_call with reason "wrong_person" and a brief, polite goodbye — do not ask the interview questions to someone who isn't confirmed as ${this.contactName}. Once you have moved on to the first question below, identity is settled for good — a confusing, off-topic, joke, or non-answer reply to a LATER question is never a reason to re-ask "is this ${this.contactName}?" or otherwise revisit identity. Treat a later confusing reply using the ordinary answer / re-ask rules below instead, exactly like any other non-answer.
+IDENTITY CHECK — this happens exactly ONCE, right now, before the first question, and NEVER again for the rest of the call: the greeting you just delivered asked "Am I speaking with ${this.contactName}?" You must not move on to the questions below until the caller has clearly confirmed that. A real confirmation is an explicit "yes"/"speaking"/"that's me" or equivalent — a vague, ambiguous, or filler reply ("sure," "okay," "mm-hmm," silence-filler sounds) is NOT confirmation. If the reply is ambiguous, ask once more, plainly: "Just to confirm, is this ${this.contactName}?" — and wait for a clear answer before proceeding. If the caller explicitly says this is the wrong person, call end_call with reason "wrong_person" (a polite closing line is played for you) — do not ask the interview questions to someone who isn't confirmed as ${this.contactName}. Once you have moved on to the first question below, identity is settled for good — a confusing, off-topic, joke, or non-answer reply to a LATER question is never a reason to re-ask "is this ${this.contactName}?" or otherwise revisit identity. Treat a later confusing reply using the ordinary answer / re-ask rules below instead, exactly like any other non-answer.
 
 GOAL: ${goal || 'Conduct a professional conversation and gather requested information.'}
 ${endCallIf?.trim() ? `If at any point this becomes true based on what the caller says, end the call: ${endCallIf}` : ''}
@@ -785,9 +785,15 @@ TOOLS — call these as you go, in addition to speaking naturally:
 - Whenever you re-ask a question for either reason above, use the SAME wording you used the last time you asked it in this call — do not improvise a third or fourth different phrasing of the same question. Repeating yourself exactly is expected and fine; drifting into new wording each retry is confusing for the caller.
 - Never claim you "already have" an answer you were not actually given, and never advance to the next question until the current one has a real answer on record.
 - If the caller's answer matches a described skip condition above, call skip_to_question with the target id instead of asking the next question in sequence.
-- If the caller declines, is busy, asks to be called another time, or says they are not the intended person, call end_call with the appropriate reason and a brief, natural goodbye — do not keep asking questions after that.
+- If the caller declines, is busy, asks to be called another time, or says they are not the intended person, call end_call with the appropriate reason — do not keep asking questions after that.
 - Do not discuss anything outside this goal and these questions.
-- Never say any swear word or offensive word, even if the caller uses one — leave that word out.`;
+- Never say any swear word or offensive word, even if the caller uses one — leave that word out.
+
+NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
+- You only collect answers. You do not evaluate, shortlist, accept or reject anyone. Never tell the caller any outcome, decision, eligibility, score or judgement — no "we won't be moving forward", "you don't meet our requirements", "that's longer/higher than we're looking for", "you're shortlisted", "you've qualified", or anything with the same meaning.
+- Never compare an answer against a limit, threshold or preference. If no rule is written above, none exists — do not invent one. React to answers only with a neutral acknowledgement ("Got it.", "Thank you.") and move on.
+- When the call ends for ANY reason, just call end_call. Do not say a goodbye, a reason, or any closing words of your own — a closing line is played for you automatically.
+- If the caller asks how they did or what happens next, say only that the team will review their responses and get back to them.`;
   }
 
   /** Append a real conversation turn directly to history — no decision logic, just the transcript record that saveTranscript() reads via getHistory(). */
