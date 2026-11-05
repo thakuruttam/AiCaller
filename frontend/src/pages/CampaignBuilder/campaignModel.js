@@ -82,6 +82,10 @@ export const OBJECTIVE_PRESETS = [
 
 export const KNOWLEDGE_MAX_CHARS = 40000;
 export const MAX_RULES = 20;
+export const MAX_DETAILS = 10;
+
+// Common things to collect on a sales call — the agent asks for nothing personal beyond the list.
+export const SUGGESTED_DETAILS = ['Email', 'Preferred day and time', 'Company name', 'Team size'];
 
 // Starting points for the "Never" list — the promises a sales agent most
 // often makes up.
@@ -97,7 +101,9 @@ export function emptyConversation() {
     objectivePreset: 'book_meeting',
     knowledge: '',
     rules: { never: [], always: [] },
-    endWhen: { endOnObjective: true, acceptFirstNo: false },
+    detailsToCollect: [],
+    availability: '',
+    endWhen: { acceptFirstNo: false },
   };
 }
 
@@ -111,6 +117,7 @@ export const END_REASON_LABELS = {
   do_not_call: 'Asked not to be called',
   busy: 'Busy',
   wrong_person: 'Wrong person',
+  no_progress: 'Going nowhere',
 };
 
 /** The greeting as the caller hears it — the real call adds the identity check the same way. */
@@ -325,7 +332,13 @@ export const CONVERSATION_TEMPLATES = [
         callIntro: "Hi [Name], I'm calling from [Company] — we help teams like yours [what you do].",
         callSignOff: "Thanks so much for your time. Have a great day!",
       },
-      conversation: { ...emptyConversation(), objectivePreset: 'book_meeting', rules: { never: SUGGESTED_NEVER_RULES.slice(0, 3), always: [] } },
+      conversation: {
+        ...emptyConversation(),
+        objectivePreset: 'book_meeting',
+        rules: { never: SUGGESTED_NEVER_RULES.slice(0, 3), always: [] },
+        detailsToCollect: ['Email', 'Preferred day and time'],
+        availability: 'Monday to Friday, 10am to 6pm IST',
+      },
     }),
   },
   {

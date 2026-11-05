@@ -26,12 +26,13 @@ export default function TryItPanel({ payload, className = '' }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [ended, setEnded] = useState(null); // { reason, closingLine }
+  const [captured, setCaptured] = useState({}); // details saved so far, as a real call would
   const listRef = useRef(null);
   const live = useRef(true);
   useEffect(() => () => { live.current = false; }, []);
   useEffect(() => { listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight }); }, [messages, ended, sending]);
 
-  const reset = () => { setMessages([]); setEnded(null); setError(null); setInput(''); };
+  const reset = () => { setMessages([]); setEnded(null); setCaptured({}); setError(null); setInput(''); };
 
   const send = async () => {
     const text = input.trim();
@@ -54,6 +55,7 @@ export default function TryItPanel({ payload, className = '' }) {
       });
       if (!live.current) return;
       if (data.reply) setMessages([...next, { role: 'assistant', text: data.reply }]);
+      if (data.captured && Object.keys(data.captured).length) setCaptured(c => ({ ...c, ...data.captured }));
       if (data.endCall) setEnded(data.endCall);
     } catch (err) {
       if (!live.current) return;
@@ -97,6 +99,20 @@ export default function TryItPanel({ payload, className = '' }) {
           </>
         )}
       </ol>
+
+      {Object.keys(captured).length > 0 && (
+        <div className="rounded-xl bg-brand-500/10 border border-brand-500/25 px-3 py-2">
+          <p className="text-xs font-medium text-foreground mb-1">Saved with this call</p>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs" aria-label="Details saved with this call">
+            {Object.entries(captured).map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="text-foreground break-words">{v}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </div>
+      )}
 
       {error && <Alert tone="negative" title={error} />}
 

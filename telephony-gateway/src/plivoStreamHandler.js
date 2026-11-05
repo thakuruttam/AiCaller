@@ -59,6 +59,16 @@ const AUTONOMOUS_TOOLS = [
 const CONVERSATION_TOOLS = [
   {
     type: 'function',
+    name: 'capture_detail',
+    description: 'Call each time the caller gives one of the DETAILS TO COLLECT, with the detail\'s name exactly as listed and their answer.',
+    parameters: {
+      type: 'object',
+      properties: { name: { type: 'string' }, value: { type: 'string' } },
+      required: ['name', 'value']
+    }
+  },
+  {
+    type: 'function',
     name: 'end_call',
     description: 'Call when the conversation should end, with the reason it ended. Call it without speaking any goodbye yourself: the closing line is played automatically.',
     parameters: {
@@ -479,7 +489,9 @@ export function setupPlivoStream() {
               transcript: formattedTranscript,
               // Why it ended, for the campaign's outcome breakdown. Null when
               // the caller just hung up before anything ended the call.
-              ...(agent?.endReason ? { outcome: { endReason: agent.endReason, mode: agent.mode } } : {})
+              ...((agent?.endReason || Object.keys(agent?.capturedDetails || {}).length)
+                ? { outcome: { endReason: agent.endReason || null, mode: agent.mode, details: agent.capturedDetails } }
+                : {})
             }
           });
           console.log(`[Stream] Successfully saved transcript (${history.length} messages) for ${callLogId}`);
@@ -757,6 +769,13 @@ export function setupPlivoStream() {
           // rather than leaving the call silently stuck.
           pendingAutonomousContinuation = true;
           if (callSid) agent.saveState(redis, callSid);
+          break;
+        case 'capture_detail':
+          // Conversation campaigns: the caller gave one of the configured
+          // details. A tool-only turn, so prompt the model to carry on.
+          agent.recordDetail(args.name, args.value);
+          if (callSid) agent.saveState(redis, callSid);
+          pendingAutonomousContinuation = true;
           break;
         case 'skip_to_question':
           hasFreshTranscriptForCurrentItem = false;

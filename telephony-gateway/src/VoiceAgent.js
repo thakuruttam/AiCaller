@@ -29,6 +29,7 @@ export class VoiceAgent {
     // utils/conversationPrompt.js) instead of working through dataToCollect.
     this.mode = config.mode === 'conversation' ? 'conversation' : 'questions';
     this.endReason = null; // set by recordEndCall, saved to CallLog.outcome
+    this.capturedDetails = {}; // conversation campaigns: { "Email": "a@b.com" }, saved to CallLog.outcome
 
     // ── State machine ──────────────────────────────────────────────
     // Filter out question items with no text — they have nothing to ask
@@ -868,6 +869,25 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
     return goodbye;
   }
 
+  /**
+   * Model called capture_detail. Only details the campaign asked for are
+   * kept, matched case-insensitively and stored under the configured name;
+   * anything else the model offers is dropped, so it can't collect personal
+   * data nobody asked for.
+   */
+  recordDetail(name, value) {
+    const wanted = this.config.conversation?.detailsToCollect || [];
+    const key = wanted.find(d => d.trim().toLowerCase() === String(name || '').trim().toLowerCase());
+    const text = String(value ?? '').trim().slice(0, 500);
+    if (!key || !text) {
+      console.warn(`[VoiceAgent] capture_detail ignored — "${name}" is not a configured detail or the value is empty`);
+      return false;
+    }
+    this.capturedDetails[key] = text;
+    console.log(`[VoiceAgent] Captured detail "${key}"`);
+    return true;
+  }
+
   /** Model called end_call. */
   recordEndCall(reason) {
     // The first reason wins: a later forced end (time limit, hangup) must not
@@ -1290,6 +1310,8 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
       confusionRetries:        this.confusionRetries,
       expectsUserReply:        this.expectsUserReply,
       repeatCount:             this.repeatCount,
+      endReason:               this.endReason,
+      capturedDetails:         this.capturedDetails,
       chatHistory:             this.chatHistory
     };
     try {
@@ -1318,6 +1340,8 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
       agent.confusionRetries        = state.confusionRetries;
       agent.expectsUserReply        = state.expectsUserReply ?? false;
       agent.repeatCount             = state.repeatCount ?? 0;
+      agent.endReason               = state.endReason ?? null;
+      agent.capturedDetails         = state.capturedDetails ?? {};
       agent.chatHistory             = state.chatHistory;
       console.log(`[VoiceAgent] Restored state from Redis for ${callSid} (turn ${state.currentIndex})`);
       return agent;

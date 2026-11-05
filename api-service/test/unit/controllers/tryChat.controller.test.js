@@ -4,12 +4,12 @@ import { fileURLToPath } from 'url';
 
 vi.mock('../../../src/services/aiUsage.service.js', () => ({ recordAiUsage: vi.fn() }));
 
-import { tryChat, readTryChatBody, buildTryChatRequest, readTryChatReply } from '../../../src/controllers/tryChat.controller.js';
+import { tryChat, readTryChatBody, buildTryChatRequest, readTryChatReply, readCapturedDetails } from '../../../src/controllers/tryChat.controller.js';
 import { recordAiUsage } from '../../../src/services/aiUsage.service.js';
 
 const PAYLOAD = {
   goals: { goal: 'Book a 15-minute demo.', callIntro: 'Hi [Name], this is Priya from Acme.', callSignOff: 'Thanks, talk soon!' },
-  conversation: { knowledge: 'Acme CRM costs ₹999 per user per month.', rules: { never: ['Offer discounts'] } },
+  conversation: { knowledge: 'Acme CRM costs ₹999 per user per month.', rules: { never: ['Offer discounts'] }, detailsToCollect: ['Email'] },
   endCallIf: '',
   callSettings: { maxDuration: 5 },
 };
@@ -65,8 +65,9 @@ describe('buildTryChatRequest', () => {
     expect(system).toContain('₹999 per user per month');
     expect(system).toContain('Hi Uttam, this is Priya from Acme.');
     expect(req.contents.map(c => c.role)).toEqual(['user', 'model', 'user']);
-    expect(req.tools[0].functionDeclarations[0].name).toBe('end_call');
-    expect(req.tools[0].functionDeclarations[0].parameters.properties.reason.enum).toContain('objective_met');
+    const tools = Object.fromEntries(req.tools[0].functionDeclarations.map(t => [t.name, t]));
+    expect(Object.keys(tools)).toEqual(['capture_detail', 'end_call']);
+    expect(tools.end_call.parameters.properties.reason.enum).toContain('no_progress');
   });
 });
 
@@ -82,6 +83,17 @@ describe('readTryChatReply', () => {
   it('uses the apology for a wrong person', () => {
     const r = readTryChatReply({ candidates: [{ content: { parts: [{ functionCall: { name: 'end_call', args: { reason: 'wrong_person' } } }] } }] }, PAYLOAD);
     expect(r.endCall.closingLine).toMatch(/apologize/);
+  });
+});
+
+describe('readCapturedDetails', () => {
+  it('keeps only details the campaign asked for, under their configured names', () => {
+    const parts = [
+      { functionCall: { name: 'capture_detail', args: { name: 'EMAIL', value: ' u@x.com ' } } },
+      { functionCall: { name: 'capture_detail', args: { name: 'Home address', value: '12 Main St' } } },
+      { text: 'ok' },
+    ];
+    expect(readCapturedDetails(parts, PAYLOAD)).toEqual({ Email: 'u@x.com' });
   });
 });
 
@@ -101,8 +113,26 @@ describe('tryChat', () => {
     const res = makeRes();
     await tryChat({ body: { payload: PAYLOAD, messages: MESSAGES }, user: USER }, res);
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ reply: 'It is ₹999 per user per month.', endCall: null });
+    expect(res.body).toEqual({ reply: 'It is ₹999 per user per month.', endCall: null, captured: {} });
     expect(recordAiUsage).toHaveBeenCalledWith(expect.objectContaining({ feature: 'campaign_try_chat', tenantId: 'tenant-1', inputTokens: 800 }));
+  });
+
+  it('tries the steadier model first', async () => {
+    fetch.mockResolvedValueOnce(gemini([{ text: 'Hi.' }]));
+    await tryChat({ body: { payload: PAYLOAD, messages: MESSAGES }, user: USER }, makeRes());
+    expect(fetch.mock.calls[0][0]).toContain('gemini-3.5-flash');
+  });
+
+  it('when the model only captures a detail, answers the tool call and returns what it says next', async () => {
+    fetch
+      .mockResolvedValueOnce(gemini([{ functionCall: { name: 'capture_detail', args: { name: 'email', value: 'u@x.com' } } }]))
+      .mockResolvedValueOnce(gemini([{ text: 'Thanks! The team will be in touch.' }]));
+    const res = makeRes();
+    await tryChat({ body: { payload: PAYLOAD, messages: MESSAGES }, user: USER }, res);
+    expect(res.body).toEqual({ reply: 'Thanks! The team will be in touch.', endCall: null, captured: { Email: 'u@x.com' } });
+    const second = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(second.contents.at(-1).parts[0].functionResponse.name).toBe('capture_detail');
+    expect(recordAiUsage).toHaveBeenCalledTimes(2);
   });
 
   it('falls through to the next model when one is overloaded', async () => {

@@ -66,7 +66,8 @@ beforeEach(() => {
 describe('starting a campaign', () => {
   it('opens on a choice, not a form, and loads nothing', () => {
     renderBuilder();
-    expect(screen.getByLabelText('Describe your calls')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /ask questions/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByLabelText('Describe your calls')).not.toBeInTheDocument();
     expect(button(/screen job applicants/i)).toBeInTheDocument();
     expect(button(/start with a blank script/i)).toBeInTheDocument();
     expect(screen.queryByLabelText('Campaign name')).not.toBeInTheDocument();
@@ -83,58 +84,6 @@ describe('starting a campaign', () => {
     expect(screen.getByLabelText('Opening line').value).toContain('[Name]');
     // Its deliberate gap is flagged on the line it's in.
     expect(screen.getAllByText(/Opening line: replace \[Company\]/).length).toBeGreaterThan(0);
-  });
-
-  it('writes the script from a description', async () => {
-    // Drafting is a job: POST returns its id, then the page polls until it's done.
-    apiPost.mockResolvedValueOnce({ data: { jobId: 'job-1' } });
-    apiGet.mockResolvedValueOnce({ data: { status: 'pending' } });
-    apiGet.mockResolvedValueOnce({
-      data: {
-        status: 'done',
-        payload: {
-          name: 'Drafted', type: 'SALES',
-          goals: { goal: 'g', callIntro: 'Hi [Name]', callSignOff: 's' },
-          dataToCollect: [{ itemType: 'question', text: 'Drafted question?', weight: 100, isWeightManuallySet: true }],
-          callSettings: { language: 'Hinglish', maxDuration: 3 },
-        },
-        assumptions: ['Assumed a 3 minute limit.'],
-        corrections: [],
-      },
-    });
-    const user = userEvent.setup();
-    renderBuilder();
-    await user.type(screen.getByLabelText('Describe your calls'), 'Call our leads and ask if they want a demo next week.');
-    await user.click(button(/write my script/i));
-
-    await waitFor(() => expect(screen.getByLabelText('Campaign name')).toHaveValue('Drafted'), { timeout: 8000 });
-    expect(apiPost).toHaveBeenCalledWith('/api/campaigns/draft', { brief: 'Call our leads and ask if they want a demo next week.' });
-    expect(apiGet).toHaveBeenCalledWith('/api/campaigns/draft/job-1');
-    expect(screen.getByLabelText('Question 1')).toHaveValue('Drafted question?');
-    expect(screen.getByText('Assumed a 3 minute limit.')).toBeInTheDocument();
-    expect(button('Hinglish')).toHaveAttribute('aria-pressed', 'true');
-  }, 15000);
-
-  it('shows why a drafting job failed', async () => {
-    apiPost.mockResolvedValueOnce({ data: { jobId: 'job-2' } });
-    apiGet.mockResolvedValueOnce({ data: { status: 'failed', error: 'The draft came back unreadable. Try again.' } });
-    const user = userEvent.setup();
-    renderBuilder();
-    await user.type(screen.getByLabelText('Describe your calls'), 'Call our leads and ask if they want a demo next week.');
-    await user.click(button(/write my script/i));
-
-    expect(await screen.findByText('The draft came back unreadable. Try again.', {}, { timeout: 8000 })).toBeInTheDocument();
-  }, 15000);
-
-  it('points to the templates when the server cannot write scripts', async () => {
-    apiPost.mockRejectedValueOnce({ response: { status: 404, data: {} } });
-    const user = userEvent.setup();
-    renderBuilder();
-    await user.type(screen.getByLabelText('Describe your calls'), 'Call our leads and ask if they want a demo next week.');
-    await user.click(button(/write my script/i));
-
-    expect(await screen.findByText(/isn't switched on yet/i)).toBeInTheDocument();
-    expect(button(/screen job applicants/i)).toBeInTheDocument();
   });
 
   it('starting over keeps the people already added', async () => {
@@ -405,6 +354,28 @@ describe('conversation campaigns', () => {
     expect(body.payload.conversation.knowledge).toBe('Acme CRM costs 999 a month.');
     expect(body.messages).toEqual([{ role: 'user', text: 'Not interested, thanks.' }]);
     expect(screen.getByLabelText('Your reply as the caller')).toBeDisabled();
+  });
+
+  it('lists every way a call ends, including the time limit', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    expect(screen.getByText(/The objective is reached/)).toBeInTheDocument();
+    expect(screen.getByText(/It's going nowhere/)).toBeInTheDocument();
+    expect(screen.getByText(/Time's up at 5 min/)).toBeInTheDocument();
+    expect(screen.queryByText(/Hang up once the objective is reached/)).not.toBeInTheDocument();
+  });
+
+  it('collects only the listed details, and the test chat shows what was saved', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    expect(screen.getByRole('list', { name: 'Details to collect' })).toHaveTextContent('Email');
+    expect(screen.getByLabelText(/When can meetings happen/)).toHaveValue('Monday to Friday, 10am to 6pm IST');
+    apiPost.mockImplementation((url) => {
+      if (url === '/api/campaigns/try-chat') return Promise.resolve({ data: { reply: 'Thanks, noted.', endCall: null, captured: { Email: 'u@x.com' } } });
+      return Promise.resolve({ data: {} });
+    });
+    await user.type(screen.getByLabelText('Your reply as the caller'), 'It is u@x.com{Enter}');
+    await waitFor(() => expect(screen.getByLabelText('Details saved with this call')).toHaveTextContent('u@x.com'));
   });
 
   it('saves mode and conversation with the campaign', async () => {

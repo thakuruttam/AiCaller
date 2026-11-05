@@ -24,7 +24,8 @@ describe('conversation campaigns in the builder model', () => {
   it('new payloads are question campaigns with a conversation ready to switch to', () => {
     const p = emptyPayload();
     expect(p.mode).toBe('questions');
-    expect(p.conversation.endWhen).toEqual({ endOnObjective: true, acceptFirstNo: false });
+    expect(p.conversation.endWhen).toEqual({ acceptFirstNo: false });
+    expect(p.conversation.detailsToCollect).toEqual([]);
   });
 
   it('every template starts an English conversation with no question list and a gap to fill', () => {
@@ -71,7 +72,8 @@ describe('conversation campaigns in the builder model', () => {
     const p = fromCampaign({ name: 'Saved', mode: 'conversation', conversation: { knowledge: 'K', endWhen: { acceptFirstNo: true } } });
     expect(p.mode).toBe('conversation');
     expect(p.conversation.knowledge).toBe('K');
-    expect(p.conversation.endWhen).toEqual({ endOnObjective: true, acceptFirstNo: true });
+    expect(p.conversation.endWhen).toEqual({ acceptFirstNo: true });
+    expect(p.conversation.detailsToCollect).toEqual([]);
     expect(p.conversation.rules).toEqual({ never: [], always: [] });
     expect(fromCampaign({ name: 'Old' }).mode).toBe('questions');
   });

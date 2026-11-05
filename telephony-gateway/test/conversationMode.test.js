@@ -9,7 +9,9 @@ const conversation = {
   objectivePreset: 'book_meeting',
   knowledge: 'Acme CRM costs ₹999 per user per month. Free 14-day trial. Setup takes one day.',
   rules: { never: ['Offer discounts'], always: ['Mention the free trial'] },
-  endWhen: { endOnObjective: true, acceptFirstNo: false },
+  endWhen: { acceptFirstNo: false },
+  detailsToCollect: ['Email', 'Preferred demo time'],
+  availability: 'Mon–Fri, 10am–6pm IST',
 };
 
 describe('normalizeConversation', () => {
@@ -18,7 +20,9 @@ describe('normalizeConversation', () => {
       objectivePreset: 'custom',
       knowledge: '',
       rules: { never: [], always: [] },
-      endWhen: { endOnObjective: true, acceptFirstNo: false },
+      detailsToCollect: [],
+      availability: '',
+      endWhen: { acceptFirstNo: false },
     });
     expect(normalizeConversation('nonsense').rules.never).toEqual([]);
   });
@@ -69,14 +73,49 @@ describe('buildConversationInstructions', () => {
     expect(build()).toMatch(/address their concern ONCE/);
     expect(build({ conversation: { ...conversation, endWhen: { acceptFirstNo: true } } }))
       .toMatch(/Do not try to change their mind/);
+  });
+
+  it('always ends once the objective is reached, and when the call goes nowhere', () => {
+    // Live call 2026-11-05 kept going after the caller agreed, chasing an email.
+    const text = build();
+    expect(text).toMatch(/objective counts as reached as soon as the caller clearly agrees/);
+    expect(text).toMatch(/Do not keep talking once it is reached/);
+    expect(text).toMatch(/no_progress: if you have tried three times/);
     expect(build({ conversation: { ...conversation, endWhen: { endOnObjective: false } } }))
-      .toMatch(/answer any remaining questions they have/);
+      .toMatch(/Do not keep talking once it is reached/);
+  });
+
+  it('says plainly what the agent cannot do', () => {
+    // Same call: it offered slots, "booked" 4 AM and promised a calendar invite.
+    const text = build();
+    expect(text).toMatch(/You cannot book or confirm meetings, check calendars/);
+    expect(text).toMatch(/Never say or imply that you will/);
+    expect(text).toMatch(/Never say a meeting is booked or confirmed/);
+  });
+
+  it('asks only for the configured details, and for none when none are set', () => {
+    const text = build();
+    expect(text).toContain('- Email');
+    expect(text).toContain('- Preferred demo time');
+    expect(text).toMatch(/call capture_detail/);
+    expect(build({ conversation: { ...conversation, detailsToCollect: [] } }))
+      .toMatch(/Do not ask the caller for any personal or contact details/);
+  });
+
+  it('uses the availability window, or offers no times at all without one', () => {
+    expect(build()).toContain('meetings can only happen Mon–Fri, 10am–6pm IST');
+    expect(build({ conversation: { ...conversation, availability: '' } }))
+      .toMatch(/accept whatever they say without suggesting or questioning times/);
+  });
+
+  it('keeps the opening short', () => {
+    expect(build()).toMatch(/say in ONE short sentence why you're calling, then ask one question/);
   });
 
   it('includes the custom end condition and the time limit when set', () => {
     const text = build({ endCallIf: 'They already use a CRM they love.', maxMinutes: 5 });
     expect(text).toContain('They already use a CRM they love.');
-    expect(text).toContain('at most 5 minutes');
+    expect(text).toContain('cut off automatically after 5 minutes');
   });
 });
 
@@ -98,6 +137,14 @@ describe('VoiceAgent in conversation mode', () => {
     const agent = makeAgent();
     for (let i = 0; i < 20; i++) agent.noteAutonomousTurn();
     expect(agent.isAutonomousStalled()).toBe(false);
+  });
+
+  it('keeps only the details the campaign asked for', () => {
+    const agent = makeAgent();
+    expect(agent.recordDetail('email', ' uttam@example.com ')).toBe(true);
+    expect(agent.recordDetail('Home address', '12 Main St')).toBe(false);
+    expect(agent.recordDetail('Preferred demo time', '')).toBe(false);
+    expect(agent.capturedDetails).toEqual({ Email: 'uttam@example.com' });
   });
 
   it('keeps the first end reason', () => {

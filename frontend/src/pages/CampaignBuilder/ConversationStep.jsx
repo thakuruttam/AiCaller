@@ -4,7 +4,7 @@ import IssueText from './IssueText';
 import SoundSettings from './SoundSettings';
 import TryItPanel from './TryItPanel';
 import {
-  KNOWLEDGE_MAX_CHARS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_NEVER_RULES,
+  KNOWLEDGE_MAX_CHARS, MAX_DETAILS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_DETAILS, SUGGESTED_NEVER_RULES,
   emptyConversation, wordCount,
 } from './campaignModel';
 
@@ -23,25 +23,30 @@ function CardTitle({ icon, title, hint, aside }) {
   );
 }
 
-/** A list of short rules: chips you can remove, a box to add one, optional suggestions. */
-function RuleList({ label, tone, rules, onChange, suggestions = [], placeholder }) {
+/** A list of short entries (rules, details): chips you can remove, a box to add one, optional suggestions. */
+function RuleList({
+  label, tone, rules, onChange, suggestions = [], placeholder, max = MAX_RULES,
+  listLabel = `${label} rules`, addLabel = `Add a ${label.toLowerCase()} rule`,
+}) {
   const [draft, setDraft] = useState('');
   const add = (text) => {
     const t = String(text).trim();
-    if (!t || rules.includes(t) || rules.length >= MAX_RULES) return;
+    if (!t || rules.includes(t) || rules.length >= max) return;
     onChange([...rules, t]);
     setDraft('');
   };
   const unused = suggestions.filter(s => !rules.includes(s));
-  const chip = tone === 'never'
-    ? 'bg-negative/10 text-negative-dim dark:text-negative'
-    : 'bg-positive/10 text-positive-dim dark:text-positive';
+  const chip = {
+    never: 'bg-negative/10 text-negative-dim dark:text-negative',
+    always: 'bg-positive/10 text-positive-dim dark:text-positive',
+    detail: 'bg-brand-500/10 text-brand-600 dark:text-brand-300',
+  }[tone];
 
   return (
     <div>
       <p className="text-[13px] font-medium text-foreground mb-1.5">{label}</p>
       {rules.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5 mb-2" aria-label={`${label} rules`}>
+        <ul className="flex flex-wrap gap-1.5 mb-2" aria-label={listLabel}>
           {rules.map(r => (
             <li key={r} className={`inline-flex items-center gap-1 rounded-full pl-2.5 pr-1 py-0.5 text-xs font-medium ${chip}`}>
               {r}
@@ -59,7 +64,7 @@ function RuleList({ label, tone, rules, onChange, suggestions = [], placeholder 
       )}
       <div className="flex gap-2">
         <Input
-          aria-label={`Add a ${label.toLowerCase()} rule`}
+          aria-label={addLabel}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
@@ -203,6 +208,36 @@ export default function ConversationStep({ payload, update, issues }) {
         </Card>
 
         <Card>
+          <CardTitle
+            icon="contact_page"
+            title="Details to collect"
+            hint="The agent asks for these, and only these — it never asks for anything else personal. Answers are saved with each call."
+          />
+          <RuleList
+            label="Details"
+            tone="detail"
+            rules={conv.detailsToCollect || []}
+            onChange={(list) => setConv({ detailsToCollect: list })}
+            suggestions={SUGGESTED_DETAILS}
+            placeholder="e.g. Email"
+            max={MAX_DETAILS}
+            listLabel="Details to collect"
+            addLabel="Add a detail to collect"
+          />
+          <Field label="When can meetings happen? (optional)" className="mt-5" hint="The agent offers times only inside this window. Leave empty and it just notes the time they prefer.">
+            <Input
+              value={conv.availability || ''}
+              onChange={(e) => setConv({ availability: e.target.value })}
+              placeholder="e.g. Monday to Friday, 10am to 6pm IST"
+            />
+          </Field>
+          <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+            <span aria-hidden="true" className="material-symbols-outlined [--icon-size:14px] mt-px">info</span>
+            The agent can't book meetings or send anything. It notes what was agreed and tells them the team will confirm — follow up from the call report.
+          </p>
+        </Card>
+
+        <Card>
           <CardTitle icon="block" title="Rules" hint="Hard limits on what the agent says, whatever the caller asks." />
           <div className="flex flex-col gap-5">
             <RuleList
@@ -224,17 +259,9 @@ export default function ConversationStep({ payload, update, issues }) {
         </Card>
 
         <Card>
-          <CardTitle icon="call_end" title="Ending the call" hint="The closing line plays whichever way it ends. The longest call is set under How it sounds." />
+          <CardTitle icon="call_end" title="Ending the call" hint="Every call ends — these are checked all the way through, and the closing line plays whichever way it ends." />
           <ul className="flex flex-col gap-3">
-            <li>
-              <label className="flex items-start gap-2.5 text-[13px] text-foreground cursor-pointer">
-                <Checkbox className="mt-0.5" checked={conv.endWhen?.endOnObjective !== false} onChange={(e) => setEndWhen('endOnObjective', e.target.checked)} />
-                <span>
-                  Hang up once the objective is reached
-                  <span className="block text-xs text-muted-foreground">Off: the agent stays on to answer any last questions.</span>
-                </span>
-              </label>
-            </li>
+            <FixedRule>The objective is reached — the agent repeats what was agreed, then ends</FixedRule>
             <li>
               <label className="flex items-start gap-2.5 text-[13px] text-foreground cursor-pointer">
                 <Checkbox className="mt-0.5" checked={!!conv.endWhen?.acceptFirstNo} onChange={(e) => setEndWhen('acceptFirstNo', e.target.checked)} />
@@ -244,9 +271,12 @@ export default function ConversationStep({ payload, update, issues }) {
                 </span>
               </label>
             </li>
-            <FixedRule>They ask to be called another time</FixedRule>
-            <FixedRule>They ask not to be called again</FixedRule>
+            <FixedRule>They ask to be called another time, or not to be called again</FixedRule>
             <FixedRule>It's the wrong person</FixedRule>
+            <FixedRule>It's going nowhere — three tries to get back on track, then it ends</FixedRule>
+            <FixedRule>
+              Time's up at {payload.callSettings?.maxDuration || 5} min — the call is cut off with the closing line
+            </FixedRule>
           </ul>
           <Field label="Also end the call if… (optional)" className="mt-5">
             <Input

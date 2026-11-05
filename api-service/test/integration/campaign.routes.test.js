@@ -481,7 +481,9 @@ describe('conversation campaigns — mode and conversation fields', () => {
       objectivePreset: 'book_meeting',
       knowledge: 'Acme CRM costs ₹999 per user per month.',
       rules: { never: ['Offer discounts'], always: [] },
-      endWhen: { endOnObjective: false, acceptFirstNo: false },
+      detailsToCollect: [],
+      availability: '',
+      endWhen: { acceptFirstNo: false },
     });
   });
 
