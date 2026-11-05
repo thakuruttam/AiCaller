@@ -71,6 +71,16 @@ describe('buildTryChatRequest', () => {
   });
 });
 
+describe('buildTryChatRequest in Hinglish', () => {
+  it('tells the agent to speak Hinglish, with the Hinglish fallback answer', () => {
+    const req = buildTryChatRequest({ payload: { ...PAYLOAD, callSettings: { language: 'Hinglish' } }, messages: MESSAGES, contactName: 'Uttam' });
+    const system = req.systemInstruction.parts[0].text;
+    expect(system).toMatch(/^LANGUAGE — speak natural Hinglish/);
+    expect(system).toContain('team aapko iske baare mein bata degi');
+    expect(system).toContain('(said in Hinglish)');
+  });
+});
+
 describe('readTryChatReply', () => {
   it('returns the spoken reply and skips thoughts', () => {
     const r = readTryChatReply({ candidates: [{ content: { parts: [{ text: 'thinking…', thought: true }, { text: 'It is ₹999 per user.' }] } }] }, PAYLOAD);

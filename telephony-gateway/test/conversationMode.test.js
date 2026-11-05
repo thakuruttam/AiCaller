@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { VoiceAgent } from '../src/VoiceAgent.js';
 import {
   buildConversationInstructions, normalizeConversation,
-  CONVERSATION_END_REASONS, KNOWLEDGE_MAX_CHARS, MAX_RULES, UNKNOWN_ANSWER,
+  CONVERSATION_END_REASONS, CONVERSATION_LANGUAGES, KNOWLEDGE_MAX_CHARS, MAX_RULES, UNKNOWN_ANSWER, UNKNOWN_ANSWER_HINGLISH,
 } from '../src/utils/conversationPrompt.js';
 
 const conversation = {
@@ -176,5 +176,34 @@ describe('VoiceAgent in conversation mode', () => {
     expect(agent.generateAutonomousInstructions()).toContain('QUESTIONS TO COVER');
     for (let i = 0; i < 20; i++) agent.noteAutonomousTurn();
     expect(agent.isAutonomousStalled()).toBe(true);
+  });
+});
+
+describe('Hinglish calls', () => {
+  it('conversation instructions open with the Hinglish directive and give the Hinglish fallback', () => {
+    const text = buildConversationInstructions({ contactName: 'Uttam', objective: 'Book a demo.', conversation, language: 'Hinglish' });
+    expect(text).toMatch(/^LANGUAGE — speak natural Hinglish/);
+    expect(text).toContain(UNKNOWN_ANSWER_HINGLISH);
+    expect(text).toContain('Keep names, product names, prices, numbers and technical terms in English');
+  });
+
+  it('English instructions carry no language directive', () => {
+    const text = buildConversationInstructions({ contactName: 'Uttam', objective: 'Book a demo.', conversation, language: 'English' });
+    expect(text).not.toMatch(/LANGUAGE —/);
+    expect(text).not.toContain(UNKNOWN_ANSWER_HINGLISH);
+  });
+
+  it('question campaigns in Hinglish get the same directive', () => {
+    const agent = new VoiceAgent({
+      contactName: 'Uttam', language: 'Hinglish', useAutonomousEngine: true,
+      dataToCollect: [{ id: 'q1', order: 1, itemType: 'question', text: 'What is your notice period?' }],
+    });
+    const text = agent.generateAutonomousInstructions();
+    expect(text).toMatch(/^LANGUAGE — speak natural Hinglish/);
+    expect(text).toContain('QUESTIONS TO COVER');
+  });
+
+  it('conversation campaigns can run in English or Hinglish', () => {
+    expect(CONVERSATION_LANGUAGES).toEqual(['English', 'Hinglish']);
   });
 });

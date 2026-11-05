@@ -58,9 +58,10 @@ describe('conversation campaigns in the builder model', () => {
     expect(texts(gap)[0]).toMatch(/Knowledge: replace \[price\]/);
   });
 
-  it('blocks languages the conversation engine does not run', () => {
+  it('runs in English or Hinglish, and blocks Hindi', () => {
+    expect(getReadiness(ready({ callSettings: { ...ready().callSettings, language: 'Hinglish' } })).blockers).toEqual([]);
     const p = ready({ callSettings: { ...ready().callSettings, language: 'Hindi' } });
-    expect(texts(p)[0]).toMatch(/English only/);
+    expect(texts(p)[0]).toMatch(/English or Hinglish/);
   });
 
   it('warns when nothing is ruled out', () => {

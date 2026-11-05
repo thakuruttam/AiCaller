@@ -80,6 +80,9 @@ export const OBJECTIVE_PRESETS = [
   { value: 'custom', label: 'Something else', icon: 'edit', example: '' },
 ];
 
+// Mirrors CONVERSATION_LANGUAGES in conversationPrompt.js: the languages Gemini Live runs.
+export const CONVERSATION_LANGUAGES = ['English', 'Hinglish'];
+
 export const KNOWLEDGE_MAX_CHARS = 40000;
 export const MAX_RULES = 20;
 export const MAX_DETAILS = 10;
@@ -594,8 +597,8 @@ function getConversationReadiness(payload, now) {
     const g = gaps(knowledge);
     if (g) block('script', `Knowledge: replace ${g} with the real details.`, { field: 'knowledge', gap: true });
   }
-  if ((payload.callSettings?.language || 'English') !== 'English') {
-    block('script', 'Conversation calls work in English only for now — switch the language to English.', { field: 'language' });
+  if (!CONVERSATION_LANGUAGES.includes(payload.callSettings?.language || 'English')) {
+    block('script', 'Conversation calls work in English or Hinglish for now — switch the language.', { field: 'language' });
   }
 
   if (!contacts) block('contacts', 'Add the people you want to call.');

@@ -80,9 +80,11 @@ export function buildTryChatRequest({ payload, messages, contactName }) {
     conversation: payload.conversation,
     endCallIf: payload.endCallIf,
     maxMinutes,
+    language: payload.callSettings?.language,
   });
   const intro = String(payload.goals?.callIntro || '').replace(/\[Name\]/gi, contactName).trim();
-  const note = `This is a typed test of the call: the caller's messages are typed, not spoken. The call opened with your greeting${intro ? `: "${intro} Am I speaking with ${contactName}?"` : '.'}`;
+  const spokenIn = payload.callSettings?.language === 'Hinglish' ? ' (said in Hinglish)' : '';
+  const note = `This is a typed test of the call: the caller's messages are typed, not spoken. The call opened with your greeting${spokenIn}${intro ? `: "${intro} Am I speaking with ${contactName}?"` : '.'}`;
   return {
     systemInstruction: { parts: [{ text: `${instructions}\n\n${note}` }] },
     contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),

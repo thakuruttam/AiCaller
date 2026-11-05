@@ -11,6 +11,21 @@
 /** The one answer to anything the knowledge base doesn't cover — fixed, so the model can't paraphrase it into a guess. */
 export const UNKNOWN_ANSWER = "I don't have that information right now, but I can have the team get back to you on that.";
 
+/** The same answer in Hinglish — gender-neutral, so it suits any voice. */
+export const UNKNOWN_ANSWER_HINGLISH = 'Abhi mere paas ye information nahi hai, lekin team aapko iske baare mein bata degi.';
+
+/** Languages a conversation campaign can run in (Gemini Live). */
+export const CONVERSATION_LANGUAGES = ['English', 'Hinglish'];
+
+/**
+ * How to speak, for any realtime call (question or conversation campaign).
+ * Empty for English, the default.
+ */
+export function languageDirective(language) {
+  if (language !== 'Hinglish') return '';
+  return `LANGUAGE — speak natural Hinglish: everyday spoken Hindi mixed with English words, the way people in Indian cities talk on the phone ("Aap demo ke liye free hain?", "Iska price kya hai?"). Use simple, casual Hindi, never formal or Sanskritised words. Keep names, product names, prices, numbers and technical terms in English. Follow the caller: if they speak mostly English, reply mostly in English; if mostly Hindi, lean more Hindi. Anything written below in English — questions, lines, knowledge — say in Hinglish with exactly the same meaning, adding nothing.`;
+}
+
 /** Reasons the model may give end_call in a conversation campaign. */
 export const CONVERSATION_END_REASONS = [
   'objective_met',      // the objective was achieved
@@ -69,8 +84,9 @@ const bullets = (list) => list.map(r => `- ${r}`).join('\n');
  * @param {object} o.conversation      - campaign.conversation (normalised here)
  * @param {string} [o.endCallIf]       - the campaign's custom end condition
  * @param {number} [o.maxMinutes]      - the call's time limit, for pacing
+ * @param {string} [o.language]        - 'English' (default) or 'Hinglish'
  */
-export function buildConversationInstructions({ contactName, objective, conversation, endCallIf, maxMinutes }) {
+export function buildConversationInstructions({ contactName, objective, conversation, endCallIf, maxMinutes, language }) {
   const c = normalizeConversation(conversation);
   const name = contactName || 'the person';
   const goal = String(objective || '').trim() || 'Have a helpful conversation and find out whether they are interested.';
@@ -102,7 +118,12 @@ Each time the caller gives one, call capture_detail with the detail's name exact
     ? `SCHEDULING: meetings can only happen ${c.availability}. If they want a meeting, ask which day and time in that window suits them. If they ask for a time outside it, say politely that it's outside the hours the team is available and offer to pick a time inside it — do not argue or explain further. Never say a meeting is booked or confirmed.`
     : 'SCHEDULING: you know nothing about anyone\'s availability. If a meeting comes up, ask what day and time suits them, accept whatever they say without suggesting or questioning times, and never say a meeting is booked or confirmed.';
 
-  return `You are on a live phone call with ${name}. Speak naturally, like a friendly, professional person — short turns of one or two sentences, one question at a time. Listen more than you talk; never deliver a long monologue. Right after they confirm who they are, say in ONE short sentence why you're calling, then ask one question.
+  const lang = languageDirective(language);
+  const unknown = language === 'Hinglish'
+    ? `"${UNKNOWN_ANSWER}" (in Hinglish: "${UNKNOWN_ANSWER_HINGLISH}")`
+    : `"${UNKNOWN_ANSWER}"`;
+
+  return `${lang ? `${lang}\n\n` : ''}You are on a live phone call with ${name}. Speak naturally, like a friendly, professional person — short turns of one or two sentences, one question at a time. Listen more than you talk; never deliver a long monologue. Right after they confirm who they are, say in ONE short sentence why you're calling, then ask one question.
 
 IDENTITY CHECK — happens exactly ONCE, before anything else: the greeting you just delivered asked "Am I speaking with ${name}?". Do not move on until they clearly confirm ("yes", "speaking", "that's me"). If the reply is vague ("sure", "okay"), ask once more: "Just to confirm, is this ${name}?". If they say it's the wrong person, call end_call with reason "wrong_person". Once confirmed, never ask about identity again.
 
@@ -115,7 +136,7 @@ ANSWERING QUESTIONS — this overrides everything else, including the OBJECTIVE:
 - The KNOWLEDGE above is everything you know. You have NO other knowledge about any product, brand, company, ingredient, medicine, illness, treatment or topic — even ones you recognise. Do not use anything you learned anywhere else.
 - A name is not information. Never work out what something is for, how it works, who it suits, how to use it, its dose, its benefits or its side effects from its name or from memory. If the KNOWLEDGE doesn't say it in words, you don't know it.
 - That includes hints. Don't describe, group or label items by what they might do ("for joints", "memory support", "wellness", "immunity", "premium", "authentic", "popular"), and don't ask the caller about needs the KNOWLEDGE doesn't link to an item. When you mention an item, use only what is written about it — its name, and its price or other details exactly as given.
-- Before every factual statement, check that it is written in the KNOWLEDGE. If it isn't, say exactly: "${UNKNOWN_ANSWER}" Do not add a guess, a "typically", an "often", or a partial answer around it. Then continue the conversation.
+- Before every factual statement, check that it is written in the KNOWLEDGE. If it isn't, say exactly: ${unknown} Do not add a guess, a "typically", an "often", or a partial answer around it. Then continue the conversation.
 - Never recommend or suggest anything for a symptom, condition or need unless the KNOWLEDGE explicitly says that item is for it. Never give medical, health, legal or financial advice, even with a disclaimer.
 - Never make a promise or commitment the KNOWLEDGE does not explicitly allow.
 

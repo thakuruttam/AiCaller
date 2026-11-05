@@ -504,7 +504,15 @@ describe('conversation campaigns — mode and conversation fields', () => {
     const res = await request(app).post('/api/campaigns/wizard').set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id }))
       .send({ name: 'Hindi demo', mode: 'conversation', conversation, callSettings: { language: 'Hindi' } });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/English only/);
+    expect(res.body.error).toMatch(/English or Hinglish/);
+  });
+
+  it('accepts a Hinglish conversation campaign', async () => {
+    const tenant = await makeTenant();
+    const admin = await makeUser('ADMIN');
+    const res = await request(app).post('/api/campaigns/wizard').set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id }))
+      .send({ name: 'Hinglish demo', mode: 'conversation', conversation, callSettings: { language: 'Hinglish' } });
+    expect(res.status).toBe(201);
   });
 
   it('update switches a campaign to conversation mode', async () => {

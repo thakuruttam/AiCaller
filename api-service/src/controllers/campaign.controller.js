@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { normalizeConversation } from '../utils/conversationPrompt.js';
+import { CONVERSATION_LANGUAGES, normalizeConversation } from '../utils/conversationPrompt.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall, removeQueuedCall } from '../queue/publisher.js';
 import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
@@ -39,8 +39,8 @@ export function readCampaignMode(body) {
   const mode = body?.mode === 'conversation' ? 'conversation' : 'questions';
   const conversation = body?.conversation ? normalizeConversation(body.conversation) : null;
   const language = body?.callSettings?.language || 'English';
-  if (mode === 'conversation' && language !== 'English') {
-    return { error: 'Conversation calls work in English only for now. Switch the language to English, or use a question campaign.' };
+  if (mode === 'conversation' && !CONVERSATION_LANGUAGES.includes(language)) {
+    return { error: `Conversation calls work in ${CONVERSATION_LANGUAGES.join(' or ')} for now. Switch the language, or use a question campaign.` };
   }
   return { mode, conversation };
 }

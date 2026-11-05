@@ -4,7 +4,7 @@ import IssueText from './IssueText';
 import SoundSettings from './SoundSettings';
 import TryItPanel from './TryItPanel';
 import {
-  KNOWLEDGE_MAX_CHARS, MAX_DETAILS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_DETAILS, SUGGESTED_NEVER_RULES,
+  CONVERSATION_LANGUAGES, KNOWLEDGE_MAX_CHARS, MAX_DETAILS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_DETAILS, SUGGESTED_NEVER_RULES,
   emptyConversation, knowledgeWarning, wordCount,
 } from './campaignModel';
 
@@ -297,8 +297,8 @@ export default function ConversationStep({ payload, update, issues }) {
         <SoundSettings
           payload={payload}
           update={update}
-          languages={['English']}
-          languageHint="Conversation calls are English-only for now."
+          languages={CONVERSATION_LANGUAGES}
+          languageHint="Hinglish mixes Hindi and English the way callers talk. Hindi-only isn't available for conversation calls yet."
           languageIssue={issues.fields.language}
         />
       </div>

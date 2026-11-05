@@ -112,6 +112,13 @@ export function setupPlivoStream() {
       .split(',').map(id => id.trim()).filter(Boolean);
     const realtimeEnabled = process.env.REALTIME_ENGINE === 'true'
       && (realtimeCampaignIds.length === 0 || realtimeCampaignIds.includes(campaignId));
+    // Campaign languages the realtime engine handles. Hinglish (Hindi mixed
+    // with English) runs on Gemini Live since 2026-11-06 — caller turns are
+    // re-checked with Sarvam's codemix transcription (geminiLive.js). Set
+    // REALTIME_LANGUAGES=English to send Hinglish back to the Sarvam/Deepgram
+    // pipeline without a code change. Hindi still uses that pipeline.
+    const realtimeLanguages = (process.env.REALTIME_LANGUAGES || 'English,Hinglish')
+      .split(',').map(l => l.trim()).filter(Boolean);
     // Autonomous (free-flowing, tool-calling) mode. Widened to all campaigns
     // (empty/unset REALTIME_AUTONOMOUS_CAMPAIGN_IDS = all, same convention as
     // REALTIME_ENGINE_CAMPAIGN_IDS above) per explicit instruction, despite
@@ -1102,16 +1109,25 @@ export function setupPlivoStream() {
             campaignLanguage = campaign.callSettings?.language || 'English';
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
 
-            const useRealtime = realtimeEnabled && campaignLanguage === 'English';
+            let useRealtime = realtimeEnabled && realtimeLanguages.includes(campaignLanguage);
             const isConversation = campaign.mode === 'conversation';
             // A conversation campaign has no question list for the scripted
             // engines to walk, so it always runs autonomous when realtime is
             // available, whatever REALTIME_AUTONOMOUS_CAMPAIGN_IDS says.
             useAutonomous = useRealtime && (isConversation || autonomousCampaignIds.length === 0 || autonomousCampaignIds.includes(campaignId));
             if (isConversation && !useAutonomous) {
-              console.error(`[Stream] Conversation campaign ${campaignId} needs the realtime engine (English, REALTIME_ENGINE=true) — it will not behave as configured on this path.`);
+              console.error(`[Stream] Conversation campaign ${campaignId} needs the realtime engine (English or Hinglish on Gemini Live, REALTIME_ENGINE=true) — it will not behave as configured on this path.`);
             }
             useGeminiLive = useAutonomous && (geminiLiveCampaignIds.length === 0 || geminiLiveCampaignIds.includes(campaignId));
+            // Only Gemini Live has been set up for languages other than
+            // English — OpenAI Realtime and the decision engine here are
+            // English-only. Anything else falls back to the Sarvam pipeline.
+            if (campaignLanguage !== 'English' && !useGeminiLive) {
+              if (useRealtime) console.warn(`[Stream] ${campaignLanguage} campaign ${campaignId} is not on Gemini Live — using the Sarvam/Deepgram pipeline instead`);
+              useRealtime = false;
+              useAutonomous = false;
+              useGeminiLive = false;
+            }
             // Gemini Live has no mid-session instructions/tools update (confirmed
             // live — a second setup message closes the connection outright), so
             // there is no separate scripted-greeting-then-switch phase for it the

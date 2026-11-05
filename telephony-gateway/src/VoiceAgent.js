@@ -1,5 +1,5 @@
 import { containsProfanity, maskProfanity, politeHangupLine } from './utils/profanity.js';
-import { buildConversationInstructions } from './utils/conversationPrompt.js';
+import { buildConversationInstructions, languageDirective } from './utils/conversationPrompt.js';
 
 // Node's fetch has no default timeout — a stalled OpenAI request (network
 // hiccup, provider-side stall) hangs every await on it forever, with no
@@ -779,10 +779,12 @@ Reason about the caller's latest message in context — declines, reschedule req
         conversation: this.config.conversation,
         endCallIf: this.config.endCallIf,
         maxMinutes: this.config.maxMinutes,
+        language: this.language,
       });
     }
     const { goal, endCallIf } = this.config;
-    return `You are on a live phone call with ${this.contactName}. Speak naturally, like a real professional conversation — you do not need to recite anything word-for-word, though you should lean toward the wording given below where it stays natural.
+    const lang = languageDirective(this.language);
+    return `${lang ? `${lang}\n\n` : ''}You are on a live phone call with ${this.contactName}. Speak naturally, like a real professional conversation — you do not need to recite anything word-for-word, though you should lean toward the wording given below where it stays natural.
 
 IDENTITY CHECK — this happens exactly ONCE, right now, before the first question, and NEVER again for the rest of the call: the greeting you just delivered asked "Am I speaking with ${this.contactName}?" You must not move on to the questions below until the caller has clearly confirmed that. A real confirmation is an explicit "yes"/"speaking"/"that's me" or equivalent — a vague, ambiguous, or filler reply ("sure," "okay," "mm-hmm," silence-filler sounds) is NOT confirmation. If the reply is ambiguous, ask once more, plainly: "Just to confirm, is this ${this.contactName}?" — and wait for a clear answer before proceeding. If the caller explicitly says this is the wrong person, call end_call with reason "wrong_person" (a polite closing line is played for you) — do not ask the interview questions to someone who isn't confirmed as ${this.contactName}. Once you have moved on to the first question below, identity is settled for good — a confusing, off-topic, joke, or non-answer reply to a LATER question is never a reason to re-ask "is this ${this.contactName}?" or otherwise revisit identity. Treat a later confusing reply using the ordinary answer / re-ask rules below instead, exactly like any other non-answer.
 
