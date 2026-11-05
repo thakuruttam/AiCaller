@@ -1,4 +1,5 @@
 import { containsProfanity, maskProfanity, politeHangupLine } from './utils/profanity.js';
+import { buildConversationInstructions } from './utils/conversationPrompt.js';
 
 // Node's fetch has no default timeout — a stalled OpenAI request (network
 // hiccup, provider-side stall) hangs every await on it forever, with no
@@ -24,6 +25,10 @@ export class VoiceAgent {
     this.name = config.name || "AI Assistant";
     this.contactName = config.contactName || "the person";
     this.language = config.language || 'English'; // 'English', 'Hindi', 'Hinglish'
+    // 'conversation' campaigns talk freely toward an objective (see
+    // utils/conversationPrompt.js) instead of working through dataToCollect.
+    this.mode = config.mode === 'conversation' ? 'conversation' : 'questions';
+    this.endReason = null; // set by recordEndCall, saved to CallLog.outcome
 
     // ── State machine ──────────────────────────────────────────────
     // Filter out question items with no text — they have nothing to ask
@@ -766,6 +771,15 @@ Reason about the caller's latest message in context — declines, reschedule req
    * from scratch every turn.
    */
   generateAutonomousInstructions() {
+    if (this.mode === 'conversation') {
+      return buildConversationInstructions({
+        contactName: this.contactName,
+        objective: this.config.goal,
+        conversation: this.config.conversation,
+        endCallIf: this.config.endCallIf,
+        maxMinutes: this.config.maxMinutes,
+      });
+    }
     const { goal, endCallIf } = this.config;
     return `You are on a live phone call with ${this.contactName}. Speak naturally, like a real professional conversation — you do not need to recite anything word-for-word, though you should lean toward the wording given below where it stays natural.
 
@@ -856,6 +870,9 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
 
   /** Model called end_call. */
   recordEndCall(reason) {
+    // The first reason wins: a later forced end (time limit, hangup) must not
+    // overwrite why the conversation actually ended.
+    if (!this.endReason) this.endReason = reason || 'completed';
     this.shouldHangUp = true;
     this.done = true;
     console.log(`[VoiceAgent] Autonomous: end_call(${reason || 'completed'})`);
@@ -868,6 +885,9 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
 
   /** True once too many consecutive turns have passed with no recorded progress — decision-engine mode gets this from its repeat/explain cap; this is the equivalent circuit breaker here. */
   isAutonomousStalled() {
+    // Progress is measured in answered questions, and a conversation has none
+    // — every turn would look like a stall and the valve would hang up.
+    if (this.mode === 'conversation') return false;
     // Was 3 — confirmed on a live call that a caller asking several genuine
     // clarification questions before settling into answering ("who is this?"
     // / "where are you based?" / "who owns this company?") is completely

@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { normalizeConversation } from '../utils/conversationPrompt.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall, removeQueuedCall } from '../queue/publisher.js';
 import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
@@ -27,6 +28,21 @@ function dbErrorPayload(error) {
     };
   }
   return { error: error?.message || 'Unknown error', code: error?.code };
+}
+
+/**
+ * `mode` and `conversation` from a wizard body. Conversation details are kept
+ * (normalised) even on a question campaign, so switching modes in the builder
+ * doesn't lose them. Returns { error } for a combination calls can't run.
+ */
+export function readCampaignMode(body) {
+  const mode = body?.mode === 'conversation' ? 'conversation' : 'questions';
+  const conversation = body?.conversation ? normalizeConversation(body.conversation) : null;
+  const language = body?.callSettings?.language || 'English';
+  if (mode === 'conversation' && language !== 'English') {
+    return { error: 'Conversation calls work in English only for now. Switch the language to English, or use a question campaign.' };
+  }
+  return { mode, conversation };
 }
 
 export const getCampaignById = async (req, res) => {
@@ -72,6 +88,9 @@ export const createWizardCampaign = async (req, res) => {
       contacts, scheduledAt
     } = req.body;
 
+    const modeInfo = readCampaignMode(req.body);
+    if (modeInfo.error) return res.status(400).json({ error: modeInfo.error });
+
     // Use the authenticated user's workspace and identity
     const tenantId   = req.user.workspaceId;   // JWT key: workspaceId
     const createdById = req.user.id;           // JWT key: id
@@ -103,6 +122,8 @@ export const createWizardCampaign = async (req, res) => {
         rules:         rules         || {},
         callSettings:  callSettings  || {},
         maxCallDurationSec,
+        mode: modeInfo.mode,
+        conversation: modeInfo.conversation,
         tenantId,
         callModuleId: callModule.id,
         createdById
@@ -203,6 +224,9 @@ export const updateWizardCampaign = async (req, res) => {
       contacts, scheduledAt
     } = req.body;
 
+    const modeInfo = readCampaignMode(req.body);
+    if (modeInfo.error) return res.status(400).json({ error: modeInfo.error });
+
     const maxCallDurationSec = Math.max(30, (callSettings?.maxDuration || 5) * 60);
     const scheduleDate = parseFutureSchedule(scheduledAt);
 
@@ -217,6 +241,8 @@ export const updateWizardCampaign = async (req, res) => {
         rules:         rules         || {},
         callSettings:  callSettings  || {},
         maxCallDurationSec,
+        mode: modeInfo.mode,
+        conversation: modeInfo.conversation,
         scheduledAt: scheduleDate,
       }
     });
@@ -538,6 +564,8 @@ export const cloneCampaign = async (req, res) => {
         rules: source.rules ?? {},
         callSettings: source.callSettings ?? {},
         maxCallDurationSec: source.maxCallDurationSec,
+        mode: source.mode,
+        conversation: source.conversation ?? undefined,
         tenantId,
         callModuleId: callModule.id,
         createdById: req.user.id

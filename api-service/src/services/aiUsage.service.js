@@ -16,6 +16,7 @@ const PRICES_USD_PER_M = {
 
 export const FEATURE_LABELS = {
   campaign_draft: 'Campaign drafting',
+  campaign_try_chat: 'Test chats in the campaign builder',
 };
 
 export function estimateCostUsd(model, inputTokens, outputTokens) {

@@ -113,6 +113,11 @@ model Campaign {
   type          CampaignType @default(HR)
   dataToCollect Json?
   endCallIf     String?
+  // "questions" (default; null = questions) or "conversation". Conversation
+  // campaigns talk freely toward an objective using `conversation`:
+  // { objectivePreset, knowledge, rules: { never[], always[] }, endWhen: {...} }.
+  mode          String?
+  conversation  Json?
   rules         Json?
   callSettings  Json?
 
@@ -168,6 +173,8 @@ model CallLog {
   providerRef  String?
   durationMs   Int?
   billableMinutes Int?
+  // How the call ended, as recorded by the voice agent: { endReason }.
+  outcome         Json?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }

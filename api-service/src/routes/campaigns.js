@@ -19,6 +19,7 @@ import {
   previewGeminiVoice
 } from '../controllers/campaign.controller.js';
 import { draftCampaign, getDraftJob } from '../controllers/draft.controller.js';
+import { tryChat } from '../controllers/tryChat.controller.js';
 
 const router = Router();
 
@@ -38,6 +39,9 @@ router.post('/calls/:callLogId/recall', authorize('SUPER_ADMIN', 'ADMIN', 'EDITO
 // caller reviews the draft and the wizard route below does the writing.
 router.post('/draft', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), draftCampaign);
 router.get('/draft/:jobId', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), getDraftJob);
+// The builder's "Try it" chat: plays a conversation campaign (saved or not)
+// against typed caller messages. Creates nothing; records model usage.
+router.post('/try-chat', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), tryChat);
 router.post('/wizard', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), createWizardCampaign);
 router.put('/wizard/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateWizardCampaign);
 router.post('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateCampaignStatus);

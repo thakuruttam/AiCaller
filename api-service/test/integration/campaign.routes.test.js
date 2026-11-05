@@ -457,3 +457,64 @@ describe('POST /api/campaigns/:campaignId/contacts — uploadContacts', () => {
     expect(callLogs.every(l => l.status === 'queued')).toBe(true);
   });
 });
+
+describe('conversation campaigns — mode and conversation fields', () => {
+  const conversation = {
+    objectivePreset: 'book_meeting',
+    knowledge: '  Acme CRM costs ₹999 per user per month.  ',
+    rules: { never: ['Offer discounts', ''], always: [] },
+    endWhen: { endOnObjective: false },
+  };
+
+  it('stores mode and a normalised conversation on create, and returns them on GET', async () => {
+    const tenant = await makeTenant();
+    const admin = await makeUser('ADMIN');
+    const auth = authHeader({ userId: admin.id, tenantId: tenant.id });
+    const res = await request(app).post('/api/campaigns/wizard').set('Authorization', auth).send({
+      name: 'Demo calls', type: 'SALES', goals: { goal: 'Book a demo' },
+      mode: 'conversation', conversation, callSettings: { language: 'English', maxDuration: 5 },
+    });
+    expect(res.status).toBe(201);
+    const got = await request(app).get(`/api/campaigns/${res.body.campaign.id}`).set('Authorization', auth);
+    expect(got.body.mode).toBe('conversation');
+    expect(got.body.conversation).toEqual({
+      objectivePreset: 'book_meeting',
+      knowledge: 'Acme CRM costs ₹999 per user per month.',
+      rules: { never: ['Offer discounts'], always: [] },
+      endWhen: { endOnObjective: false, acceptFirstNo: false },
+    });
+  });
+
+  it('defaults to a question campaign when mode is missing or unknown', async () => {
+    const tenant = await makeTenant();
+    const admin = await makeUser('ADMIN');
+    const res = await request(app).post('/api/campaigns/wizard').set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id }))
+      .send({ name: 'Plain', mode: 'banana' });
+    expect(res.status).toBe(201);
+    const stored = await prisma.campaign.findUnique({ where: { id: res.body.campaign.id } });
+    expect(stored.mode).toBe('questions');
+    expect(stored.conversation).toBeNull();
+  });
+
+  it('refuses a conversation campaign in a language the conversation engine does not run', async () => {
+    const tenant = await makeTenant();
+    const admin = await makeUser('ADMIN');
+    const res = await request(app).post('/api/campaigns/wizard').set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id }))
+      .send({ name: 'Hindi demo', mode: 'conversation', conversation, callSettings: { language: 'Hindi' } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/English only/);
+  });
+
+  it('update switches a campaign to conversation mode', async () => {
+    const tenant = await makeTenant();
+    const callModule = await makeCallModule(tenant.id);
+    const admin = await makeUser('ADMIN');
+    const campaign = await prisma.campaign.create({ data: { name: 'Switch', tenantId: tenant.id, callModuleId: callModule.id, createdById: admin.id } });
+    const res = await request(app).put(`/api/campaigns/wizard/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id }))
+      .send({ name: 'Switch', mode: 'conversation', conversation, goals: { goal: 'Book a demo' }, callSettings: { language: 'English' } });
+    expect(res.status).toBe(200);
+    const stored = await prisma.campaign.findUnique({ where: { id: campaign.id } });
+    expect(stored.mode).toBe('conversation');
+    expect(stored.conversation.rules.never).toEqual(['Offer discounts']);
+  });
+});

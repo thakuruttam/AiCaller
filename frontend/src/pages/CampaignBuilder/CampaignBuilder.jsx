@@ -138,7 +138,9 @@ export default function CampaignBuilder() {
   const startOver = async () => {
     const ok = await confirm({
       title: 'Start the script over?',
-      body: 'Your questions and lines will be replaced. People you have added stay.',
+      body: payload.mode === 'conversation'
+        ? 'Your brief and lines will be replaced. People you have added stay.'
+        : 'Your questions and lines will be replaced. People you have added stay.',
       confirmLabel: 'Start over',
       tone: 'danger',
     });
@@ -312,7 +314,7 @@ export default function CampaignBuilder() {
                     <p className="flex items-center gap-2 text-foreground">
                       <span className="material-symbols-outlined [--icon-size:16px] text-positive shrink-0">check_circle</span>
                       <span className="truncate">
-                        Ready — {plural(readiness.contacts, 'person', 'people')}, {plural(readiness.questions, 'question')}, at most {formatRupees(readiness.estCost)}
+                        Ready — {plural(readiness.contacts, 'person', 'people')}, {payload.mode === 'conversation' ? 'conversation calls' : plural(readiness.questions, 'question')}, at most {formatRupees(readiness.estCost)}
                       </span>
                     </p>
                   )}

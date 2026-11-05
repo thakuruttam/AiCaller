@@ -354,3 +354,68 @@ describe('editing an existing campaign', () => {
     expect(screen.getByLabelText('Campaign name')).toBeInTheDocument();
   });
 });
+
+describe('conversation campaigns', () => {
+  async function startDemoBrief(user) {
+    renderBuilder();
+    await user.click(screen.getByRole('radio', { name: /have a conversation/i }));
+    await user.click(button(/book product demos/i));
+  }
+
+  it('choosing "Have a conversation" offers briefs instead of question scripts', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await user.click(screen.getByRole('radio', { name: /have a conversation/i }));
+    expect(button(/book product demos/i)).toBeInTheDocument();
+    expect(button(/start with a blank brief/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Describe your calls')).not.toBeInTheDocument();
+  });
+
+  it('a brief template opens the brief editor, not the question list', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    expect(screen.getByLabelText('Campaign name')).toHaveValue('Demo calls');
+    expect(screen.getByLabelText('What the agent knows')).toHaveValue('');
+    expect(screen.queryByLabelText('Question 1')).not.toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Never rules' })).toHaveTextContent('Offer discounts or special pricing');
+  });
+
+  it('adds and removes rules', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    await user.type(screen.getByLabelText('Add a always rule'), 'Mention the free trial{Enter}');
+    expect(screen.getByRole('list', { name: 'Always rules' })).toHaveTextContent('Mention the free trial');
+    await user.click(button('Remove "Talk about competitors"'));
+    expect(screen.getByRole('list', { name: 'Never rules' })).not.toHaveTextContent('Talk about competitors');
+  });
+
+  it('the test chat sends the brief as it stands and shows how the call ended', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    await user.type(screen.getByLabelText('What the agent knows'), 'Acme CRM costs 999 a month.');
+    apiPost.mockImplementation((url) => {
+      if (url === '/api/campaigns/try-chat') return Promise.resolve({ data: { reply: '', endCall: { reason: 'not_interested', closingLine: 'Thanks so much for your time. Have a great day!' } } });
+      return Promise.resolve({ data: {} });
+    });
+    await user.type(screen.getByLabelText('Your reply as the caller'), 'Not interested, thanks.{Enter}');
+
+    await waitFor(() => expect(screen.getByText(/Call ended · Not interested/)).toBeInTheDocument());
+    const [url, body] = apiPost.mock.calls.find(([u]) => u === '/api/campaigns/try-chat');
+    expect(url).toBe('/api/campaigns/try-chat');
+    expect(body.payload.conversation.knowledge).toBe('Acme CRM costs 999 a month.');
+    expect(body.messages).toEqual([{ role: 'user', text: 'Not interested, thanks.' }]);
+    expect(screen.getByLabelText('Your reply as the caller')).toBeDisabled();
+  });
+
+  it('saves mode and conversation with the campaign', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    await user.type(screen.getByLabelText('What the agent knows'), 'Acme CRM.');
+    await user.click(button(/save draft/i));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/api/campaigns/wizard', expect.anything()));
+    const body = apiPost.mock.calls.find(([u]) => u === '/api/campaigns/wizard')[1];
+    expect(body.mode).toBe('conversation');
+    expect(body.conversation.knowledge).toBe('Acme CRM.');
+    expect(body.dataToCollect).toEqual([]);
+  });
+});

@@ -1,4 +1,5 @@
 import WebSocket, { WebSocketServer } from 'ws';
+import { CONVERSATION_END_REASONS } from './utils/conversationPrompt.js';
 import { VoiceAgent } from './VoiceAgent.js';
 import { prisma } from './db.js';
 import { publishEvaluation } from './queues/ingestQueue.js';
@@ -47,6 +48,22 @@ const AUTONOMOUS_TOOLS = [
     parameters: {
       type: 'object',
       properties: { reason: { type: 'string', enum: ['completed', 'declined', 'busy', 'wrong_person'] } },
+      required: ['reason']
+    }
+  }
+];
+
+// Conversation campaigns have no question list, so only end_call applies —
+// with reasons that say how the conversation went (saved to CallLog.outcome).
+// See utils/conversationPrompt.js for the matching instructions.
+const CONVERSATION_TOOLS = [
+  {
+    type: 'function',
+    name: 'end_call',
+    description: 'Call when the conversation should end, with the reason it ended. Call it without speaking any goodbye yourself: the closing line is played automatically.',
+    parameters: {
+      type: 'object',
+      properties: { reason: { type: 'string', enum: CONVERSATION_END_REASONS } },
       required: ['reason']
     }
   }
@@ -458,7 +475,12 @@ export function setupPlivoStream() {
         if (callLogId && history.length > 0) {
           await prisma.callLog.update({
             where: { id: callLogId },
-            data: { transcript: formattedTranscript }
+            data: {
+              transcript: formattedTranscript,
+              // Why it ended, for the campaign's outcome breakdown. Null when
+              // the caller just hung up before anything ended the call.
+              ...(agent?.endReason ? { outcome: { endReason: agent.endReason, mode: agent.mode } } : {})
+            }
           });
           console.log(`[Stream] Successfully saved transcript (${history.length} messages) for ${callLogId}`);
         }
@@ -826,9 +848,12 @@ export function setupPlivoStream() {
           // to end the call — same reasoning as the decision engine's
           // forced sign-off, now via interruptAndSpeak since a response may
           // already be generating for this same turn.
-          const closingText = args.reason === 'completed'
-            ? (agent.config.callSignOff || 'Thank you for your time. Goodbye.')
-            : 'I apologize for the interruption. Have a great day.';
+          // Only an interrupted call (declined / busy / wrong person) gets the
+          // apology; a conversation that ran its course gets the sign-off.
+          const APOLOGY_REASONS = new Set(['declined', 'busy', 'wrong_person']);
+          const closingText = APOLOGY_REASONS.has(args.reason)
+            ? 'I apologize for the interruption. Have a great day.'
+            : (agent.config.callSignOff || 'Thank you for your time. Goodbye.');
           lastClosingText = closingText;
           closingRetried = false;
           // interruptAndSpeak's forced text still goes through the model's
@@ -1033,6 +1058,8 @@ export function setupPlivoStream() {
                 dataToCollect: true,
                 endCallIf: true,
                 maxCallDurationSec: true,
+                mode: true,
+                conversation: true,
                 callModule: {
                   select: {
                     goal: true,
@@ -1057,7 +1084,14 @@ export function setupPlivoStream() {
             console.log(`[Stream] Campaign language: ${campaignLanguage}`);
 
             const useRealtime = realtimeEnabled && campaignLanguage === 'English';
-            useAutonomous = useRealtime && (autonomousCampaignIds.length === 0 || autonomousCampaignIds.includes(campaignId));
+            const isConversation = campaign.mode === 'conversation';
+            // A conversation campaign has no question list for the scripted
+            // engines to walk, so it always runs autonomous when realtime is
+            // available, whatever REALTIME_AUTONOMOUS_CAMPAIGN_IDS says.
+            useAutonomous = useRealtime && (isConversation || autonomousCampaignIds.length === 0 || autonomousCampaignIds.includes(campaignId));
+            if (isConversation && !useAutonomous) {
+              console.error(`[Stream] Conversation campaign ${campaignId} needs the realtime engine (English, REALTIME_ENGINE=true) — it will not behave as configured on this path.`);
+            }
             useGeminiLive = useAutonomous && (geminiLiveCampaignIds.length === 0 || geminiLiveCampaignIds.includes(campaignId));
             // Gemini Live has no mid-session instructions/tools update (confirmed
             // live — a second setup message closes the connection outright), so
@@ -1104,7 +1138,10 @@ export function setupPlivoStream() {
               successCriteria: campaign.callModule?.successCriteria,
               language: campaignLanguage,
               useDecisionEngine: useRealtime,
-              useAutonomousEngine: useAutonomous
+              useAutonomousEngine: useAutonomous,
+              mode: campaign.mode,
+              conversation: campaign.conversation,
+              maxMinutes: campaign.maxCallDurationSec ? Math.round(campaign.maxCallDurationSec / 60) : null
             });
 
             let processedIntro = maskProfanity(finalGoals.callIntro) || 'Hello, this is an AI assistant calling.';
@@ -1169,7 +1206,7 @@ export function setupPlivoStream() {
                     console.log('[Stream] Greeting finished — switching to autonomous conversation mode');
                     realtimeSession.beginAutonomousConversation(
                       agent.generateAutonomousInstructions(),
-                      AUTONOMOUS_TOOLS
+                      agent.mode === 'conversation' ? CONVERSATION_TOOLS : AUTONOMOUS_TOOLS
                     );
                     return;
                   }
@@ -1249,7 +1286,7 @@ export function setupPlivoStream() {
               if (useGeminiLive) {
                 const geminiGreetingDirective = `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.`;
                 const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
-                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, AUTONOMOUS_TOOLS);
+                realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, agent.mode === 'conversation' ? CONVERSATION_TOOLS : AUTONOMOUS_TOOLS);
               } else {
                 realtimeSession = setupRealtime(agent.generateSystemPrompt(), realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.voice || null);
               }
@@ -1262,6 +1299,22 @@ export function setupPlivoStream() {
                 if (transcriptSaved || isCallEnding) return;
                 console.log(`[Stream] Max duration (${effectiveDurationSec}s) reached — ending call`);
                 isCallEnding = true;
+                agent.recordEndCall('time_limit');
+                if (useAutonomous && realtimeSession) {
+                  // The model drives an autonomous call, so asking it for a
+                  // closing (processInput below) and hanging up straight after
+                  // cut the line off before it played. Force the sign-off
+                  // through the normal closing path instead — it hangs up once
+                  // Plivo confirms playback — with a fallback in case it never
+                  // does.
+                  const signOff = finalGoals.callSignOff || "I'm sorry, I need to end this call now. Thank you for your time. Goodbye!";
+                  lastClosingText = signOff;
+                  closingRetried = false;
+                  realtimeSession.interruptAndSpeak(signOff);
+                  if (callSid) agent.saveState(redis, callSid);
+                  setTimeout(() => { if (!transcriptSaved && callSid) hangupCall(callSid); }, 10000);
+                  return;
+                }
                 try {
                   const signOff = finalGoals.callSignOff || "I'm sorry, I need to end this call now. Thank you for your time. Goodbye!";
                   const closingText = `(System: You've reached the maximum call time. Say this exact closing to the user: "${signOff}" — then the call will end.)`;

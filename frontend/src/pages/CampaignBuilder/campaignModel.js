@@ -62,6 +62,69 @@ export const FEATURED_VOICES = ['Kore', 'Aoede', 'Puck', 'Charon', 'Leda', 'Sula
 
 export const CALL_LENGTHS = [2, 3, 5, 10, 15, 20, 30];
 
+// ── Conversation campaigns ──────────────────────────────────────────────────
+// The agent talks freely toward one objective, answering from a pasted
+// knowledge base, instead of asking a question list. Stored as
+// `mode: 'conversation'` plus `conversation` (normalised by the API with
+// api-service/src/utils/conversationPrompt.js — the limits below mirror it).
+
+export const MODES = [
+  { value: 'questions', label: 'Ask questions', icon: 'checklist', blurb: 'Screening, surveys, reminders — the agent asks your questions and scores the answers.' },
+  { value: 'conversation', label: 'Have a conversation', icon: 'forum', blurb: 'Sales, follow-ups — the agent works toward a goal and answers questions from what you give it.' },
+];
+
+export const OBJECTIVE_PRESETS = [
+  { value: 'book_meeting', label: 'Book a meeting', icon: 'event', example: 'Book a 15-minute demo with the person who decides on this.' },
+  { value: 'confirm_interest', label: 'Check interest', icon: 'thumb_up', example: 'Find out whether they are interested and want us to send more details.' },
+  { value: 'collect_details', label: 'Qualify the lead', icon: 'fact_check', example: 'Learn their team size, current tool and timeline, and whether they are a fit.' },
+  { value: 'custom', label: 'Something else', icon: 'edit', example: '' },
+];
+
+export const KNOWLEDGE_MAX_CHARS = 40000;
+export const MAX_RULES = 20;
+
+// Starting points for the "Never" list — the promises a sales agent most
+// often makes up.
+export const SUGGESTED_NEVER_RULES = [
+  'Offer discounts or special pricing',
+  'Promise delivery or launch dates',
+  'Talk about competitors',
+  'Ask for payment or card details',
+];
+
+export function emptyConversation() {
+  return {
+    objectivePreset: 'book_meeting',
+    knowledge: '',
+    rules: { never: [], always: [] },
+    endWhen: { endOnObjective: true, acceptFirstNo: false },
+  };
+}
+
+// The name the test agent greets; the real call uses each person's name.
+export const TEST_NAME = 'Alex';
+
+export const END_REASON_LABELS = {
+  objective_met: 'Objective reached',
+  not_interested: 'Not interested',
+  callback_requested: 'Asked for a callback',
+  do_not_call: 'Asked not to be called',
+  busy: 'Busy',
+  wrong_person: 'Wrong person',
+};
+
+/** The greeting as the caller hears it — the real call adds the identity check the same way. */
+export function testGreeting(callIntro) {
+  const intro = String(callIntro || '').replace(/\[Name\]/gi, TEST_NAME).trim();
+  if (!intro) return `Am I speaking with ${TEST_NAME}?`;
+  const lower = intro.toLowerCase();
+  if (lower.includes('speaking with') || lower.includes('is this') || lower.includes('are you')) return intro;
+  return `${/[.?!]$/.test(intro) ? intro : `${intro}.`} Am I speaking with ${TEST_NAME}?`;
+}
+
+/** Words in a piece of text, for the knowledge meter. */
+export const wordCount = (text) => (String(text || '').trim().match(/\S+/g) || []).length;
+
 export const RETRY_OPTIONS = [
   { value: 0, label: "Don't try again" },
   { value: 1, label: 'Try once more' },
@@ -101,6 +164,8 @@ export function emptyPayload() {
   return {
     name: '',
     type: 'HR',
+    mode: 'questions',
+    conversation: emptyConversation(),
     prompt: '',
     goals: { goal: '', callIntro: '', callSignOff: '' },
     dataToCollect: [],
@@ -244,6 +309,63 @@ export function fromTemplate(type) {
   return { ...built, type: tpl.type, dataToCollect: normalizeItems(built.dataToCollect) };
 }
 
+// Conversation templates leave the knowledge base empty on purpose: it is the
+// one thing only the operator can write, and readiness asks for it.
+export const CONVERSATION_TEMPLATES = [
+  {
+    key: 'demo',
+    type: 'SALES',
+    icon: 'event',
+    title: 'Book product demos',
+    blurb: 'Pitch briefly, answer questions, and book a demo.',
+    build: () => ({
+      name: 'Demo calls',
+      goals: {
+        goal: OBJECTIVE_PRESETS[0].example,
+        callIntro: "Hi [Name], I'm calling from [Company] — we help teams like yours [what you do].",
+        callSignOff: "Thanks so much for your time. Have a great day!",
+      },
+      conversation: { ...emptyConversation(), objectivePreset: 'book_meeting', rules: { never: SUGGESTED_NEVER_RULES.slice(0, 3), always: [] } },
+    }),
+  },
+  {
+    key: 'enquiry',
+    type: 'SALES',
+    icon: 'mark_email_read',
+    title: 'Follow up on an enquiry',
+    blurb: 'Call people who asked about you and see if they are ready.',
+    build: () => ({
+      name: 'Enquiry follow-up',
+      goals: {
+        goal: OBJECTIVE_PRESETS[1].example,
+        callIntro: "Hi [Name], this is [Company] — you recently asked about [product], so I'm calling to see if I can help.",
+        callSignOff: "Thank you — we'll send the details over shortly. Have a great day!",
+      },
+      conversation: { ...emptyConversation(), objectivePreset: 'confirm_interest', rules: { never: SUGGESTED_NEVER_RULES.slice(0, 2), always: [] } },
+    }),
+  },
+];
+
+/**
+ * A conversation campaign to start editing: a template by key, or blank.
+ * Conversation calls run in English only (the realtime engine), and carry no
+ * question list.
+ */
+export function conversationStart(key = null) {
+  const base = emptyPayload();
+  const tpl = CONVERSATION_TEMPLATES.find(t => t.key === key);
+  const built = tpl ? tpl.build() : { name: '', goals: { goal: '', callIntro: 'Hi [Name], ', callSignOff: 'Thank you for your time. Have a great day!' }, conversation: emptyConversation() };
+  return {
+    ...base,
+    ...built,
+    type: tpl?.type || 'SALES',
+    mode: 'conversation',
+    dataToCollect: [],
+    endCallIf: '',
+    callSettings: { ...base.callSettings, language: 'English' },
+  };
+}
+
 // ── Script items ────────────────────────────────────────────────────────────
 
 const isQuestion = (item) => (item.itemType || 'question') === 'question';
@@ -348,6 +470,7 @@ export function estimateMinutes(payload) {
  * allowed); `warnings` are worth knowing but legal.
  */
 export function getReadiness(payload, now = Date.now()) {
+  if (payload.mode === 'conversation') return getConversationReadiness(payload, now);
   const items = payload.dataToCollect || [];
   const questions = items.filter(isQuestion);
   const contacts = payload.contacts?.length || 0;
@@ -418,6 +541,45 @@ export function getReadiness(payload, now = Date.now()) {
   };
 }
 
+/** getReadiness for a conversation campaign: no questions or weights, but an objective and knowledge. */
+function getConversationReadiness(payload, now) {
+  const blockers = [];
+  const warnings = [];
+  const block = (step, text, where = {}) => blockers.push({ step, text, ...where });
+  const gaps = (text) => placeholdersIn(text).join(', ');
+  const conv = payload.conversation || emptyConversation();
+  const contacts = payload.contacts?.length || 0;
+
+  if (!payload.name?.trim()) block('script', 'Give the campaign a name.');
+  if (!payload.goals?.goal?.trim()) block('script', 'Say what a successful call achieves.', { field: 'goal' });
+  for (const [field, label] of Object.entries(GOAL_FIELDS)) {
+    const g = gaps(payload.goals?.[field]);
+    if (g) block('script', `${label}: replace ${g} with your own words — the agent would say it out loud.`, { field, gap: true });
+  }
+  if (!payload.goals?.callIntro?.trim()) block('script', 'Write the opening line.', { field: 'callIntro' });
+  const knowledge = conv.knowledge || '';
+  if (!knowledge.trim()) {
+    block('script', 'Paste what the agent should know — without it, it cannot answer any question.', { field: 'knowledge' });
+  } else if (knowledge.length > KNOWLEDGE_MAX_CHARS) {
+    block('script', `The knowledge is too long — cut it to under ${KNOWLEDGE_MAX_CHARS.toLocaleString('en-IN')} characters.`, { field: 'knowledge' });
+  } else {
+    const g = gaps(knowledge);
+    if (g) block('script', `Knowledge: replace ${g} with the real details.`, { field: 'knowledge', gap: true });
+  }
+  if ((payload.callSettings?.language || 'English') !== 'English') {
+    block('script', 'Conversation calls work in English only for now — switch the language to English.', { field: 'language' });
+  }
+
+  if (!contacts) block('contacts', 'Add the people you want to call.');
+  if (payload.scheduledAt && new Date(payload.scheduledAt).getTime() <= now) {
+    block('contacts', 'The scheduled time has passed — pick a later one.');
+  }
+  if (!conv.rules?.never?.length) warnings.push('No "Never" rules — consider listing what the agent must not promise.');
+
+  const estMinutes = estimateMinutes(payload);
+  return { blockers, warnings, questions: 0, contacts, weight: 0, estMinutes, estCost: estMinutes * RATE_PER_MINUTE };
+}
+
 // ── Loading an existing campaign ────────────────────────────────────────────
 
 /** GET /api/campaigns/:id → the payload the builder edits. */
@@ -427,6 +589,13 @@ export function fromCampaign(c) {
     ...base,
     name: c.name || '',
     type: c.type || base.type,
+    mode: c.mode === 'conversation' ? 'conversation' : 'questions',
+    conversation: {
+      ...base.conversation,
+      ...(c.conversation || {}),
+      rules: { ...base.conversation.rules, ...(c.conversation?.rules || {}) },
+      endWhen: { ...base.conversation.endWhen, ...(c.conversation?.endWhen || {}) },
+    },
     endCallIf: c.endCallIf || '',
     // Weights already saved were chosen by someone (or balanced and then
     // saved); treat them as deliberate so opening a campaign never reshuffles

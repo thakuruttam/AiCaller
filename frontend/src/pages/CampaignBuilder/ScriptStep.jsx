@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Card, Field, Input, Select, Tabs, Textarea } from '../../components/ui';
+import { Alert, Button, Card, Field, Input, Textarea } from '../../components/ui';
 import ScriptItem from './ScriptItem';
 import ScoringCard from './ScoringCard';
-import VoicePicker from './VoicePicker';
+import SoundSettings from './SoundSettings';
+import ConversationStep from './ConversationStep';
 import IssueText from './IssueText';
-import {
-  CALL_LENGTHS, CAMPAIGN_TYPES, LANGUAGES, RATE_PER_MINUTE, RETRY_OPTIONS,
-  moveItem, newItem, normalizeItems,
-} from './campaignModel';
+import { moveItem, newItem, normalizeItems } from './campaignModel';
 import { incomingJumps } from './questionLogic';
 
 /** A fixed line of the call — the opening or the sign-off — on the spine. */
-function FixedLine({ icon, label, hint, issue, children }) {
+export function FixedLine({ icon, label, hint, issue, children }) {
   return (
     <li className="relative pl-11">
       <span aria-hidden="true" className="absolute left-0 top-0 flex size-7 items-center justify-center rounded-full bg-paper-400 dark:bg-white/10 text-muted-foreground">
@@ -31,14 +29,17 @@ function FixedLine({ icon, label, hint, issue, children }) {
  * opening, questions, sign-off — with how it sounds (voice, language,
  * length) beside it. Nothing here is required beyond the questions.
  */
-export default function ScriptStep({ payload, update, issues, draftNotes, onDismissNotes }) {
+export default function ScriptStep(props) {
+  return props.payload.mode === 'conversation' ? <ConversationStep {...props} /> : <QuestionScript {...props} />;
+}
+
+function QuestionScript({ payload, update, issues, draftNotes, onDismissNotes }) {
   const [focusId, setFocusId] = useState(null);
   // One line is open for editing at a time; the rest stay folded to the
   // question and what it does, so the whole call reads at a glance.
   const [activeId, setActiveId] = useState(null);
   const items = payload.dataToCollect || [];
   const goals = payload.goals || {};
-  const settings = payload.callSettings || {};
   const jumps = incomingJumps(items);
 
   // Clicking or tabbing anywhere but a script line folds the open one.
@@ -55,7 +56,6 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
 
   const setItems = (next) => update({ dataToCollect: normalizeItems(next) });
   const setGoal = (key, value) => update({ goals: { ...goals, [key]: value } });
-  const setSetting = (key, value) => update({ callSettings: { ...settings, [key]: value } });
 
   const insertAfter = (index, type = 'question') => {
     const item = newItem(type);
@@ -65,8 +65,6 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
     setFocusId(item.id);
     setActiveId(item.id);
   };
-
-  const lengths = CALL_LENGTHS.includes(settings.maxDuration) ? CALL_LENGTHS : [...CALL_LENGTHS, settings.maxDuration].sort((a, b) => a - b);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start animate-fade-in">
@@ -164,55 +162,7 @@ export default function ScriptStep({ payload, update, issues, draftNotes, onDism
 
       {/* How it sounds. Sticky so it stays in reach beside a long script;
           top-28 clears the sticky step header above (name + stepper). */}
-      <Card className="lg:sticky lg:top-28 flex flex-col gap-5">
-        <h2 className="text-sm font-semibold text-foreground">How it sounds</h2>
-
-        <div>
-          <p className="text-[13px] font-medium text-foreground mb-1.5">Language</p>
-          <Tabs
-            size="sm"
-            value={settings.language || 'English'}
-            onChange={(v) => setSetting('language', v)}
-            items={LANGUAGES.map(l => ({ value: l, label: l }))}
-          />
-        </div>
-
-        <div>
-          <p className="text-[13px] font-medium text-foreground mb-1.5">Voice</p>
-          <VoicePicker
-            value={settings.geminiVoice}
-            onChange={(v) => setSetting('geminiVoice', v)}
-            sampleText={goals.callIntro}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Longest call" hint={`Up to ₹${(settings.maxDuration || 5) * RATE_PER_MINUTE} each`}>
-            <Select
-              value={settings.maxDuration || 5}
-              onChange={(e) => setSetting('maxDuration', Number(e.target.value))}
-              className="text-xs"
-            >
-              {lengths.map(m => <option key={m} value={m}>{m} min</option>)}
-            </Select>
-          </Field>
-          <Field label="No answer?" hint="Retries 20 min later">
-            <Select
-              value={settings.retryAttempts ?? 2}
-              onChange={(e) => setSetting('retryAttempts', Number(e.target.value))}
-              className="text-xs"
-            >
-              {RETRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Select>
-          </Field>
-        </div>
-
-        <Field label="Campaign type" hint="Groups this campaign in reports.">
-          <Select value={payload.type || 'HR'} onChange={(e) => update({ type: e.target.value })} className="text-xs">
-            {CAMPAIGN_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </Select>
-        </Field>
-      </Card>
+      <SoundSettings payload={payload} update={update} className="lg:sticky lg:top-28" />
     </div>
   );
 }
