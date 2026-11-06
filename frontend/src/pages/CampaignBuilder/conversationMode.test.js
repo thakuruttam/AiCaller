@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CONVERSATION_TEMPLATES, KNOWLEDGE_MAX_CHARS, conversationStart, emptyPayload, fromCampaign,
-  getReadiness, knowledgeWarning, testGreeting, wordCount,
+  OBJECTIVE_PRESETS, getReadiness, knowledgeWarning, suggestedPlan, testGreeting, wordCount,
 } from './campaignModel';
 
 const contacts = [{ name: 'Priya', phone: '+919876543210' }];
@@ -106,5 +106,19 @@ describe('knowledgeWarning', () => {
     const prose = Array.from({ length: 10 }, (_, i) => `Plan ${i} costs ₹999 per user per month and includes call reports for every campaign.`).join('\n');
     expect(knowledgeWarning(prose)).toBeNull();
     expect(knowledgeWarning('Price: ₹999')).toBeNull();
+  });
+});
+
+describe('call plan', () => {
+  it('templates come with steps, and every preset but custom suggests some', () => {
+    expect(conversationStart('demo').conversation.callPlan).toMatch(/^1\. /);
+    expect(conversationStart('enquiry').conversation.callPlan).toMatch(/^1\. /);
+    for (const p of OBJECTIVE_PRESETS) expect(Boolean(suggestedPlan(p.value))).toBe(p.value !== 'custom');
+  });
+
+  it('warns when there are no steps', () => {
+    const p = ready({ conversation: { ...ready().conversation, callPlan: '' } });
+    expect(getReadiness(p).warnings.join(' ')).toMatch(/How the call should go/);
+    expect(getReadiness(ready()).warnings.join(' ')).not.toMatch(/How the call should go/);
   });
 });

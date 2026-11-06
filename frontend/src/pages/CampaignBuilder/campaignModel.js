@@ -73,12 +73,33 @@ export const MODES = [
   { value: 'conversation', label: 'Have a conversation', icon: 'forum', blurb: 'Sales, follow-ups — the agent works toward a goal and answers questions from what you give it.' },
 ];
 
+// `example` fills the goal; `plan` the "How the call should go" steps.
 export const OBJECTIVE_PRESETS = [
-  { value: 'book_meeting', label: 'Book a meeting', icon: 'event', example: 'Book a 15-minute demo with the person who decides on this.' },
-  { value: 'confirm_interest', label: 'Check interest', icon: 'thumb_up', example: 'Find out whether they are interested and want us to send more details.' },
-  { value: 'collect_details', label: 'Qualify the lead', icon: 'fact_check', example: 'Learn their team size, current tool and timeline, and whether they are a fit.' },
-  { value: 'custom', label: 'Something else', icon: 'edit', example: '' },
+  {
+    value: 'book_meeting', label: 'Book a meeting', icon: 'event',
+    example: 'Book a 15-minute demo with the person who decides on this.',
+    plan: '1. Say in one line why you are calling.\n2. Ask how they handle this today.\n3. Explain briefly how we help, using only the knowledge.\n4. Ask if they would like a 15-minute demo and which day and time suits them.\n5. Repeat back what was agreed and say the team will confirm.',
+  },
+  {
+    value: 'confirm_interest', label: 'Check interest', icon: 'thumb_up',
+    example: 'Find out whether they are interested and want us to send more details.',
+    plan: '1. Remind them in one line why you are calling.\n2. Ask what they are looking for.\n3. Mention up to two items from the knowledge that match, with prices.\n4. Ask if they would like the team to follow up with details.\n5. Repeat back what they want and say the team will be in touch.',
+  },
+  {
+    value: 'sell_product', label: 'Sell a product', icon: 'shopping_bag',
+    example: 'Find a product from our list that they want to buy.',
+    plan: '1. Say in one line why you are calling.\n2. Ask what they are looking for, before suggesting anything.\n3. Suggest up to two matching products from the knowledge, with prices.\n4. Answer their questions only from the knowledge.\n5. If they want one, confirm which product and hand the order to the team.',
+  },
+  {
+    value: 'collect_details', label: 'Qualify the lead', icon: 'fact_check',
+    example: 'Learn their team size, current tool and timeline, and whether they are a fit.',
+    plan: '1. Say in one line why you are calling.\n2. Ask the details to collect, one at a time.\n3. Answer their questions only from the knowledge.\n4. Thank them and say the team will be in touch.',
+  },
+  { value: 'custom', label: 'Something else', icon: 'edit', example: '', plan: '' },
 ];
+
+/** The suggested steps for an objective preset ('' for custom). */
+export const suggestedPlan = (preset) => OBJECTIVE_PRESETS.find(p => p.value === preset)?.plan || '';
 
 // Mirrors CONVERSATION_LANGUAGES in conversationPrompt.js: the languages Gemini Live runs.
 export const CONVERSATION_LANGUAGES = ['English', 'Hinglish'];
@@ -106,6 +127,7 @@ export function emptyConversation() {
     rules: { never: [], always: [] },
     detailsToCollect: [],
     availability: '',
+    callPlan: '',
     endWhen: { acceptFirstNo: false },
   };
 }
@@ -353,6 +375,7 @@ export const CONVERSATION_TEMPLATES = [
       conversation: {
         ...emptyConversation(),
         objectivePreset: 'book_meeting',
+        callPlan: OBJECTIVE_PRESETS[0].plan,
         rules: { never: SUGGESTED_NEVER_RULES.slice(0, 3), always: [] },
         detailsToCollect: ['Email', 'Preferred day and time'],
         availability: 'Monday to Friday, 10am to 6pm IST',
@@ -372,7 +395,7 @@ export const CONVERSATION_TEMPLATES = [
         callIntro: "Hi [Name], this is [Company] — you recently asked about [product], so I'm calling to see if I can help.",
         callSignOff: "Thank you — we'll send the details over shortly. Have a great day!",
       },
-      conversation: { ...emptyConversation(), objectivePreset: 'confirm_interest', rules: { never: SUGGESTED_NEVER_RULES.slice(0, 2), always: [] } },
+      conversation: { ...emptyConversation(), objectivePreset: 'confirm_interest', callPlan: OBJECTIVE_PRESETS[1].plan, rules: { never: SUGGESTED_NEVER_RULES.slice(0, 2), always: [] } },
     }),
   },
 ];
@@ -606,6 +629,7 @@ function getConversationReadiness(payload, now) {
     block('contacts', 'The scheduled time has passed — pick a later one.');
   }
   if (!conv.rules?.never?.length) warnings.push('No "Never" rules — consider listing what the agent must not promise.');
+  if (!conv.callPlan?.trim()) warnings.push('No steps under "How the call should go" — the agent will improvise the order of the call.');
   const thin = knowledgeWarning(knowledge);
   if (thin) warnings.push(thin);
 

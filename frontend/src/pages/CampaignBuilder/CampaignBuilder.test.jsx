@@ -378,6 +378,18 @@ describe('conversation campaigns', () => {
     await waitFor(() => expect(screen.getByLabelText('Details saved with this call')).toHaveTextContent('u@x.com'));
   });
 
+  it('picking a kind of call fills the goal and the steps, and the steps can be restored', async () => {
+    const user = userEvent.setup();
+    await startDemoBrief(user);
+    expect(screen.getByLabelText('How the call should go').value).toMatch(/15-minute demo/);
+    await user.click(screen.getByRole('radio', { name: /sell a product/i }));
+    expect(screen.getByLabelText('How the call should go').value).toMatch(/Ask what they are looking for, before suggesting anything/);
+    expect(screen.getByLabelText(/What should have happened by the end/)).toHaveValue('Find a product from our list that they want to buy.');
+    await user.clear(screen.getByLabelText('How the call should go'));
+    await user.click(button(/use suggested steps/i));
+    expect(screen.getByLabelText('How the call should go').value).toMatch(/^1\. Say in one line/);
+  });
+
   it('saves mode and conversation with the campaign', async () => {
     const user = userEvent.setup();
     await startDemoBrief(user);

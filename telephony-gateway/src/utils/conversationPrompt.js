@@ -51,6 +51,7 @@ export function finalRules(language) {
 4. Company ka naam sirf opening line se lo. Opening line mein company na ho to kisi company ka naam mat lo — product ke naam mein jo brand hai (jaise "<brand> <product>"), wo call karne wali company nahi hai. Koi pooche "kahan se bol rahe ho?", to bolo: "${NO_COMPANY_ANSWER_HINGLISH}"
 5. Tum order place, book ya confirm nahi kar sakte. "Order place kar doon?" mat bolo — bolo: "${HANDOFF_LINE_HINGLISH}"
 6. Ek hi product do baar se zyada offer mat karo, jo product caller ne ignore ya mana kiya use dobara mat bolo, aur har reply ke end mein ek hi sawaal mat dohrao.
+7. Har detail (DETAILS TO COLLECT) poori call mein zyada se zyada DO baar poochho. Caller mana kare ya bole ki unke liye lagu nahi hota ("main use nahi karta"), to unka jawab capture_detail mein save karo aur wo detail dobara KABHI mat poochho.
 
 Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh sirf examples hain, inhe bolna nahi hai):
 ✗ "Pet kharab ke liye humare paas <product> hai."  ✓ "${UNKNOWN_ANSWER_HINGLISH}"
@@ -66,6 +67,7 @@ Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh s
 4. Take the company name only from the opening line. If the opening line names no company, never name one — a brand inside a product name (like "<brand> <product>") is the product's maker, not who is calling. If asked who or where you are calling from, say: "${NO_COMPANY_ANSWER}"
 5. You cannot place, book or confirm orders. Never say "Shall I place the order?" — say: "${HANDOFF_LINE}"
 6. Never offer the same item more than twice, don't re-offer an item the caller ignored or turned down, and don't end every reply with the same question.
+7. Ask for each detail (DETAILS TO COLLECT) at most TWICE in the whole call. If they decline or say it doesn't apply to them ("I don't use any"), save their answer with capture_detail and NEVER ask for that detail again.
 
 Wrong → Right (<product> and <price> stand for real items from the KNOWLEDGE — these are examples, not lines to say):
 ✗ "For stomach problems we have <product>."  ✓ "${UNKNOWN_ANSWER}"
@@ -93,6 +95,7 @@ export const KNOWLEDGE_MAX_CHARS = 40000;
 export const MAX_RULES = 20;
 export const MAX_RULE_CHARS = 300;
 export const MAX_DETAILS = 10;
+export const MAX_CALL_PLAN_CHARS = 2000;
 export const MAX_AVAILABILITY_CHARS = 300;
 
 const cleanList = (list) => (Array.isArray(list) ? list : [])
@@ -114,6 +117,8 @@ export function normalizeConversation(raw) {
     // When meetings can happen, e.g. "Mon–Fri, 10am–6pm IST". Empty = the
     // agent offers no times of its own and only notes the caller's preference.
     availability: String(c.availability ?? '').trim().slice(0, MAX_AVAILABILITY_CHARS),
+    // The steps the operator wants the call to follow, in their own words.
+    callPlan: String(c.callPlan ?? '').trim().slice(0, MAX_CALL_PLAN_CHARS),
     endWhen: {
       // End on the first clear no (vs. address one objection first).
       // Ending once the objective is reached is not optional — a call that
@@ -161,7 +166,9 @@ KNOWLEDGE>>>`
   const details = c.detailsToCollect.length
     ? `DETAILS TO COLLECT — ask for these naturally during the call, one at a time, once the caller is engaged (not in your first turn):
 ${bullets(c.detailsToCollect)}
-Each time the caller gives one, call capture_detail with the detail's name exactly as written above and their answer. If they decline to give one, accept it and move on.`
+Each time the caller gives one, call capture_detail with the detail's name exactly as written above and their answer.
+- Ask for each detail at most TWICE in the whole call. Ask it on its own, at a natural moment — never tack it onto the end of other replies.
+- If they decline, don't know, or say it doesn't apply to them ("I don't use any", "not needed"), call capture_detail with their answer as the value (e.g. "Doesn't use any") and NEVER ask for that detail again. Move on.`
     : 'DETAILS TO COLLECT: none. Do not ask the caller for any personal or contact details.';
 
   const scheduling = c.availability
@@ -183,7 +190,10 @@ IDENTITY CHECK — happens exactly ONCE, before anything else: the greeting you 
 ${whoYouAre}
 
 OBJECTIVE: ${goal}
-Everything you say should move the call toward this objective. When the caller asks a question, answer it briefly, then gently steer back toward the objective. If they go off topic, acknowledge it in a few words and steer back.
+Everything you say should move the call toward this objective. When the caller asks a question, answer it briefly, then gently steer back toward the objective. If they go off topic, acknowledge it in a few words and steer back.${c.callPlan ? `
+
+HOW THE CALL SHOULD GO — follow these steps in order, one at a time, adapting to what the caller says (skip a step if the caller has already covered it). The steps never override the rules below:
+${c.callPlan}` : ''}
 
 ${knowledge}
 

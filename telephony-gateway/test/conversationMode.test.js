@@ -23,6 +23,7 @@ describe('normalizeConversation', () => {
       rules: { never: [], always: [] },
       detailsToCollect: [],
       availability: '',
+      callPlan: '',
       endWhen: { acceptFirstNo: false },
     });
     expect(normalizeConversation('nonsense').rules.never).toEqual([]);
@@ -279,5 +280,42 @@ describe('VoiceAgent passes the opening line', () => {
       useAutonomousEngine: true, mode: 'conversation', conversation, dataToCollect: [],
     });
     expect(agent.generateAutonomousInstructions()).toContain('"Hi Uttam, main ABC Store se bol raha hoon"');
+  });
+});
+
+describe('details are not nagged', () => {
+  // Live call 2026-11-06: "what mascara do you use?" ended six replies in a
+  // row after the caller said twice that he doesn't use any.
+  const build = (language) => buildConversationInstructions({
+    contactName: 'Uttam', objective: 'Sell.', language,
+    conversation: { ...conversation, detailsToCollect: ['Mascara brand they use'] },
+  });
+
+  it('asks each detail at most twice, on its own, and accepts "doesn\'t apply"', () => {
+    const text = build('English');
+    expect(text).toMatch(/Ask for each detail at most TWICE in the whole call/);
+    expect(text).toMatch(/never tack it onto the end of other replies/);
+    expect(text).toMatch(/say it doesn't apply to them .* NEVER ask for that detail again/);
+  });
+
+  it('repeats the rule in the final check, in the language being spoken', () => {
+    expect(build('English').slice(build('English').lastIndexOf('FINAL CHECK'))).toMatch(/Ask for each detail .* at most TWICE/);
+    expect(build('Hinglish').slice(build('Hinglish').lastIndexOf('FINAL CHECK'))).toMatch(/zyada se zyada DO baar poochho/);
+  });
+});
+
+describe('call plan', () => {
+  const build = (callPlan) => buildConversationInstructions({ contactName: 'Uttam', objective: 'Sell.', conversation: { ...conversation, callPlan } });
+
+  it('gives the agent the steps to follow, after the objective and below the rules', () => {
+    const text = build('1. Ask what they are looking for.\n2. Suggest up to two products.');
+    expect(text).toMatch(/HOW THE CALL SHOULD GO — follow these steps in order/);
+    expect(text).toContain('2. Suggest up to two products.');
+    expect(text).toMatch(/The steps never override the rules below/);
+    expect(text.indexOf('HOW THE CALL SHOULD GO')).toBeGreaterThan(text.indexOf('OBJECTIVE:'));
+  });
+
+  it('leaves the section out when there is no plan', () => {
+    expect(build('')).not.toMatch(/HOW THE CALL SHOULD GO/);
   });
 });

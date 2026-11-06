@@ -483,6 +483,7 @@ describe('conversation campaigns — mode and conversation fields', () => {
       rules: { never: ['Offer discounts'], always: [] },
       detailsToCollect: [],
       availability: '',
+      callPlan: '',
       endWhen: { acceptFirstNo: false },
     });
   });

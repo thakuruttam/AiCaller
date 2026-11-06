@@ -5,7 +5,7 @@ import SoundSettings from './SoundSettings';
 import TryItPanel from './TryItPanel';
 import {
   CONVERSATION_LANGUAGES, KNOWLEDGE_MAX_CHARS, MAX_DETAILS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_DETAILS, SUGGESTED_NEVER_RULES,
-  emptyConversation, knowledgeWarning, wordCount,
+  emptyConversation, knowledgeWarning, suggestedPlan, wordCount,
 } from './campaignModel';
 
 function CardTitle({ icon, title, hint, aside }) {
@@ -115,18 +115,21 @@ export default function ConversationStep({ payload, update, issues }) {
   const setRules = (key, list) => setConv({ rules: { ...conv.rules, [key]: list } });
   const setEndWhen = (key, value) => setConv({ endWhen: { ...conv.endWhen, [key]: value } });
 
-  // Picking a preset fills the objective, unless the operator has written
-  // their own words there.
+  // Picking a preset fills the goal and the steps, unless the operator has
+  // written their own words there.
   const pickPreset = (preset) => {
     const presetExamples = OBJECTIVE_PRESETS.map(p => p.example).filter(Boolean);
+    const presetPlans = OBJECTIVE_PRESETS.map(p => p.plan).filter(Boolean);
     const current = (goals.goal || '').trim();
-    const ownWords = current && !presetExamples.includes(current);
+    const ownGoal = current && !presetExamples.includes(current);
+    const ownPlan = (conv.callPlan || '').trim() && !presetPlans.includes(conv.callPlan.trim());
     const example = OBJECTIVE_PRESETS.find(p => p.value === preset)?.example || '';
     update({
-      conversation: { ...conv, objectivePreset: preset },
-      ...(ownWords ? {} : { goals: { ...goals, goal: example } }),
+      conversation: { ...conv, objectivePreset: preset, ...(ownPlan ? {} : { callPlan: suggestedPlan(preset) }) },
+      ...(ownGoal ? {} : { goals: { ...goals, goal: example } }),
     });
   };
+  const planSuggestion = suggestedPlan(conv.objectivePreset);
 
   const words = wordCount(knowledge);
   const share = knowledge.length / KNOWLEDGE_MAX_CHARS;
@@ -136,8 +139,8 @@ export default function ConversationStep({ payload, update, issues }) {
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start animate-fade-in">
       <div className="flex flex-col gap-5 min-w-0">
         <Card>
-          <CardTitle icon="flag" title="Objective" hint="What a successful call achieves. Everything the agent says moves toward this." />
-          <div role="radiogroup" aria-label="Kind of objective" className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <CardTitle icon="flag" title="Goal of the call" hint="Pick the kind of call, then say in one sentence what a successful call ends with. Everything the agent says moves toward this." />
+          <div role="radiogroup" aria-label="Kind of objective" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2 mb-4">
             {OBJECTIVE_PRESETS.map(p => {
               const selected = conv.objectivePreset === p.value;
               return (
@@ -157,14 +160,37 @@ export default function ConversationStep({ payload, update, issues }) {
               );
             })}
           </div>
-          <Field label="In your words">
+          <Field label="What should have happened by the end of a successful call?">
             <Input
               value={goals.goal || ''}
               onChange={(e) => setGoal('goal', e.target.value)}
-              placeholder="e.g. Book a 15-minute demo with the person who decides on this."
+              placeholder="e.g. They agree to a 15-minute demo, or pick a product they want to buy."
             />
           </Field>
           {issues.fields.goal && <IssueText issue={issues.fields.goal} />}
+        </Card>
+
+        <Card>
+          <CardTitle
+            icon="format_list_numbered"
+            title="How the call should go"
+            hint="The steps the agent follows, in order, one line each. It adapts to what the caller says, and it never breaks the rules below."
+            aside={planSuggestion && conv.callPlan?.trim() !== planSuggestion && (
+              <Button variant="subtle" size="sm" icon="auto_awesome" onClick={() => setConv({ callPlan: planSuggestion })}>
+                Use suggested steps
+              </Button>
+            )}
+          />
+          <Textarea
+            aria-label="How the call should go"
+            rows={6}
+            value={conv.callPlan || ''}
+            onChange={(e) => setConv({ callPlan: e.target.value })}
+            placeholder={'1. Say in one line why you are calling.\n2. Ask what they are looking for.\n3. Suggest up to two matching products, with prices.\n4. If they want one, hand the order to the team.'}
+          />
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Without steps, the agent decides the order itself — it may pitch too much or ask too little.
+          </p>
         </Card>
 
         <Card>
