@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { Button } from '../../components/ui';
 import { CAMPAIGN_TYPES, CONVERSATION_TEMPLATES, MODES, TEMPLATES, conversationStart, plural } from './campaignModel';
 
 const typeIcon = (type) => CAMPAIGN_TYPES.find(t => t.value === type)?.icon || 'campaign';
 
 /** A starting-point tile: templates, and the blank conversation. */
-function StartTile({ icon, title, blurb, meta, onClick }) {
+function StartTile({ icon, title, blurb, meta, onClick, blank = false }) {
+  // The blank start sits among the templates as a dashed, empty-looking tile
+  // so it reads as "nothing filled in yet" rather than another template.
+  const surface = blank
+    ? 'bg-transparent border-2 border-dashed border-paper-800 dark:border-white/25 hover:border-brand-500'
+    : 'bg-card dark:bg-muted shadow-primary border border-transparent hover:border-brand-500/25';
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group text-left bg-card dark:bg-muted rounded-2xl shadow-primary p-5 cursor-pointer
-                 border border-transparent hover:border-brand-500/25 transition-[border-color,transform] duration-200
-                 hover:-translate-y-px outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30"
+      className={`group text-left rounded-2xl p-5 cursor-pointer ${surface} transition-[border-color,transform] duration-200
+                 hover:-translate-y-px outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/30`}
     >
       <span className="flex size-9 items-center justify-center rounded-control bg-brand-500/10 text-brand-600 dark:text-brand-300 mb-4">
         <span className="material-symbols-outlined [--icon-size:20px]">{icon}</span>
@@ -71,11 +74,9 @@ export default function StartChooser({ onStart }) {
       <div className="flex flex-col gap-7 animate-rise">
         <ModeChoice mode={mode} onChange={setMode} />
         <section aria-labelledby="conversation-templates-heading">
-          <div className="flex items-baseline justify-between gap-4 mb-4">
-            <h2 id="conversation-templates-heading" className="text-sm font-semibold text-foreground">Start from a ready-made brief</h2>
-            <Button variant="link" size="sm" onClick={() => onStart(conversationStart())}>Start with a blank brief</Button>
-          </div>
+          <h2 id="conversation-templates-heading" className="text-sm font-semibold text-foreground mb-4">Start from scratch or a ready-made brief</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 stagger">
+            <StartTile blank icon="add" title="Start with a blank brief" blurb="Write the objective, knowledge and rules yourself." meta="From scratch" onClick={() => onStart(conversationStart())} />
             {CONVERSATION_TEMPLATES.map(tpl => (
               <StartTile key={tpl.key} icon={tpl.icon} title={tpl.title} blurb={tpl.blurb} meta="Conversation" onClick={() => onStart(conversationStart(tpl.key))} />
             ))}
@@ -92,11 +93,9 @@ export default function StartChooser({ onStart }) {
     <div className="flex flex-col gap-7 animate-rise">
       <ModeChoice mode={mode} onChange={setMode} />
       <section aria-labelledby="templates-heading">
-        <div className="flex items-baseline justify-between gap-4 mb-4">
-          <h2 id="templates-heading" className="text-sm font-semibold text-foreground">Start from a ready-made script</h2>
-          <Button variant="link" size="sm" onClick={() => onStart(null)}>Start with a blank script</Button>
-        </div>
+        <h2 id="templates-heading" className="text-sm font-semibold text-foreground mb-4">Start from scratch or a ready-made script</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 stagger">
+          <StartTile blank icon="add" title="Start with a blank script" blurb="Write your own questions and lines." meta="From scratch" onClick={() => onStart(null)} />
           {TEMPLATES.map((tpl) => {
             const count = tpl.build().dataToCollect.filter(i => i.itemType === 'question').length;
             return (
