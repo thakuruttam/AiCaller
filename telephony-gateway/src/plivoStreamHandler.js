@@ -1319,14 +1319,23 @@ export function setupPlivoStream() {
               const realtimeLanguageCode = campaignLanguage === 'Hindi' || campaignLanguage === 'Hinglish' ? 'hi' : 'en';
 
               if (useGeminiLive) {
-                const geminiGreetingDirective = `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}".${langDirective} Do NOT add any extra sentences or questions beyond what is written.`;
+                // English: the introduction word for word. Hinglish: the same
+                // introduction said in Hinglish — "word for word" plus "translate"
+                // made Gemini open Hinglish calls in English.
+                const geminiGreetingDirective = campaignLanguage === 'English'
+                  ? `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}". Do NOT add any extra sentences or questions beyond what is written.`
+                  : `Before anything else, as your very first turn on this call, say this introduction to the caller in natural ${campaignLanguage}, with exactly the same meaning — keep names as they are, and if it is already in ${campaignLanguage}, say it as written: "${processedIntro}". Do NOT add any extra sentences or questions beyond it.`;
                 const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
                 realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, agent.mode === 'conversation' ? CONVERSATION_TOOLS : AUTONOMOUS_TOOLS,
                   // Conversation calls answer from a pasted knowledge base; a lower
                   // temperature keeps the model to it instead of improvising from
                   // what it already knows (live call 2026-11-05 recommended a
                   // product for fatigue from memory). GEMINI_CONVERSATION_TEMPERATURE overrides.
-                  agent.mode === 'conversation' ? { temperature: Number(process.env.GEMINI_CONVERSATION_TEMPERATURE ?? 0.3) } : {});
+                  {
+                    ...(agent.mode === 'conversation' ? { temperature: Number(process.env.GEMINI_CONVERSATION_TEMPERATURE ?? 0.3) } : {}),
+                    // Forced lines (closing line, re-asks) in the campaign's language.
+                    speakIn: campaignLanguage,
+                  });
               } else {
                 realtimeSession = setupRealtime(agent.generateSystemPrompt(), realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.voice || null);
               }

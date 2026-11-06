@@ -23,7 +23,7 @@ FakeWebSocket.OPEN = 1;
 
 vi.mock('ws', () => ({ WebSocket: FakeWebSocket }));
 
-const { setupGeminiLive } = await import('../src/providers/geminiLive.js');
+const { setupGeminiLive, speakDirective } = await import('../src/providers/geminiLive.js');
 
 // 24 kHz 16-bit PCM silence — enough samples to survive the 24k→8k resample.
 const AUDIO = Buffer.alloc(48).toString('base64');
@@ -147,5 +147,33 @@ describe('Gemini Live provider — setup and transcripts', () => {
     socket._message({ serverContent: { outputTranscription: { text: 'It is 520 rupees.' } } });
     socket._message({ serverContent: { turnComplete: true } });
     expect(h.onAssistantTranscript).toHaveBeenCalledWith('It is 520 rupees.');
+  });
+});
+
+describe('forced lines follow the campaign language', () => {
+  beforeEach(() => { FakeWebSocket.instances.length = 0; process.env.GEMINI_API_KEY = 'test-key'; });
+  afterEach(() => { delete process.env.GEMINI_API_KEY; });
+
+  it('English lines are said word for word', () => {
+    expect(speakDirective('Thank you for your time.')).toMatch(/verbatim, word for word/);
+    expect(speakDirective('Thank you for your time.', 'English')).toMatch(/verbatim, word for word/);
+  });
+
+  it('Hinglish calls say the same line in Hinglish, as written if it already is', () => {
+    const d = speakDirective('Thank you for your time. Have a great day!', 'Hinglish');
+    expect(d).toMatch(/in natural Hinglish, with exactly the same meaning/);
+    expect(d).toMatch(/If it is already in Hinglish, say it as written/);
+    expect(d).toContain('"Thank you for your time. Have a great day!"');
+    expect(d).not.toMatch(/word for word/);
+  });
+
+  it('a Hinglish session sends its closing line with the Hinglish directive', () => {
+    const session = setupGeminiLive('x', { onReady: vi.fn() }, 'hi', null, [], { speakIn: 'Hinglish' });
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    socket._message({ setupComplete: {} });
+    session.speak('Thank you for your time.');
+    const sent = socket.sent.filter(m => m.clientContent).at(-1).clientContent.turns[0].parts[0].text;
+    expect(sent).toMatch(/in natural Hinglish/);
   });
 });

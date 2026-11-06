@@ -225,6 +225,19 @@ function toGeminiFunctionDeclarations(tools) {
  *   initial setup message — the only point Gemini accepts them.
  * @returns {{ sendAudio, speak, interruptAndSpeak, beginAutonomousConversation, continueConversation, close }}
  */
+/**
+ * How a forced line (closing line, re-ask, next question) is handed to the
+ * model. English: word for word. Another language (Hinglish): the same line
+ * said in that language — lines are written in English in the builder, and
+ * word for word made Hinglish calls open and close in English (2026-11-06).
+ */
+export function speakDirective(text, speakIn) {
+  if (speakIn && speakIn !== 'English') {
+    return `(System: Say this to the caller in natural ${speakIn}, with exactly the same meaning and nothing added or left out — keep names, prices and numbers as they are. If it is already in ${speakIn}, say it as written: "${text}")`;
+  }
+  return `(System: Say this exact text verbatim, word for word, nothing else: "${text}")`;
+}
+
 export function setupGeminiLive(instructions, handlers, language = 'en', voiceOverride = null, tools = [], options = {}) {
   // Was 'gemini-2.5-flash-native-audio-preview-12-2025' — picked semi-
   // arbitrarily while verifying the wire protocol, never actually validated
@@ -282,7 +295,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     botSpeaking = true;
     ws.send(JSON.stringify({
       clientContent: {
-        turns: [{ role: 'user', parts: [{ text: `(System: Say this exact text verbatim, word for word, nothing else: "${text}")` }] }],
+        turns: [{ role: 'user', parts: [{ text: speakDirective(text, options.speakIn) }] }],
         turnComplete: true
       }
     }));
