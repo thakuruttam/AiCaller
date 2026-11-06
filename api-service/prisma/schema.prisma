@@ -154,6 +154,9 @@ model Campaign {
   // { objectivePreset, knowledge, rules: { never[], always[] }, endWhen: {...} }.
   mode          String?
   conversation  Json?
+  // Variables from the uploaded contact file, usable as {{id}} in any text:
+  // [{ id, key, label, type, sourceColumns, required, fallback, agentCanSee }].
+  variables     Json?
   rules         Json?
   callSettings  Json?
 
@@ -213,6 +216,8 @@ model Contact {
 
   campaignContacts CampaignContact[]
   callLogs         CallLog[]
+
+  @@index([tenantId, phone])
 }
 
 model CampaignContact {
@@ -220,6 +225,8 @@ model CampaignContact {
   campaignId String
   contactId  String
   overrides  Json?
+  // This person's values for the campaign's variables: { [variableId]: { raw, value } }.
+  vars       Json?
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact  Contact  @relation(fields: [contactId], references: [id])
@@ -457,4 +464,25 @@ model AiUsageEvent {
 
   @@index([tenantId, createdAt])
   @@index([feature, createdAt])
+}
+
+// One upload of people into a campaign — an audit trail. The raw file is
+// never stored, only what was done with it.
+model ContactImport {
+  id         String   @id @default(uuid()) @map("_id")
+  campaignId String
+  tenantId   String
+  userId     String?
+  fileName   String?
+  // { columns: [...], nameColumns: [...], phoneColumn, variables: { [column]: variableId } }
+  mapping    Json?
+  rowCount   Int      @default(0)
+  added      Int      @default(0)
+  updated    Int      @default(0)
+  skipped    Int      @default(0)
+  // [{ row, phone, reason }] — capped, downloadable from the builder
+  skippedRows Json?
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
 }

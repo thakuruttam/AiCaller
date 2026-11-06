@@ -120,6 +120,9 @@ model Campaign {
   // { objectivePreset, knowledge, rules: { never[], always[] }, endWhen: {...} }.
   mode          String?
   conversation  Json?
+  // Variables from the uploaded contact file, usable as {{id}} in any text:
+  // [{ id, key, label, type, sourceColumns, required, fallback, agentCanSee }].
+  variables     Json?
   rules         Json?
   callSettings  Json?
 
@@ -149,6 +152,8 @@ model Contact {
 
   campaignContacts CampaignContact[]
   callLogs         CallLog[]
+
+  @@index([tenantId, phone])
 }
 
 model CampaignContact {
@@ -156,6 +161,8 @@ model CampaignContact {
   campaignId String
   contactId  String
   overrides  Json?
+  // This person's values for the campaign's variables: { [variableId]: { raw, value } }.
+  vars       Json?
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact  Contact  @relation(fields: [contactId], references: [id])
