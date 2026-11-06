@@ -780,6 +780,7 @@ Reason about the caller's latest message in context — declines, reschedule req
         endCallIf: this.config.endCallIf,
         maxMinutes: this.config.maxMinutes,
         language: this.language,
+        openingLine: this.config.callIntro,
       });
     }
     const { goal, endCallIf } = this.config;

@@ -81,6 +81,7 @@ export function buildTryChatRequest({ payload, messages, contactName }) {
     endCallIf: payload.endCallIf,
     maxMinutes,
     language: payload.callSettings?.language,
+    openingLine: payload.goals?.callIntro,
   });
   const intro = String(payload.goals?.callIntro || '').replace(/\[Name\]/gi, contactName).trim();
   const spokenIn = payload.callSettings?.language === 'Hinglish' ? ' (said in Hinglish)' : '';

@@ -170,7 +170,7 @@ export default function ConversationStep({ payload, update, issues }) {
         <Card>
           <CardTitle icon="call" title="Opening and closing" hint="The only lines said word for word. [Name] becomes each person's name." />
           <div className="flex flex-col gap-4">
-            <Field label="Opening line">
+            <Field label="Opening line" hint={issues.fields.callIntro ? undefined : "Say who's calling here — e.g. \"Hi [Name], I'm calling from ABC Store\". The agent never names a company that isn't in this line, even a brand in your product names."}>
               <Textarea rows={2} value={goals.callIntro || ''} onChange={(e) => setGoal('callIntro', e.target.value)} placeholder="Hi [Name], I'm calling from…" />
             </Field>
             {issues.fields.callIntro && <IssueText issue={issues.fields.callIntro} />}

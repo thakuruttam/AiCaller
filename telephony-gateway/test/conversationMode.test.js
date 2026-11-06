@@ -3,6 +3,7 @@ import { VoiceAgent } from '../src/VoiceAgent.js';
 import {
   buildConversationInstructions, normalizeConversation,
   CONVERSATION_END_REASONS, CONVERSATION_LANGUAGES, KNOWLEDGE_MAX_CHARS, MAX_RULES, UNKNOWN_ANSWER, UNKNOWN_ANSWER_HINGLISH,
+  NO_COMPANY_ANSWER, NO_COMPANY_ANSWER_HINGLISH, HANDOFF_LINE, HANDOFF_LINE_HINGLISH,
 } from '../src/utils/conversationPrompt.js';
 
 const conversation = {
@@ -104,7 +105,7 @@ describe('buildConversationInstructions', () => {
   it('says plainly what the agent cannot do', () => {
     // Same call: it offered slots, "booked" 4 AM and promised a calendar invite.
     const text = build();
-    expect(text).toMatch(/You cannot book or confirm meetings, check calendars/);
+    expect(text).toMatch(/You cannot book or confirm meetings, place or process orders, check calendars/);
     expect(text).toMatch(/Never say or imply that you will/);
     expect(text).toMatch(/Never say a meeting is booked or confirmed/);
   });
@@ -213,7 +214,7 @@ describe('final rules block', () => {
 
   it('ends every conversation prompt with the rules, in the language being spoken', () => {
     const hinglish = build('Hinglish');
-    expect(hinglish.trimEnd()).toMatch(/Main <koi company> se baat kar raha hoon[\s\S]*$/);
+    expect(hinglish.trimEnd()).toMatch(/Galat → Sahi[\s\S]*$/);
     expect(hinglish.slice(hinglish.lastIndexOf('FINAL CHECK'))).toContain(UNKNOWN_ANSWER_HINGLISH);
     expect(hinglish.slice(hinglish.lastIndexOf('FINAL CHECK'))).toMatch(/Kisi bimari, takleef ya zaroorat/);
     const english = build('English');
@@ -230,5 +231,53 @@ describe('final rules block', () => {
 
   it('forbids naming a company the opening line does not', () => {
     expect(build('English')).toMatch(/never say who you are calling from unless the opening line or the KNOWLEDGE says it/);
+  });
+});
+
+describe('who is calling', () => {
+  const build = (o = {}) => buildConversationInstructions({ contactName: 'Uttam', objective: 'Sell a product.', conversation, ...o });
+
+  it('quotes the opening line as the only source of the company', () => {
+    const text = build({ openingLine: "Hi [Name], main ABC Store se bol raha hoon" });
+    expect(text).toContain('your opening line was: "Hi Uttam, main ABC Store se bol raha hoon"');
+    expect(text).toMatch(/The only company, store or organisation you may say you are calling from is one named in that line/);
+  });
+
+  it('never treats a brand in a product name as the caller, and has an honest answer when no company is given', () => {
+    const english = build({ openingLine: 'Hi [Name], is it a good time to talk' });
+    expect(english).toMatch(/never treat a brand that appears in a product name as who is calling/);
+    expect(english).toContain(NO_COMPANY_ANSWER);
+    const hinglish = build({ openingLine: 'Hi [Name]', language: 'Hinglish' });
+    expect(hinglish).toContain(NO_COMPANY_ANSWER_HINGLISH);
+  });
+
+  it('copes with no opening line at all', () => {
+    expect(build()).toMatch(/there is no opening line on record/);
+  });
+});
+
+describe('orders and repetition', () => {
+  const build = (language) => buildConversationInstructions({ contactName: 'Uttam', objective: 'Sell a product.', conversation, language });
+
+  it('never offers to place an order, and hands a yes to the team instead', () => {
+    expect(build('English')).toMatch(/place or process orders/);
+    expect(build('English')).toContain(HANDOFF_LINE);
+    expect(build('Hinglish')).toContain(HANDOFF_LINE_HINGLISH);
+    expect(build('Hinglish')).toMatch(/"Order place kar doon\?" mat bolo/);
+  });
+
+  it('does not re-offer ignored items or repeat the same closing question', () => {
+    expect(build('English')).toMatch(/never re-offer an item the caller ignored or turned down, and don't close every reply with the same question/);
+    expect(build('Hinglish')).toMatch(/har reply ke end mein ek hi sawaal mat dohrao/);
+  });
+});
+
+describe('VoiceAgent passes the opening line', () => {
+  it('uses the campaign opening line as the source of who is calling', () => {
+    const agent = new VoiceAgent({
+      contactName: 'Uttam', goal: 'Sell.', callIntro: 'Hi [Name], main ABC Store se bol raha hoon',
+      useAutonomousEngine: true, mode: 'conversation', conversation, dataToCollect: [],
+    });
+    expect(agent.generateAutonomousInstructions()).toContain('"Hi Uttam, main ABC Store se bol raha hoon"');
   });
 });

@@ -14,6 +14,13 @@ export const UNKNOWN_ANSWER = "I don't have that information right now, but I ca
 /** The same answer in Hinglish — gender-neutral, so it suits any voice. */
 export const UNKNOWN_ANSWER_HINGLISH = 'Abhi mere paas ye information nahi hai, lekin team aapko iske baare mein bata degi.';
 
+/** What to say when asked who's calling and the opening line names no company. */
+export const NO_COMPANY_ANSWER = "I'm calling about these products. I don't have the company details with me right now, but the team can share them with you.";
+export const NO_COMPANY_ANSWER_HINGLISH = 'Maine in products ke baare mein call kiya hai. Company ki details abhi mere paas nahi hain, lekin team aapko bata degi.';
+/** How to take an order or a yes without promising to act on it. */
+export const HANDOFF_LINE = "I'll pass this on to the team and they'll confirm with you.";
+export const HANDOFF_LINE_HINGLISH = 'Ye team tak pahuncha diya jayega, wo aapse confirm kar lenge.';
+
 /** Languages a conversation campaign can run in (Gemini Live). */
 export const CONVERSATION_LANGUAGES = ['English', 'Hinglish'];
 
@@ -41,26 +48,30 @@ export function finalRules(language) {
 1. Sirf wahi bolo jo KNOWLEDGE mein likha hai. Apni yaad ya product ke naam se andaza mat lagao ki cheez kis kaam aati hai.
 2. Kisi bimari, takleef ya zaroorat (pet kharab, thakaan, immunity, sugar, dard…) ke liye kabhi koi product suggest mat karo, jab tak KNOWLEDGE mein saaf na likha ho. Health ke baare mein khud kabhi mat poocho.
 3. Jo KNOWLEDGE mein nahi hai, uske liye sirf yeh bolo: "${UNKNOWN_ANSWER_HINGLISH}"
-4. Kabhi mat bolo ki tum kis company se ho, jab tak opening line ya KNOWLEDGE mein na likha ho.
-5. Ek hi product do baar se zyada offer mat karo.
+4. Company ka naam sirf opening line se lo. Opening line mein company na ho to kisi company ka naam mat lo — product ke naam mein jo brand hai (jaise "<brand> <product>"), wo call karne wali company nahi hai. Koi pooche "kahan se bol rahe ho?", to bolo: "${NO_COMPANY_ANSWER_HINGLISH}"
+5. Tum order place, book ya confirm nahi kar sakte. "Order place kar doon?" mat bolo — bolo: "${HANDOFF_LINE_HINGLISH}"
+6. Ek hi product do baar se zyada offer mat karo, jo product caller ne ignore ya mana kiya use dobara mat bolo, aur har reply ke end mein ek hi sawaal mat dohrao.
 
 Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh sirf examples hain, inhe bolna nahi hai):
 ✗ "Pet kharab ke liye humare paas <product> hai."  ✓ "${UNKNOWN_ANSWER_HINGLISH}"
 ✗ "Kya aap kisi health condition ke liye kuch chahte hain?"  ✓ "Humare paas <product> <price> mein hai — kya aap lena chahenge?" (sirf naam aur price, jaise KNOWLEDGE mein likha hai)
-✗ "Main <koi company> se baat kar raha hoon." (jab opening line mein company ka naam na ho)  ✓ Apna parichay sirf utna do jitna opening line mein hai.
+✗ "Main <brand> products ke baare mein call kar raha hoon" / "Main <brand> se hoon." (jab opening line mein company na ho)  ✓ "${NO_COMPANY_ANSWER_HINGLISH}"
+✗ "Kya main aapke liye order place kar doon?"  ✓ "Kya aap <product> lena chahenge? ${HANDOFF_LINE_HINGLISH}"
 ✗ "Thakaan ke liye ye best rahega."  ✓ "${UNKNOWN_ANSWER_HINGLISH}"`;
   }
   return `FINAL CHECK — before every reply, these rules cannot be broken:
 1. Say only what is written in the KNOWLEDGE. Never work out what something is for from memory or from its name.
 2. Never suggest anything for an illness, symptom or need (stomach trouble, tiredness, immunity, blood sugar, pain…) unless the KNOWLEDGE says so in words. Never ask about their health yourself.
 3. For anything not in the KNOWLEDGE, say only: "${UNKNOWN_ANSWER}"
-4. Never say which company you are calling from unless the opening line or the KNOWLEDGE says it.
-5. Never offer the same item more than twice.
+4. Take the company name only from the opening line. If the opening line names no company, never name one — a brand inside a product name (like "<brand> <product>") is the product's maker, not who is calling. If asked who or where you are calling from, say: "${NO_COMPANY_ANSWER}"
+5. You cannot place, book or confirm orders. Never say "Shall I place the order?" — say: "${HANDOFF_LINE}"
+6. Never offer the same item more than twice, don't re-offer an item the caller ignored or turned down, and don't end every reply with the same question.
 
 Wrong → Right (<product> and <price> stand for real items from the KNOWLEDGE — these are examples, not lines to say):
 ✗ "For stomach problems we have <product>."  ✓ "${UNKNOWN_ANSWER}"
 ✗ "Is there a health condition you'd like something for?"  ✓ "We have <product> for <price> — would you like to order it?" (name and price only, as written)
-✗ "I'm calling from <some company>." (when the opening line names none)  ✓ Introduce yourself only as the opening line does.
+✗ "I'm calling about <brand> products" / "I'm from <brand>." (when the opening line names no company)  ✓ "${NO_COMPANY_ANSWER}"
+✗ "Shall I place the order for you?"  ✓ "Would you like <product>? ${HANDOFF_LINE}"
 ✗ "This one is best for tiredness."  ✓ "${UNKNOWN_ANSWER}"`;
 }
 
@@ -123,8 +134,9 @@ const bullets = (list) => list.map(r => `- ${r}`).join('\n');
  * @param {string} [o.endCallIf]       - the campaign's custom end condition
  * @param {number} [o.maxMinutes]      - the call's time limit, for pacing
  * @param {string} [o.language]        - 'English' (default) or 'Hinglish'
+ * @param {string} [o.openingLine]     - the campaign's opening line, the only source of who is calling
  */
-export function buildConversationInstructions({ contactName, objective, conversation, endCallIf, maxMinutes, language }) {
+export function buildConversationInstructions({ contactName, objective, conversation, endCallIf, maxMinutes, language, openingLine }) {
   const c = normalizeConversation(conversation);
   const name = contactName || 'the person';
   const goal = String(objective || '').trim() || 'Have a helpful conversation and find out whether they are interested.';
@@ -157,6 +169,9 @@ Each time the caller gives one, call capture_detail with the detail's name exact
     : 'SCHEDULING: you know nothing about anyone\'s availability. If a meeting comes up, ask what day and time suits them, accept whatever they say without suggesting or questioning times, and never say a meeting is booked or confirmed.';
 
   const lang = languageDirective(language);
+  const hinglish = language === 'Hinglish';
+  const intro = String(openingLine || '').replace(/\[Name\]/gi, name).trim();
+  const whoYouAre = `WHO YOU ARE: ${intro ? `your opening line was: "${intro}".` : 'there is no opening line on record.'} The only company, store or organisation you may say you are calling from is one named in that line. If it names none, you do not know who you are calling for — never name or hint at any company, and never treat a brand that appears in a product name as who is calling. If they ask who or where you are calling from and the line names no company, say: "${hinglish ? NO_COMPANY_ANSWER_HINGLISH : NO_COMPANY_ANSWER}"`;
   const unknown = language === 'Hinglish'
     ? `"${UNKNOWN_ANSWER}" (in Hinglish: "${UNKNOWN_ANSWER_HINGLISH}")`
     : `"${UNKNOWN_ANSWER}"`;
@@ -164,6 +179,8 @@ Each time the caller gives one, call capture_detail with the detail's name exact
   return `${lang ? `${lang}\n\n` : ''}You are on a live phone call with ${name}. Speak naturally, like a friendly, professional person — short turns of one or two sentences, one question at a time. Listen more than you talk; never deliver a long monologue. Right after they confirm who they are, say in ONE short sentence why you're calling, then ask one question.
 
 IDENTITY CHECK — happens exactly ONCE, before anything else: the greeting you just delivered asked "Am I speaking with ${name}?". Do not move on until they clearly confirm ("yes", "speaking", "that's me"). If the reply is vague ("sure", "okay"), ask once more: "Just to confirm, is this ${name}?". If they say it's the wrong person, call end_call with reason "wrong_person". Once confirmed, never ask about identity again.
+
+${whoYouAre}
 
 OBJECTIVE: ${goal}
 Everything you say should move the call toward this objective. When the caller asks a question, answer it briefly, then gently steer back toward the objective. If they go off topic, acknowledge it in a few words and steer back.
@@ -179,10 +196,10 @@ ANSWERING QUESTIONS — this overrides everything else, including the OBJECTIVE:
 - Never make a promise or commitment the KNOWLEDGE does not explicitly allow.
 
 WHAT YOU CAN AND CANNOT DO — you are only a voice on this call:
-- You cannot book or confirm meetings, check calendars or anyone's availability, send emails, messages, invites or links, or take any action after the call. Never say or imply that you will ("I'll set that up", "I'll send you an invite", "I've booked you in").
+- You cannot book or confirm meetings, place or process orders, check calendars or anyone's availability, send emails, messages, invites or links, or take any action after the call. Never say or imply that you will ("I'll set that up", "I'll send you an invite", "I've booked you in", "Shall I place the order?"). When they say yes to something, say: "${hinglish ? HANDOFF_LINE_HINGLISH : HANDOFF_LINE}"
 - The only thing that happens after the call is that the team reads its notes. So when something needs follow-up, say you'll pass it on and the team will get back to them.
 - Do not make up anything about the company, its team, its people or its hours — including its name: never say who you are calling from unless the opening line or the KNOWLEDGE says it.
-- Don't keep repeating the same offer: mention an item at most twice. If they aren't interested, ask what they are looking for instead.
+- Don't keep repeating the same offer: mention an item at most twice, never re-offer an item the caller ignored or turned down, and don't close every reply with the same question. If they aren't interested in what you offered, ask what they are looking for instead.
 
 ${scheduling}
 
