@@ -177,3 +177,18 @@ describe('forced lines follow the campaign language', () => {
     expect(sent).toMatch(/in natural Hinglish/);
   });
 });
+
+describe('usage reporting', () => {
+  beforeEach(() => { FakeWebSocket.instances.length = 0; process.env.GEMINI_API_KEY = 'test-key'; });
+  afterEach(() => { delete process.env.GEMINI_API_KEY; });
+
+  it('passes every usageMetadata report up to the call', () => {
+    const onUsage = vi.fn();
+    setupGeminiLive('x', { onUsage }, 'en');
+    const socket = FakeWebSocket.instances[0];
+    socket._open();
+    const usageMetadata = { promptTokenCount: 1200, responseTokenCount: 300, promptTokensDetails: [{ modality: 'TEXT', tokenCount: 1000 }, { modality: 'AUDIO', tokenCount: 200 }] };
+    socket._message({ usageMetadata, serverContent: { turnComplete: true } });
+    expect(onUsage).toHaveBeenCalledWith(usageMetadata);
+  });
+});

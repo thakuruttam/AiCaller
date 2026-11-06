@@ -30,6 +30,9 @@ export class VoiceAgent {
     this.mode = config.mode === 'conversation' ? 'conversation' : 'questions';
     this.endReason = null; // set by recordEndCall, saved to CallLog.outcome
     this.capturedDetails = {}; // conversation campaigns: { "Email": "a@b.com" }, saved to CallLog.outcome
+    // Tokens used by this call's own OpenAI checks (end conditions, guards),
+    // by model — saved to CallLog.usage for the cost breakdown.
+    this.llmUsage = {};
 
     // ── State machine ──────────────────────────────────────────────
     // Filter out question items with no text — they have nothing to ask
@@ -182,6 +185,7 @@ export class VoiceAgent {
       });
       if (!response.ok) return false;
       const data = await response.json();
+    this._trackLlmUsage?.(data);
       const reply = data.choices[0].message.content.trim().toLowerCase();
       const result = reply.startsWith('yes');
       console.log(`[VoiceAgent] Semantic skip condition "${semanticCondition}" on "${userAnswer}" → ${result}`);
@@ -534,6 +538,7 @@ Reason about the caller's latest message in context — declines, reschedule req
     }
 
     const data = await response.json();
+    this._trackLlmUsage?.(data);
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) throw new Error('Model did not return a take_action tool call');
 
@@ -870,6 +875,17 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
     this.appendTranscriptTurn('assistant', goodbye);
     this.recordEndCall('abusive_language');
     return goodbye;
+  }
+
+  /** Adds an OpenAI chat-completions response's token counts to this call's usage (CallLog.usage). */
+  _trackLlmUsage(data) {
+    const u = data?.usage;
+    if (!u) return;
+    const model = data.model || 'unknown';
+    const m = this.llmUsage[model] ||= { requests: 0, inputTokens: 0, outputTokens: 0 };
+    m.requests += 1;
+    m.inputTokens += u.prompt_tokens || 0;
+    m.outputTokens += u.completion_tokens || 0;
   }
 
   /**
@@ -1249,6 +1265,7 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
     }
 
     const data = await response.json();
+    this._trackLlmUsage?.(data);
     const rawReply = data.choices[0].message.content;
 
     // Detect hangup signal on the RAW reply (before sanitisation strips it)

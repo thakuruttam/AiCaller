@@ -241,6 +241,9 @@ model CallLog {
   billableMinutes Int?
   // How the call ended, as recorded by the voice agent: { endReason }.
   outcome         Json?
+  // What the call used from each paid service (Gemini Live tokens, Sarvam
+  // seconds, OpenAI tokens, evaluation tokens) — priced on the Usage page.
+  usage           Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }

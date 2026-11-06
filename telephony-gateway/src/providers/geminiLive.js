@@ -309,6 +309,10 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     if (!geminiText) return;
 
     const sarvamText = await retranscribeWithSarvam(turnAudio);
+    // Sarvam bills per second of audio sent (8 kHz mu-law: 8000 bytes a second).
+    if (process.env.SARVAM_API_KEY && turnAudio.length) {
+      handlers.onSarvamAudio?.(turnAudio.reduce((n, b) => n + b.length, 0) / 8000);
+    }
     const text = sarvamText || geminiText;
     if (sarvamText && sarvamText !== geminiText) {
       console.log(`[GeminiLive] Sarvam re-transcription differs from Gemini's own — using Sarvam: Gemini said "${geminiText}", Sarvam says "${sarvamText}"`);
@@ -360,6 +364,10 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       handlers.onReady?.();
       return;
     }
+
+    // Gemini reports token usage on server messages — passed up so the call's
+    // real model cost can be recorded (CallLog.usage).
+    if (msg.usageMetadata) handlers.onUsage?.(msg.usageMetadata);
 
     if (msg.toolCall?.functionCalls) {
       responseInFlight = true;

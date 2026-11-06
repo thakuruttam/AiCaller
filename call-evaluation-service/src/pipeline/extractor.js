@@ -160,6 +160,14 @@ Return ONLY the JSON object. No explanations, no markdown.`;
   }
 
   const data = await response.json();
+  // Token usage for the call's cost breakdown (CallLog.usage.evaluation).
+  const meta = data?.usageMetadata || {};
+  const usage = {
+    model: config.gemini.model,
+    inputTokens: meta.promptTokenCount || 0,
+    // Gemini bills thinking tokens as output.
+    outputTokens: (meta.candidatesTokenCount || 0) + (meta.thoughtsTokenCount || 0),
+  };
   const rawJson = data.candidates[0].content.parts[0].text.trim();
 
   let questionResults = [];
@@ -231,7 +239,8 @@ Return ONLY the JSON object. No explanations, no markdown.`;
     sentiment,
     score: scored.score,
     breakdown: scored.breakdown,
-    modelVersion: config.gemini.model
+    modelVersion: config.gemini.model,
+    usage
   };
 }
 

@@ -243,6 +243,45 @@ describe('GET /api/billing/usage', () => {
   });
 });
 
+describe('GET /api/billing/usage — call costs', () => {
+  async function seed() {
+    const tenant = await makeTenant();
+    const callModule = await prisma.callModule.create({ data: { name: 'Module', tenantId: tenant.id } });
+    const questions = await prisma.campaign.create({ data: { name: 'Q', tenantId: tenant.id, callModuleId: callModule.id } });
+    const conversation = await prisma.campaign.create({ data: { name: 'C', mode: 'conversation', tenantId: tenant.id, callModuleId: callModule.id } });
+    const contact = await prisma.contact.create({ data: { name: 'P', phone: '+10000000001', tenantId: tenant.id } });
+    const usage = (mode) => ({ engine: 'gemini_live', mode, geminiReports: [{ prompt: 2000, response: 1500, promptByModality: { TEXT: 1500, AUDIO: 500 }, responseByModality: { AUDIO: 1500 } }], sarvamSeconds: 30, openai: {} });
+    await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: questions.id, status: 'completed', durationMs: 60_000, usage: usage('questions') } });
+    await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: conversation.id, status: 'completed', durationMs: 150_000, usage: usage('conversation') } });
+    await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: questions.id, status: 'completed', durationMs: 30_000 } });
+    return tenant;
+  }
+
+  it('gives super admins a per-service breakdown for question and conversation calls', async () => {
+    const tenant = await seed();
+    const token = jwt.sign({ id: 'sa', email: 'sa@b.com', role: 'SUPER_ADMIN', workspaceId: tenant.id, workspaceRole: 'ADMIN' }, process.env.JWT_SECRET);
+    const res = await request(app).get('/api/billing/usage').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const { modes, fixed } = res.body.callCosts;
+    expect(modes.questions.calls).toBe(2);
+    expect(modes.questions.meteredCalls).toBe(1);
+    expect(modes.conversation.calls).toBe(1);
+    expect(modes.conversation.minutes).toBe(2.5);
+    const keys = modes.conversation.services.map(s => s.key);
+    expect(keys).toEqual(['plivo', 'geminiAudioIn', 'geminiAudioOut', 'geminiText', 'sarvam', 'openai', 'evaluation']);
+    expect(modes.conversation.services.find(s => s.key === 'geminiAudioOut').totalInr).toBeGreaterThan(0);
+    expect(modes.conversation.perMinuteInr).toBeGreaterThan(0);
+    expect(fixed.knownMonthlyInr).toBeGreaterThan(0);
+  });
+
+  it('never shows our costs to a workspace admin', async () => {
+    const tenant = await seed();
+    const res = await request(app).get('/api/billing/usage').set('Authorization', authHeaderFor(tenant));
+    expect(res.body.callCosts).toBeUndefined();
+    expect(res.body.ai).toBeUndefined();
+  });
+});
+
 describe('deductCallMinutes (internal, invoked directly)', () => {
   it('does nothing when tenantId or durationMs is missing', async () => {
     await expect(deductCallMinutes(null, 60000)).resolves.toBeUndefined();

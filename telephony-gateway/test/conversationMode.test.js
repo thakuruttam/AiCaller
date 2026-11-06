@@ -319,3 +319,13 @@ describe('call plan', () => {
     expect(build('')).not.toMatch(/HOW THE CALL SHOULD GO/);
   });
 });
+
+describe('OpenAI usage tracking', () => {
+  it('adds up tokens per model from chat-completions responses', () => {
+    const agent = new VoiceAgent({ contactName: 'U', dataToCollect: [] });
+    agent._trackLlmUsage({ model: 'gpt-4.1-mini-2025-04-14', usage: { prompt_tokens: 300, completion_tokens: 5 } });
+    agent._trackLlmUsage({ model: 'gpt-4.1-mini-2025-04-14', usage: { prompt_tokens: 200, completion_tokens: 3 } });
+    agent._trackLlmUsage({ model: 'x' }); // no usage block — ignored
+    expect(agent.llmUsage).toEqual({ 'gpt-4.1-mini-2025-04-14': { requests: 2, inputTokens: 500, outputTokens: 8 } });
+  });
+});

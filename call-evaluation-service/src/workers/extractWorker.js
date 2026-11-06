@@ -25,6 +25,20 @@ export function startExtractWorker() {
     const result = await extract(normalised?.turns ?? [], dataToCollect);
     flowState.extracted = result;
 
+    // Record the scoring model's tokens next to the live call's own usage, for
+    // the cost breakdown on the Usage page. Never fails the pipeline.
+    if (result.usage) {
+      try {
+        const log = await prisma.callLog.findUnique({ where: { id: callLogId }, select: { usage: true } });
+        await prisma.callLog.update({
+          where: { id: callLogId },
+          data: { usage: { ...(log?.usage || {}), evaluation: result.usage } },
+        });
+      } catch (err) {
+        logger.warn({ callLogId, err: err.message }, '[Extract] Could not record evaluation usage');
+      }
+    }
+
     await prisma.reportJob.update({
       where: { callLogId },
       data: { [STAGE]: 'done', totalAttempts: { increment: 1 } }

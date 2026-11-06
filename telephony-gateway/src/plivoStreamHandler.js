@@ -173,6 +173,11 @@ export function setupPlivoStream() {
     // code believes the goodbye played. Track the actual closing text and
     // retry once via a plain (non-interrupting) speak() before trusting a
     // checkpoint confirmation.
+    // What this call used from each paid service, saved to CallLog.usage and
+    // priced on the Usage page. Gemini's usage reports are kept one by one —
+    // whether each is per turn or a running total isn't settled in Google's
+    // docs, so the pricing side decides how to add them up.
+    const callUsage = { engine: null, model: null, geminiReports: [], sarvamSeconds: 0 };
     let lastClosingText = null;
     let closingRetried = false;
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
@@ -496,6 +501,15 @@ export function setupPlivoStream() {
               transcript: formattedTranscript,
               // Why it ended, for the campaign's outcome breakdown. Null when
               // the caller just hung up before anything ended the call.
+              usage: {
+                engine: callUsage.engine,
+                model: callUsage.model,
+                mode: agent?.mode || 'questions',
+                language: campaignLanguage,
+                geminiReports: callUsage.geminiReports,
+                sarvamSeconds: Math.round(callUsage.sarvamSeconds * 10) / 10,
+                openai: agent?.llmUsage || {},
+              },
               ...((agent?.endReason || Object.keys(agent?.capturedDetails || {}).length)
                 ? { outcome: { endReason: agent.endReason || null, mode: agent.mode, details: agent.capturedDetails } }
                 : {})
@@ -1135,6 +1149,9 @@ export function setupPlivoStream() {
             pendingAutonomousTransition = useAutonomous && !useGeminiLive;
 
             if (!useRealtime) {
+              // Sarvam/Deepgram STT + text model + TTS: per-service usage isn't
+              // metered here yet — the Usage page prices only the phone line.
+              callUsage.engine = 'stt_tts_pipeline';
               if (sttStream) sttStream.close();
               sttStream = setupSTT(campaignLanguage, {
                 onTranscript:     handleTranscript,
@@ -1206,6 +1223,20 @@ export function setupPlivoStream() {
                   }
                 },
                 onTranscript: useAutonomous ? handleAutonomousTranscript : handleRealtimeTranscript,
+                onUsage: (u) => {
+                  if (callUsage.geminiReports.length >= 300) return;
+                  const byModality = (list) => Object.fromEntries((list || []).map(d => [d.modality, d.tokenCount || 0]));
+                  callUsage.geminiReports.push({
+                    prompt: u.promptTokenCount || 0,
+                    response: u.responseTokenCount || u.candidatesTokenCount || 0,
+                    cached: u.cachedContentTokenCount || 0,
+                    thoughts: u.thoughtsTokenCount || 0,
+                    total: u.totalTokenCount || 0,
+                    promptByModality: byModality(u.promptTokensDetails),
+                    responseByModality: byModality(u.responseTokensDetails || u.candidatesTokensDetails),
+                  });
+                },
+                onSarvamAudio: (seconds) => { callUsage.sarvamSeconds += seconds; },
                 onAssistantTranscript: (text) => {
                   // Guarded on autonomousPhaseActive, not just useAutonomous —
                   // the scripted greeting is ALSO a spoken response and fires
@@ -1326,6 +1357,8 @@ export function setupPlivoStream() {
                   ? `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}". Do NOT add any extra sentences or questions beyond what is written.`
                   : `Before anything else, as your very first turn on this call, say this introduction to the caller in natural ${campaignLanguage}, with exactly the same meaning — keep names as they are, and if it is already in ${campaignLanguage}, say it as written: "${processedIntro}". Do NOT add any extra sentences or questions beyond it.`;
                 const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
+                callUsage.engine = 'gemini_live';
+                callUsage.model = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview';
                 realtimeSession = setupGeminiLive(fullAutonomousInstructions, realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.geminiVoice || null, agent.mode === 'conversation' ? CONVERSATION_TOOLS : AUTONOMOUS_TOOLS,
                   // Conversation calls answer from a pasted knowledge base; a lower
                   // temperature keeps the model to it instead of improvising from
@@ -1337,6 +1370,8 @@ export function setupPlivoStream() {
                     speakIn: campaignLanguage,
                   });
               } else {
+                callUsage.engine = 'openai_realtime';
+                callUsage.model = process.env.OPENAI_REALTIME_MODEL || 'openai-realtime';
                 realtimeSession = setupRealtime(agent.generateSystemPrompt(), realtimeHandlers, realtimeLanguageCode, campaign.callSettings?.voice || null);
               }
             }

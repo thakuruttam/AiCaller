@@ -15,6 +15,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import CampaignTypeLabel from '../components/CampaignTypeLabel';
 import PageLoader from '../components/PageLoader';
+import CallCostsCard from './CallCostsCard';
 
 const NO_CAMPAIGNS = [];
 // For showing our AI cost (billed in USD) in rupees; an estimate, not a live rate.
@@ -170,7 +171,7 @@ export default function Usage() {
     );
   }
 
-  const { campaigns, totalMinutes, totalCalls, ai } = data;
+  const { campaigns, totalMinutes, totalCalls, ai, callCosts } = data;
   const totalCost = totalMinutes * 5;
   const campaignsWithCalls = campaigns.filter(c => c.totalCalls > 0).length;
 
@@ -219,6 +220,9 @@ export default function Usage() {
           />
         )}
       </div>
+
+      {/* Super admins only: our own cost per call minute, by service */}
+      <CallCostsCard costs={callCosts} />
 
       {/* Campaign breakdown */}
       <FullscreenCard
