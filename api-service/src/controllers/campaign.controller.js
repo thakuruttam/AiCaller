@@ -2,7 +2,8 @@ import { prisma } from '../db.js';
 import { CONVERSATION_LANGUAGES, normalizeConversation } from '../utils/conversationPrompt.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall, removeQueuedCall } from '../queue/publisher.js';
-import { readVariables, reconcileSchedule, refreshEstimatedMinutes, syncContactsChunk } from '../services/campaignContacts.service.js';
+import { readVariables, reconcileSchedule, syncContactsChunk } from '../services/campaignContacts.service.js';
+import { formatValue } from '../utils/contactVariables.js';
 import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
 import { notifyWorkspace } from '../utils/notifications.js';
 
@@ -688,7 +689,17 @@ export const getCallDetails = async (req, res) => {
       }
     });
     if(!callLog) return res.status(404).json({error: "Call log not found"});
-    res.json(callLog);
+    // The person's values from the campaign's uploaded file, as they'd be
+    // said — so the call page shows what the agent was told (e.g. ₹460).
+    const variables = Array.isArray(callLog.campaign?.variables) ? callLog.campaign.variables : [];
+    let personDetails = [];
+    if (variables.length && callLog.campaignId) {
+      const cc = await prisma.campaignContact.findFirst({ where: { campaignId: callLog.campaignId, contactId: callLog.contactId }, select: { vars: true } });
+      personDetails = variables
+        .map(v => ({ key: v.key, label: v.label || v.key, value: formatValue(cc?.vars?.[v.id]?.value, v.type) || cc?.vars?.[v.id]?.raw || '' }))
+        .filter(d => d.value);
+    }
+    res.json({ ...callLog, personDetails });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

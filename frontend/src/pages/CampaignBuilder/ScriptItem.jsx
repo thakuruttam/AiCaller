@@ -6,6 +6,7 @@ import {
   setAnswerType, updateLogic,
 } from './questionLogic';
 import IssueText from './IssueText';
+import VariableText from './VariableText';
 
 // Rule rows are denser than a form, so their controls use Button sm's 32px.
 const DENSE = '!h-8';
@@ -343,23 +344,25 @@ export default function ScriptItem({
         <div className="flex flex-wrap sm:flex-nowrap items-start gap-x-2 gap-y-1 p-1.5">
           <div className="basis-full sm:basis-0 sm:flex-1 min-w-0">
             {isQuestion ? (
-              <input
+              <VariableText
+                as="input-raw"
                 aria-label={`Question ${n}`}
                 value={item.text}
                 autoFocus={autoFocus}
-                onChange={(e) => update({ text: e.target.value })}
+                onChange={(v) => update({ text: v })}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter(); } }}
                 placeholder="Type a question, then press Enter for the next one"
                 className="w-full h-9 bg-transparent px-2.5 text-sm text-foreground placeholder:text-muted-foreground/80
                            rounded-control outline-none focus:bg-paper-200/60 dark:focus:bg-white/[0.04] transition-colors"
               />
             ) : (
-              <textarea
+              <VariableText
+                as="textarea-raw"
                 aria-label={`Statement ${n}`}
                 rows={active ? 2 : 1}
                 value={item.text}
                 autoFocus={autoFocus}
-                onChange={(e) => update({ text: e.target.value })}
+                onChange={(v) => update({ text: v })}
                 placeholder="Something the agent says without asking — e.g. “This call is about your order from last week.”"
                 className="w-full resize-none field-sizing-content bg-transparent px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground/80
                            rounded-control outline-none focus:bg-paper-200/60 dark:focus:bg-white/[0.04] transition-colors"

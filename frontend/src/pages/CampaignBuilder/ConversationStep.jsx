@@ -3,6 +3,8 @@ import { Button, Card, Checkbox, Field, Input, Textarea } from '../../components
 import IssueText from './IssueText';
 import SoundSettings from './SoundSettings';
 import TryItPanel from './TryItPanel';
+import VariableText from './VariableText';
+import PreviewCard from './PreviewCard';
 import {
   CONVERSATION_LANGUAGES, KNOWLEDGE_MAX_CHARS, MAX_DETAILS, MAX_RULES, OBJECTIVE_PRESETS, SUGGESTED_DETAILS, SUGGESTED_NEVER_RULES,
   emptyConversation, knowledgeWarning, suggestedPlan, wordCount,
@@ -63,13 +65,15 @@ function RuleList({
         </ul>
       )}
       <div className="flex gap-2">
-        <Input
-          aria-label={addLabel}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
-          placeholder={placeholder}
-        />
+        <div className="flex-1 min-w-0">
+          <VariableText
+            aria-label={addLabel}
+            value={draft}
+            onChange={setDraft}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
+            placeholder={placeholder}
+          />
+        </div>
         <Button variant="subtle" size="sm" icon="add" onClick={() => add(draft)} disabled={!draft.trim()}>Add</Button>
       </div>
       {unused.length > 0 && (
@@ -161,10 +165,11 @@ export default function ConversationStep({ payload, update, issues }) {
             })}
           </div>
           <Field label="What should have happened by the end of a successful call?">
-            <Input
+            <VariableText
               value={goals.goal || ''}
-              onChange={(e) => setGoal('goal', e.target.value)}
+              onChange={(v) => setGoal('goal', v)}
               placeholder="e.g. They agree to a 15-minute demo, or pick a product they want to buy."
+              hint
             />
           </Field>
           {issues.fields.goal && <IssueText issue={issues.fields.goal} />}
@@ -181,11 +186,12 @@ export default function ConversationStep({ payload, update, issues }) {
               </Button>
             )}
           />
-          <Textarea
+          <VariableText
+            as="textarea"
             aria-label="How the call should go"
             rows={6}
             value={conv.callPlan || ''}
-            onChange={(e) => setConv({ callPlan: e.target.value })}
+            onChange={(v) => setConv({ callPlan: v })}
             placeholder={'1. Say in one line why you are calling.\n2. Ask what they are looking for.\n3. Suggest up to two matching products, with prices.\n4. If they want one, hand the order to the team.'}
           />
           <p className="mt-1.5 text-xs text-muted-foreground">
@@ -197,11 +203,11 @@ export default function ConversationStep({ payload, update, issues }) {
           <CardTitle icon="call" title="Opening and closing" hint="The only lines said word for word. [Name] becomes each person's name." />
           <div className="flex flex-col gap-4">
             <Field label="Opening line" hint={issues.fields.callIntro ? undefined : "Say who's calling here — e.g. \"Hi [Name], I'm calling from ABC Store\". The agent never names a company that isn't in this line, even a brand in your product names."}>
-              <Textarea rows={2} value={goals.callIntro || ''} onChange={(e) => setGoal('callIntro', e.target.value)} placeholder="Hi [Name], I'm calling from…" />
+              <VariableText as="textarea" rows={2} value={goals.callIntro || ''} onChange={(v) => setGoal('callIntro', v)} placeholder="Hi {{name}}, I'm calling from…" hint />
             </Field>
             {issues.fields.callIntro && <IssueText issue={issues.fields.callIntro} />}
             <Field label="Closing line" hint={issues.fields.callSignOff ? undefined : 'Played whenever the call ends — the agent never makes up its own goodbye.'}>
-              <Textarea rows={2} value={goals.callSignOff || ''} onChange={(e) => setGoal('callSignOff', e.target.value)} placeholder="Thanks so much for your time…" />
+              <VariableText as="textarea" rows={2} value={goals.callSignOff || ''} onChange={(v) => setGoal('callSignOff', v)} placeholder="Thanks so much for your time…" />
             </Field>
             {issues.fields.callSignOff && <IssueText issue={issues.fields.callSignOff} />}
           </div>
@@ -218,11 +224,12 @@ export default function ConversationStep({ payload, update, issues }) {
               </span>
             )}
           />
-          <Textarea
+          <VariableText
+            as="textarea"
             aria-label="What the agent knows"
             rows={10}
             value={knowledge}
-            onChange={(e) => setConv({ knowledge: e.target.value })}
+            onChange={(v) => setConv({ knowledge: v })}
             placeholder={'Paste anything the agent should be able to answer from, e.g.\n\nAcme CRM — ₹999 per user per month, billed yearly. Free 14-day trial, no card needed.\nSetup takes one day; we import your spreadsheets for you.\nIf they say it\'s too expensive: most teams save 5+ hours a week on follow-ups…'}
           />
           <div className="mt-2 h-1 rounded-full bg-paper-400 dark:bg-white/10 overflow-hidden" aria-hidden="true">
@@ -253,9 +260,9 @@ export default function ConversationStep({ payload, update, issues }) {
             addLabel="Add a detail to collect"
           />
           <Field label="When can meetings happen? (optional)" className="mt-5" hint="The agent offers times only inside this window. Leave empty and it just notes the time they prefer.">
-            <Input
+            <VariableText
               value={conv.availability || ''}
-              onChange={(e) => setConv({ availability: e.target.value })}
+              onChange={(v) => setConv({ availability: v })}
               placeholder="e.g. Monday to Friday, 10am to 6pm IST"
             />
           </Field>
@@ -307,9 +314,9 @@ export default function ConversationStep({ payload, update, issues }) {
             </FixedRule>
           </ul>
           <Field label="Also end the call if… (optional)" className="mt-5">
-            <Input
+            <VariableText
               value={payload.endCallIf || ''}
-              onChange={(e) => update({ endCallIf: e.target.value })}
+              onChange={(v) => update({ endCallIf: v })}
               placeholder="e.g. They already use a tool they are happy with"
             />
           </Field>
@@ -319,6 +326,7 @@ export default function ConversationStep({ payload, update, issues }) {
       {/* Sticky so the test chat stays beside the brief while it's edited;
           top-28 clears the sticky step header above. */}
       <div className="flex flex-col gap-5 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+        <PreviewCard payload={payload} />
         <TryItPanel payload={payload} />
         <SoundSettings
           payload={payload}

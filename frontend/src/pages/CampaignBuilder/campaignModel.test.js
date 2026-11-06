@@ -169,8 +169,16 @@ describe('templates', () => {
     expect(p.type).toBe(type);
     expect(p.name).toBeTruthy();
     expect(totalWeight(p.dataToCollect)).toBe(100);
-    // Only the deliberate [gaps] stand between a template and dialling.
-    expect(getReadiness(p).blockers.filter(b => !b.gap)).toEqual([]);
+    // Only the deliberate [gaps] — and, for templates that use them, the
+    // {{columns}} the upload must provide — stand between a template and dialling.
+    expect(getReadiness(p).blockers.filter(b => !b.gap && !/isn't a column yet/.test(b.text))).toEqual([]);
+  });
+
+  it('the payment reminder asks for amount and due date columns from the upload', () => {
+    const p = { ...emptyPayload(), ...fromTemplate('LOAN_RECOVERY'), contacts: [{ name: 'A', phone: '+919876543210' }] };
+    const texts = getReadiness(p).blockers.map(b => b.text);
+    expect(texts).toContain("{{amount}} isn't a column yet — upload a file with it, or take it out of the call.");
+    expect(texts).toContain("{{due_date}} isn't a column yet — upload a file with it, or take it out of the call.");
   });
 
   it('opening lines greet by [Name] and leave the identity question to the system', () => {

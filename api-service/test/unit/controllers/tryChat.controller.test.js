@@ -175,3 +175,39 @@ describe('tryChat', () => {
     expect(res.statusCode).toBe(503);
   });
 });
+
+describe('try chat with a person from the list', () => {
+  const variables = [
+    { id: 'v_amt001', key: 'amount', label: 'Amount owed', type: 'money' },
+    { id: 'v_due001', key: 'due_date', label: 'Last date', type: 'date' },
+  ];
+  const payload = {
+    goals: { goal: 'Collect {{amount}} by {{due_date}}.', callIntro: 'Hi {{name}}, about {{amount}}.', callSignOff: 'Thanks {{name}}!' },
+    conversation: { knowledge: 'Pay at any branch.', callPlan: '1. Remind them of {{amount}}.' },
+    callSettings: { maxDuration: 3 },
+    variables,
+  };
+  const body = { payload, person: { name: 'Rakesh', vars: { v_amt001: '₹1,250', v_due001: '46338' } }, messages: [{ role: 'user', text: 'Yes' }] };
+
+  it('fills every text with the person\'s values and gives the agent their facts', () => {
+    const parsed = readTryChatBody(body);
+    expect(parsed.contactName).toBe('Rakesh');
+    const system = buildTryChatRequest(parsed).systemInstruction.parts[0].text;
+    expect(system).toContain('OBJECTIVE: Collect ₹1,250 by 12 November.');
+    expect(system).toContain('1. Remind them of ₹1,250.');
+    expect(system).toContain('"Hi Rakesh, about ₹1,250. Am I speaking with Rakesh?"');
+    expect(system).toContain('- Amount owed: ₹1,250');
+    expect(system).not.toMatch(/\{\{/);
+  });
+
+  it('fills the closing line too', () => {
+    const parsed = readTryChatBody(body);
+    const reply = readTryChatReply({ candidates: [{ content: { parts: [{ functionCall: { name: 'end_call', args: { reason: 'objective_met' } } }] } }] }, parsed.payload,
+      (t) => t.replace('{{name}}', 'Rakesh'));
+    expect(reply.endCall.closingLine).toBe('Thanks Rakesh!');
+  });
+
+  it('refuses a malformed variable list', () => {
+    expect(readTryChatBody({ ...body, payload: { ...payload, variables: [{ id: 'bad' }] } }).error).toMatch(/valid id/);
+  });
+});

@@ -447,3 +447,73 @@ describe('uploading a sheet with extra columns', () => {
     expect(within(panel).getByLabelText('Name of Last date')).toHaveValue('last_date');
   });
 });
+
+describe('using variables in the call', () => {
+  async function uploadDues(user) {
+    const csv = 'Name,Mobile,Amount,Last date\nRakesh Kumar,98765 43210,460,12/11/2026\nSunita Rao,91234 56789,1250,15/11/2026\n';
+    await user.upload(screen.getByLabelText('Upload a contacts file'), new File([csv], 'dues.csv', { type: 'text/csv' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /add 2 rows/i }));
+  }
+
+  it('## opens the picker in the opening line and inserts the variable', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await uploadDues(user);
+    await toScript(user);
+    await user.click(button(/start with a blank script/i));
+    const opening = screen.getByLabelText('Opening line');
+    await user.type(opening, 'Hi ##am');
+    const list = screen.getByRole('listbox', { name: 'Variables' });
+    expect(within(list).getByText('{{amount}}')).toBeInTheDocument();
+    expect(within(list).getByText('₹460')).toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(opening).toHaveValue('Hi {{amount}}');
+  });
+
+  it('previews the call for any person on the list, filled in', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await uploadDues(user);
+    await toScript(user);
+    await user.click(button(/start with a blank script/i));
+    await user.click(screen.getByLabelText('Opening line'));
+    await user.paste('Hi {{name}}, {{amount}} is due by {{last_date}}.');
+    expect(screen.getByText('Hi Rakesh Kumar, ₹460 is due by 12 November.')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Preview as'), 'Sunita Rao');
+    expect(screen.getByText('Hi Sunita Rao, ₹1,250 is due by 15 November.')).toBeInTheDocument();
+  });
+
+  it('a {{name}} typed before any upload becomes a variable waiting for a column', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await toScript(user);
+    await user.click(button(/start with a blank script/i));
+    await user.click(screen.getByLabelText('Opening line'));
+    await user.paste('Hi, about your {{branch}} visit');
+    await user.click(button(/who you're calling/i));
+    const panel = screen.getByRole('list', { name: 'Variables' });
+    expect(within(panel).getByLabelText('Name of branch')).toHaveValue('branch');
+    expect(within(panel).getByText(/needs a column/i)).toBeInTheDocument();
+  });
+
+  it('Try it plays the preview person, with their values', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    await uploadDues(user);
+    await toScript(user);
+    await user.click(screen.getByRole('radio', { name: /have a conversation/i }));
+    await user.click(button(/start with a blank brief/i));
+    apiPost.mockImplementation((url) => {
+      if (url === '/api/campaigns/try-chat') return Promise.resolve({ data: { reply: 'It is ₹460.', endCall: null, captured: {} } });
+      return Promise.resolve({ data: {} });
+    });
+    expect(screen.getByText(/You're Rakesh Kumar/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Your reply as the caller'), 'How much do I owe?{Enter}');
+    await waitFor(() => expect(screen.getByText('It is ₹460.')).toBeInTheDocument());
+    const body = apiPost.mock.calls.find(([u]) => u === '/api/campaigns/try-chat')[1];
+    expect(body.contactName).toBe('Rakesh Kumar');
+    expect(Object.values(body.person.vars)).toEqual(['460', '12/11/2026']);
+    expect(body.payload.variables.map(v => v.key)).toEqual(['amount', 'last_date']);
+  });
+});

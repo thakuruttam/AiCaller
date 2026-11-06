@@ -248,6 +248,20 @@ const CallDetails = () => {
         </>}
       />
 
+      {callLog.personDetails?.length > 0 && (
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 mb-5">
+          <p className="text-xs text-muted-foreground mb-2">From the uploaded file</p>
+          <dl className="flex flex-wrap gap-x-8 gap-y-2">
+            {callLog.personDetails.map(d => (
+              <div key={d.key}>
+                <dt className="text-xs text-muted-foreground">{d.label}</dt>
+                <dd className="text-sm font-medium text-foreground tabular-nums">{d.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+
       {/* Info Strip */}
       <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-5 mb-7">
         <div className="space-y-1 border-r border-border pr-6">

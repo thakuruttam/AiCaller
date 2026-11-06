@@ -9,7 +9,7 @@
 import { readLogic, syncLogic, writeLogic } from './questionLogic';
 import {
   dedupeByPhone, buildName, looksLikeInstruction, normalizePhone as normalizePhoneE164, toIdTokens, toKeyTokens,
-  undeclaredRefs, tokensIn, toKey as toKeyName,
+  undeclaredRefs, tokensIn, toKey as toKeyName, declareVariable,
 } from '../../lib/contactVariables';
 
 export const RATE_PER_MINUTE = 5; // ₹/min, matches api-service/src/config/billing.js
@@ -150,12 +150,12 @@ export const END_REASON_LABELS = {
 };
 
 /** The greeting as the caller hears it — the real call adds the identity check the same way. */
-export function testGreeting(callIntro) {
-  const intro = String(callIntro || '').replace(/\[Name\]/gi, TEST_NAME).trim();
-  if (!intro) return `Am I speaking with ${TEST_NAME}?`;
+export function testGreeting(callIntro, name = TEST_NAME) {
+  const intro = String(callIntro || '').replace(/\[Name\]/gi, name).trim();
+  if (!intro) return `Am I speaking with ${name}?`;
   const lower = intro.toLowerCase();
   if (lower.includes('speaking with') || lower.includes('is this') || lower.includes('are you')) return intro;
-  return `${/[.?!]$/.test(intro) ? intro : `${intro}.`} Am I speaking with ${TEST_NAME}?`;
+  return `${/[.?!]$/.test(intro) ? intro : `${intro}.`} Am I speaking with ${name}?`;
 }
 
 /**
@@ -326,7 +326,7 @@ export const TEMPLATES = [
       },
       endCallIf: 'The person says they are not the account holder.',
       dataToCollect: [
-        say('Your EMI of [Amount] was due on [Due date] and is still unpaid.'),
+        say('Your EMI of {{amount}} was due on {{due_date}} and is still unpaid.'),
         yesNo('Will you be able to make the payment in the next 3 days?', { is_mandatory: true, good: 'yes' }),
         q('On which date will you make the payment?', { is_mandatory: true }),
         q('What, if anything, might stop you from paying on time?'),
@@ -879,6 +879,20 @@ export function clearFlaggedCells(contacts = []) {
     if (!entries.some(([, v]) => looksLikeInstruction(v))) return c;
     return { ...c, vars: Object.fromEntries(entries.filter(([, v]) => !looksLikeInstruction(v))) };
   });
+}
+
+/**
+ * Names typed in the texts before any column existed become variables that
+ * need a column (the upload mapper then offers them). Returns the same
+ * object when there's nothing new, so callers can skip an update.
+ */
+export function declareTypedVariables(payload) {
+  const variables = payload.variables || [];
+  const refs = undeclaredRefs(campaignTexts(payload), variables);
+  if (!refs.length) return payload;
+  const declared = [...variables];
+  for (const ref of refs) declared.push(declareVariable(ref, declared));
+  return { ...payload, variables: declared };
 }
 
 /** What the API stores: texts with {{variableId}}, and no people (they sync separately). */

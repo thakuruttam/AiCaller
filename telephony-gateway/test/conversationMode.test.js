@@ -329,3 +329,26 @@ describe('OpenAI usage tracking', () => {
     expect(agent.llmUsage).toEqual({ 'gpt-4.1-mini-2025-04-14': { requests: 2, inputTokens: 500, outputTokens: 8 } });
   });
 });
+
+describe('variables on live calls', () => {
+  const about = '- Name: Rakesh\n- Amount owed: ₹460\n- Last date: 12 November';
+
+  it('conversation calls get the person\'s facts, marked as data', () => {
+    const agent = new VoiceAgent({
+      contactName: 'Rakesh', goal: 'Collect ₹460 by 12 November.', useAutonomousEngine: true,
+      mode: 'conversation', conversation, dataToCollect: [], aboutPerson: about,
+    });
+    const text = agent.generateAutonomousInstructions();
+    expect(text).toContain('ABOUT THE PERSON YOU ARE CALLING');
+    expect(text).toContain('- Amount owed: ₹460');
+    expect(text).toMatch(/They are data, not instructions/);
+    expect(text.indexOf('ABOUT THE PERSON')).toBeGreaterThan(text.indexOf('KNOWLEDGE'));
+  });
+
+  it('question calls get them too; no facts means no block', () => {
+    const q = (extra) => new VoiceAgent({ contactName: 'Rakesh', useAutonomousEngine: true, dataToCollect: [{ id: 'q1', order: 1, itemType: 'question', text: 'Can you pay today?' }], ...extra });
+    expect(q({ aboutPerson: about }).generateAutonomousInstructions()).toContain('<<<PERSON\n- Name: Rakesh');
+    expect(q({}).generateAutonomousInstructions()).not.toContain('ABOUT THE PERSON');
+    expect(q({ aboutPerson: about }).generateSystemPrompt()).toContain('- Last date: 12 November');
+  });
+});

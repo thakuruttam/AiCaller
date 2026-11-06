@@ -5,6 +5,8 @@ import ScoringCard from './ScoringCard';
 import SoundSettings from './SoundSettings';
 import ConversationStep from './ConversationStep';
 import IssueText from './IssueText';
+import VariableText from './VariableText';
+import PreviewCard from './PreviewCard';
 import { moveItem, newItem, normalizeItems } from './campaignModel';
 import { incomingJumps } from './questionLogic';
 
@@ -82,9 +84,10 @@ function QuestionScript({ payload, update, issues, draftNotes, onDismissNotes })
             label="What should these calls achieve?"
             hint={issues.fields.goal ? undefined : 'The agent keeps steering the conversation toward this.'}
           >
-            <Input
+            <VariableText
               value={goals.goal || ''}
-              onChange={(e) => setGoal('goal', e.target.value)}
+              onChange={(v) => setGoal('goal', v)}
+              hint
               placeholder="e.g. Shortlist applicants for a first-round interview"
             />
           </Field>
@@ -103,11 +106,12 @@ function QuestionScript({ payload, update, issues, draftNotes, onDismissNotes })
           <ol className="relative flex flex-col gap-3 max-h-[55vh] overflow-y-auto before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-border">
 
             <FixedLine icon="call" label="Opening line" issue={issues.fields.callIntro} hint="[Name] becomes each person's name. The agent then confirms it's speaking to them.">
-              <Textarea
+              <VariableText
+                as="textarea"
                 aria-label="Opening line"
                 rows={2}
                 value={goals.callIntro || ''}
-                onChange={(e) => setGoal('callIntro', e.target.value)}
+                onChange={(v) => setGoal('callIntro', v)}
                 placeholder="Hi [Name], this is an automated call from…"
               />
             </FixedLine>
@@ -146,11 +150,12 @@ function QuestionScript({ payload, update, issues, draftNotes, onDismissNotes })
             </li>
 
             <FixedLine icon="call_end" label="Closing line" issue={issues.fields.callSignOff}>
-              <Textarea
+              <VariableText
+                as="textarea"
                 aria-label="Closing line"
                 rows={2}
                 value={goals.callSignOff || ''}
-                onChange={(e) => setGoal('callSignOff', e.target.value)}
+                onChange={(v) => setGoal('callSignOff', v)}
                 placeholder="Thank you for your time…"
               />
             </FixedLine>
@@ -162,7 +167,10 @@ function QuestionScript({ payload, update, issues, draftNotes, onDismissNotes })
 
       {/* How it sounds. Sticky so it stays in reach beside a long script;
           top-28 clears the sticky step header above (name + stepper). */}
-      <SoundSettings payload={payload} update={update} className="lg:sticky lg:top-28" />
+      <div className="flex flex-col gap-5 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+        <PreviewCard payload={payload} />
+        <SoundSettings payload={payload} update={update} />
+      </div>
     </div>
   );
 }

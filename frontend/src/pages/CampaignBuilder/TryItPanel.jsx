@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
 import { Alert, Button, Card, Textarea } from '../../components/ui';
 import { END_REASON_LABELS, TEST_NAME, testGreeting } from './campaignModel';
+import { VariablesContext } from './variablesContext';
+import { renderText } from '../../lib/contactVariables';
 
 function Bubble({ from, children }) {
   const agent = from === 'assistant';
@@ -21,6 +23,13 @@ function Bubble({ from, children }) {
  * whatever is in the builder right now, saved or not.
  */
 export default function TryItPanel({ payload, className = '' }) {
+  const ctx = useContext(VariablesContext);
+  const person = ctx?.person || null;
+  const name = person?.name || TEST_NAME;
+  const greeting = testGreeting(
+    ctx ? renderText(ctx.toIds(payload.goals?.callIntro), { variables: ctx.idVariables, values: person?.parsed, contactName: name }).text : payload.goals?.callIntro,
+    name,
+  );
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -49,8 +58,12 @@ export default function TryItPanel({ payload, className = '' }) {
           conversation: payload.conversation,
           endCallIf: payload.endCallIf,
           callSettings: payload.callSettings,
+          variables: payload.variables || [],
         },
-        contactName: TEST_NAME,
+        contactName: name,
+        // The preview person: the server fills {{variables}} with their values
+        // and gives the agent their facts, exactly as on a live call.
+        ...(person ? { person: { name: person.name, vars: person.vars } } : {}),
         messages: next,
       });
       if (!live.current) return;
@@ -80,11 +93,13 @@ export default function TryItPanel({ payload, className = '' }) {
         )}
       </div>
       <p className="text-xs text-muted-foreground -mt-1">
-        Type as the person you're calling. Same instructions as a real call — not charged.
+        {person
+          ? <>You're {person.name} — change who under Preview. Same instructions and values as a real call — not charged.</>
+          : <>Type as the person you're calling. Same instructions as a real call — not charged.</>}
       </p>
 
       <ol ref={listRef} aria-label="Test conversation" aria-live="polite" className="flex flex-col gap-2 max-h-[340px] min-h-[120px] overflow-y-auto pr-1">
-        <Bubble from="assistant">{testGreeting(payload.goals?.callIntro)}</Bubble>
+        <Bubble from="assistant">{greeting}</Bubble>
         {messages.map((m, i) => <Bubble key={i} from={m.role}>{m.text}</Bubble>)}
         {sending && (
           <li className="text-xs text-muted-foreground px-1" aria-label="Agent is replying">…</li>

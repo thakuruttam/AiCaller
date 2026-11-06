@@ -10,8 +10,10 @@ import ScriptStep from './ScriptStep';
 import PeopleStep from './PeopleStep';
 import StartStep from './StartStep';
 import { syncContacts } from './contactsSync';
+import { VariablesContext } from './variablesContext';
+import { parseValue, toIdTokens } from '../../lib/contactVariables';
 import {
-  emptyPayload, formatIST, formatRupees, fromCampaign, fromTemplate, getReadiness,
+  declareTypedVariables, emptyPayload, formatIST, formatRupees, fromCampaign, fromTemplate, getReadiness,
   newItem, normalizeItems, plural, toSavePayload,
 } from './campaignModel';
 
@@ -84,6 +86,8 @@ export default function CampaignBuilder() {
   const [peopleDirty, setPeopleDirty] = useState(false);
   // A new campaign gets its id on first save; later saves update it.
   const [savedId, setSavedId] = useState(id || null);
+  // Whose values the preview, the ## picker and Try it show.
+  const [personIndex, setPersonIndex] = useState(0);
   const [saving, setSaving] = useState(null); // 'draft' | 'launch'
   const [draftNotes, setDraftNotes] = useState(null);
   const [touched, setTouched] = useState(false);
@@ -184,6 +188,11 @@ export default function CampaignBuilder() {
 
   const goTo = (next) => {
     if (step === 'script' && next !== 'script' && started) setShowErrors(true);
+    // {{names}} typed before any upload become variables waiting for a column.
+    if (step === 'script' && next !== 'script') {
+      const declared = declareTypedVariables(payload);
+      if (declared !== payload) update({ variables: declared.variables });
+    }
     setStep(next);
     scrollToTop();
   };
@@ -192,7 +201,9 @@ export default function CampaignBuilder() {
   // The script (texts stored with {{variableId}}) through the wizard
   // endpoints, then — if they changed — the people, in chunks.
   const persist = async () => {
-    const body = toSavePayload(payload);
+    const withDeclared = declareTypedVariables(payload);
+    if (withDeclared !== payload) setPayload(withDeclared);
+    const body = toSavePayload(withDeclared);
     let campaignId = savedId;
     if (campaignId) {
       await api.put(`/api/campaigns/wizard/${campaignId}`, body);
@@ -246,6 +257,25 @@ export default function CampaignBuilder() {
     }
   };
 
+  const variablesCtx = useMemo(() => {
+    const variables = payload.variables || [];
+    const contacts = payload.contacts || [];
+    const c = contacts[Math.min(personIndex, Math.max(0, contacts.length - 1))];
+    const person = c && {
+      name: c.name,
+      vars: c.vars || {},
+      parsed: Object.fromEntries(variables.map(v => [v.id, parseValue(c.vars?.[v.id], v.type)])),
+    };
+    return {
+      variables,
+      idVariables: variables,
+      person,
+      personIndex: Math.min(personIndex, Math.max(0, contacts.length - 1)),
+      setPersonIndex,
+      toIds: (t) => toIdTokens(t || '', variables),
+    };
+  }, [payload.variables, payload.contacts, personIndex]);
+
   if (loading) return <PageLoader text="Loading campaign…" />;
 
   const firstBlocker = readiness.blockers[0];
@@ -254,6 +284,7 @@ export default function CampaignBuilder() {
     : readiness.contacts ? `Start calling ${plural(readiness.contacts, 'person', 'people')}` : 'Start calling';
 
   return (
+    <VariablesContext.Provider value={variablesCtx}>
     <Page>
       <div ref={topRef} />
       <BackLink to={isEdit ? `/campaigns/${id}` : '/'} className="mb-4">
@@ -376,5 +407,6 @@ export default function CampaignBuilder() {
         </>
       }
     </Page>
+    </VariablesContext.Provider>
   );
 }

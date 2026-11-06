@@ -1,5 +1,6 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { CONVERSATION_END_REASONS } from './utils/conversationPrompt.js';
+import { aboutThisPerson, renderText } from './utils/contactVariables.js';
 import { VoiceAgent } from './VoiceAgent.js';
 import { prisma } from './db.js';
 import { publishEvaluation } from './queues/ingestQueue.js';
@@ -1100,6 +1101,7 @@ export function setupPlivoStream() {
                 maxCallDurationSec: true,
                 mode: true,
                 conversation: true,
+                variables: true,
                 callModule: {
                   select: {
                     goal: true,
@@ -1171,13 +1173,41 @@ export function setupPlivoStream() {
 
             const overrides = campaignContact?.overrides || {};
 
+            // Campaign variables: every text is filled in with this person's
+            // values from the uploaded file ({{variableId}} → "₹460"), and the
+            // agent gets their facts as data (see contactVariables.js).
+            const variables = Array.isArray(campaign.variables) ? campaign.variables : [];
+            const personValues = campaignContact?.vars || {};
+            const personName = overrides.name || callLog.contact?.name;
+            const missingVars = new Set();
+            const fill = (text) => {
+              if (!text) return text;
+              const r = renderText(text, { variables, values: personValues, contactName: personName });
+              r.missing.forEach(m => missingVars.add(m));
+              return r.text;
+            };
+            const fillConversation = (conv) => conv && ({
+              ...conv,
+              knowledge: fill(conv.knowledge),
+              callPlan: fill(conv.callPlan),
+              availability: fill(conv.availability),
+              rules: { never: (conv.rules?.never || []).map(fill), always: (conv.rules?.always || []).map(fill) },
+            });
+
             const finalGoals = {
-              goal: overrides.goals?.goal || campaign.callModule?.goal,
-              callIntro: overrides.goals?.callIntro || campaign.callModule?.callIntro,
-              callSignOff: overrides.goals?.callSignOff || campaign.callModule?.callSignOff
+              goal: fill(overrides.goals?.goal || campaign.callModule?.goal),
+              callIntro: fill(overrides.goals?.callIntro || campaign.callModule?.callIntro),
+              callSignOff: fill(overrides.goals?.callSignOff || campaign.callModule?.callSignOff)
             };
 
-            const finalQuestions = overrides.dataToCollect || campaign.dataToCollect || [];
+            const finalQuestions = (overrides.dataToCollect || campaign.dataToCollect || []).map(i => ({ ...i, text: fill(i.text) }));
+            const finalEndCallIf = fill(campaign.endCallIf);
+            const finalConversation = fillConversation(campaign.conversation);
+            const aboutPerson = variables.length ? aboutThisPerson({ variables, values: personValues, contactName: personName }) : '';
+            if (missingVars.size) {
+              const keys = [...missingVars].map(id => variables.find(v => v.id === id)?.key || id);
+              console.warn(`[Stream] Call ${callLogId}: no value for ${keys.join(', ')} — used the "if empty" text`);
+            }
 
             agent = new VoiceAgent({
               name: campaign.name,
@@ -1186,13 +1216,14 @@ export function setupPlivoStream() {
               callIntro: finalGoals.callIntro,
               callSignOff: finalGoals.callSignOff,
               dataToCollect: finalQuestions,
-              endCallIf: campaign.endCallIf,
+              endCallIf: finalEndCallIf,
               successCriteria: campaign.callModule?.successCriteria,
               language: campaignLanguage,
               useDecisionEngine: useRealtime,
               useAutonomousEngine: useAutonomous,
               mode: campaign.mode,
-              conversation: campaign.conversation,
+              conversation: finalConversation,
+              aboutPerson,
               maxMinutes: campaign.maxCallDurationSec ? Math.round(campaign.maxCallDurationSec / 60) : null
             });
 

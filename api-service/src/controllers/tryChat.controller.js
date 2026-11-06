@@ -1,5 +1,7 @@
 import { recordAiUsage } from '../services/aiUsage.service.js';
 import { buildConversationInstructions, CONVERSATION_END_REASONS } from '../utils/conversationPrompt.js';
+import { aboutThisPerson, cleanValue, parseValue, renderText } from '../utils/contactVariables.js';
+import { readVariables } from '../services/campaignContacts.service.js';
 
 /**
  * POST /api/campaigns/try-chat — the campaign builder's "Try it" panel.
@@ -11,8 +13,11 @@ import { buildConversationInstructions, CONVERSATION_END_REASONS } from '../util
  * telephony-gateway), so the test chat behaves like a real call — only typed,
  * and on a cheaper text model.
  *
- * Body: { payload: { goals, conversation, endCallIf, callSettings },
+ * Body: { payload: { goals, conversation, endCallIf, callSettings, variables },
+ *         person?: { name, vars: { [variableId]: raw } },
  *         contactName?, messages: [{ role: 'user' | 'assistant', text }] }
+ * With a person, every {{variable}} is filled in with their values and the
+ * agent gets their facts — the same fill-in a live call uses.
  * Reply: { reply, endCall: null | { reason, closingLine }, captured: { [detail]: value } }
  */
 
@@ -68,22 +73,37 @@ export function readTryChatBody(body) {
     cleaned.push({ role: m.role, text: text.slice(0, MAX_MESSAGE_CHARS) });
   }
   if (cleaned.at(-1)?.role !== 'user') return { error: 'The last message must be from you, the caller.' };
-  return { payload, messages: cleaned, contactName: String(body.contactName || '').trim().slice(0, 80) || 'Alex' };
+  const vars = readVariables(payload.variables);
+  if (vars.error) return { error: vars.error };
+  const person = body.person && typeof body.person === 'object' ? body.person : null;
+  const contactName = cleanValue(person?.name || body.contactName).slice(0, 80) || 'Alex';
+  // The person's raw cells, parsed by each variable's type.
+  const values = Object.fromEntries(vars.variables.map(v => [v.id, parseValue(person?.vars?.[v.id], v.type)]));
+  return { payload, messages: cleaned, contactName, variables: vars.variables, values };
 }
 
 /** The full Gemini request for one test turn. Exported for tests. */
-export function buildTryChatRequest({ payload, messages, contactName }) {
+export function buildTryChatRequest({ payload, messages, contactName, variables = [], values = {} }) {
   const maxMinutes = Number(payload.callSettings?.maxDuration) || null;
+  const fill = (t) => (t ? renderText(t, { variables, values, contactName }).text : t);
+  const conv = payload.conversation || {};
   const instructions = buildConversationInstructions({
     contactName,
-    objective: payload.goals?.goal,
-    conversation: payload.conversation,
-    endCallIf: payload.endCallIf,
+    objective: fill(payload.goals?.goal),
+    conversation: {
+      ...conv,
+      knowledge: fill(conv.knowledge),
+      callPlan: fill(conv.callPlan),
+      availability: fill(conv.availability),
+      rules: { never: (conv.rules?.never || []).map(fill), always: (conv.rules?.always || []).map(fill) },
+    },
+    endCallIf: fill(payload.endCallIf),
     maxMinutes,
     language: payload.callSettings?.language,
-    openingLine: payload.goals?.callIntro,
+    openingLine: fill(payload.goals?.callIntro),
+    aboutPerson: variables.length ? aboutThisPerson({ variables, values, contactName }) : '',
   });
-  const intro = String(payload.goals?.callIntro || '').replace(/\[Name\]/gi, contactName).trim();
+  const intro = String(fill(payload.goals?.callIntro) || '').trim();
   const spokenIn = payload.callSettings?.language === 'Hinglish' ? ' (said in Hinglish)' : '';
   const note = `This is a typed test of the call: the caller's messages are typed, not spoken. The call opened with your greeting${spokenIn}${intro ? `: "${intro} Am I speaking with ${contactName}?"` : '.'}`;
   return {
@@ -113,7 +133,7 @@ export function readCapturedDetails(parts, payload) {
 }
 
 /** Reads a Gemini reply into { reply, endCall }. Exported for tests. */
-export function readTryChatReply(data, payload) {
+export function readTryChatReply(data, payload, fill = (t) => t) {
   const parts = data?.candidates?.[0]?.content?.parts || [];
   const reply = parts.filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
   const call = parts.find(p => p.functionCall?.name === 'end_call')?.functionCall;
@@ -121,7 +141,7 @@ export function readTryChatReply(data, payload) {
   const reason = CONVERSATION_END_REASONS.includes(call.args?.reason) ? call.args.reason : 'objective_met';
   const closingLine = APOLOGY_REASONS.has(reason)
     ? APOLOGY_LINE
-    : (payload.goals?.callSignOff?.trim() || 'Thank you for your time. Goodbye.');
+    : (String(fill(payload.goals?.callSignOff || '')).trim() || 'Thank you for your time. Goodbye.');
   // A live call drops whatever the model said alongside end_call and plays
   // only the closing line (muteInFlight) — show the test the same way.
   return { reply: '', endCall: { reason, closingLine } };
@@ -153,7 +173,8 @@ export const tryChat = async (req, res) => {
       continue;
     }
     Object.assign(captured, readCapturedDetails(parts, parsed.payload));
-    const read = readTryChatReply(turn.data, parsed.payload);
+    const read = readTryChatReply(turn.data, parsed.payload,
+      (t) => renderText(t, { variables: parsed.variables, values: parsed.values, contactName: parsed.contactName }).text);
     if (read.reply || read.endCall) {
       result = read;
       break;

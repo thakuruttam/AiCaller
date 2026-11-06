@@ -17,6 +17,7 @@ import PageLoader from '../components/PageLoader';
 import SandboxAgent from './CampaignWizard/components/SandboxAgent.jsx';
 import Modal from '../components/Modal';
 import CampaignTypeLabel from '../components/CampaignTypeLabel';
+import { formatValue } from '../lib/contactVariables';
 import ShareCampaignModal from '../components/ShareCampaignModal';
 
 export default function CampaignDetails() {
@@ -141,6 +142,11 @@ export default function CampaignDetails() {
     { header: 'Called at', value: ({ log }) => log?.createdAt && new Date(log.createdAt).toISOString().slice(0, 10) },
     { header: 'Status', value: ({ log }) => (log ? statusLabel(log.status) : 'no call') },
     { header: 'Duration (s)', value: ({ log }) => (log?.durationMs ? Math.round(log.durationMs / 1000) : null) },
+    // One column per variable from the uploaded file — the values the agent used.
+    ...(Array.isArray(campaign.variables) ? campaign.variables : []).map(v => ({
+      header: v.label || v.key,
+      value: ({ cc }) => formatValue(cc.vars?.[v.id]?.value, v.type) || cc.vars?.[v.id]?.raw || '',
+    })),
   ], sortedRows);
 
 
