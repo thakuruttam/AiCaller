@@ -161,6 +161,9 @@ model CampaignContact {
   overrides  Json?
   // This person's values for the campaign's variables: { [variableId]: { raw, value } }.
   vars       Json?
+  // The last contacts sync that wrote this row — duplicates within a sync
+  // are dropped, and rows a full sync didn't touch are removed at its end.
+  syncId     String?
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact  Contact  @relation(fields: [contactId], references: [id])

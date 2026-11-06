@@ -39,14 +39,20 @@ function renderBuilder(path = '/create-campaign') {
 
 const button = (name) => screen.getByRole('button', { name });
 
-/** Blank script → a name and one question → one pasted contact. */
+/** People come first now: from the people step to choosing how to start the script. */
+async function toScript(user) {
+  await user.click(button(/next: write the call/i));
+}
+
+/** One pasted contact → blank script with a name and one question → review. */
 async function buildReadyCampaign(user) {
+  await user.type(screen.getByLabelText('Paste names and numbers'), 'Priya Sharma, 98765 43210');
+  await user.click(button(/^person_add add$/i));
+  await toScript(user);
   await user.click(button(/start with a blank script/i));
   await user.type(screen.getByLabelText('Campaign name'), 'Quick check');
   await user.type(screen.getByLabelText('Question 1'), 'Are you free to talk?');
-  await user.click(button(/next: add people/i));
-  await user.type(screen.getByLabelText('Paste names and numbers'), 'Priya Sharma, 98765 43210');
-  await user.click(button(/^person_add add$/i));
+  await user.click(button(/next: review & start/i));
 }
 
 beforeEach(() => {
@@ -64,19 +70,24 @@ beforeEach(() => {
 });
 
 describe('starting a campaign', () => {
-  it('opens on a choice, not a form, and loads nothing', () => {
+  it('opens on who to call, then offers a choice of call — and loads nothing', async () => {
+    const user = userEvent.setup();
     renderBuilder();
+    expect(screen.getByText('Who are you calling?')).toBeInTheDocument();
+    expect(screen.getByLabelText('Paste names and numbers')).toBeInTheDocument();
+    await toScript(user);
     expect(screen.getByRole('radio', { name: /ask questions/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByLabelText('Describe your calls')).not.toBeInTheDocument();
     expect(button(/screen job applicants/i)).toBeInTheDocument();
     expect(button(/start with a blank script/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText('Campaign name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Question 1')).not.toBeInTheDocument();
     expect(apiGet).not.toHaveBeenCalled();
   });
 
   it('a template fills in the whole script', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/screen job applicants/i));
 
     expect(screen.getByLabelText('Campaign name')).toHaveValue('Applicant screening');
@@ -92,7 +103,7 @@ describe('starting a campaign', () => {
     await buildReadyCampaign(user);
     await user.click(button(/start over/i));
     await user.click(button(/collect customer feedback/i));
-    await user.click(button(/add people & start/i));
+    await user.click(button(/who you're calling/i));
     expect(screen.getByText('Priya Sharma')).toBeInTheDocument();
   });
 });
@@ -101,6 +112,7 @@ describe('writing the script', () => {
   it('Enter adds the next question', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/start with a blank script/i));
     await user.type(screen.getByLabelText('Question 1'), 'First?{Enter}');
     expect(screen.getByLabelText('Question 2')).toHaveFocus();
@@ -109,6 +121,7 @@ describe('writing the script', () => {
   it('moves and removes lines', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/start with a blank script/i));
     await user.type(screen.getByLabelText('Question 1'), 'First?{Enter}Second?');
     await user.click(button('Move line 2 up'));
@@ -121,6 +134,7 @@ describe('writing the script', () => {
   it('sets what each answer leads to, then folds the line to a readable summary', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/start with a blank script/i));
     await user.type(screen.getByLabelText('Question 1'), 'Are you free to talk?');
 
@@ -140,6 +154,7 @@ describe('writing the script', () => {
   it('compares a number answer against a threshold', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/start with a blank script/i));
     await user.type(screen.getByLabelText('Question 1'), 'What is your notice period?');
 
@@ -154,6 +169,7 @@ describe('writing the script', () => {
   it('shares the score between questions in one place', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/start with a blank script/i));
     await user.type(screen.getByLabelText('Question 1'), 'First?{Enter}Second?');
     await user.click(button(/scoring and call rules/i));
@@ -171,10 +187,12 @@ describe('launching', () => {
   it('cannot start until everything is in place, and says what is missing', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(button(/start with a blank script/i));
-    await user.click(button(/next: add people/i));
+    await user.click(button(/next: review & start/i));
     expect(button(/start calling/i)).toBeDisabled();
-    expect(screen.getByText(/give the campaign a name/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/give the campaign a name/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/add the people you want to call/i).length).toBeGreaterThan(0);
   });
 
   it('creates the campaign, starts it and opens it', async () => {
@@ -183,12 +201,13 @@ describe('launching', () => {
     await buildReadyCampaign(user);
     await user.click(button(/start calling 1 person/i));
 
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/api/campaigns/wizard', expect.objectContaining({
-      name: 'Quick check',
-      contacts: [expect.objectContaining({ name: 'Priya Sharma', phone: '+919876543210' })],
-      dataToCollect: [expect.objectContaining({ text: 'Are you free to talk?', weight: 100 })],
-    })));
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/api/campaigns/new-1/status', { action: 'start' }));
+    // The script is saved without people; people go through the chunked sync.
+    const wizard = apiPost.mock.calls.find(([u]) => u === '/api/campaigns/wizard')[1];
+    expect(wizard).toMatchObject({ name: 'Quick check', dataToCollect: [expect.objectContaining({ text: 'Are you free to talk?', weight: 100 })] });
+    expect(wizard).not.toHaveProperty('contacts');
+    const sync = apiPost.mock.calls.find(([u]) => u === '/api/campaigns/new-1/contacts/sync')[1];
+    expect(sync).toMatchObject({ chunkIndex: 0, rowOffset: 0, final: true, rows: [expect.objectContaining({ name: 'Priya Sharma', phone: '+919876543210' })] });
     expect(await screen.findByText('Campaign Page')).toBeInTheDocument();
   });
 
@@ -233,13 +252,11 @@ describe('people', () => {
   it('reports skipped lines and duplicates, and can undo an import', async () => {
     const user = userEvent.setup();
     renderBuilder();
-    await user.click(button(/start with a blank script/i));
-    await user.click(button(/next: add people/i));
     await user.type(screen.getByLabelText('Paste names and numbers'), 'Priya, 9876543210{Enter}Priya again, 98765 43210{Enter}nonsense');
     await user.click(button(/^person_add add$/i));
 
     const alert = screen.getByText(/added 1 person from pasted list/i).closest('[role="status"]');
-    expect(within(alert).getByText(/1 number already on the list/)).toBeInTheDocument();
+    expect(within(alert).getByText(/1 duplicate phone number removed — the first row was kept/)).toBeInTheDocument();
     expect(within(alert).getByText(/1 row skipped/)).toBeInTheDocument();
 
     await user.click(within(alert).getByRole('button', { name: 'Undo' }));
@@ -250,6 +267,7 @@ describe('people', () => {
     const user = userEvent.setup();
     renderBuilder();
     await buildReadyCampaign(user);
+    await user.click(button(/who you're calling/i));
     await user.click(button('Edit Priya Sharma'));
     const dialog = screen.getByRole('dialog');
     const name = within(dialog).getByLabelText('Name');
@@ -294,6 +312,8 @@ describe('editing an existing campaign', () => {
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/api/campaigns/wizard/abc', expect.objectContaining({ name: 'Existing Campaign' })));
     expect(apiPost).not.toHaveBeenCalledWith('/api/campaigns/wizard', expect.anything());
+    // Nobody was added or changed, so people aren't re-sent.
+    expect(apiPost).not.toHaveBeenCalledWith('/api/campaigns/abc/contacts/sync', expect.anything());
   });
 
   it('still opens the editor when loading fails', async () => {
@@ -307,6 +327,7 @@ describe('editing an existing campaign', () => {
 describe('conversation campaigns', () => {
   async function startDemoBrief(user) {
     renderBuilder();
+    await toScript(user);
     await user.click(screen.getByRole('radio', { name: /have a conversation/i }));
     await user.click(button(/book product demos/i));
   }
@@ -314,6 +335,7 @@ describe('conversation campaigns', () => {
   it('choosing "Have a conversation" offers briefs instead of question scripts', async () => {
     const user = userEvent.setup();
     renderBuilder();
+    await toScript(user);
     await user.click(screen.getByRole('radio', { name: /have a conversation/i }));
     expect(button(/book product demos/i)).toBeInTheDocument();
     expect(button(/start with a blank brief/i)).toBeInTheDocument();
@@ -400,5 +422,28 @@ describe('conversation campaigns', () => {
     expect(body.mode).toBe('conversation');
     expect(body.conversation.knowledge).toBe('Acme CRM.');
     expect(body.dataToCollect).toEqual([]);
+  });
+});
+
+describe('uploading a sheet with extra columns', () => {
+  it('maps name (from two columns), phone and the other columns to variables, shown in the variables panel', async () => {
+    const user = userEvent.setup();
+    renderBuilder();
+    const csv = 'First Name,Last Name,Mobile,Amount,Last date\nRakesh,Kumar,98765 43210,460,12/11/2026\nSunita,Rao,91234 56789,1250,15/11/2026\n';
+    await user.upload(screen.getByLabelText('Upload a contacts file'), new File([csv], 'dues.csv', { type: 'text/csv' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Name column 1')).toHaveValue('First Name');
+    expect(within(dialog).getByLabelText('Name column 2')).toHaveValue('Last Name');
+    expect(within(dialog).getByLabelText('Phone column')).toHaveValue('Mobile');
+    expect(within(dialog).getByLabelText('Type of Amount')).toHaveValue('money');
+    expect(within(dialog).getByLabelText('Type of Last date')).toHaveValue('date');
+    expect(within(dialog).getByText('₹460')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /add 2 rows/i }));
+
+    expect(screen.getByText('Rakesh Kumar')).toBeInTheDocument();
+    const panel = screen.getByRole('list', { name: 'Variables' });
+    expect(within(panel).getByLabelText('Name of Amount')).toHaveValue('amount');
+    expect(within(panel).getByLabelText('Name of Last date')).toHaveValue('last_date');
   });
 });

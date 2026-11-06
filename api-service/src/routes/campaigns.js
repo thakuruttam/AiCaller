@@ -16,7 +16,8 @@ import {
   mergeDuplicateContacts,
   debugDuplicateContacts,
   previewVoice,
-  previewGeminiVoice
+  previewGeminiVoice,
+  syncCampaignContacts
 } from '../controllers/campaign.controller.js';
 import { draftCampaign, getDraftJob } from '../controllers/draft.controller.js';
 import { tryChat } from '../controllers/tryChat.controller.js';
@@ -44,6 +45,8 @@ router.get('/draft/:jobId', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), getDraf
 router.post('/try-chat', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), tryChat);
 router.post('/wizard', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), createWizardCampaign);
 router.put('/wizard/:id', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateWizardCampaign);
+// People are saved apart from the script, in chunks (see campaignContacts.service.js).
+router.post('/:id/contacts/sync', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), syncCampaignContacts);
 router.post('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), updateCampaignStatus);
 router.post('/:id/clone', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('id'), cloneCampaign);
 router.post('/:campaignId/contacts', authorize('SUPER_ADMIN', 'ADMIN', 'EDITOR'), verifyCampaignAccess('campaignId'), uploadContacts);

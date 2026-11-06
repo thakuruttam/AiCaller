@@ -85,7 +85,7 @@ describe('getReadiness', () => {
     expect(r.blockers).toEqual(expect.arrayContaining([
       expect.objectContaining({ step: 'script', text: 'Give the campaign a name.' }),
       expect.objectContaining({ step: 'script', text: 'Add at least one question.' }),
-      expect.objectContaining({ step: 'contacts', text: 'Add the people you want to call.' }),
+      expect.objectContaining({ step: 'people', text: 'Add the people you want to call.' }),
     ]));
   });
 
@@ -148,7 +148,7 @@ describe('getReadiness', () => {
   it('refuses a schedule in the past', () => {
     const now = Date.parse('2026-10-11T12:00:00Z');
     const r = getReadiness(ready({ scheduledAt: '2026-10-11T11:00:00Z' }), now);
-    expect(r.blockers[0]).toMatchObject({ step: 'contacts' });
+    expect(r.blockers[0]).toMatchObject({ step: 'start' });
   });
 
   it('prices per-contact length overrides', () => {
@@ -277,15 +277,18 @@ describe('spreadsheets', () => {
     expect(skipped).toBe(2);
   });
 
-  it('adds each phone number once', () => {
-    const existing = [{ name: 'Priya', phone: '+911', overrides: {} }];
-    const { contacts, added, duplicates } = mergeContacts(existing, [
-      { name: 'Priya again', phone: '+911', tag: '' },
+  it('adds each phone number once: a known number is updated, a repeat in the upload keeps its first row', () => {
+    const existing = [{ name: 'Priya', phone: '+911', overrides: {}, vars: { v_amt001: '100' } }];
+    const { contacts, added, updated, duplicates } = mergeContacts(existing, [
+      { name: 'Priya again', phone: '+911', tag: '', vars: { v_amt001: '250' } },
       { name: 'Rahul', phone: '+912', tag: 'B' },
       { name: 'Rahul twice', phone: '+912', tag: '' },
     ]);
     expect(added).toBe(1);
-    expect(duplicates).toBe(2);
+    expect(updated).toBe(1);
+    expect(duplicates).toBe(1);
+    expect(contacts).toHaveLength(2);
+    expect(contacts[0]).toMatchObject({ name: 'Priya again', vars: { v_amt001: '250' } });
     expect(contacts[1]).toEqual({ name: 'Rahul', phone: '+912', tag: 'B', overrides: { name: 'Rahul', tag: 'B' } });
   });
 });

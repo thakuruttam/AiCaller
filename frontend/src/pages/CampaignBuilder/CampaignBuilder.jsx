@@ -7,10 +7,12 @@ import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import StartChooser from './StartChooser';
 import ScriptStep from './ScriptStep';
-import ContactsStep from './ContactsStep';
+import PeopleStep from './PeopleStep';
+import StartStep from './StartStep';
+import { syncContacts } from './contactsSync';
 import {
   emptyPayload, formatIST, formatRupees, fromCampaign, fromTemplate, getReadiness,
-  newItem, normalizeItems, plural,
+  newItem, normalizeItems, plural, toSavePayload,
 } from './campaignModel';
 
 // Creating a campaign, from scratch.
@@ -23,9 +25,12 @@ import {
 // Options, so the common path never sees them. Readiness is computed
 // continuously and every launch blocker names the step that fixes it.
 
+// People come first so their columns exist as {{variables}} while the call
+// is written; starting still needs at least one person.
 const STEPS = [
+  { key: 'people', label: "Who you're calling" },
   { key: 'script', label: 'Write the call' },
-  { key: 'contacts', label: 'Add people & start' },
+  { key: 'start', label: 'Review & start' },
 ];
 
 function Stepper({ step, onChange, done }) {
@@ -73,7 +78,12 @@ export default function CampaignBuilder() {
   const [payload, setPayload] = useState(emptyPayload);
   const [loading, setLoading] = useState(isEdit);
   const [started, setStarted] = useState(isEdit);
-  const [step, setStep] = useState('script');
+  const [step, setStep] = useState(isEdit ? 'script' : 'people');
+  // People sync apart from the script, and only when they (or the variables
+  // their values are parsed by) changed since the last save.
+  const [peopleDirty, setPeopleDirty] = useState(false);
+  // A new campaign gets its id on first save; later saves update it.
+  const [savedId, setSavedId] = useState(id || null);
   const [saving, setSaving] = useState(null); // 'draft' | 'launch'
   const [draftNotes, setDraftNotes] = useState(null);
   const [touched, setTouched] = useState(false);
@@ -108,14 +118,19 @@ export default function CampaignBuilder() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [touched, saving]);
 
-  const update = (patch) => { setPayload(p => ({ ...p, ...patch })); setTouched(true); };
+  const update = (patch) => {
+    setPayload(p => ({ ...p, ...patch }));
+    setTouched(true);
+    if ('contacts' in patch || 'variables' in patch) setPeopleDirty(true);
+  };
 
   // ── Starting points ───────────────────────────────────────────────────
   // A template is a type string, a drafted script is a payload, null is
   // blank. Whichever it is, contacts and timing already chosen survive.
   const start = (from, notes = []) => {
     setPayload(p => {
-      const keep = { contacts: p.contacts, scheduledAt: p.scheduledAt };
+      // Who's being called — and their columns — survive picking a starting point.
+      const keep = { contacts: p.contacts, variables: p.variables, scheduledAt: p.scheduledAt, ...(p.name ? { name: p.name } : {}) };
       if (from === null) {
         return { ...emptyPayload(), ...keep, dataToCollect: normalizeItems([newItem('question')]) };
       }
@@ -139,18 +154,19 @@ export default function CampaignBuilder() {
     const ok = await confirm({
       title: 'Start the script over?',
       body: payload.mode === 'conversation'
-        ? 'Your brief and lines will be replaced. People you have added stay.'
-        : 'Your questions and lines will be replaced. People you have added stay.',
+        ? 'Your brief and lines will be replaced. People you have added, and their columns, stay.'
+        : 'Your questions and lines will be replaced. People you have added, and their columns, stay.',
       confirmLabel: 'Start over',
       tone: 'danger',
     });
-    if (ok) { setStarted(false); setDraftNotes(null); }
+    if (ok) { setStarted(false); setDraftNotes(null); setStep('script'); }
   };
 
   // ── Readiness ─────────────────────────────────────────────────────────
   const readiness = useMemo(() => getReadiness(payload), [payload]);
   const scriptBlockers = readiness.blockers.filter(b => b.step === 'script');
-  const contactBlockers = readiness.blockers.filter(b => b.step === 'contacts');
+  const peopleBlockers = readiness.blockers.filter(b => b.step === 'people');
+  const startBlockers = readiness.blockers.filter(b => b.step === 'start');
   // Where each script problem shows inline. Unfilled [gaps] show at once —
   // they come from templates and are the first thing to fill in; everything
   // else waits for showErrors so a line you just added isn't already red.
@@ -160,22 +176,37 @@ export default function CampaignBuilder() {
     if (b.itemId && !issues.items[b.itemId]) issues.items[b.itemId] = b;
     if (b.field && !issues.fields[b.field]) issues.fields[b.field] = b;
   }
-  const done = { script: started && scriptBlockers.length === 0, contacts: readiness.contacts > 0 && contactBlockers.length === 0 };
+  const done = {
+    people: readiness.contacts > 0 && peopleBlockers.length === 0,
+    script: started && scriptBlockers.length === 0,
+    start: readiness.blockers.length === 0 && startBlockers.length === 0,
+  };
 
   const goTo = (next) => {
-    if (step === 'script' && next !== 'script') setShowErrors(true);
+    if (step === 'script' && next !== 'script' && started) setShowErrors(true);
     setStep(next);
     scrollToTop();
   };
 
   // ── Saving ────────────────────────────────────────────────────────────
+  // The script (texts stored with {{variableId}}) through the wizard
+  // endpoints, then — if they changed — the people, in chunks.
   const persist = async () => {
-    if (isEdit) {
-      await api.put(`/api/campaigns/wizard/${id}`, payload);
-      return id;
+    const body = toSavePayload(payload);
+    let campaignId = savedId;
+    if (campaignId) {
+      await api.put(`/api/campaigns/wizard/${campaignId}`, body);
+    } else {
+      const { data } = await api.post('/api/campaigns/wizard', body);
+      campaignId = data.campaign.id;
+      setSavedId(campaignId);
     }
-    const { data } = await api.post('/api/campaigns/wizard', payload);
-    return data.campaign.id;
+    if (peopleDirty || !savedId) {
+      const result = await syncContacts(api, campaignId, payload.contacts || []);
+      setPeopleDirty(false);
+      if (result.skippedRows.length) addToast(`${plural(result.skippedRows.length, 'row')} not saved — each needs a name and a valid number.`, 'warning');
+    }
+    return campaignId;
   };
 
   const saveDraft = async () => {
@@ -229,13 +260,7 @@ export default function CampaignBuilder() {
         {isEdit ? 'Back to campaign' : 'Back to dashboard'}
       </BackLink>
 
-      {!started ? (
-        <div className="max-w-5xl pb-10">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">New campaign</h1>
-          <p className="text-sm text-muted-foreground mt-1 mb-7">Two quick steps: write what the agent says, then add who to call.</p>
-          <StartChooser onStart={start} />
-        </div>
-      ) : (
+      {
         <>
           {/* Sticky so the name/step controls stay in reach while a long
               contact list or script scrolls beneath them, instead of
@@ -268,7 +293,7 @@ export default function CampaignBuilder() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {!isEdit && (
+              {!isEdit && started && (
                 <Button variant="ghost" size="sm" icon="restart_alt" onClick={startOver} aria-label="Start over">
                   <span className="hidden sm:inline">Start over</span>
                 </Button>
@@ -277,7 +302,10 @@ export default function CampaignBuilder() {
             </div>
           </div>
 
-          {step === 'script' ? (
+          {step === 'people' && (
+            <PeopleStep payload={payload} update={update} onError={(msg) => addToast(msg, 'error')} />
+          )}
+          {step === 'script' && (started ? (
             <ScriptStep
               payload={payload}
               update={update}
@@ -286,12 +314,12 @@ export default function CampaignBuilder() {
               onDismissNotes={() => setDraftNotes(null)}
             />
           ) : (
-            <ContactsStep
-              payload={payload}
-              update={update}
-              readiness={readiness}
-              onError={(msg) => addToast(msg, 'error')}
-            />
+            <div className="max-w-5xl pb-10">
+              <StartChooser onStart={start} />
+            </div>
+          ))}
+          {step === 'start' && (
+            <StartStep payload={payload} update={update} readiness={readiness} />
           )}
 
           {/* Always in reach: what's left to do, and the way forward. */}
@@ -321,14 +349,16 @@ export default function CampaignBuilder() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {step === 'contacts' && (
-                    <Button variant="ghost" icon="arrow_back" onClick={() => goTo('script')} disabled={!!saving}>Back</Button>
+                  {step !== 'people' && (
+                    <Button variant="ghost" icon="arrow_back" onClick={() => goTo(step === 'start' ? 'script' : 'people')} disabled={!!saving}>Back</Button>
                   )}
                   <Button variant="secondary" onClick={saveDraft} loading={saving === 'draft'} disabled={!!saving}>
                     {isEdit ? 'Save' : 'Save draft'}
                   </Button>
-                  {step === 'script' ? (
-                    <Button iconRight="arrow_forward" onClick={() => goTo('contacts')}>Next: add people</Button>
+                  {step === 'people' ? (
+                    <Button iconRight="arrow_forward" onClick={() => goTo('script')}>Next: write the call</Button>
+                  ) : step === 'script' ? (
+                    <Button iconRight="arrow_forward" onClick={() => goTo('start')} disabled={!started}>Next: review & start</Button>
                   ) : (
                     <Button
                       icon={scheduled ? 'schedule' : 'call'}
@@ -344,7 +374,7 @@ export default function CampaignBuilder() {
             </Card>
           </div>
         </>
-      )}
+      }
     </Page>
   );
 }

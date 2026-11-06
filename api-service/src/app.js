@@ -16,7 +16,10 @@ import chatbotRoutes from './routes/chatbot.js';
 const app = express();
 
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+// 1 MB: a contacts-sync chunk (up to 1,000 people with their columns) is
+// larger than express's 100 KB default. nginx in front allows 1 MB by
+// default, so the builder keeps each chunk under ~700 KB.
+app.use(express.json({ limit: '1mb' }));
 app.use(passport.initialize());
 
 import path from 'path';

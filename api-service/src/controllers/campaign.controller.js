@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { CONVERSATION_LANGUAGES, normalizeConversation } from '../utils/conversationPrompt.js';
 import { publishEvaluation } from '../queue/singletons.js';
 import { enqueueCall, removeQueuedCall } from '../queue/publisher.js';
+import { readVariables, reconcileSchedule, refreshEstimatedMinutes, syncContactsChunk } from '../services/campaignContacts.service.js';
 import { hangupPlivoCall, fetchPlivoRecordingUrl } from '../utils/plivoRest.js';
 import { notifyWorkspace } from '../utils/notifications.js';
 
@@ -90,6 +91,8 @@ export const createWizardCampaign = async (req, res) => {
 
     const modeInfo = readCampaignMode(req.body);
     if (modeInfo.error) return res.status(400).json({ error: modeInfo.error });
+    const vars = readVariables(req.body.variables);
+    if (vars.error) return res.status(400).json({ error: vars.error });
 
     // Use the authenticated user's workspace and identity
     const tenantId   = req.user.workspaceId;   // JWT key: workspaceId
@@ -124,6 +127,7 @@ export const createWizardCampaign = async (req, res) => {
         maxCallDurationSec,
         mode: modeInfo.mode,
         conversation: modeInfo.conversation,
+        variables: vars.variables,
         tenantId,
         callModuleId: callModule.id,
         createdById
@@ -226,6 +230,9 @@ export const updateWizardCampaign = async (req, res) => {
 
     const modeInfo = readCampaignMode(req.body);
     if (modeInfo.error) return res.status(400).json({ error: modeInfo.error });
+    // `variables` left out means "unchanged" — older clients don't send it.
+    const vars = req.body.variables === undefined ? null : readVariables(req.body.variables);
+    if (vars?.error) return res.status(400).json({ error: vars.error });
 
     const maxCallDurationSec = Math.max(30, (callSettings?.maxDuration || 5) * 60);
     const scheduleDate = parseFutureSchedule(scheduledAt);
@@ -243,6 +250,7 @@ export const updateWizardCampaign = async (req, res) => {
         maxCallDurationSec,
         mode: modeInfo.mode,
         conversation: modeInfo.conversation,
+        ...(vars ? { variables: vars.variables } : {}),
         scheduledAt: scheduleDate,
       }
     });
@@ -265,9 +273,13 @@ export const updateWizardCampaign = async (req, res) => {
       }
     });
 
-    // 3. Sync Contacts (Addition and Override Update)
+    // 3. Sync Contacts (Addition and Override Update) — only when a list is
+    // sent. The builder now saves people through POST /:id/contacts/sync and
+    // leaves `contacts` out of script saves; treating "no list" as "empty
+    // list" here would remove everyone.
+    const syncPeople = Array.isArray(contacts);
     const validContactIds = [];
-    if (contacts && contacts.length > 0) {
+    if (syncPeople && contacts.length > 0) {
       // Deduplicate contacts by phone number
       const uniqueContacts = Array.from(new Map(contacts.map(c => [c.phone, c])).values());
       for (const c of uniqueContacts) {
@@ -323,7 +335,7 @@ export const updateWizardCampaign = async (req, res) => {
     // Not gated on validContactIds.length — `notIn: []` correctly matches every
     // row, which is exactly right when the user removed their last contact and
     // the wizard submitted an empty contacts list.
-    {
+    if (syncPeople) {
       // Delete ghost draft call logs (never attempted — safe to discard outright).
       await prisma.callLog.deleteMany({
         where: {
@@ -347,65 +359,8 @@ export const updateWizardCampaign = async (req, res) => {
       });
     }
 
-    // 5. Reconcile scheduling.
-    {
-      const allCampaignContacts = await prisma.campaignContact.findMany({
-        where: { campaignId: id },
-        include: { contact: true }
-      });
-      const existingLogs = await prisma.callLog.findMany({ where: { campaignId: id } });
-      const logsByContact = new Map();
-      for (const log of existingLogs) {
-        if (!logsByContact.has(log.contactId)) logsByContact.set(log.contactId, []);
-        logsByContact.get(log.contactId).push(log);
-      }
-      const terminalStatuses = ['completed', 'failed', 'cancelled', 'no-answer', 'busy'];
-
-      if (scheduleDate) {
-        const delay = scheduleDate.getTime() - Date.now();
-        for (const cc of allCampaignContacts) {
-          const logsForContact = logsByContact.get(cc.contactId) || [];
-          let target = logsForContact.find(l => ['draft', 'scheduled'].includes(l.status));
-
-          if (!target) {
-            // Every existing log for this contact is terminal (the campaign
-            // already ran for them) — scheduling here means "call again at
-            // this time", same intent as Rerun, so create a fresh log rather
-            // than silently doing nothing. Skip if a call for them is
-            // currently active (queued/in-progress/paused) instead of piling
-            // on a second one.
-            const allTerminal = logsForContact.length === 0 || logsForContact.every(l => terminalStatuses.includes(l.status));
-            if (!allTerminal) continue;
-            target = await prisma.callLog.create({
-              data: { tenantId, contactId: cc.contactId, campaignId: id, status: 'draft' }
-            });
-          }
-
-          // Remove any previously-scheduled job for this log first — BullMQ
-          // won't update an existing job's delay if we just re-add the same
-          // jobId, so a changed schedule time would otherwise be silently
-          // ignored and the call would fire at the OLD time.
-          await removeQueuedCall(tenantId, target.id);
-          await prisma.callLog.update({ where: { id: target.id }, data: { status: 'scheduled' } });
-          await enqueueCall(tenantId, {
-            contactId: cc.contactId,
-            campaignId: id,
-            callLogId: target.id,
-            phone: cc.contact.phone
-          }, { delay, jobId: target.id });
-        }
-      } else {
-        // Schedule was cleared (or never set) — cancel any pending delayed
-        // jobs and drop previously-'scheduled' logs back to 'draft' so they
-        // wait for a manual Start again, instead of firing unexpectedly.
-        for (const log of existingLogs) {
-          if (log.status === 'scheduled') {
-            await removeQueuedCall(tenantId, log.id);
-            await prisma.callLog.update({ where: { id: log.id }, data: { status: 'draft' } });
-          }
-        }
-      }
-    }
+    // 5. Reconcile scheduling (shared with the contacts sync).
+    await reconcileSchedule(campaign);
 
     // Recalculate estimated total minutes based on current contacts and their overrides
     if (contacts && contacts.length > 0) {
@@ -566,6 +521,9 @@ export const cloneCampaign = async (req, res) => {
         maxCallDurationSec: source.maxCallDurationSec,
         mode: source.mode,
         conversation: source.conversation ?? undefined,
+        // Variable definitions go with the script so its {{variables}} still
+        // resolve; people (and their values) are added to the copy afresh.
+        variables: source.variables ?? undefined,
         tenantId,
         callModuleId: callModule.id,
         createdById: req.user.id
@@ -1080,5 +1038,28 @@ export const previewGeminiVoice = async (req, res) => {
   } catch (error) {
     console.error('[previewGeminiVoice]', error);
     res.status(500).json({ error: error?.message || 'Unknown error' });
+  }
+};
+
+/**
+ * POST /api/campaigns/:id/contacts/sync — one chunk of the campaign's people.
+ * See syncContactsChunk: rows are added or updated by phone, repeats within
+ * a sync are dropped, and the final chunk removes anyone the sync left out.
+ */
+export const syncCampaignContacts = async (req, res) => {
+  try {
+    const campaign = await prisma.campaign.findUnique({ where: { id: req.params.id } });
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found.' });
+    const { syncId, chunkIndex, rowOffset, final, fileName, rows } = req.body || {};
+    const result = await syncContactsChunk({
+      campaign, userId: req.user?.id, syncId,
+      chunkIndex: Number.isInteger(chunkIndex) && chunkIndex >= 0 ? chunkIndex : 0,
+      rowOffset,
+      final: final === true, fileName, rows,
+    });
+    res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error('[syncCampaignContacts]', error);
+    res.status(500).json(dbErrorPayload(error));
   }
 };

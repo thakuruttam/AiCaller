@@ -7,6 +7,10 @@
 // What a question does with its answer lives in questionLogic.js.
 
 import { readLogic, syncLogic, writeLogic } from './questionLogic';
+import {
+  dedupeByPhone, buildName, looksLikeInstruction, normalizePhone as normalizePhoneE164, toIdTokens, toKeyTokens,
+  undeclaredRefs, tokensIn, toKey as toKeyName,
+} from '../../lib/contactVariables';
 
 export const RATE_PER_MINUTE = 5; // ₹/min, matches api-service/src/config/billing.js
 
@@ -213,6 +217,9 @@ export function emptyPayload() {
     type: 'HR',
     mode: 'questions',
     conversation: emptyConversation(),
+    // Columns from the uploaded file, usable as {{key}} in any text. Each
+    // person's raw cells live on their contact as `vars: { [variableId]: raw }`.
+    variables: [],
     prompt: '',
     goals: { goal: '', callIntro: '', callSignOff: '' },
     dataToCollect: [],
@@ -574,9 +581,10 @@ export function getReadiness(payload, now = Date.now()) {
 
   if (weight > 100) block('script', `Question weights add up to ${weight}% — bring them down to 100%.`);
 
-  if (!contacts) block('contacts', 'Add the people you want to call.');
+  for (const v of variableBlockers(payload)) block(v.step, v.text, v.where || {});
+  if (!contacts) block('people', 'Add the people you want to call.');
   if (payload.scheduledAt && new Date(payload.scheduledAt).getTime() <= now) {
-    block('contacts', 'The scheduled time has passed — pick a later one.');
+    block('start', 'The scheduled time has passed — pick a later one.');
   }
 
   if (questions.length && weight < 100) {
@@ -624,9 +632,10 @@ function getConversationReadiness(payload, now) {
     block('script', 'Conversation calls work in English or Hinglish for now — switch the language.', { field: 'language' });
   }
 
-  if (!contacts) block('contacts', 'Add the people you want to call.');
+  for (const v of variableBlockers(payload)) block(v.step, v.text, v.where || {});
+  if (!contacts) block('people', 'Add the people you want to call.');
   if (payload.scheduledAt && new Date(payload.scheduledAt).getTime() <= now) {
-    block('contacts', 'The scheduled time has passed — pick a later one.');
+    block('start', 'The scheduled time has passed — pick a later one.');
   }
   if (!conv.rules?.never?.length) warnings.push('No "Never" rules — consider listing what the agent must not promise.');
   if (!conv.callPlan?.trim()) warnings.push('No steps under "How the call should go" — the agent will improvise the order of the call.');
@@ -641,12 +650,19 @@ function getConversationReadiness(payload, now) {
 
 /** GET /api/campaigns/:id → the payload the builder edits. */
 export function fromCampaign(c) {
+  const loaded = readCampaign(c);
+  // Texts are stored with {{variableId}}; the editor shows {{name}}.
+  return mapTexts(loaded, (t) => toKeyTokens(t, loaded.variables));
+}
+
+function readCampaign(c) {
   const base = emptyPayload();
   return {
     ...base,
     name: c.name || '',
     type: c.type || base.type,
     mode: c.mode === 'conversation' ? 'conversation' : 'questions',
+    variables: Array.isArray(c.variables) ? c.variables : [],
     conversation: {
       ...base.conversation,
       ...(c.conversation || {}),
@@ -673,6 +689,7 @@ export function fromCampaign(c) {
       phone: cc.contact?.phone || '',
       tag: cc.overrides?.tag || '',
       overrides: cc.overrides || {},
+      vars: Object.fromEntries(Object.entries(cc.vars || {}).map(([id, v]) => [id, v?.raw ?? ''])),
     })),
     scheduledAt: c.scheduledAt || null,
   };
@@ -766,14 +783,157 @@ export function rowsToContacts(rows, { nameCol, phoneCol, tagCol }, defaultCode 
  * configuration per number). Returns how many were actually added.
  */
 export function mergeContacts(existing = [], incoming = []) {
-  const seen = new Set(existing.map(c => c.phone));
-  const added = [];
+  // A number already on the list gets the new name and column values (a new
+  // upload updates people — never a second entry); a number repeated within
+  // the incoming list keeps its first row.
+  const index = new Map(existing.map((c, i) => [c.phone, i]));
+  const next = [...existing];
+  const seen = new Set();
+  let added = 0;
+  let updated = 0;
+  let duplicates = 0;
   for (const c of incoming) {
-    if (seen.has(c.phone)) continue;
+    if (seen.has(c.phone)) { duplicates += 1; continue; }
     seen.add(c.phone);
-    added.push({ ...c, overrides: { ...(c.overrides || {}), name: c.name, tag: c.tag || '' } });
+    const at = index.get(c.phone);
+    if (at !== undefined) {
+      const old = next[at];
+      next[at] = {
+        ...old,
+        name: c.name || old.name,
+        tag: c.tag || old.tag || '',
+        vars: { ...(old.vars || {}), ...(c.vars || {}) },
+        overrides: { ...(old.overrides || {}), name: c.name || old.name, tag: c.tag || old.tag || '' },
+      };
+      updated += 1;
+    } else {
+      next.push({ ...c, overrides: { ...(c.overrides || {}), name: c.name, tag: c.tag || '' } });
+      added += 1;
+    }
   }
-  return { contacts: [...existing, ...added], added: added.length, duplicates: incoming.length - added.length };
+  return { contacts: next, added, updated, duplicates };
+}
+
+// ── Variables ───────────────────────────────────────────────────────────────
+
+/** Every text in the campaign that may contain {{variables}}, as [getter, setter] pairs via mapTexts. */
+export function mapTexts(payload, fn) {
+  const conv = payload.conversation || {};
+  const goals = payload.goals || {};
+  return {
+    ...payload,
+    goals: { ...goals, goal: fn(goals.goal || ''), callIntro: fn(goals.callIntro || ''), callSignOff: fn(goals.callSignOff || '') },
+    endCallIf: fn(payload.endCallIf || ''),
+    dataToCollect: (payload.dataToCollect || []).map(i => ({ ...i, text: fn(i.text || '') })),
+    conversation: {
+      ...conv,
+      knowledge: fn(conv.knowledge || ''),
+      callPlan: fn(conv.callPlan || ''),
+      availability: fn(conv.availability || ''),
+      rules: { never: (conv.rules?.never || []).map(fn), always: (conv.rules?.always || []).map(fn) },
+    },
+  };
+}
+
+/** All texts, flattened — for finding which variables are used. */
+export function campaignTexts(payload) {
+  const out = [];
+  mapTexts(payload, (t) => { out.push(t); return t; });
+  return out;
+}
+
+/** The variable ids (and names typed before upload) the campaign's texts use. */
+export const usedVariableRefs = (payload) => [...new Set(campaignTexts(payload).flatMap(tokensIn))];
+
+/**
+ * Renames a variable everywhere: the editor's texts use {{name}}, so every
+ * {{old}} becomes {{new}}. Returns null when the new name is taken or empty.
+ */
+export function renameVariable(payload, id, nextKeyRaw) {
+  const variables = payload.variables || [];
+  const v = variables.find(x => x.id === id);
+  const nextKey = toKeyName(nextKeyRaw);
+  if (!v || !nextKey || nextKey === 'name' || variables.some(x => x.id !== id && x.key === nextKey)) return null;
+  const re = new RegExp(`\\{\\{\\s*${v.key}\\s*\\}\\}`, 'g');
+  const renamed = mapTexts(payload, (t) => t.replace(re, `{{${nextKey}}}`));
+  return { ...renamed, variables: variables.map(x => (x.id === id ? { ...x, key: nextKey } : x)) };
+}
+
+/** Removes a variable and everyone's value for it. Lines still using it become launch blockers. */
+export function removeVariable(payload, id) {
+  return {
+    ...payload,
+    variables: (payload.variables || []).filter(v => v.id !== id),
+    contacts: (payload.contacts || []).map(c => {
+      if (!c.vars || !(id in c.vars)) return c;
+      const { [id]: _drop, ...vars } = c.vars;
+      return { ...c, vars };
+    }),
+  };
+}
+
+/** Clears every cell that reads like instructions to the agent. */
+export function clearFlaggedCells(contacts = []) {
+  return contacts.map(c => {
+    const entries = Object.entries(c.vars || {});
+    if (!entries.some(([, v]) => looksLikeInstruction(v))) return c;
+    return { ...c, vars: Object.fromEntries(entries.filter(([, v]) => !looksLikeInstruction(v))) };
+  });
+}
+
+/** What the API stores: texts with {{variableId}}, and no people (they sync separately). */
+export function toSavePayload(payload) {
+  const rest = mapTexts(payload, (t) => toIdTokens(t, payload.variables || []));
+  delete rest.contacts;
+  return rest;
+}
+
+/** People whose cells read like instructions to the agent. */
+export function flaggedContacts(contacts = []) {
+  return contacts.filter(c => Object.values(c.vars || {}).some(looksLikeInstruction));
+}
+
+/** Launch blockers that come from variables. */
+function variableBlockers(payload) {
+  const out = [];
+  const variables = payload.variables || [];
+  for (const ref of undeclaredRefs(campaignTexts(payload), variables)) {
+    out.push({ step: 'people', text: `{{${ref}}} isn't a column yet — upload a file with it, or take it out of the call.` });
+  }
+  const used = new Set(usedVariableRefs(payload));
+  for (const v of variables) {
+    if (v.needsColumn && (used.has(v.key) || used.has(v.id))) {
+      out.push({ step: 'people', text: `{{${v.key}}} has no column yet — upload a file with it, or take it out of the call.` });
+    }
+  }
+  const flagged = flaggedContacts(payload.contacts).length;
+  if (flagged) {
+    out.push({ step: 'people', text: `${plural(flagged, 'person has', 'people have')} a cell that reads like instructions to the agent — clear it before starting.`, where: { flagged: true } });
+  }
+  return out;
+}
+
+/**
+ * People from an uploaded sheet: name from one or more columns, phone, tag,
+ * and each mapped column's cell as a variable value. A repeated number keeps
+ * its first row; rows without a name or a valid number are skipped.
+ */
+export function contactsFromRows(rows, { nameColumns = [], phoneColumn, tagColumn, columns = {} }, defaultCode = '+91') {
+  const { unique, duplicates } = dedupeByPhone(rows, { phoneOf: (r) => normalizePhoneE164(r[phoneColumn], defaultCode) });
+  const contacts = [];
+  let skipped = rows.length - unique.length - duplicates.length;
+  for (const { row, phone } of unique) {
+    const name = buildName(row, nameColumns);
+    if (!name) { skipped += 1; continue; }
+    const vars = {};
+    for (const [header, id] of Object.entries(columns)) {
+      if (!id) continue;
+      const raw = String(row[header] ?? '').trim();
+      if (raw) vars[id] = raw;
+    }
+    contacts.push({ name, phone, tag: tagColumn ? String(row[tagColumn] ?? '').trim() : '', vars });
+  }
+  return { contacts, skipped, duplicates: duplicates.length };
 }
 
 /** +919876543210 → "+91 98765 43210" for reading; other numbers as stored. */
