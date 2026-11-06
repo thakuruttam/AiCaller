@@ -207,3 +207,28 @@ describe('Hinglish calls', () => {
     expect(CONVERSATION_LANGUAGES).toEqual(['English', 'Hinglish']);
   });
 });
+
+describe('final rules block', () => {
+  const build = (language) => buildConversationInstructions({ contactName: 'Uttam', objective: 'Sell a product.', conversation, language });
+
+  it('ends every conversation prompt with the rules, in the language being spoken', () => {
+    const hinglish = build('Hinglish');
+    expect(hinglish.trimEnd()).toMatch(/Main <koi company> se baat kar raha hoon[\s\S]*$/);
+    expect(hinglish.slice(hinglish.lastIndexOf('FINAL CHECK'))).toContain(UNKNOWN_ANSWER_HINGLISH);
+    expect(hinglish.slice(hinglish.lastIndexOf('FINAL CHECK'))).toMatch(/Kisi bimari, takleef ya zaroorat/);
+    const english = build('English');
+    expect(english.slice(english.lastIndexOf('FINAL CHECK'))).toMatch(/Never suggest anything for an illness/);
+    expect(english).not.toMatch(/Galat → Sahi/);
+  });
+
+  it('never names a real product or company in its examples, so nothing leaks into other campaigns', () => {
+    for (const lang of ['English', 'Hinglish']) {
+      const rules = build(lang).slice(build(lang).lastIndexOf('FINAL CHECK'));
+      expect(rules).not.toMatch(/Patanjali|Divya|Madhunashini|Medha/);
+    }
+  });
+
+  it('forbids naming a company the opening line does not', () => {
+    expect(build('English')).toMatch(/never say who you are calling from unless the opening line or the KNOWLEDGE says it/);
+  });
+});
