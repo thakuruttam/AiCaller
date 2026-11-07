@@ -83,6 +83,11 @@ describe('reading values', () => {
     expect(detectType('Visits', ['3', '12', '7'], NOW)).toBe('number');
     expect(detectType('Area', ['Andheri', 'Bandra'], NOW)).toBe('text');
     expect(detectType('Pincode', ['400053', '400050'], NOW)).toBe('number');
+    // Whole words only (2026-11-07: "Experience (Years)" was read as money).
+    expect(detectType('Experience (Years)', ['7', '3'], NOW)).toBe('number');
+    expect(detectType('Coffee cups', ['2', '5'], NOW)).toBe('number');
+    expect(detectType('Expected Salary (INR)', ['343906'], NOW)).toBe('money');
+    expect(detectType('Fees', ['1200'], NOW)).toBe('money');
   });
 });
 

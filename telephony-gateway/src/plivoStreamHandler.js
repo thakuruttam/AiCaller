@@ -1,5 +1,5 @@
 import WebSocket, { WebSocketServer } from 'ws';
-import { CONVERSATION_END_REASONS } from './utils/conversationPrompt.js';
+import { CONVERSATION_END_REASONS, greetingDirective } from './utils/conversationPrompt.js';
 import { aboutThisPerson, renderText } from './utils/contactVariables.js';
 import { VoiceAgent } from './VoiceAgent.js';
 import { prisma } from './db.js';
@@ -1246,6 +1246,10 @@ export function setupPlivoStream() {
             if (useRealtime) {
               const realtimeHandlers = {
                 onAudio: (chunk) => {
+                  // The bot talking is not silence: caller audio is held back
+                  // while it speaks (half-duplex), so without this a long reply
+                  // ran the 60s timer out and hung up (2026-11-07).
+                  resetSilenceTimeout();
                   if (ws.readyState === ws.OPEN && streamSid) {
                     ws.send(JSON.stringify({
                       event: 'playAudio',
@@ -1384,9 +1388,7 @@ export function setupPlivoStream() {
                 // English: the introduction word for word. Hinglish: the same
                 // introduction said in Hinglish — "word for word" plus "translate"
                 // made Gemini open Hinglish calls in English.
-                const geminiGreetingDirective = campaignLanguage === 'English'
-                  ? `Before anything else, as your very first turn on this call, say this EXACT introduction to the caller word for word: "${processedIntro}". Do NOT add any extra sentences or questions beyond what is written.`
-                  : `Before anything else, as your very first turn on this call, say this introduction to the caller in natural ${campaignLanguage}, with exactly the same meaning — keep names as they are, and if it is already in ${campaignLanguage}, say it as written: "${processedIntro}". Do NOT add any extra sentences or questions beyond it.`;
+                const geminiGreetingDirective = greetingDirective(processedIntro, campaignLanguage);
                 const fullAutonomousInstructions = `${geminiGreetingDirective}\n\n${agent.generateAutonomousInstructions()}`;
                 callUsage.engine = 'gemini_live';
                 callUsage.model = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview';

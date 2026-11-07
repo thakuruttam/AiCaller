@@ -157,7 +157,9 @@ export function parseValue(raw, type = 'text', now = Date.now()) {
   return { raw: clean, value: clean };
 }
 
-const MONEY_HEADER = /amount|amt|price|balance|fee|emi|payment|owed|outstanding|due amount|dues|rupee|inr|rs\b|₹|cost|total|bill/i;
+// Whole words only: a bare "rs" used to match "Experience (Years)" and make
+// it money; "fee" matched "coffee".
+const MONEY_HEADER = /\b(amount|amt|price|prices|balance|fees?|emi|payments?|owed|outstanding|dues|rupees?|inr|rs|cost|total|bill|salary|ctc|lpa)\b|₹/i;
 const DATE_HEADER = /date|due|deadline|dob|birthday|expiry|valid|day\b/i;
 
 /**
