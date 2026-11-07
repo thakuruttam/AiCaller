@@ -283,24 +283,24 @@ describe('VoiceAgent passes the opening line', () => {
   });
 });
 
-describe('details are not nagged', () => {
-  // Live call 2026-11-06: "what mascara do you use?" ended six replies in a
-  // row after the caller said twice that he doesn't use any.
+describe('details are only noted, never asked', () => {
+  // 2026-11-07: details are for the report only — the agent must never ask
+  // for them, and only notes one the caller actually states.
   const build = (language) => buildConversationInstructions({
     contactName: 'Uttam', objective: 'Sell.', language,
     conversation: { ...conversation, detailsToCollect: ['Mascara brand they use'] },
   });
 
-  it('asks each detail at most twice, on its own, and accepts "doesn\'t apply"', () => {
+  it('tells the agent never to ask and to note only what is stated', () => {
     const text = build('English');
-    expect(text).toMatch(/Ask for each detail at most TWICE in the whole call/);
-    expect(text).toMatch(/never tack it onto the end of other replies/);
-    expect(text).toMatch(/say it doesn't apply to them .* NEVER ask for that detail again/);
+    expect(text).toMatch(/DETAILS TO NOTE — listen for these, but NEVER ask the caller for them/);
+    expect(text).toMatch(/If they don't mention it, or are vague, refuse or don't know, do NOT call capture_detail/);
+    expect(text).not.toMatch(/at most TWICE/);
   });
 
   it('repeats the rule in the final check, in the language being spoken', () => {
-    expect(build('English').slice(build('English').lastIndexOf('FINAL CHECK'))).toMatch(/Ask for each detail .* at most TWICE/);
-    expect(build('Hinglish').slice(build('Hinglish').lastIndexOf('FINAL CHECK'))).toMatch(/zyada se zyada DO baar poochho/);
+    expect(build('English').slice(build('English').lastIndexOf('FINAL CHECK'))).toMatch(/Never ask the caller for any of the DETAILS TO NOTE/);
+    expect(build('Hinglish').slice(build('Hinglish').lastIndexOf('FINAL CHECK'))).toMatch(/DETAILS TO NOTE ke liye caller se KABHI sawaal mat poochho/);
   });
 });
 
@@ -377,5 +377,20 @@ describe('payment-call safety (2026-11-07 call)', () => {
   it('keeps the final checklist in order', () => {
     const rules = build('English').slice(build('English').lastIndexOf('FINAL CHECK'));
     expect(rules.indexOf('\n7. ')).toBeLessThan(rules.indexOf('\n8. '));
+  });
+});
+
+describe('captured details skip non-answers', () => {
+  const agentWith = () => new VoiceAgent({
+    contactName: 'Uttam', useAutonomousEngine: true, mode: 'conversation', dataToCollect: [],
+    conversation: { ...conversation, detailsToCollect: ['By when will they pay', 'Ready to pay or not'] },
+  });
+
+  it('drops "no date given" and keeps real answers, including a plain "no"', () => {
+    const agent = agentWith();
+    expect(agent.recordDetail('by when will they pay', 'no date given')).toBe(false);
+    expect(agent.recordDetail('Ready to pay or not', 'no')).toBe(true);
+    expect(agent.recordDetail('By when will they pay', '15 November')).toBe(true);
+    expect(agent.capturedDetails).toEqual({ 'Ready to pay or not': 'no', 'By when will they pay': '15 November' });
   });
 });

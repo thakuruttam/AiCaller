@@ -390,7 +390,7 @@ describe('conversation campaigns', () => {
   it('collects only the listed details, and the test chat shows what was saved', async () => {
     const user = userEvent.setup();
     await startDemoBrief(user);
-    expect(screen.getByRole('list', { name: 'Details to collect' })).toHaveTextContent('Email');
+    expect(screen.getByRole('list', { name: 'Details to note' })).toHaveTextContent('Email');
     expect(screen.getByLabelText(/When can meetings happen/)).toHaveValue('Monday to Friday, 10am to 6pm IST');
     apiPost.mockImplementation((url) => {
       if (url === '/api/campaigns/try-chat') return Promise.resolve({ data: { reply: 'Thanks, noted.', endCall: null, captured: { Email: 'u@x.com' } } });
@@ -436,9 +436,9 @@ describe('uploading a sheet with extra columns', () => {
     expect(within(dialog).getByLabelText('Name column 1')).toHaveValue('First Name');
     expect(within(dialog).getByLabelText('Name column 2')).toHaveValue('Last Name');
     expect(within(dialog).getByLabelText('Phone column')).toHaveValue('Mobile');
-    expect(within(dialog).getByLabelText('Type of Amount')).toHaveValue('money');
-    expect(within(dialog).getByLabelText('Type of Last date')).toHaveValue('date');
-    expect(within(dialog).getByText('₹460')).toBeInTheDocument();
+    // A sheet, not a schema: no type pickers, values shown as written.
+    expect(within(dialog).queryByLabelText('Type of Amount')).toBeNull();
+    expect(within(dialog).getByText('460')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: /add 2 rows/i }));
 
     expect(screen.getByText('Rakesh Kumar')).toBeInTheDocument();
@@ -466,7 +466,7 @@ describe('using variables in the call', () => {
     await user.type(opening, 'Hi ##am');
     const list = screen.getByRole('listbox', { name: 'Variables' });
     expect(within(list).getByText('{{amount}}')).toBeInTheDocument();
-    expect(within(list).getByText('₹460')).toBeInTheDocument();
+    expect(within(list).getByText('460')).toBeInTheDocument();
     await user.keyboard('{Enter}');
     expect(opening).toHaveValue('Hi {{amount}}');
   });
@@ -479,9 +479,9 @@ describe('using variables in the call', () => {
     await user.click(button(/start with a blank script/i));
     await user.click(screen.getByLabelText('Opening line'));
     await user.paste('Hi {{name}}, {{amount}} is due by {{last_date}}.');
-    expect(screen.getByText('Hi Rakesh Kumar, ₹460 is due by 12 November.')).toBeInTheDocument();
+    expect(screen.getByText('Hi Rakesh Kumar, 460 is due by 12/11/2026.')).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Preview as'), 'Sunita Rao');
-    expect(screen.getByText('Hi Sunita Rao, ₹1,250 is due by 15 November.')).toBeInTheDocument();
+    expect(screen.getByText('Hi Sunita Rao, 1250 is due by 15/11/2026.')).toBeInTheDocument();
   });
 
   it('a {{name}} typed before any upload becomes a variable waiting for a column', async () => {

@@ -61,7 +61,7 @@ const CONVERSATION_TOOLS = [
   {
     type: 'function',
     name: 'capture_detail',
-    description: 'Call each time the caller gives one of the DETAILS TO COLLECT, with the detail\'s name exactly as listed and their answer.',
+    description: "Call only when the caller clearly states one of the DETAILS TO NOTE on their own, with the detail's name exactly as listed and what they said. Never ask for these, and never call it for a refusal or a non-answer.",
     parameters: {
       type: 'object',
       properties: { name: { type: 'string' }, value: { type: 'string' } },
@@ -182,6 +182,10 @@ export function setupPlivoStream() {
     // When the caller last spoke — the next bot audio chunk closes the gap,
     // recorded as that turn's response latency.
     let awaitingReplySince = null;
+    // When the bot's audio last reached Plivo: caller transcript text that
+    // arrives while the bot is already talking isn't a turn waiting for a
+    // reply (it logged bogus 0ms latencies).
+    let lastBotAudioAt = 0;
     let lastClosingText = null;
     let closingRetried = false;
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
@@ -1199,8 +1203,13 @@ export function setupPlivoStream() {
             // values from the uploaded file ({{variableId}} → "₹460"). The agent
             // knows a value only where the script uses it — the operator gives
             // it meaning by placing it; column names never reach the agent.
-            const variables = Array.isArray(campaign.variables) ? campaign.variables : [];
-            const personValues = campaignContact?.vars || {};
+            // Every value is said exactly as written in the sheet: no
+            // money/date formatting and no "if empty" fallbacks (the
+            // operator asked for a plain sheet, 2026-11-07).
+            const variables = (Array.isArray(campaign.variables) ? campaign.variables : [])
+              .map(v => ({ ...v, type: 'text', fallback: '' }));
+            const personValues = Object.fromEntries(Object.entries(campaignContact?.vars || {})
+              .map(([id, cell]) => { const raw = cell?.raw ?? cell?.value ?? ''; return [id, { raw, value: raw === '' ? null : String(raw) }]; }));
             const personName = overrides.name || callLog.contact?.name;
             const missingVars = new Set();
             const fill = (text) => {
@@ -1276,6 +1285,7 @@ export function setupPlivoStream() {
                   // while it speaks (half-duplex), so without this a long reply
                   // ran the 60s timer out and hung up (2026-11-07).
                   resetSilenceTimeout();
+                  lastBotAudioAt = Date.now();
                   if (awaitingReplySince) {
                     const ms = Date.now() - awaitingReplySince;
                     awaitingReplySince = null;
@@ -1315,7 +1325,7 @@ export function setupPlivoStream() {
                   if (useAutonomous && autonomousPhaseActive) agent?.appendTranscriptTurn('assistant', text);
                 },
                 onToolCall: useAutonomous ? (name, args) => handleAutonomousToolCall(name, args) : undefined,
-                onSpeechActivity: () => { resetSilenceTimeout(); awaitingReplySince = Date.now(); },
+                onSpeechActivity: () => { resetSilenceTimeout(); if (Date.now() - lastBotAudioAt > 400) awaitingReplySince = Date.now(); },
                 // The server is overriding what the model was saying (forced
                 // sign-off, overruled end_call, stall valve): drop audio
                 // Plivo has already buffered so the caller doesn't hear the

@@ -262,7 +262,22 @@ const CallDetails = () => {
         </div>
       )}
 
-      {/* Info Strip */}
+      {/* Details the caller stated during the call — only what was actually said. */}
+      {Object.entries(callLog.outcome?.details || {}).filter(([, v]) => String(v ?? '').trim()).length > 0 && (
+        <div className="bg-card dark:bg-muted rounded-2xl shadow-primary p-5 mb-5">
+          <p className="text-xs text-muted-foreground mb-2">Noted during the call</p>
+          <dl className="flex flex-wrap gap-x-8 gap-y-2">
+            {Object.entries(callLog.outcome.details).filter(([, v]) => String(v ?? '').trim()).map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-xs text-muted-foreground">{k}</dt>
+                <dd className="text-sm font-medium text-foreground">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+
+            {/* Info Strip */}
       <div className="bg-card dark:bg-muted rounded-2xl shadow-primary grid grid-cols-4 p-5 mb-7">
         <div className="space-y-1 border-r border-border pr-6">
           <p className="text-xs text-muted-foreground">Contact Info</p>

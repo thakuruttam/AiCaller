@@ -37,7 +37,7 @@ const TRY_NEXT_MODEL = new Set([404, 429, 500, 503]);
 
 const CAPTURE_DETAIL_TOOL = {
   name: 'capture_detail',
-  description: "Call each time the caller gives one of the DETAILS TO COLLECT, with the detail's name exactly as listed and their answer.",
+  description: "Call only when the caller clearly states one of the DETAILS TO NOTE on their own, with the detail's name exactly as listed and what they said. Never ask for these, and never call it for a refusal or a non-answer.",
   parameters: {
     type: 'object',
     properties: { name: { type: 'string' }, value: { type: 'string' } },
@@ -77,9 +77,10 @@ export function readTryChatBody(body) {
   if (vars.error) return { error: vars.error };
   const person = body.person && typeof body.person === 'object' ? body.person : null;
   const contactName = cleanValue(person?.name || body.contactName).slice(0, 80) || 'Alex';
-  // The person's raw cells, parsed by each variable's type.
-  const values = Object.fromEntries(vars.variables.map(v => [v.id, parseValue(person?.vars?.[v.id], v.type)]));
-  return { payload, messages: cleaned, contactName, variables: vars.variables, values };
+  // Said exactly as in the sheet — no money/date formatting, no fallbacks.
+  const variables = vars.variables.map(v => ({ ...v, type: 'text', fallback: '' }));
+  const values = Object.fromEntries(variables.map(v => [v.id, parseValue(person?.vars?.[v.id], 'text')]));
+  return { payload, messages: cleaned, contactName, variables, values };
 }
 
 /** The full Gemini request for one test turn. Exported for tests. */

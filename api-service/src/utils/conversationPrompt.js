@@ -51,7 +51,7 @@ export function finalRules(language) {
 4. Company ka naam sirf opening line se lo. Opening line mein company na ho to kisi company ka naam mat lo — product ke naam mein jo brand hai (jaise "<brand> <product>"), wo call karne wali company nahi hai. Koi pooche "kahan se bol rahe ho?", to bolo: "${NO_COMPANY_ANSWER_HINGLISH}"
 5. Tum order place, book ya confirm nahi kar sakte. "Order place kar doon?" mat bolo — bolo: "${HANDOFF_LINE_HINGLISH}"
 6. Ek hi product do baar se zyada offer mat karo, jo product caller ne ignore ya mana kiya use dobara mat bolo, aur har reply ke end mein ek hi sawaal mat dohrao.
-7. Har detail (DETAILS TO COLLECT) poori call mein zyada se zyada DO baar poochho. Caller mana kare ya bole ki unke liye lagu nahi hota ("main use nahi karta"), to unka jawab capture_detail mein save karo aur wo detail dobara KABHI mat poochho.
+7. DETAILS TO NOTE ke liye caller se KABHI sawaal mat poochho. Sirf tab capture_detail call karo jab caller khud saaf-saaf wo detail bataye.
 8. Kabhi dhamki mat do, dabaav mat daalo, aur koi nateeja (penalty, legal action, ID/account par asar) mat batao jab tak KNOWLEDGE mein saaf na likha ho.
 
 Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh sirf examples hain, inhe bolna nahi hai):
@@ -69,7 +69,7 @@ Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh s
 4. Take the company name only from the opening line. If the opening line names no company, never name one — a brand inside a product name (like "<brand> <product>") is the product's maker, not who is calling. If asked who or where you are calling from, say: "${NO_COMPANY_ANSWER}"
 5. You cannot place, book or confirm orders. Never say "Shall I place the order?" — say: "${HANDOFF_LINE}"
 6. Never offer the same item more than twice, don't re-offer an item the caller ignored or turned down, and don't end every reply with the same question.
-7. Ask for each detail (DETAILS TO COLLECT) at most TWICE in the whole call. If they decline or say it doesn't apply to them ("I don't use any"), save their answer with capture_detail and NEVER ask for that detail again.
+7. Never ask the caller for any of the DETAILS TO NOTE. Call capture_detail only when the caller clearly states one on their own.
 8. Never threaten, pressure or mention consequences (penalties, legal action, effect on their ID or account) unless the KNOWLEDGE says so.
 
 Wrong → Right (<product> and <price> stand for real items from the KNOWLEDGE — these are examples, not lines to say):
@@ -181,18 +181,17 @@ KNOWLEDGE>>>`
     c.rules.always.length ? `ALWAYS:\n${bullets(c.rules.always)}` : '',
   ].filter(Boolean).join('\n\n');
 
-  const onObjective = `- objective_met: the objective counts as reached only when the caller gives a clear, unambiguous yes to it. Vague or distracted replies ("sure, whatever", "hmm", a number, anything off topic) are NOT a yes — ask one direct confirming question first ("Just to confirm, would you like …?"). It counts as reached as soon as that clear yes is given${c.detailsToCollect.length ? ' and you have asked for the DETAILS TO COLLECT (it\'s fine if they declined some)' : ''}. Then, in one short sentence, repeat back what was agreed and that the team will get back to them, let them respond, and call end_call. Do not keep talking once it is reached.`;
+  const onObjective = `- objective_met: the objective counts as reached only when the caller gives a clear, unambiguous yes to it. Vague or distracted replies ("sure, whatever", "hmm", a number, anything off topic) are NOT a yes — ask one direct confirming question first ("Just to confirm, would you like …?"). It counts as reached as soon as that clear yes is given. Then, in one short sentence, repeat back what was agreed and that the team will get back to them, let them respond, and call end_call. Do not keep talking once it is reached.`;
   const onNo = c.endWhen.acceptFirstNo
     ? '- not_interested: the first time they clearly say they are not interested. Do not try to change their mind.'
     : '- not_interested: if they say they are not interested, you may address their concern ONCE, briefly, using only the KNOWLEDGE. If they still say no, accept it and call end_call. Never push past a second no.';
 
   const details = c.detailsToCollect.length
-    ? `DETAILS TO COLLECT — ask for these naturally during the call, one at a time, once the caller is engaged (not in your first turn):
+    ? `DETAILS TO NOTE — listen for these, but NEVER ask the caller for them and never steer the call toward them:
 ${bullets(c.detailsToCollect)}
-Each time the caller gives one, call capture_detail with the detail's name exactly as written above and their answer.
-- Ask for each detail at most TWICE in the whole call. Ask it on its own, at a natural moment — never tack it onto the end of other replies.
-- If they decline, don't know, or say it doesn't apply to them ("I don't use any", "not needed"), call capture_detail with their answer as the value (e.g. "Doesn't use any") and NEVER ask for that detail again. Move on.`
-    : 'DETAILS TO COLLECT: none. Do not ask the caller for any personal or contact details.';
+- Only when the caller clearly states one of these on their own, call capture_detail with the detail's name exactly as written above and what they said.
+- If they don't mention it, or are vague, refuse or don't know, do NOT call capture_detail for it.`
+    : 'DETAILS TO NOTE: none. Do not ask the caller for any personal or contact details.';
 
   const scheduling = c.availability
     ? `SCHEDULING: meetings can only happen ${c.availability}. If they want a meeting, ask which day and time in that window suits them. If they ask for a time outside it, say politely that it's outside the hours the team is available and offer to pick a time inside it — do not argue or explain further. Never say a meeting is booked or confirmed.`

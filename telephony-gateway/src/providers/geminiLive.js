@@ -267,6 +267,10 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
   // completion-aware semantic_vad — it has no linguistic sense to fall back
   // on if it mistakes echo for real speech.
   let responseCancelPending = false;
+  let forceSpeakTimer = null;
+  // True from a force-sent line until its first audio: a turnComplete with
+  // no audio before then is the late end of the muted turn, not this line.
+  let forcedAwaitingAudio = false;
   // True from the moment the model starts producing a turn (audio,
   // transcript or a tool call) until its turnComplete/interrupted. Unlike
   // botSpeaking, this is also set for turns the model starts on its own in
@@ -285,6 +289,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
 
   function flushPendingSpeak() {
     if (pendingSpeakText !== null) {
+      clearTimeout(forceSpeakTimer);
       const text = pendingSpeakText;
       pendingSpeakText = null;
       sendSpeak(text);
@@ -340,7 +345,17 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       systemInstruction: { parts: [{ text: instructions }] },
       outputAudioTranscription: {},
       inputAudioTranscription: {},
-      realtimeInputConfig: { automaticActivityDetection: {} }
+      // How long Gemini waits after the caller stops before it replies.
+      // The defaults waited noticeably long on live calls (2026-11-07):
+      // high end-of-speech sensitivity and a shorter silence window answer
+      // sooner. Tunable per env without a code change.
+      realtimeInputConfig: {
+        automaticActivityDetection: {
+          endOfSpeechSensitivity: process.env.GEMINI_VAD_END_SENSITIVITY || 'END_SENSITIVITY_HIGH',
+          silenceDurationMs: Number(process.env.GEMINI_VAD_SILENCE_MS) || 600,
+          prefixPaddingMs: 20
+        }
+      }
     };
     if (tools.length > 0) {
       setup.tools = [{ functionDeclarations: toGeminiFunctionDeclarations(tools) }];
@@ -414,6 +429,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
         if (part.thought) continue; // internal reasoning — never spoken, never forwarded
         if (part.inlineData?.data && !responseCancelPending) {
           sawAudioThisTurn = true;
+          forcedAwaitingAudio = false;
           handlers.onAudio?.(pcm24kBase64ToMulaw8k(part.inlineData.data));
         }
       }
@@ -427,6 +443,12 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     }
 
     if (sc.turnComplete) {
+      if (forcedAwaitingAudio && !sawAudioThisTurn) {
+        forcedAwaitingAudio = false;
+        assistantTranscriptBuffer = '';
+        console.log('[GeminiLive] Late turnComplete of the muted turn — ignored, the forced line is still coming');
+        return;
+      }
       botSpeaking = false;
       responseInFlight = false;
       if (dropMutedText) {
@@ -457,6 +479,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
 
   ws.on('close', () => {
     ready = false;
+    clearTimeout(forceSpeakTimer);
     console.log('[GeminiLive] Connection closed');
     handlers.onClose?.();
   });
@@ -510,6 +533,23 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
         dropMutedText = true;
         pendingSpeakText = text;
         handlers.onClearPlayback?.();
+        // Don't wait forever for the muted turn to finish: on a live call
+        // (2026-11-07) its turnComplete never came after end_call, the
+        // goodbye sat in the queue and the caller got 15s of silence before
+        // the hangup. If it's still queued shortly after, say it anyway.
+        clearTimeout(forceSpeakTimer);
+        forceSpeakTimer = setTimeout(() => {
+          if (pendingSpeakText !== text || !ready || ws.readyState !== WebSocket.OPEN) return;
+          console.warn(`[GeminiLive] Muted turn never completed — speaking the forced line anyway: "${text}"`);
+          pendingSpeakText = null;
+          responseCancelPending = false;
+          dropMutedText = false;
+          assistantTranscriptBuffer = '';
+          responseInFlight = false;
+          sawAudioThisTurn = false;
+          forcedAwaitingAudio = true;
+          sendSpeak(text);
+        }, Number(process.env.GEMINI_FORCE_SPEAK_WAIT_MS) || 1200);
         return;
       }
       this.speak(text);

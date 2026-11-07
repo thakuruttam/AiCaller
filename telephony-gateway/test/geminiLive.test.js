@@ -83,6 +83,43 @@ describe('Gemini Live provider — forcing a line over the model', () => {
     expect(speakTexts(socket)[0]).toContain('thank you for your time');
   });
 
+  it('speaks the forced line anyway if the muted turn never completes (live call 2026-11-07)', () => {
+    vi.useFakeTimers();
+    try {
+      socket._message({ toolCall: { functionCalls: [{ id: 'c1', name: 'end_call', args: { reason: 'objective_met' } }] } });
+      session.interruptAndSpeak('thank you for your time');
+      expect(speakTexts(socket)).toHaveLength(0);
+      vi.advanceTimersByTime(1300); // no turnComplete ever arrives
+      expect(speakTexts(socket)).toHaveLength(1);
+      expect(speakTexts(socket)[0]).toContain('thank you for your time');
+
+      // The muted turn's turnComplete showing up late is not the goodbye finishing.
+      socket._message({ serverContent: { turnComplete: true } });
+      expect(handlers.onResponseDone).not.toHaveBeenCalled();
+      expect(speakTexts(socket)).toHaveLength(1);
+
+      socket._message(audioMsg()); // the goodbye plays
+      expect(handlers.onAudio).toHaveBeenCalledTimes(1);
+      socket._message({ serverContent: { turnComplete: true } });
+      expect(handlers.onResponseDone).toHaveBeenCalledWith(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not double-send when the muted turn completes in time', () => {
+    vi.useFakeTimers();
+    try {
+      socket._message(audioMsg());
+      session.interruptAndSpeak('thank you for your time');
+      socket._message({ serverContent: { turnComplete: true } });
+      vi.advanceTimersByTime(5000);
+      expect(speakTexts(socket)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('speaks immediately when nothing is in flight', () => {
     session.interruptAndSpeak('thank you for your time');
     expect(handlers.onClearPlayback).not.toHaveBeenCalled();

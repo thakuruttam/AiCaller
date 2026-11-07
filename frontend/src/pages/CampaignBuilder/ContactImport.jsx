@@ -3,10 +3,9 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { Button, Checkbox, Field, Input, Modal, Select, Textarea } from '../../components/ui';
 import { COUNTRY_CODES, contactsFromRows, guessColumns, parsePastedContacts } from './campaignModel';
-import { VARIABLE_TYPES, detectType, formatValue, newVariableId, parseValue, toKey } from '../../lib/contactVariables';
+import { cleanValue, newVariableId, toKey } from '../../lib/contactVariables';
 
 const SAMPLE_CSV = 'Name,Phone,Amount,Last date\nPriya Sharma,9876543210,460,12/11/2026\nRahul Verma,+91 98123 45678,1250,15/11/2026\n';
-const TYPE_LABELS = { text: 'Text', number: 'Number', money: 'Money (₹)', date: 'Date' };
 
 function downloadSample() {
   const url = URL.createObjectURL(new Blob([SAMPLE_CSV], { type: 'text/csv' }));
@@ -36,13 +35,11 @@ function ColumnMapper({ file, variables, onApply, onClose }) {
   const [nameColumns, setNameColumns] = useState(() => guessNameColumns(file.headers, guess.nameCol));
   const [phoneColumn, setPhoneColumn] = useState(guess.phoneCol || '');
   const [tagColumn, setTagColumn] = useState(guess.tagCol || '');
-  const samplesOf = (h) => file.rows.slice(0, 50).map(r => r[h]);
   const [extra, setExtra] = useState(() => Object.fromEntries(file.headers.map(h => {
     const existing = variables.find(v => v.sourceColumns?.includes(h) || v.key === toKey(h));
     return [h, {
       use: true,
       key: existing?.key || toKey(h),
-      type: existing && !existing.needsColumn ? existing.type : detectType(h, samplesOf(h)),
       target: existing?.id || 'new',
     }];
   })));
@@ -61,7 +58,9 @@ function ColumnMapper({ file, variables, onApply, onClose }) {
     let nextVariables = [...variables];
     const columns = {};
     for (const h of used) {
-      const { key, type, target } = extra[h];
+      const { key, target } = extra[h];
+      // A sheet, not a schema: every value is used exactly as written.
+      const type = 'text';
       const existing = nextVariables.find(v => v.id === target);
       if (existing) {
         nextVariables = nextVariables.map(v => (v.id === existing.id
@@ -139,14 +138,13 @@ function ColumnMapper({ file, variables, onApply, onClose }) {
                   <th className="px-3 py-2 font-medium">Keep</th>
                   <th className="px-3 py-2 font-medium">Column</th>
                   <th className="px-3 py-2 font-medium">Use as</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
-                  <th className="px-3 py-2 font-medium">Said as</th>
+                  <th className="px-3 py-2 font-medium">Example</th>
                 </tr>
               </thead>
               <tbody>
                 {others.map(h => {
                   const c = extra[h];
-                  const said = formatValue(parseValue(sample?.[h], c.type).value, c.type);
+                  const said = cleanValue(sample?.[h]);
                   const waiting = variables.filter(v => v.needsColumn);
                   return (
                     <tr key={h} className="border-b border-border last:border-0 align-middle">
@@ -170,12 +168,7 @@ function ColumnMapper({ file, variables, onApply, onClose }) {
                         )}
                         <Input aria-label={`Variable name for ${h}`} value={c.key} disabled={!c.use} onChange={(e) => setCol(h, { key: toKey(e.target.value) })} className="!h-8 text-xs font-mono" />
                       </td>
-                      <td className="px-3 py-2">
-                        <Select aria-label={`Type of ${h}`} value={c.type} disabled={!c.use} onChange={(e) => setCol(h, { type: e.target.value })} className="!h-8 text-xs">
-                          {VARIABLE_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-                        </Select>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap max-w-[160px] truncate">{c.use ? (said || <span className="text-caution-dim dark:text-caution">can't read “{String(sample?.[h] ?? '')}”</span>) : '—'}</td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap max-w-[160px] truncate">{c.use ? (said || '—') : '—'}</td>
                     </tr>
                   );
                 })}
@@ -228,10 +221,18 @@ export default function ContactImport({ onAdd, onError, variables = [] }) {
       reader.onload = (e) => {
         try {
           const wb = XLSX.read(e.target.result, { type: 'array' });
-          // Cell values, not their display text: a date cell arrives as Excel's
-          // serial number (read exactly by parseDate) rather than display text
-          // like "11/12/26", which may be US month-first.
-          const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+          // Values are used exactly as they read in the sheet, so take each
+          // cell's display text (a date shows as written, not Excel's serial
+          // number) — except where Excel would show a long number like a
+          // phone as "9.19877E+11": there the plain number is what was typed.
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const values = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          const shown = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+          const rows = values.map((row, i) => Object.fromEntries(Object.entries(row).map(([k, v]) => {
+            const text = shown[i]?.[k];
+            if (typeof v === 'number' && (text == null || /e[+-]?\d/i.test(String(text)))) return [k, String(v)];
+            return [k, text ?? v];
+          })));
           handle(rows.length ? Object.keys(rows[0]) : [], rows);
         } catch {
           onError(`Couldn't read ${file.name}.`);

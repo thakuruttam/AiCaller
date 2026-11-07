@@ -97,7 +97,7 @@ export const OBJECTIVE_PRESETS = [
   {
     value: 'collect_details', label: 'Qualify the lead', icon: 'fact_check',
     example: 'Learn their team size, current tool and timeline, and whether they are a fit.',
-    plan: '1. Say in one line why you are calling.\n2. Ask the details to collect, one at a time.\n3. Answer their questions only from the knowledge.\n4. Thank them and say the team will be in touch.',
+    plan: '1. Say in one line why you are calling.\n2. Answer their questions only from the knowledge.\n3. Thank them and say the team will be in touch.',
   },
   { value: 'custom', label: 'Something else', icon: 'edit', example: '', plan: '' },
 ];
@@ -662,7 +662,8 @@ function readCampaign(c) {
     name: c.name || '',
     type: c.type || base.type,
     mode: c.mode === 'conversation' ? 'conversation' : 'questions',
-    variables: Array.isArray(c.variables) ? c.variables : [],
+    // Values are used exactly as in the sheet — no money/date formatting, no fallbacks.
+    variables: (Array.isArray(c.variables) ? c.variables : []).map(v => ({ ...v, type: 'text', fallback: '' })),
     conversation: {
       ...base.conversation,
       ...(c.conversation || {}),

@@ -245,8 +245,8 @@ export default function ConversationStep({ payload, update, issues }) {
         <Card>
           <CardTitle
             icon="contact_page"
-            title="Details to collect"
-            hint="The agent asks for these, and only these — it never asks for anything else personal. Answers are saved with each call."
+            title="Details to note"
+            hint="The agent never asks for these. If the person mentions one during the call, it's noted on that call's page — otherwise it's left out."
           />
           <RuleList
             label="Details"
@@ -256,8 +256,8 @@ export default function ConversationStep({ payload, update, issues }) {
             suggestions={SUGGESTED_DETAILS}
             placeholder="e.g. Email"
             max={MAX_DETAILS}
-            listLabel="Details to collect"
-            addLabel="Add a detail to collect"
+            listLabel="Details to note"
+            addLabel="Add a detail to note"
           />
           <Field label="When can meetings happen? (optional)" className="mt-5" hint="The agent offers times only inside this window. Leave empty and it just notes the time they prefer.">
             <VariableText

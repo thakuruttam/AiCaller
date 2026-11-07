@@ -187,13 +187,14 @@ describe('try chat with a person from the list', () => {
     callSettings: { maxDuration: 3 },
     variables,
   };
-  const body = { payload, person: { name: 'Rakesh', vars: { v_amt001: '₹1,250', v_due001: '46338' } }, messages: [{ role: 'user', text: 'Yes' }] };
+  const body = { payload, person: { name: 'Rakesh', vars: { v_amt001: '₹1,250', v_due001: '12 Nov' } }, messages: [{ role: 'user', text: 'Yes' }] };
 
   it('fills every text with the person\'s values', () => {
     const parsed = readTryChatBody(body);
     expect(parsed.contactName).toBe('Rakesh');
     const system = buildTryChatRequest(parsed).systemInstruction.parts[0].text;
-    expect(system).toContain('OBJECTIVE: Collect ₹1,250 by 12 November.');
+    // Values are said exactly as in the sheet.
+    expect(system).toContain('OBJECTIVE: Collect ₹1,250 by 12 Nov.');
     expect(system).toContain('1. Remind them of ₹1,250.');
     expect(system).toContain('"Hi Rakesh, about ₹1,250. Am I speaking with Rakesh?"');
     // Column names never reach the agent — only values where the lines put them.

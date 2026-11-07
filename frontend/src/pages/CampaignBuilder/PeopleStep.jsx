@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Avatar, Badge, Button, Card, IconButton, Input, Select } from '../../components/ui';
+import { Alert, Avatar, Badge, Button, Card, IconButton, Input } from '../../components/ui';
 import { useConfirm } from '../../context/ConfirmContext';
 import ContactImport from './ContactImport';
 import ContactEditor from './ContactEditor';
@@ -7,21 +7,20 @@ import {
   clearFlaggedCells, flaggedContacts, formatPhone, hasPersonalisation, mergeContacts, plural, removeVariable,
   renameVariable, usedVariableRefs,
 } from './campaignModel';
-import { VARIABLE_HINT, VARIABLE_TYPES, formatValue, parseValue } from '../../lib/contactVariables';
+import { VARIABLE_HINT, cleanValue } from '../../lib/contactVariables';
 
 const PAGE = 50;
 const NONE = [];
-const TYPE_LABELS = { text: 'Text', number: 'Number', money: 'Money (₹)', date: 'Date' };
 
-/** One variable: its name in {{ }}, type, whether the agent may mention it, and what to say when a cell is empty. */
-function VariableRow({ v, used, sample, onRename, onChange, onRemove }) {
+/** One variable: its name in {{ }}, the column it comes from, an example value. */
+function VariableRow({ v, used, sample, onRename, onRemove }) {
   const [key, setKey] = useState(v.key);
   const [error, setError] = useState('');
   const commit = () => {
     if (key === v.key) return;
     if (!onRename(key)) { setError('Taken or empty — pick another name.'); setKey(v.key); } else setError('');
   };
-  const said = formatValue(parseValue(sample, v.type).value, v.type);
+  const said = cleanValue(sample);
   return (
     <li className="py-3 first:pt-0 last:pb-0">
       <div className="flex items-center gap-2">
@@ -43,12 +42,6 @@ function VariableRow({ v, used, sample, onRename, onChange, onRemove }) {
           ? <Badge tone="caution" dot={false} capitalize={false}>Needs a column — upload a file with it</Badge>
           : <span className="text-xs text-muted-foreground truncate max-w-[200px]">From “{v.sourceColumns?.join(' + ') || v.label}”{said ? ` · e.g. ${said}` : ''}</span>}
         {used && <Badge tone="brand" dot={false} capitalize={false}>Used in the call</Badge>}
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <Select aria-label={`Type of ${v.key}`} value={v.type} onChange={(e) => onChange({ type: e.target.value })} className="!h-8 text-xs">
-          {VARIABLE_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-        </Select>
-        <Input aria-label={`If ${v.key} is empty, say`} value={v.fallback || ''} onChange={(e) => onChange({ fallback: e.target.value })} placeholder="If empty, say…" className="!h-8 text-xs" />
       </div>
     </li>
   );
@@ -183,7 +176,7 @@ export default function PeopleStep({ payload, update, onError }) {
                     <p className="text-xs text-muted-foreground tabular-nums truncate">
                       {formatPhone(c.phone)}
                       {shownVars.map(v => {
-                        const said = formatValue(parseValue(c.vars?.[v.id], v.type).value, v.type);
+                        const said = cleanValue(c.vars?.[v.id]);
                         return said ? <span key={v.id}> · {v.key}: {said}</span> : null;
                       })}
                     </p>
@@ -215,7 +208,7 @@ export default function PeopleStep({ payload, update, onError }) {
       <Card className="lg:sticky lg:top-28">
         <h2 className="text-sm font-semibold text-foreground">Variables</h2>
         <p className="text-xs text-muted-foreground mt-0.5 mb-4">
-          Columns you can use in the call. {VARIABLE_HINT}. {'{{name}}'} is always there. The agent only knows a value where you put it — the column's name means nothing to it.
+          Columns from your sheet. {VARIABLE_HINT}. {'{{name}}'} is always there. A value is said exactly as it is in the sheet, only where you put it.
         </p>
         {variables.length === 0 ? (
           <p className="text-xs text-muted-foreground">Upload a spreadsheet with more columns — like an amount or a date — and they appear here.</p>
@@ -228,7 +221,6 @@ export default function PeopleStep({ payload, update, onError }) {
                 used={used.has(v.key) || used.has(v.id)}
                 sample={contacts.find(c => c.vars?.[v.id])?.vars?.[v.id]}
                 onRename={(key) => { const next = renameVariable(payload, v.id, key); if (next) update(next); return !!next; }}
-                onChange={(patch) => update({ variables: variables.map(x => (x.id === v.id ? { ...x, ...patch } : x)) })}
                 onRemove={() => dropVariable(v)}
               />
             ))}

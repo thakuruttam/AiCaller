@@ -10,6 +10,9 @@ import { buildConversationInstructions, languageDirective } from './utils/conver
 // hanging the whole turn indefinitely.
 const LLM_FETCH_TIMEOUT_MS = 10000;
 
+// A captured value that only says the detail wasn't given.
+const NON_ANSWER_RE = /^(?:n\/?a|none|nil|null|unknown|-+|\?+|not (?:sure|known|given|provided|mentioned|stated|shared|specified|applicable)|no (?:answer|date|response|reply|details?|info(?:rmation)?)(?: (?:given|provided|mentioned|shared|specified))?|(?:did ?n[o']t|does ?n[o']t|won[' ]?t) (?:say|share|give|tell|know|mention)\b.*|declined.*|refused.*|(?:caller )?(?:didn't|did not) (?:answer|respond).*|pata nahi?)\.?$/i;
+
 export class VoiceAgent {
   constructor(config) {
     // Never speak a cuss word typed into the campaign's script: clean every field the bot can say
@@ -900,6 +903,13 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
     const text = String(value ?? '').trim().slice(0, 500);
     if (!key || !text) {
       console.warn(`[VoiceAgent] capture_detail ignored — "${name}" is not a configured detail or the value is empty`);
+      return false;
+    }
+    // Details are only noted when the caller actually states them — a
+    // "no date given" / "not mentioned" is not a detail and must not show
+    // up in the report (2026-11-07).
+    if (NON_ANSWER_RE.test(text)) {
+      console.log(`[VoiceAgent] capture_detail ignored — "${key}" was a non-answer`);
       return false;
     }
     this.capturedDetails[key] = text;
