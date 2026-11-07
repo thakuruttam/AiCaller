@@ -60,16 +60,6 @@ const AUTONOMOUS_TOOLS = [
 const CONVERSATION_TOOLS = [
   {
     type: 'function',
-    name: 'capture_detail',
-    description: "Call only when the caller clearly states one of the DETAILS TO NOTE on their own, with the detail's name exactly as listed and what they said. Never ask for these, and never call it for a refusal or a non-answer.",
-    parameters: {
-      type: 'object',
-      properties: { name: { type: 'string' }, value: { type: 'string' } },
-      required: ['name', 'value']
-    }
-  },
-  {
-    type: 'function',
     name: 'end_call',
     description: 'Call when the conversation should end, with the reason it ended. Call it without speaking any goodbye yourself: the closing line is played automatically.',
     parameters: {
@@ -409,6 +399,14 @@ export function setupPlivoStream() {
     // If the closing line's playback is never confirmed (cleared, dropped,
     // or the model went quiet), hang up anyway rather than leave the line open.
     let endFallback = null;
+    // The call's goodbye. Gemini Live has a dedicated mode that can't be
+    // cut off by the caller and retries until it is heard; other engines
+    // force it over whatever the model was saying.
+    function sayClosing(text) {
+      if (realtimeSession?.speakClosing) realtimeSession.speakClosing(text);
+      else realtimeSession?.interruptAndSpeak(text);
+    }
+
     function scheduleEndFallback() {
       if (endFallback) return;
       endFallback = setTimeout(() => {
@@ -514,6 +512,12 @@ export function setupPlivoStream() {
         const formattedTranscript = history.length > 0
           ? header + history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')
           : header + '[No speech detected]';
+
+        // Conversation campaigns: the details to note are read from the
+        // transcript now that the call is over (the live agent never sees them).
+        if (agent?.mode === 'conversation' && history.length > 0) {
+          await agent.extractDetails(formattedTranscript);
+        }
 
         if (callLogId && history.length > 0) {
           await prisma.callLog.update({
@@ -718,7 +722,7 @@ export function setupPlivoStream() {
         lastClosingText = closingText;
             scheduleEndFallback();
         closingRetried = false;
-        realtimeSession.interruptAndSpeak(closingText);
+        sayClosing(closingText);
         if (callSid) agent.saveState(redis, callSid);
         return;
       }
@@ -750,7 +754,7 @@ export function setupPlivoStream() {
             lastClosingText = closingText;
             scheduleEndFallback();
             closingRetried = false;
-            realtimeSession.interruptAndSpeak(closingText);
+            sayClosing(closingText);
             if (callSid) agent.saveState(redis, callSid);
             return;
           }
@@ -782,7 +786,7 @@ export function setupPlivoStream() {
           lastClosingText = closingText;
             scheduleEndFallback();
           closingRetried = false;
-          realtimeSession.interruptAndSpeak(closingText);
+          sayClosing(closingText);
         }
         if (callSid) agent.saveState(redis, callSid);
       }
@@ -898,7 +902,7 @@ export function setupPlivoStream() {
                   lastClosingText = closingText;
             scheduleEndFallback();
                   closingRetried = false;
-                  realtimeSession.interruptAndSpeak(closingText);
+                  sayClosing(closingText);
                 }
                 if (callSid) agent.saveState(redis, callSid);
                 return;
@@ -928,7 +932,7 @@ export function setupPlivoStream() {
           // event via onAssistantTranscript — appending it here too
           // double-recorded every closing line (confirmed live: "Thank you
           // for your time. Goodbye." appeared twice in the saved transcript).
-          realtimeSession.interruptAndSpeak(closingText);
+          sayClosing(closingText);
           if (callSid) agent.saveState(redis, callSid);
           break;
         }
@@ -1355,7 +1359,8 @@ export function setupPlivoStream() {
                     );
                     return;
                   }
-                  if (pendingAutonomousContinuation) {
+                  // Once the goodbye has played, nothing else may hold up the hangup.
+                  if (pendingAutonomousContinuation && !isCallEnding) {
                     pendingAutonomousContinuation = false;
                     if (!hadAudio && !isCallEnding) {
                       console.log('[Stream] Tool-call turn had no speech — prompting the model to continue');
@@ -1471,7 +1476,7 @@ export function setupPlivoStream() {
                   const signOff = finalGoals.callSignOff || "I'm sorry, I need to end this call now. Thank you for your time. Goodbye!";
                   lastClosingText = signOff;
                   closingRetried = false;
-                  realtimeSession.interruptAndSpeak(signOff);
+                  sayClosing(signOff);
                   if (callSid) agent.saveState(redis, callSid);
                   setTimeout(() => { if (!transcriptSaved && callSid) hangupCall(callSid); }, 10000);
                   return;

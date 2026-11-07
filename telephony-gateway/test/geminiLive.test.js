@@ -120,6 +120,56 @@ describe('Gemini Live provider — forcing a line over the model', () => {
     }
   });
 
+  it('goodbye: the caller talking over it does not silence it (live call 2026-11-07)', () => {
+    vi.useFakeTimers();
+    try {
+      socket._message({ toolCall: { functionCalls: [{ id: 'c1', name: 'end_call', args: { reason: 'objective_met' } }] } });
+      session.speakClosing('Thank you, goodbye');
+      vi.advanceTimersByTime(1300); // the muted turn never completes
+      expect(speakTexts(socket)).toHaveLength(1);
+      socket._message({ serverContent: { interrupted: true } }); // caller still talking
+      expect(handlers.onSpeechStart).not.toHaveBeenCalled();
+      socket._message({ serverContent: { turnComplete: true } }); // stale end, no audio yet
+      expect(handlers.onResponseDone).not.toHaveBeenCalled();
+      socket._message(audioMsg());
+      expect(handlers.onAudio).toHaveBeenCalledTimes(1);
+      socket._message({ serverContent: { turnComplete: true } });
+      expect(handlers.onResponseDone).toHaveBeenCalledWith(true);
+      session.speak('anything else'); // nothing may follow the goodbye
+      expect(speakTexts(socket)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('goodbye: re-sent when no audio for it arrives', () => {
+    vi.useFakeTimers();
+    try {
+      session.speakClosing('Thank you, goodbye');
+      expect(speakTexts(socket)).toHaveLength(1);
+      vi.advanceTimersByTime(4100);
+      expect(speakTexts(socket)).toHaveLength(2);
+      vi.advanceTimersByTime(4100);
+      expect(speakTexts(socket)).toHaveLength(3);
+      vi.advanceTimersByTime(10000);
+      expect(speakTexts(socket)).toHaveLength(3); // gives up after 3
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('goodbye: said again in full if the caller cuts it off part-way', () => {
+    session.speakClosing('Thank you, goodbye');
+    socket._message(audioMsg());
+    socket._message({ serverContent: { interrupted: true } });
+    socket._message({ serverContent: { turnComplete: true } });
+    expect(handlers.onResponseDone).not.toHaveBeenCalled();
+    expect(speakTexts(socket)).toHaveLength(2);
+    socket._message(audioMsg());
+    socket._message({ serverContent: { turnComplete: true } });
+    expect(handlers.onResponseDone).toHaveBeenCalledWith(true);
+  });
+
   it('speaks immediately when nothing is in flight', () => {
     session.interruptAndSpeak('thank you for your time');
     expect(handlers.onClearPlayback).not.toHaveBeenCalled();

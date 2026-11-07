@@ -109,7 +109,7 @@ export function buildTryChatRequest({ payload, messages, contactName, variables 
   return {
     systemInstruction: { parts: [{ text: `${instructions}\n\n${note}` }] },
     contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),
-    tools: [{ functionDeclarations: [CAPTURE_DETAIL_TOOL, END_CALL_TOOL] }],
+    tools: [{ functionDeclarations: [END_CALL_TOOL] }],
     // Same low temperature as a live conversation call, so the test behaves alike.
     generationConfig: { temperature: Number(process.env.GEMINI_CONVERSATION_TEMPERATURE ?? 0.3) },
   };

@@ -66,7 +66,7 @@ describe('buildTryChatRequest', () => {
     expect(system).toContain('Hi Uttam, this is Priya from Acme.');
     expect(req.contents.map(c => c.role)).toEqual(['user', 'model', 'user']);
     const tools = Object.fromEntries(req.tools[0].functionDeclarations.map(t => [t.name, t]));
-    expect(Object.keys(tools)).toEqual(['capture_detail', 'end_call']);
+    expect(Object.keys(tools)).toEqual(['end_call']);
     expect(tools.end_call.parameters.properties.reason.enum).toContain('no_progress');
   });
 });

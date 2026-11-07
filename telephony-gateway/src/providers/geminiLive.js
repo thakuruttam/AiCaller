@@ -268,6 +268,18 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
   // on if it mistakes echo for real speech.
   let responseCancelPending = false;
   let forceSpeakTimer = null;
+  // The call's goodbye (speakClosing). Once set, it is the only thing left
+  // to say: caller "interruptions" no longer cut it, and it is re-sent if
+  // no audio for it arrives — on live calls (2026-11-07) a barge-in or a
+  // turn that never completed swallowed it and the caller heard silence.
+  let closingText = null;
+  let closingSent = false;
+  let closingHeard = false;
+  let closingCut = false;
+  let closingTries = 0;
+  let closingDone = false;
+  let closingTimer = null;
+  const CLOSING_AUDIO_WAIT_MS = Number(process.env.GEMINI_CLOSING_AUDIO_WAIT_MS) || 4000;
   // True from a force-sent line until its first audio: a turnComplete with
   // no audio before then is the late end of the muted turn, not this line.
   let forcedAwaitingAudio = false;
@@ -294,6 +306,34 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       pendingSpeakText = null;
       sendSpeak(text);
     }
+  }
+
+  function sendClosing() {
+    if (!closingText || closingDone || !ready || ws.readyState !== WebSocket.OPEN) return;
+    clearTimeout(forceSpeakTimer);
+    clearTimeout(closingTimer);
+    closingTries += 1;
+    closingSent = true;
+    closingHeard = false;
+    closingCut = false;
+    pendingSpeakText = null;
+    responseCancelPending = false;
+    dropMutedText = false;
+    assistantTranscriptBuffer = '';
+    responseInFlight = false;
+    sawAudioThisTurn = false;
+    forcedAwaitingAudio = false;
+    console.log(`[GeminiLive] Speaking the goodbye (attempt ${closingTries}): "${closingText}"`);
+    sendSpeak(closingText);
+    closingTimer = setTimeout(() => {
+      if (closingDone || closingHeard) return;
+      if (closingTries >= 3) {
+        console.warn('[GeminiLive] Goodbye produced no audio after 3 attempts — giving up');
+        return;
+      }
+      console.warn(`[GeminiLive] No goodbye audio within ${CLOSING_AUDIO_WAIT_MS}ms — sending it again`);
+      sendClosing();
+    }, CLOSING_AUDIO_WAIT_MS);
   }
 
   function sendSpeak(text) {
@@ -399,6 +439,13 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     const sc = msg.serverContent;
     if (!sc) return;
 
+    if (sc.interrupted && closingText) {
+      // Saying goodbye: the caller talking over it must not silence it.
+      if (closingHeard) closingCut = true;
+      console.log('[GeminiLive] Caller spoke during the goodbye — not treated as a barge-in');
+      return;
+    }
+
     if (sc.interrupted) {
       responseInFlight = false;
       console.log('[GeminiLive] Caller started speaking while bot was talking — barge-in');
@@ -427,7 +474,9 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       responseInFlight = true;
       for (const part of sc.modelTurn.parts) {
         if (part.thought) continue; // internal reasoning — never spoken, never forwarded
-        if (part.inlineData?.data && !responseCancelPending) {
+        if (part.inlineData?.data && !responseCancelPending && !closingDone) {
+          if (closingText && !closingSent) continue; // the muted turn, before the goodbye was sent
+          if (closingText) closingHeard = true;
           sawAudioThisTurn = true;
           forcedAwaitingAudio = false;
           handlers.onAudio?.(pcm24kBase64ToMulaw8k(part.inlineData.data));
@@ -440,6 +489,20 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       // flush its accumulated transcript now, same moment OpenAI's discrete
       // transcription-completed event would have fired.
       flushInputTranscript();
+    }
+
+    if (sc.turnComplete && closingText) {
+      if (closingDone) return;
+      if (!closingSent) { sendClosing(); return; } // the muted turn finished — say the goodbye now
+      if (!closingHeard) return; // a stale turn end; closingTimer re-sends if no audio comes
+      if (closingCut && closingTries < 3) { sendClosing(); return; } // cut off mid-way — say it whole
+      closingDone = true;
+      clearTimeout(closingTimer);
+      botSpeaking = false;
+      responseInFlight = false;
+      flushAssistantTranscript();
+      handlers.onResponseDone?.(true);
+      return;
     }
 
     if (sc.turnComplete) {
@@ -480,6 +543,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
   ws.on('close', () => {
     ready = false;
     clearTimeout(forceSpeakTimer);
+    clearTimeout(closingTimer);
     console.log('[GeminiLive] Connection closed');
     handlers.onClose?.();
   });
@@ -496,6 +560,7 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
     },
 
     speak(text) {
+      if (closingText) return; // the goodbye owns the rest of the call
       if (!ready || ws.readyState !== WebSocket.OPEN || botSpeaking) {
         pendingSpeakText = text;
         return;
@@ -517,7 +582,28 @@ export function setupGeminiLive(instructions, handlers, language = 'en', voiceOv
       handlers.onClearPlayback?.();
     },
 
+    /**
+     * The call's last line: cut whatever the model is saying, then say this
+     * and nothing else. onResponseDone(true) fires once it has played out.
+     */
+    speakClosing(text) {
+      if (closingText) return;
+      closingText = text;
+      if (botSpeaking || responseInFlight || responseCancelPending) {
+        console.log(`[GeminiLive] Muting in-flight response for the goodbye: "${text}"`);
+        responseCancelPending = true;
+        dropMutedText = true;
+        handlers.onClearPlayback?.();
+        // Don't wait long for the muted turn to finish (it sometimes never does).
+        clearTimeout(forceSpeakTimer);
+        forceSpeakTimer = setTimeout(() => { if (!closingSent) sendClosing(); }, Number(process.env.GEMINI_FORCE_SPEAK_WAIT_MS) || 1200);
+        return;
+      }
+      sendClosing();
+    },
+
     interruptAndSpeak(text) {
+      if (closingText) return; // the goodbye owns the rest of the call
       // Gemini Live has no "cancel the in-flight response" message like
       // OpenAI's response.cancel, and sending a new turn mid-response did
       // NOT stop the old one: on a live call (2026-11-05) the model's own

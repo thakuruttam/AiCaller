@@ -897,6 +897,43 @@ NEVER ANNOUNCE A RESULT — this overrides everything above, including the GOAL:
    * anything else the model offers is dropped, so it can't collect personal
    * data nobody asked for.
    */
+  /**
+   * Reads the campaign's "details to note" out of the finished call's
+   * transcript. The live agent never sees that list (it kept asking for the
+   * details when it did), so this is the only place they're filled in. Only
+   * what the CALLER clearly said counts; anything else is left out.
+   */
+  async extractDetails(transcript) {
+    const wanted = this.config.conversation?.detailsToCollect || [];
+    if (!wanted.length || !String(transcript || '').trim() || !process.env.OPENAI_API_KEY) return this.capturedDetails;
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4.1-mini',
+          temperature: 0,
+          response_format: { type: 'json_object' },
+          messages: [{
+            role: 'user',
+            content: `Below is a phone call transcript (ASSISTANT = our agent, USER = the person called). For each detail in the list, give what the USER clearly said about it, in a few words, in English. If the USER did not clearly state it — including when they were vague, refused, or only the ASSISTANT said something — use null. Never guess.\n\nDetails: ${JSON.stringify(wanted)}\n\nTranscript:\n${String(transcript).slice(0, 20000)}\n\nReply with a JSON object whose keys are exactly the detail names above.`
+          }]
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) { console.warn(`[VoiceAgent] Detail extraction failed (${response.status})`); return this.capturedDetails; }
+      const data = await response.json();
+      this._trackLlmUsage?.(data);
+      const found = JSON.parse(data.choices?.[0]?.message?.content || '{}');
+      for (const [name, value] of Object.entries(found)) {
+        if (value !== null && value !== undefined) this.recordDetail(name, String(value));
+      }
+    } catch (e) {
+      console.error('[VoiceAgent] Detail extraction error:', e.message);
+    }
+    return this.capturedDetails;
+  }
+
   recordDetail(name, value) {
     const wanted = this.config.conversation?.detailsToCollect || [];
     const key = wanted.find(d => d.trim().toLowerCase() === String(name || '').trim().toLowerCase());

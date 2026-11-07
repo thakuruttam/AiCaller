@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { VoiceAgent } from '../src/VoiceAgent.js';
 import {
   buildConversationInstructions, normalizeConversation,
@@ -111,13 +111,12 @@ describe('buildConversationInstructions', () => {
     expect(text).toMatch(/Never say a meeting is booked or confirmed/);
   });
 
-  it('asks only for the configured details, and for none when none are set', () => {
+  it('never shows the agent the details to note — they are read from the transcript after the call', () => {
     const text = build();
-    expect(text).toContain('- Email');
-    expect(text).toContain('- Preferred demo time');
-    expect(text).toMatch(/call capture_detail/);
-    expect(build({ conversation: { ...conversation, detailsToCollect: [] } }))
-      .toMatch(/Do not ask the caller for any personal or contact details/);
+    expect(text).not.toContain('- Email');
+    expect(text).not.toContain('Preferred demo time');
+    expect(text).not.toMatch(/capture_detail/);
+    expect(text).toMatch(/never ask for personal or contact details/);
   });
 
   it('uses the availability window, or offers no times at all without one', () => {
@@ -293,14 +292,14 @@ describe('details are only noted, never asked', () => {
 
   it('tells the agent never to ask and to note only what is stated', () => {
     const text = build('English');
-    expect(text).toMatch(/DETAILS TO NOTE — listen for these, but NEVER ask the caller for them/);
-    expect(text).toMatch(/If they don't mention it, or are vague, refuse or don't know, do NOT call capture_detail/);
+    expect(text).not.toContain('Mascara brand they use');
+    expect(text).toMatch(/ask only what the OBJECTIVE or the call steps need. Never ask why they can or can't do something/);
     expect(text).not.toMatch(/at most TWICE/);
   });
 
   it('repeats the rule in the final check, in the language being spoken', () => {
-    expect(build('English').slice(build('English').lastIndexOf('FINAL CHECK'))).toMatch(/Never ask the caller for any of the DETAILS TO NOTE/);
-    expect(build('Hinglish').slice(build('Hinglish').lastIndexOf('FINAL CHECK'))).toMatch(/DETAILS TO NOTE ke liye caller se KABHI sawaal mat poochho/);
+    expect(build('English').slice(build('English').lastIndexOf('FINAL CHECK'))).toMatch(/Ask only what the OBJECTIVE or the call steps need/);
+    expect(build('Hinglish').slice(build('Hinglish').lastIndexOf('FINAL CHECK'))).toMatch(/kaaran KABHI mat poochho/);
   });
 });
 
@@ -392,5 +391,34 @@ describe('captured details skip non-answers', () => {
     expect(agent.recordDetail('Ready to pay or not', 'no')).toBe(true);
     expect(agent.recordDetail('By when will they pay', '15 November')).toBe(true);
     expect(agent.capturedDetails).toEqual({ 'Ready to pay or not': 'no', 'By when will they pay': '15 November' });
+  });
+});
+
+describe('details to note are read from the transcript after the call', () => {
+  afterEach(() => { vi.unstubAllGlobals(); delete process.env.OPENAI_API_KEY; });
+
+  it('keeps only what the caller stated', async () => {
+    process.env.OPENAI_API_KEY = 'test';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({ 'By when will they pay': '1st of the month', 'Ready to pay or not': null }) } }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const agent = new VoiceAgent({
+      contactName: 'Uttam', useAutonomousEngine: true, mode: 'conversation', dataToCollect: [],
+      conversation: { ...conversation, detailsToCollect: ['By when will they pay', 'Ready to pay or not'] },
+    });
+    const details = await agent.extractDetails('ASSISTANT: Kab tak?\n\nUSER: 1 tarikh ko kar dunga');
+    expect(details).toEqual({ 'By when will they pay': '1st of the month' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).messages[0].content).toContain('1 tarikh ko kar dunga');
+  });
+
+  it('does nothing when no details are configured', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const agent = new VoiceAgent({ contactName: 'Uttam', useAutonomousEngine: true, mode: 'conversation', dataToCollect: [], conversation });
+    agent.config.conversation = { ...conversation, detailsToCollect: [] };
+    expect(await agent.extractDetails('USER: hi')).toEqual({});
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

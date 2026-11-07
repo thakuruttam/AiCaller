@@ -51,7 +51,7 @@ export function finalRules(language) {
 4. Company ka naam sirf opening line se lo. Opening line mein company na ho to kisi company ka naam mat lo — product ke naam mein jo brand hai (jaise "<brand> <product>"), wo call karne wali company nahi hai. Koi pooche "kahan se bol rahe ho?", to bolo: "${NO_COMPANY_ANSWER_HINGLISH}"
 5. Tum order place, book ya confirm nahi kar sakte. "Order place kar doon?" mat bolo — bolo: "${HANDOFF_LINE_HINGLISH}"
 6. Ek hi product do baar se zyada offer mat karo, jo product caller ne ignore ya mana kiya use dobara mat bolo, aur har reply ke end mein ek hi sawaal mat dohrao.
-7. DETAILS TO NOTE ke liye caller se KABHI sawaal mat poochho. Sirf tab capture_detail call karo jab caller khud saaf-saaf wo detail bataye.
+7. Sirf wahi poochho jo OBJECTIVE ya call ke steps ke liye zaroori hai. "Kyun nahi kar paoge?" jaisa kaaran KABHI mat poochho, aur koi personal detail mat maango.
 8. Kabhi dhamki mat do, dabaav mat daalo, aur koi nateeja (penalty, legal action, ID/account par asar) mat batao jab tak KNOWLEDGE mein saaf na likha ho.
 
 Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh sirf examples hain, inhe bolna nahi hai):
@@ -69,7 +69,7 @@ Galat → Sahi (<product>, <price> ki jagah KNOWLEDGE ki asli cheezein — yeh s
 4. Take the company name only from the opening line. If the opening line names no company, never name one — a brand inside a product name (like "<brand> <product>") is the product's maker, not who is calling. If asked who or where you are calling from, say: "${NO_COMPANY_ANSWER}"
 5. You cannot place, book or confirm orders. Never say "Shall I place the order?" — say: "${HANDOFF_LINE}"
 6. Never offer the same item more than twice, don't re-offer an item the caller ignored or turned down, and don't end every reply with the same question.
-7. Never ask the caller for any of the DETAILS TO NOTE. Call capture_detail only when the caller clearly states one on their own.
+7. Ask only what the OBJECTIVE or the call steps need. Never ask why they can or can't do something, and never ask for personal details.
 8. Never threaten, pressure or mention consequences (penalties, legal action, effect on their ID or account) unless the KNOWLEDGE says so.
 
 Wrong → Right (<product> and <price> stand for real items from the KNOWLEDGE — these are examples, not lines to say):
@@ -186,12 +186,11 @@ KNOWLEDGE>>>`
     ? '- not_interested: the first time they clearly say they are not interested. Do not try to change their mind.'
     : '- not_interested: if they say they are not interested, you may address their concern ONCE, briefly, using only the KNOWLEDGE. If they still say no, accept it and call end_call. Never push past a second no.';
 
-  const details = c.detailsToCollect.length
-    ? `DETAILS TO NOTE — listen for these, but NEVER ask the caller for them and never steer the call toward them:
-${bullets(c.detailsToCollect)}
-- Only when the caller clearly states one of these on their own, call capture_detail with the detail's name exactly as written above and what they said.
-- If they don't mention it, or are vague, refuse or don't know, do NOT call capture_detail for it.`
-    : 'DETAILS TO NOTE: none. Do not ask the caller for any personal or contact details.';
+  // The campaign's "details to note" are deliberately NOT given to the
+  // agent: told "never ask" while seeing the list, it still asked for them
+  // on live calls (2026-11-07). They are read from the transcript after the
+  // call instead (VoiceAgent.extractDetails).
+  const details = 'QUESTIONS: ask only what the OBJECTIVE or the call steps need. Never ask why they can or can\'t do something, and never ask for personal or contact details.';
 
   const scheduling = c.availability
     ? `SCHEDULING: meetings can only happen ${c.availability}. If they want a meeting, ask which day and time in that window suits them. If they ask for a time outside it, say politely that it's outside the hours the team is available and offer to pick a time inside it — do not argue or explain further. Never say a meeting is booked or confirmed.`
