@@ -1,6 +1,6 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { CONVERSATION_END_REASONS, greetingDirective } from './utils/conversationPrompt.js';
-import { aboutThisPerson, renderText } from './utils/contactVariables.js';
+import { renderText } from './utils/contactVariables.js';
 import { VoiceAgent } from './VoiceAgent.js';
 import { prisma } from './db.js';
 import { publishEvaluation } from './queues/ingestQueue.js';
@@ -178,7 +178,10 @@ export function setupPlivoStream() {
     // priced on the Usage page. Gemini's usage reports are kept one by one —
     // whether each is per turn or a running total isn't settled in Google's
     // docs, so the pricing side decides how to add them up.
-    const callUsage = { engine: null, model: null, geminiReports: [], sarvamSeconds: 0 };
+    const callUsage = { engine: null, model: null, geminiReports: [], sarvamSeconds: 0, latencyMs: [] };
+    // When the caller last spoke — the next bot audio chunk closes the gap,
+    // recorded as that turn's response latency.
+    let awaitingReplySince = null;
     let lastClosingText = null;
     let closingRetried = false;
     // Always null — the persistent Deepgram TTS WebSocket (DeepgramTTSSocket
@@ -399,6 +402,19 @@ export function setupPlivoStream() {
       if (silenceTimeout) clearTimeout(silenceTimeout);
     }
 
+    // If the closing line's playback is never confirmed (cleared, dropped,
+    // or the model went quiet), hang up anyway rather than leave the line open.
+    let endFallback = null;
+    function scheduleEndFallback() {
+      if (endFallback) return;
+      endFallback = setTimeout(() => {
+        if (!transcriptSaved && callSid) {
+          console.warn(`[Stream] Closing line not confirmed in 15s — hanging up ${callSid}`);
+          hangupCall(callSid).catch(() => {});
+        }
+      }, 15000);
+    }
+
     function resetSilenceTimeout() {
       clearSilenceTimeout();
       silenceTimeout = setTimeout(async () => {
@@ -509,6 +525,7 @@ export function setupPlivoStream() {
                 language: campaignLanguage,
                 geminiReports: callUsage.geminiReports,
                 sarvamSeconds: Math.round(callUsage.sarvamSeconds * 10) / 10,
+                latencyMs: callUsage.latencyMs,
                 openai: agent?.llmUsage || {},
               },
               ...((agent?.endReason || Object.keys(agent?.capturedDetails || {}).length)
@@ -695,6 +712,7 @@ export function setupPlivoStream() {
         isCallEnding = true;
         const closingText = politeHangupLine(agent.language);
         lastClosingText = closingText;
+            scheduleEndFallback();
         closingRetried = false;
         realtimeSession.interruptAndSpeak(closingText);
         if (callSid) agent.saveState(redis, callSid);
@@ -726,6 +744,7 @@ export function setupPlivoStream() {
             isCallEnding = true;
             const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
             lastClosingText = closingText;
+            scheduleEndFallback();
             closingRetried = false;
             realtimeSession.interruptAndSpeak(closingText);
             if (callSid) agent.saveState(redis, callSid);
@@ -757,6 +776,7 @@ export function setupPlivoStream() {
           isCallEnding = true;
           const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
           lastClosingText = closingText;
+            scheduleEndFallback();
           closingRetried = false;
           realtimeSession.interruptAndSpeak(closingText);
         }
@@ -872,6 +892,7 @@ export function setupPlivoStream() {
                   isCallEnding = true;
                   const closingText = agent.config.callSignOff || 'Thank you for your time. Goodbye.';
                   lastClosingText = closingText;
+            scheduleEndFallback();
                   closingRetried = false;
                   realtimeSession.interruptAndSpeak(closingText);
                 }
@@ -896,6 +917,7 @@ export function setupPlivoStream() {
             ? 'I apologize for the interruption. Have a great day.'
             : (agent.config.callSignOff || 'Thank you for your time. Goodbye.');
           lastClosingText = closingText;
+            scheduleEndFallback();
           closingRetried = false;
           // interruptAndSpeak's forced text still goes through the model's
           // normal speech pipeline, which emits its own assistant-transcript
@@ -1174,8 +1196,9 @@ export function setupPlivoStream() {
             const overrides = campaignContact?.overrides || {};
 
             // Campaign variables: every text is filled in with this person's
-            // values from the uploaded file ({{variableId}} → "₹460"), and the
-            // agent gets their facts as data (see contactVariables.js).
+            // values from the uploaded file ({{variableId}} → "₹460"). The agent
+            // knows a value only where the script uses it — the operator gives
+            // it meaning by placing it; column names never reach the agent.
             const variables = Array.isArray(campaign.variables) ? campaign.variables : [];
             const personValues = campaignContact?.vars || {};
             const personName = overrides.name || callLog.contact?.name;
@@ -1203,7 +1226,6 @@ export function setupPlivoStream() {
             const finalQuestions = (overrides.dataToCollect || campaign.dataToCollect || []).map(i => ({ ...i, text: fill(i.text) }));
             const finalEndCallIf = fill(campaign.endCallIf);
             const finalConversation = fillConversation(campaign.conversation);
-            const aboutPerson = variables.length ? aboutThisPerson({ variables, values: personValues, contactName: personName }) : '';
             if (missingVars.size) {
               const keys = [...missingVars].map(id => variables.find(v => v.id === id)?.key || id);
               console.warn(`[Stream] Call ${callLogId}: no value for ${keys.join(', ')} — used the "if empty" text`);
@@ -1223,7 +1245,6 @@ export function setupPlivoStream() {
               useAutonomousEngine: useAutonomous,
               mode: campaign.mode,
               conversation: finalConversation,
-              aboutPerson,
               maxMinutes: campaign.maxCallDurationSec ? Math.round(campaign.maxCallDurationSec / 60) : null
             });
 
@@ -1232,10 +1253,15 @@ export function setupPlivoStream() {
               processedIntro = processedIntro.replace(/\[Name\]/gi, agent.contactName);
 
               const introLower = processedIntro.toLowerCase();
-              if (!introLower.includes('speaking with') && !introLower.includes('is this') && !introLower.includes('are you')) {
-                processedIntro = processedIntro.trim();
+              if (!introLower.includes('speaking with') && !introLower.includes('is this') && !introLower.includes('are you')
+                && !introLower.includes('baat ') && !introLower.includes(' hain kya')) {
+                processedIntro = processedIntro.trim().replace(/[,\s]+$/, '');
                 if (!processedIntro.endsWith('?') && !processedIntro.endsWith('.')) processedIntro += '.';
-                processedIntro += ` Am I speaking with ${agent.contactName}?`;
+                // Asked in the campaign's language — appended in English, Gemini
+                // kept it in English on Hinglish calls (2026-11-07).
+                processedIntro += campaignLanguage === 'Hinglish'
+                  ? ` Kya meri baat ${agent.contactName} se ho rahi hai?`
+                  : ` Am I speaking with ${agent.contactName}?`;
               }
             }
 
@@ -1250,6 +1276,12 @@ export function setupPlivoStream() {
                   // while it speaks (half-duplex), so without this a long reply
                   // ran the 60s timer out and hung up (2026-11-07).
                   resetSilenceTimeout();
+                  if (awaitingReplySince) {
+                    const ms = Date.now() - awaitingReplySince;
+                    awaitingReplySince = null;
+                    if (callUsage.latencyMs.length < 100) callUsage.latencyMs.push(ms);
+                    console.log(`[Stream] Reply latency ${ms}ms`);
+                  }
                   if (ws.readyState === ws.OPEN && streamSid) {
                     ws.send(JSON.stringify({
                       event: 'playAudio',
@@ -1283,7 +1315,7 @@ export function setupPlivoStream() {
                   if (useAutonomous && autonomousPhaseActive) agent?.appendTranscriptTurn('assistant', text);
                 },
                 onToolCall: useAutonomous ? (name, args) => handleAutonomousToolCall(name, args) : undefined,
-                onSpeechActivity: () => resetSilenceTimeout(),
+                onSpeechActivity: () => { resetSilenceTimeout(); awaitingReplySince = Date.now(); },
                 // The server is overriding what the model was saying (forced
                 // sign-off, overruled end_call, stall valve): drop audio
                 // Plivo has already buffered so the caller doesn't hear the
@@ -1295,6 +1327,8 @@ export function setupPlivoStream() {
                   }
                 },
                 onSpeechStart: () => {
+                  // Never cut off the closing line.
+                  if (isCallEnding) return;
                   console.log('[Stream] Realtime barge-in — sending clearAudio');
                   if (ws.readyState === ws.OPEN && streamSid) {
                     ws.send(JSON.stringify({ event: 'clearAudio', streamId: streamSid }));
@@ -1486,7 +1520,10 @@ export function setupPlivoStream() {
           // Pipe raw mu-law audio to whichever engine is active for this call.
           const audioPayload = Buffer.from(msg.media.payload, 'base64');
           if (realtimeSession) {
-            realtimeSession.sendAudio(audioPayload);
+            // Once the call is ending, the caller is no longer heard: on a live
+            // call (2026-11-07) speech during the closing line interrupted it
+            // and Gemini answered, keeping the call going past its end.
+            if (!isCallEnding) realtimeSession.sendAudio(audioPayload);
           } else if (sttStream) {
             sttStream.sendAudio(audioPayload);
           }

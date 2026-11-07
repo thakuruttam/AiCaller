@@ -59,8 +59,11 @@ export const getCampaignById = async (req, res) => {
             contact: true
           }
         },
+        // The contact rides along so calls to people later removed from the
+        // list still show who was called.
         callLogs: {
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          include: { contact: true }
         }
       }
     });

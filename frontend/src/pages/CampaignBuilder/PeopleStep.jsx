@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Avatar, Badge, Button, Card, Checkbox, IconButton, Input, Select } from '../../components/ui';
+import { Alert, Avatar, Badge, Button, Card, IconButton, Input, Select } from '../../components/ui';
 import { useConfirm } from '../../context/ConfirmContext';
 import ContactImport from './ContactImport';
 import ContactEditor from './ContactEditor';
@@ -50,10 +50,6 @@ function VariableRow({ v, used, sample, onRename, onChange, onRemove }) {
         </Select>
         <Input aria-label={`If ${v.key} is empty, say`} value={v.fallback || ''} onChange={(e) => onChange({ fallback: e.target.value })} placeholder="If empty, say…" className="!h-8 text-xs" />
       </div>
-      <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-        <Checkbox checked={v.agentCanSee !== false} onChange={(e) => onChange({ agentCanSee: e.target.checked })} />
-        The agent may mention it when asked
-      </label>
     </li>
   );
 }
@@ -219,7 +215,7 @@ export default function PeopleStep({ payload, update, onError }) {
       <Card className="lg:sticky lg:top-28">
         <h2 className="text-sm font-semibold text-foreground">Variables</h2>
         <p className="text-xs text-muted-foreground mt-0.5 mb-4">
-          Columns you can use in the call. {VARIABLE_HINT}. {'{{name}}'} is always there.
+          Columns you can use in the call. {VARIABLE_HINT}. {'{{name}}'} is always there. The agent only knows a value where you put it — the column's name means nothing to it.
         </p>
         {variables.length === 0 ? (
           <p className="text-xs text-muted-foreground">Upload a spreadsheet with more columns — like an amount or a date — and they appear here.</p>

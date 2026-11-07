@@ -1,6 +1,6 @@
 import { recordAiUsage } from '../services/aiUsage.service.js';
 import { buildConversationInstructions, CONVERSATION_END_REASONS } from '../utils/conversationPrompt.js';
-import { aboutThisPerson, cleanValue, parseValue, renderText } from '../utils/contactVariables.js';
+import { cleanValue, parseValue, renderText } from '../utils/contactVariables.js';
 import { readVariables } from '../services/campaignContacts.service.js';
 
 /**
@@ -16,8 +16,8 @@ import { readVariables } from '../services/campaignContacts.service.js';
  * Body: { payload: { goals, conversation, endCallIf, callSettings, variables },
  *         person?: { name, vars: { [variableId]: raw } },
  *         contactName?, messages: [{ role: 'user' | 'assistant', text }] }
- * With a person, every {{variable}} is filled in with their values and the
- * agent gets their facts — the same fill-in a live call uses.
+ * With a person, every {{variable}} is filled in with their values — the
+ * same fill-in a live call uses.
  * Reply: { reply, endCall: null | { reason, closingLine }, captured: { [detail]: value } }
  */
 
@@ -101,7 +101,6 @@ export function buildTryChatRequest({ payload, messages, contactName, variables 
     maxMinutes,
     language: payload.callSettings?.language,
     openingLine: fill(payload.goals?.callIntro),
-    aboutPerson: variables.length ? aboutThisPerson({ variables, values, contactName }) : '',
   });
   const intro = String(fill(payload.goals?.callIntro) || '').trim();
   const spokenIn = payload.callSettings?.language === 'Hinglish' ? ' (said in Hinglish)' : '';

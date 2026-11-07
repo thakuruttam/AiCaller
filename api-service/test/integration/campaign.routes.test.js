@@ -635,3 +635,19 @@ describe('people saved apart from the script', () => {
     expect(foreign.status).toBe(403);
   });
 });
+
+describe('calls to people later removed from the list', () => {
+  it('GET /:id still returns their calls, with who was called', async () => {
+    const tenant = await makeTenant();
+    const callModule = await makeCallModule(tenant.id);
+    const admin = await makeUser('ADMIN');
+    const campaign = await prisma.campaign.create({ data: { name: 'C', tenantId: tenant.id, callModuleId: callModule.id, createdById: admin.id } });
+    const contact = await prisma.contact.create({ data: { name: 'Ira Sarin', phone: '+917204246465', tenantId: tenant.id } });
+    await prisma.callLog.create({ data: { tenantId: tenant.id, contactId: contact.id, campaignId: campaign.id, status: 'completed', durationMs: 39000 } });
+    // No CampaignContact — the person was removed after the call.
+    const res = await request(app).get(`/api/campaigns/${campaign.id}`).set('Authorization', authHeader({ userId: admin.id, tenantId: tenant.id }));
+    expect(res.status).toBe(200);
+    expect(res.body.campaignContacts).toEqual([]);
+    expect(res.body.callLogs[0]).toMatchObject({ status: 'completed', contact: { name: 'Ira Sarin', phone: '+917204246465' } });
+  });
+});

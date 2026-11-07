@@ -79,8 +79,14 @@ export default function CampaignDetails() {
   // call yet still get a single placeholder row.
   const contactById = new Map(contacts.map(cc => [cc.contactId, cc]));
   const loggedContactIds = new Set(logs.map(l => l.contactId));
+  // A call that really happened stays visible after its person is removed
+  // from the list (removing someone only deletes calls never placed).
   const rows = [
-    ...logs.map(log => ({ log, cc: contactById.get(log.contactId) })).filter(r => r.cc),
+    ...logs.map(log => ({
+      log,
+      cc: contactById.get(log.contactId)
+        || (log.status !== 'draft' && log.contact ? { contactId: log.contactId, contact: log.contact, overrides: {}, removed: true } : null),
+    })).filter(r => r.cc),
     ...contacts.filter(cc => !loggedContactIds.has(cc.contactId)).map(cc => ({ log: null, cc })),
   ];
 
@@ -244,6 +250,9 @@ export default function CampaignDetails() {
                     </Td>
                     <Td>
                       <div className="flex flex-wrap gap-2">
+                        {cc.removed && (
+                          <Badge tone="neutral" dot={false} capitalize={false}>Removed from list</Badge>
+                        )}
                         {cc.overrides?.tag && (
                           <Badge tone="brand" dot={false} capitalize={false}>{cc.overrides.tag}</Badge>
                         )}

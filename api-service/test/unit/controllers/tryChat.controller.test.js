@@ -189,14 +189,16 @@ describe('try chat with a person from the list', () => {
   };
   const body = { payload, person: { name: 'Rakesh', vars: { v_amt001: '₹1,250', v_due001: '46338' } }, messages: [{ role: 'user', text: 'Yes' }] };
 
-  it('fills every text with the person\'s values and gives the agent their facts', () => {
+  it('fills every text with the person\'s values', () => {
     const parsed = readTryChatBody(body);
     expect(parsed.contactName).toBe('Rakesh');
     const system = buildTryChatRequest(parsed).systemInstruction.parts[0].text;
     expect(system).toContain('OBJECTIVE: Collect ₹1,250 by 12 November.');
     expect(system).toContain('1. Remind them of ₹1,250.');
     expect(system).toContain('"Hi Rakesh, about ₹1,250. Am I speaking with Rakesh?"');
-    expect(system).toContain('- Amount owed: ₹1,250');
+    // Column names never reach the agent — only values where the lines put them.
+    expect(system).not.toContain('Amount owed');
+    expect(system).not.toContain('ABOUT THE PERSON');
     expect(system).not.toMatch(/\{\{/);
   });
 

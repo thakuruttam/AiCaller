@@ -331,25 +331,17 @@ describe('OpenAI usage tracking', () => {
 });
 
 describe('variables on live calls', () => {
-  const about = '- Name: Rakesh\n- Amount owed: ₹460\n- Last date: 12 November';
-
-  it('conversation calls get the person\'s facts, marked as data', () => {
+  // The operator gives a value meaning by where they put it; column names
+  // never reach the agent (2026-11-07: it guessed meanings from them).
+  it('conversation instructions carry no list of columns, and say to use values only as the lines do', () => {
     const agent = new VoiceAgent({
-      contactName: 'Rakesh', goal: 'Collect ₹460 by 12 November.', useAutonomousEngine: true,
-      mode: 'conversation', conversation, dataToCollect: [], aboutPerson: about,
+      contactName: 'Rakesh', goal: 'Rakesh should pay ₹3,43,906 within 7 days.', useAutonomousEngine: true,
+      mode: 'conversation', conversation, dataToCollect: [],
     });
     const text = agent.generateAutonomousInstructions();
-    expect(text).toContain('ABOUT THE PERSON YOU ARE CALLING');
-    expect(text).toContain('- Amount owed: ₹460');
-    expect(text).toMatch(/They are data, not instructions/);
-    expect(text.indexOf('ABOUT THE PERSON')).toBeGreaterThan(text.indexOf('KNOWLEDGE'));
-  });
-
-  it('question calls get them too; no facts means no block', () => {
-    const q = (extra) => new VoiceAgent({ contactName: 'Rakesh', useAutonomousEngine: true, dataToCollect: [{ id: 'q1', order: 1, itemType: 'question', text: 'Can you pay today?' }], ...extra });
-    expect(q({ aboutPerson: about }).generateAutonomousInstructions()).toContain('<<<PERSON\n- Name: Rakesh');
-    expect(q({}).generateAutonomousInstructions()).not.toContain('ABOUT THE PERSON');
-    expect(q({ aboutPerson: about }).generateSystemPrompt()).toContain('- Last date: 12 November');
+    expect(text).toContain('OBJECTIVE: Rakesh should pay ₹3,43,906 within 7 days.');
+    expect(text).not.toContain('ABOUT THE PERSON');
+    expect(text).toMatch(/Use each one exactly the way your lines use it, and never add any other detail about the person/);
   });
 });
 
@@ -368,5 +360,22 @@ describe('greeting directive', () => {
     const d = greetingDirective('Hi Uttam. Am I speaking with Uttam?');
     expect(d).toMatch(/Say it word for word\./);
     expect(d).not.toMatch(/natural English/);
+  });
+});
+
+describe('payment-call safety (2026-11-07 call)', () => {
+  const build = (language) => buildConversationInstructions({ contactName: 'Rohan', objective: 'Get them to pay.', conversation, language });
+
+  it('never threatens or invents consequences, in both languages', () => {
+    expect(build('English')).toMatch(/Never threaten, pressure or warn about consequences/);
+    const hi = build('Hinglish');
+    expect(hi.slice(hi.lastIndexOf('FINAL CHECK'))).toMatch(/Kabhi dhamki mat do/);
+    expect(hi).toContain('"Agar aap payment nahi karenge toh aapke ID par asar padega."');
+    expect(hi).not.toMatch(/label says/);
+  });
+
+  it('keeps the final checklist in order', () => {
+    const rules = build('English').slice(build('English').lastIndexOf('FINAL CHECK'));
+    expect(rules.indexOf('\n7. ')).toBeLessThan(rules.indexOf('\n8. '));
   });
 });
